@@ -9,7 +9,7 @@ from vibe_widget.templates import REACT_TEMPLATE
 
 
 class VibeWidget:
-    def __init__(self, api_key: str | None = None, model: str = "claude-3-5-sonnet-20241022"):
+    def __init__(self, api_key: str | None = None, model: str = "claude-sonnet-4-5-20250929"):
         self.llm_provider = ClaudeProvider(api_key=api_key, model=model)
 
     def create(
@@ -55,8 +55,9 @@ def create(
     df: pd.DataFrame,
     output_path: str | Path | None = None,
     api_key: str | None = None,
+    model: str = "claude-sonnet-4-5-20250929",
 ) -> str:
     global _default_widget
     if _default_widget is None:
-        _default_widget = VibeWidget(api_key=api_key)
+        _default_widget = VibeWidget(api_key=api_key, model=model)
     return _default_widget.create(description, df, output_path)

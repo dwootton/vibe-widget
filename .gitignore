@@ -57,3 +57,6 @@ pip-wheel-metadata/
 # Generated widgets
 *.html
 output/
+
+.meridian/
+

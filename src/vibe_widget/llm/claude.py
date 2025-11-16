@@ -7,7 +7,7 @@ from vibe_widget.llm.base import LLMProvider
 
 
 class ClaudeProvider(LLMProvider):
-    def __init__(self, api_key: str | None = None, model: str = "claude-3-5-sonnet-20241022"):
+    def __init__(self, api_key: str | None = None, model: str = "claude-sonnet-4-5-20250929"):
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
             raise ValueError(
