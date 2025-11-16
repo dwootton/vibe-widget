@@ -3,190 +3,91 @@ import * as d3 from "https://esm.sh/d3@7";
 function render({ model, el }) {
   const data = model.get("data");
   
+  // Clear previous content
+  el.innerHTML = "";
+  
+  // Create container
   const container = document.createElement("div");
-  container.style.cssText = `
-    font-family: Arial, sans-serif;
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-  `;
-  
-  const title = document.createElement("h2");
-  title.textContent = "Height & Weight Pictograph";
-  title.style.cssText = `
-    color: white;
-    text-align: center;
-    margin-bottom: 30px;
-    font-size: 24px;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-  `;
-  container.appendChild(title);
-  
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  const width = 800;
-  const height = 500;
-  svg.setAttribute("width", width);
-  svg.setAttribute("height", height);
-  svg.style.cssText = `
-    background: white;
-    border-radius: 8px;
-    display: block;
-    margin: 0 auto;
-  `;
-  
-  const margin = { top: 40, right: 40, bottom: 60, left: 80 };
-  const chartWidth = width - margin.left - margin.right;
-  const chartHeight = height - margin.top - margin.bottom;
-  
-  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  g.setAttribute("transform", `translate(${margin.left},${margin.top})`);
-  svg.appendChild(g);
-  
-  const heightScale = d3.scaleLinear()
-    .domain([0, d3.max(data, d => d.height)])
-    .range([chartHeight, 0]);
-  
-  const weightScale = d3.scaleLinear()
-    .domain([0, d3.max(data, d => d.weight)])
-    .range([0, chartWidth]);
-  
-  const colorScale = d3.scaleSequential(d3.interpolateViridis)
-    .domain([0, data.length - 1]);
-  
-  data.forEach((d, i) => {
-    const x = (i / data.length) * chartWidth + chartWidth / (data.length * 2);
-    const y = heightScale(d.height);
-    
-    const personGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    personGroup.setAttribute("transform", `translate(${x},${y})`);
-    personGroup.style.cursor = "pointer";
-    
-    const scale = Math.min(0.8, d.weight / 100);
-    const figureScale = 0.3 + scale * 0.4;
-    
-    const head = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    head.setAttribute("cx", "0");
-    head.setAttribute("cy", "-35");
-    head.setAttribute("r", 15 * figureScale);
-    head.setAttribute("fill", colorScale(i));
-    head.setAttribute("stroke", "#333");
-    head.setAttribute("stroke-width", "2");
-    
-    const body = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    body.setAttribute("x", -10 * figureScale);
-    body.setAttribute("y", -20);
-    body.setAttribute("width", 20 * figureScale);
-    body.setAttribute("height", 30 * figureScale);
-    body.setAttribute("fill", colorScale(i));
-    body.setAttribute("stroke", "#333");
-    body.setAttribute("stroke-width", "2");
-    body.setAttribute("rx", "5");
-    
-    const leftLeg = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    leftLeg.setAttribute("x1", -5 * figureScale);
-    leftLeg.setAttribute("y1", 10 * figureScale);
-    leftLeg.setAttribute("x2", -8 * figureScale);
-    leftLeg.setAttribute("y2", 30 * figureScale);
-    leftLeg.setAttribute("stroke", colorScale(i));
-    leftLeg.setAttribute("stroke-width", "4");
-    leftLeg.setAttribute("stroke-linecap", "round");
-    
-    const rightLeg = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    rightLeg.setAttribute("x1", 5 * figureScale);
-    rightLeg.setAttribute("y1", 10 * figureScale);
-    rightLeg.setAttribute("x2", 8 * figureScale);
-    rightLeg.setAttribute("y2", 30 * figureScale);
-    rightLeg.setAttribute("stroke", colorScale(i));
-    rightLeg.setAttribute("stroke-width", "4");
-    rightLeg.setAttribute("stroke-linecap", "round");
-    
-    const leftArm = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    leftArm.setAttribute("x1", -10 * figureScale);
-    leftArm.setAttribute("y1", -15);
-    leftArm.setAttribute("x2", -18 * figureScale);
-    leftArm.setAttribute("y2", 5);
-    leftArm.setAttribute("stroke", colorScale(i));
-    leftArm.setAttribute("stroke-width", "4");
-    leftArm.setAttribute("stroke-linecap", "round");
-    
-    const rightArm = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    rightArm.setAttribute("x1", 10 * figureScale);
-    rightArm.setAttribute("y1", -15);
-    rightArm.setAttribute("x2", 18 * figureScale);
-    rightArm.setAttribute("y2", 5);
-    rightArm.setAttribute("stroke", colorScale(i));
-    rightArm.setAttribute("stroke-width", "4");
-    rightArm.setAttribute("stroke-linecap", "round");
-    
-    personGroup.appendChild(body);
-    personGroup.appendChild(leftLeg);
-    personGroup.appendChild(rightLeg);
-    personGroup.appendChild(leftArm);
-    personGroup.appendChild(rightArm);
-    personGroup.appendChild(head);
-    
-    const tooltip = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    tooltip.setAttribute("x", "0");
-    tooltip.setAttribute("y", "50");
-    tooltip.setAttribute("text-anchor", "middle");
-    tooltip.setAttribute("fill", "#333");
-    tooltip.setAttribute("font-size", "12");
-    tooltip.setAttribute("font-weight", "bold");
-    tooltip.setAttribute("opacity", "0");
-    tooltip.textContent = `H:${d.height}cm W:${d.weight}kg`;
-    personGroup.appendChild(tooltip);
-    
-    personGroup.addEventListener("mouseenter", () => {
-      tooltip.setAttribute("opacity", "1");
-      personGroup.style.filter = "drop-shadow(0 0 8px rgba(0,0,0,0.5))";
-    });
-    
-    personGroup.addEventListener("mouseleave", () => {
-      tooltip.setAttribute("opacity", "0");
-      personGroup.style.filter = "none";
-    });
-    
-    g.appendChild(personGroup);
-  });
-  
-  const heightAxis = d3.axisLeft(heightScale).ticks(5);
-  const heightAxisG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  g.appendChild(heightAxisG);
-  d3.select(heightAxisG).call(heightAxis);
-  
-  const heightLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  heightLabel.setAttribute("transform", "rotate(-90)");
-  heightLabel.setAttribute("x", -chartHeight / 2);
-  heightLabel.setAttribute("y", -60);
-  heightLabel.setAttribute("text-anchor", "middle");
-  heightLabel.setAttribute("fill", "#333");
-  heightLabel.setAttribute("font-size", "14");
-  heightLabel.setAttribute("font-weight", "bold");
-  heightLabel.textContent = "Height (cm)";
-  g.appendChild(heightLabel);
-  
-  const bottomAxis = d3.axisBottom(d3.scaleLinear().domain([1, data.length]).range([0, chartWidth])).ticks(data.length);
-  const bottomAxisG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  bottomAxisG.setAttribute("transform", `translate(0,${chartHeight})`);
-  g.appendChild(bottomAxisG);
-  d3.select(bottomAxisG).call(bottomAxis);
-  
-  const personLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  personLabel.setAttribute("x", chartWidth / 2);
-  personLabel.setAttribute("y", chartHeight + 45);
-  personLabel.setAttribute("text-anchor", "middle");
-  personLabel.setAttribute("fill", "#333");
-  personLabel.setAttribute("font-size", "14");
-  personLabel.setAttribute("font-weight", "bold");
-  personLabel.textContent = "Person";
-  g.appendChild(personLabel);
-  
-  container.appendChild(svg);
+  container.style.cssText = "width: 100%; height: 100%; padding: 20px; font-family: Arial, sans-serif;";
   el.appendChild(container);
   
+  // Create title
+  const title = document.createElement("h2");
+  title.textContent = "Height & Weight Pictograph";
+  title.style.cssText = "text-align: center; color: #333; margin-bottom: 30px;";
+  container.appendChild(title);
+  
+  // Create visualization container
+  const vizContainer = document.createElement("div");
+  vizContainer.style.cssText = "display: flex; flex-direction: column; gap: 30px; max-width: 800px; margin: 0 auto;";
+  container.appendChild(vizContainer);
+  
+  // Normalize data for visualization
+  const maxHeight = Math.max(...data.map(d => d.height));
+  const maxWeight = Math.max(...data.map(d => d.weight));
+  
+  data.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.style.cssText = "display: flex; align-items: center; gap: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px;";
+    
+    // Label
+    const label = document.createElement("div");
+    label.style.cssText = "min-width: 150px; font-weight: bold; color: #333;";
+    label.innerHTML = `Person ${index + 1}<br><small style="font-weight: normal; color: #666;">H: ${item.height}cm | W: ${item.weight}kg</small>`;
+    row.appendChild(label);
+    
+    // Height visualization
+    const heightBox = document.createElement("div");
+    heightBox.style.cssText = "display: flex; flex-direction: column; flex: 1;";
+    const heightLabel = document.createElement("div");
+    heightLabel.style.cssText = "font-size: 12px; color: #666; margin-bottom: 5px;";
+    heightLabel.textContent = "Height";
+    const heightBar = document.createElement("div");
+    const heightPercent = (item.height / maxHeight) * 100;
+    heightBar.style.cssText = `height: 30px; background: linear-gradient(90deg, #4CAF50, #8BC34A); width: ${heightPercent}%; border-radius: 4px; transition: width 0.3s ease; cursor: pointer;`;
+    heightBar.onmouseover = () => heightBar.style.opacity = "0.8";
+    heightBar.onmouseout = () => heightBar.style.opacity = "1";
+    heightBox.appendChild(heightLabel);
+    heightBox.appendChild(heightBar);
+    row.appendChild(heightBox);
+    
+    // Weight visualization
+    const weightBox = document.createElement("div");
+    weightBox.style.cssText = "display: flex; flex-direction: column; flex: 1;";
+    const weightLabel = document.createElement("div");
+    weightLabel.style.cssText = "font-size: 12px; color: #666; margin-bottom: 5px;";
+    weightLabel.textContent = "Weight";
+    const weightBar = document.createElement("div");
+    const weightPercent = (item.weight / maxWeight) * 100;
+    weightBar.style.cssText = `height: 30px; background: linear-gradient(90deg, #FF6B6B, #FF8E72); width: ${weightPercent}%; border-radius: 4px; transition: width 0.3s ease; cursor: pointer;`;
+    weightBar.onmouseover = () => weightBar.style.opacity = "0.8";
+    weightBar.onmouseout = () => weightBar.style.opacity = "1";
+    weightBox.appendChild(weightLabel);
+    weightBox.appendChild(weightBar);
+    row.appendChild(weightBox);
+    
+    vizContainer.appendChild(row);
+  });
+  
+  // Add legend
+  const legend = document.createElement("div");
+  legend.style.cssText = "margin-top: 30px; padding: 15px; background: #f9f9f9; border-radius: 8px; text-align: center; font-size: 14px; color: #666;";
+  legend.innerHTML = `
+    <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="width: 20px; height: 15px; background: linear-gradient(90deg, #4CAF50, #8BC34A); border-radius: 2px;"></div>
+        <span>Height (cm)</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="width: 20px; height: 15px; background: linear-gradient(90deg, #FF6B6B, #FF8E72); border-radius: 2px;"></div>
+        <span>Weight (kg)</span>
+      </div>
+    </div>
+  `;
+  container.appendChild(legend);
+  
+  // Listen for data changes
   model.on("change:data", () => {
-    el.innerHTML = "";
     render({ model, el });
   });
 }

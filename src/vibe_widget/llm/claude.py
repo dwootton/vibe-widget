@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Any
+from typing import Any, Callable
 
 from anthropic import Anthropic
 
@@ -8,7 +8,7 @@ from vibe_widget.llm.base import LLMProvider
 
 
 class ClaudeProvider(LLMProvider):
-    def __init__(self, api_key: str | None = None, model: str = "claude-sonnet-4-5-20250929"):
+    def __init__(self, api_key: str | None = None, model: str = "claude-haiku-4-5-20251001"):
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
             raise ValueError(
@@ -17,16 +17,34 @@ class ClaudeProvider(LLMProvider):
         self.model = model
         self.client = Anthropic(api_key=self.api_key)
 
-    def generate_widget_code(self, description: str, data_info: dict[str, Any]) -> str:
+    def generate_widget_code(
+        self, 
+        description: str, 
+        data_info: dict[str, Any], 
+        progress_callback: Callable[[str], None] | None = None
+    ) -> str:
         prompt = self._build_prompt(description, data_info)
 
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        code = message.content[0].text
+        if progress_callback:
+            code_chunks = []
+            with self.client.messages.stream(
+                model=self.model,
+                max_tokens=4096,
+                messages=[{"role": "user", "content": prompt}],
+            ) as stream:
+                for text in stream.text_stream:
+                    code_chunks.append(text)
+                    progress_callback(text)
+            
+            code = "".join(code_chunks)
+        else:
+            message = self.client.messages.create(
+                model=self.model,
+                max_tokens=4096,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            code = message.content[0].text
+        
         return self._clean_code(code)
 
     def _clean_code(self, code: str) -> str:
