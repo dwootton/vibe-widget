@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any
 
 from anthropic import Anthropic
@@ -25,7 +26,13 @@ class ClaudeProvider(LLMProvider):
             messages=[{"role": "user", "content": prompt}],
         )
 
-        return message.content[0].text
+        code = message.content[0].text
+        return self._clean_code(code)
+
+    def _clean_code(self, code: str) -> str:
+        code = re.sub(r'^```(?:javascript|jsx?|typescript|tsx?)\s*\n', '', code, flags=re.MULTILINE)
+        code = re.sub(r'\n```\s*$', '', code)
+        return code.strip()
 
     def _build_prompt(self, description: str, data_info: dict[str, Any]) -> str:
         columns = data_info.get("columns", [])
@@ -47,7 +54,7 @@ Requirements:
 5. Include proper error handling and loading states
 6. Make it interactive and visually appealing
 
-Return ONLY the React component code that will be inserted into a template.
+Return ONLY the React component code that will be inserted into a template. Do not wrap in markdown code fences.
 The data will be available as a prop called 'data'.
 Start with: const VibeComponent = ({{ data }}) => {{
 End with: ReactDOM.render(<VibeComponent data={{data}} />, document.getElementById('root'));
