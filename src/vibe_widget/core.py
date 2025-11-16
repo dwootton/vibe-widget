@@ -1,53 +1,39 @@
-import json
+import hashlib
 from pathlib import Path
 from typing import Any
 
+import anywidget
 import pandas as pd
+import traitlets
 
 from vibe_widget.llm.claude import ClaudeProvider
-from vibe_widget.templates import REACT_TEMPLATE
-
-try:
-    from IPython.display import HTML, display
-    _IN_NOTEBOOK = True
-except ImportError:
-    _IN_NOTEBOOK = False
 
 
-class VibeWidget:
-    def __init__(self, api_key: str | None = None, model: str = "claude-sonnet-4-5-20250929"):
-        self.llm_provider = ClaudeProvider(api_key=api_key, model=model)
+class VibeWidget(anywidget.AnyWidget):
+    data = traitlets.List([]).tag(sync=True)
+    description = traitlets.Unicode("").tag(sync=True)
 
-    def create(
-        self,
-        description: str,
-        df: pd.DataFrame,
-        output_path: str | Path | None = None,
-        display_output: bool = True,
-    ) -> str | None:
+    def __init__(self, description: str, df: pd.DataFrame, api_key: str | None = None, model: str = "claude-sonnet-4-5-20250929", **kwargs):
+        llm_provider = ClaudeProvider(api_key=api_key, model=model)
+        
         data_info = self._extract_data_info(df)
-
-        component_code = self.llm_provider.generate_widget_code(description, data_info)
-
+        widget_code = llm_provider.generate_widget_code(description, data_info)
+        
+        widget_hash = hashlib.md5(f"{description}{df.shape}".encode()).hexdigest()[:8]
+        widget_dir = Path(__file__).parent / "widgets"
+        widget_file = widget_dir / f"widget_{widget_hash}.js"
+        
+        widget_file.write_text(widget_code)
+        
+        self._esm = widget_code
+        
         data_json = df.to_dict(orient="records")
-        full_component_code = f"""
-        const data = {json.dumps(data_json, indent=2)};
-        {component_code}
-        """
-
-        html_content = REACT_TEMPLATE.format(component_code=full_component_code)
-
-        if output_path:
-            output_file = Path(output_path)
-            output_file.parent.mkdir(parents=True, exist_ok=True)
-            output_file.write_text(html_content)
-            return str(output_file.absolute())
-
-        if display_output and _IN_NOTEBOOK:
-            display(HTML(html_content))
-            return None
-
-        return html_content
+        
+        super().__init__(
+            data=data_json,
+            description=description,
+            **kwargs
+        )
 
     def _extract_data_info(self, df: pd.DataFrame) -> dict[str, Any]:
         return {
@@ -58,18 +44,10 @@ class VibeWidget:
         }
 
 
-_default_widget = None
-
-
 def create(
     description: str,
     df: pd.DataFrame,
-    output_path: str | Path | None = None,
     api_key: str | None = None,
     model: str = "claude-sonnet-4-5-20250929",
-    display_output: bool = True,
-) -> str | None:
-    global _default_widget
-    if _default_widget is None:
-        _default_widget = VibeWidget(api_key=api_key, model=model)
-    return _default_widget.create(description, df, output_path, display_output)
+) -> VibeWidget:
+    return VibeWidget(description=description, df=df, api_key=api_key, model=model)

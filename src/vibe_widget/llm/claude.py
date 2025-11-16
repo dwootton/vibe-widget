@@ -30,8 +30,8 @@ class ClaudeProvider(LLMProvider):
         return self._clean_code(code)
 
     def _clean_code(self, code: str) -> str:
-        code = re.sub(r'^```(?:javascript|jsx?|typescript|tsx?)\s*\n', '', code, flags=re.MULTILINE)
-        code = re.sub(r'\n```\s*$', '', code)
+        code = re.sub(r'```(?:javascript|jsx?|typescript|tsx?)?\s*\n?', '', code)
+        code = re.sub(r'\n?```\s*', '', code)
         return code.strip()
 
     def _build_prompt(self, description: str, data_info: dict[str, Any]) -> str:
@@ -39,25 +39,41 @@ class ClaudeProvider(LLMProvider):
         dtypes = data_info.get("dtypes", {})
         sample_data = data_info.get("sample", {})
 
-        return f"""Create a React component for: {description}
+        return f"""Create an Anywidget Front-End Module (AFM) for: {description}
 
 Data schema:
 - Columns: {', '.join(columns)}
 - Types: {dtypes}
 - Sample data: {sample_data}
 
-Requirements:
-1. Use React 18 with hooks
-2. Create a complete, self-contained component
-3. Use modern visualization libraries (recharts, plotly.js, or d3)
-4. The component should be ready to render with the provided data
-5. Include proper error handling and loading states
-6. Make it interactive and visually appealing
+CRITICAL AFM Requirements:
+1. Must follow the anywidget specification exactly
+2. Export a default object with a render function: export default {{ render }}
+3. The render function signature MUST be: function render({{ model, el }}) {{ ... }}
+4. Access data via: model.get("data")
+5. Use modern vanilla JavaScript or import libraries from CDN (d3, plotly, etc)
+6. Create DOM elements and append to 'el' HTMLElement
+7. Make it interactive and visually appealing
+8. Do NOT use React/ReactDOM - use vanilla JS or imported libraries only
+9. Do NOT wrap in markdown code fences
 
-Return ONLY the React component code that will be inserted into a template. Do not wrap in markdown code fences.
-The data will be available as a prop called 'data'.
-Start with: const VibeComponent = ({{ data }}) => {{
-End with: ReactDOM.render(<VibeComponent data={{data}} />, document.getElementById('root'));
+Example structure:
+```
+import * as d3 from "https://esm.sh/d3@7";
 
-Include all necessary imports from CDN if needed (recharts, etc).
-"""
+function render({{ model, el }}) {{
+  const data = model.get("data");
+  
+  // Create visualization using d3, plotly, or vanilla JS
+  // Append elements to el
+  
+  // Optional: listen to model changes
+  model.on("change:data", () => {{
+    // Update visualization
+  }});
+}}
+
+export default {{ render }};
+```
+
+Return ONLY the JavaScript code. No markdown fences, no explanations."""
