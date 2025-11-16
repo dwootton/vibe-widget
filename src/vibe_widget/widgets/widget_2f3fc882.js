@@ -4,87 +4,161 @@ function render({ model, el }) {
   const data = model.get("data");
   
   // Clear previous content
-  el.innerHTML = "";
+  el.innerHTML = '';
   
-  // Create container
-  const container = document.createElement("div");
-  container.style.cssText = "width: 100%; height: 100%; padding: 20px; font-family: Arial, sans-serif;";
+  // Set up container styling
+  const container = document.createElement('div');
+  container.style.cssText = 'padding: 20px; font-family: Arial, sans-serif;';
   el.appendChild(container);
   
-  // Create title
-  const title = document.createElement("h2");
-  title.textContent = "Height & Weight Pictograph";
-  title.style.cssText = "text-align: center; color: #333; margin-bottom: 30px;";
+  // Add title
+  const title = document.createElement('h2');
+  title.textContent = 'Height and Weight Pictograph';
+  title.style.cssText = 'color: #333; margin-bottom: 20px; text-align: center;';
   container.appendChild(title);
   
-  // Create visualization container
-  const vizContainer = document.createElement("div");
-  vizContainer.style.cssText = "display: flex; flex-direction: column; gap: 30px; max-width: 800px; margin: 0 auto;";
-  container.appendChild(vizContainer);
+  // Create SVG container
+  const svgContainer = document.createElement('div');
+  svgContainer.style.cssText = 'display: flex; gap: 40px; justify-content: center; flex-wrap: wrap;';
+  container.appendChild(svgContainer);
   
-  // Normalize data for visualization
-  const maxHeight = Math.max(...data.map(d => d.height));
-  const maxWeight = Math.max(...data.map(d => d.weight));
+  // Height visualization
+  const heightDiv = document.createElement('div');
+  heightDiv.style.cssText = 'display: flex; flex-direction: column; align-items: center;';
   
-  data.forEach((item, index) => {
-    const row = document.createElement("div");
-    row.style.cssText = "display: flex; align-items: center; gap: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px;";
-    
-    // Label
-    const label = document.createElement("div");
-    label.style.cssText = "min-width: 150px; font-weight: bold; color: #333;";
-    label.innerHTML = `Person ${index + 1}<br><small style="font-weight: normal; color: #666;">H: ${item.height}cm | W: ${item.weight}kg</small>`;
-    row.appendChild(label);
-    
-    // Height visualization
-    const heightBox = document.createElement("div");
-    heightBox.style.cssText = "display: flex; flex-direction: column; flex: 1;";
-    const heightLabel = document.createElement("div");
-    heightLabel.style.cssText = "font-size: 12px; color: #666; margin-bottom: 5px;";
-    heightLabel.textContent = "Height";
-    const heightBar = document.createElement("div");
-    const heightPercent = (item.height / maxHeight) * 100;
-    heightBar.style.cssText = `height: 30px; background: linear-gradient(90deg, #4CAF50, #8BC34A); width: ${heightPercent}%; border-radius: 4px; transition: width 0.3s ease; cursor: pointer;`;
-    heightBar.onmouseover = () => heightBar.style.opacity = "0.8";
-    heightBar.onmouseout = () => heightBar.style.opacity = "1";
-    heightBox.appendChild(heightLabel);
-    heightBox.appendChild(heightBar);
-    row.appendChild(heightBox);
-    
-    // Weight visualization
-    const weightBox = document.createElement("div");
-    weightBox.style.cssText = "display: flex; flex-direction: column; flex: 1;";
-    const weightLabel = document.createElement("div");
-    weightLabel.style.cssText = "font-size: 12px; color: #666; margin-bottom: 5px;";
-    weightLabel.textContent = "Weight";
-    const weightBar = document.createElement("div");
-    const weightPercent = (item.weight / maxWeight) * 100;
-    weightBar.style.cssText = `height: 30px; background: linear-gradient(90deg, #FF6B6B, #FF8E72); width: ${weightPercent}%; border-radius: 4px; transition: width 0.3s ease; cursor: pointer;`;
-    weightBar.onmouseover = () => weightBar.style.opacity = "0.8";
-    weightBar.onmouseout = () => weightBar.style.opacity = "1";
-    weightBox.appendChild(weightLabel);
-    weightBox.appendChild(weightBar);
-    row.appendChild(weightBox);
-    
-    vizContainer.appendChild(row);
-  });
+  const heightTitle = document.createElement('h3');
+  heightTitle.textContent = 'Height (cm)';
+  heightTitle.style.cssText = 'color: #4CAF50; margin-bottom: 15px;';
+  heightDiv.appendChild(heightTitle);
   
-  // Add legend
-  const legend = document.createElement("div");
-  legend.style.cssText = "margin-top: 30px; padding: 15px; background: #f9f9f9; border-radius: 8px; text-align: center; font-size: 14px; color: #666;";
-  legend.innerHTML = `
-    <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <div style="width: 20px; height: 15px; background: linear-gradient(90deg, #4CAF50, #8BC34A); border-radius: 2px;"></div>
-        <span>Height (cm)</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <div style="width: 20px; height: 15px; background: linear-gradient(90deg, #FF6B6B, #FF8E72); border-radius: 2px;"></div>
-        <span>Weight (kg)</span>
-      </div>
-    </div>
-  `;
-  container.appendChild(legend);
+  const heightSvg = d3.select(heightDiv)
+    .append('svg')
+    .attr('width', 300)
+    .attr('height', 350)
+    .style('background', '#f5f5f5')
+    .style('border-radius', '8px')
+    .style('box-shadow', '0 2px 8px rgba(0,0,0,0.1)');
+  
+  const heightMax = d3.max(data, d => d.height);
+  const heightScale = d3.scaleLinear()
+    .domain([0, heightMax])
+    .range([250, 50]);
+  
+  heightSvg.selectAll('.height-bar')
+    .data(data)
+    .enter()
+    .append('rect')
+    .attr('class', 'height-bar')
+    .attr('x', (d, i) => i * 90 + 20)
+    .attr('y', d => heightScale(d.height))
+    .attr('width', 50)
+    .attr('height', d => 250 - heightScale(d.height))
+    .attr('fill', '#4CAF50')
+    .attr('rx', 4)
+    .style('opacity', 0.8)
+    .style('transition', 'opacity 0.3s')
+    .on('mouseover', function() {
+      d3.select(this).style('opacity', 1);
+    })
+    .on('mouseout', function() {
+      d3.select(this).style('opacity', 0.8);
+    });
+  
+  // Add height labels
+  heightSvg.selectAll('.height-label')
+    .data(data)
+    .enter()
+    .append('text')
+    .attr('class', 'height-label')
+    .attr('x', (d, i) => i * 90 + 45)
+    .attr('y', d => heightScale(d.height) - 10)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#333')
+    .attr('font-weight', 'bold')
+    .attr('font-size', '12px')
+    .text(d => d.height);
+  
+  // Add index labels
+  heightSvg.selectAll('.height-index')
+    .data(data)
+    .enter()
+    .append('text')
+    .attr('x', (d, i) => i * 90 + 45)
+    .attr('y', 285)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#666')
+    .attr('font-size', '11px')
+    .text((d, i) => `Person ${i + 1}`);
+  
+  svgContainer.appendChild(heightDiv);
+  
+  // Weight visualization
+  const weightDiv = document.createElement('div');
+  weightDiv.style.cssText = 'display: flex; flex-direction: column; align-items: center;';
+  
+  const weightTitle = document.createElement('h3');
+  weightTitle.textContent = 'Weight (kg)';
+  weightTitle.style.cssText = 'color: #2196F3; margin-bottom: 15px;';
+  weightDiv.appendChild(weightTitle);
+  
+  const weightSvg = d3.select(weightDiv)
+    .append('svg')
+    .attr('width', 300)
+    .attr('height', 350)
+    .style('background', '#f5f5f5')
+    .style('border-radius', '8px')
+    .style('box-shadow', '0 2px 8px rgba(0,0,0,0.1)');
+  
+  const weightMax = d3.max(data, d => d.weight);
+  const weightScale = d3.scaleLinear()
+    .domain([0, weightMax])
+    .range([250, 50]);
+  
+  weightSvg.selectAll('.weight-bar')
+    .data(data)
+    .enter()
+    .append('circle')
+    .attr('class', 'weight-bar')
+    .attr('cx', (d, i) => i * 90 + 45)
+    .attr('cy', d => weightScale(d.weight))
+    .attr('r', d => Math.sqrt(d.weight) * 2)
+    .attr('fill', '#2196F3')
+    .style('opacity', 0.7)
+    .style('transition', 'opacity 0.3s')
+    .on('mouseover', function() {
+      d3.select(this).style('opacity', 1);
+    })
+    .on('mouseout', function() {
+      d3.select(this).style('opacity', 0.7);
+    });
+  
+  // Add weight labels
+  weightSvg.selectAll('.weight-label')
+    .data(data)
+    .enter()
+    .append('text')
+    .attr('x', (d, i) => i * 90 + 45)
+    .attr('y', d => weightScale(d.weight) + 5)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#fff')
+    .attr('font-weight', 'bold')
+    .attr('font-size', '12px')
+    .text(d => d.weight);
+  
+  // Add index labels
+  weightSvg.selectAll('.weight-index')
+    .data(data)
+    .enter()
+    .append('text')
+    .attr('x', (d, i) => i * 90 + 45)
+    .attr('y', 285)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#666')
+    .attr('font-size', '11px')
+    .text((d, i) => `Person ${i + 1}`);
+  
+  weightDiv.appendChild(weightSvg);
+  svgContainer.appendChild(weightDiv);
   
   // Listen for data changes
   model.on("change:data", () => {
