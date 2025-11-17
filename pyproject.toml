@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "vibe-widget"
+name = "vibe_widget"
 version = "0.1.0"
 description = "Create interactive visualizations using natural language and LLMs"
 readme = "README.md"
