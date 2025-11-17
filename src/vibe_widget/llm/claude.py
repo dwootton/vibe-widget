@@ -24,7 +24,7 @@ class ClaudeProvider(LLMProvider):
     def generate_widget_code(
         self, 
         description: str, 
-        data_info: dict[str, Any], 
+        data_info: dict[str, Any] | None, 
         progress_callback: Callable[[str], None] | None = None
     ) -> str:
         prompt = self._build_prompt(description, data_info)
@@ -60,7 +60,7 @@ class ClaudeProvider(LLMProvider):
         self,
         current_code: str,
         revision_description: str,
-        data_info: dict[str, Any],
+        data_info: dict[str, Any] | None,
         progress_callback: Callable[[str], None] | None = None
     ) -> str:
         prompt = self._build_revision_prompt(current_code, revision_description, data_info)
@@ -87,10 +87,18 @@ class ClaudeProvider(LLMProvider):
         
         return self._clean_code(code)
 
-    def _build_revision_prompt(self, current_code: str, revision_description: str, data_info: dict[str, Any]) -> str:
-        columns = data_info.get("columns", [])
-        dtypes = data_info.get("dtypes", {})
-        sample_data = data_info.get("sample", {})
+    def _build_revision_prompt(self, current_code: str, revision_description: str, data_info: dict[str, Any] | None) -> str:
+        if data_info is None:
+            data_section = """This is a standalone widget without data.
+The widget does NOT receive any data via model.get("data")."""
+        else:
+            columns = data_info.get("columns", [])
+            dtypes = data_info.get("dtypes", {})
+            sample_data = data_info.get("sample", {})
+            data_section = f"""Data schema:
+- Columns: {', '.join(columns)}
+- Types: {dtypes}
+- Sample data: {sample_data}"""
 
         return f"""Revise this React application based on the following request:
 
@@ -101,10 +109,7 @@ CURRENT CODE:
 {current_code}
 ```
 
-Data schema:
-- Columns: {', '.join(columns)}
-- Types: {dtypes}
-- Sample data: {sample_data}
+{data_section}
 
 Requirements:
 1. Use React and modern JavaScript
@@ -114,17 +119,23 @@ Requirements:
 
 Return ONLY the complete revised React application code. No markdown fences, no explanations."""
 
-    def _build_prompt(self, description: str, data_info: dict[str, Any]) -> str:
-        columns = data_info.get("columns", [])
-        dtypes = data_info.get("dtypes", {})
-        sample_data = data_info.get("sample", {})
+    def _build_prompt(self, description: str, data_info: dict[str, Any] | None) -> str:
+        if data_info is None:
+            data_section = """This is a standalone widget without data.
+The widget will NOT receive any data via model.get("data").
+Create an interactive widget based purely on the description."""
+        else:
+            columns = data_info.get("columns", [])
+            dtypes = data_info.get("dtypes", {})
+            sample_data = data_info.get("sample", {})
+            data_section = f"""Data schema:
+- Columns: {', '.join(columns)}
+- Types: {dtypes}
+- Sample data: {sample_data}"""
 
         return f"""Create a visualization based on this request: {description}
 
-Data schema:
-- Columns: {', '.join(columns)}
-- Types: {dtypes}
-- Sample data: {sample_data}
+{data_section}
 
 CRITICAL AFM Requirements:
 1. Must follow the anywidget specification exactly

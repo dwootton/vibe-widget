@@ -55,7 +55,7 @@ class VibeWidget(anywidget.AnyWidget):
     def __init__(
         self, 
         description: str, 
-        df: pd.DataFrame, 
+        df: pd.DataFrame | None = None, 
         api_key: str | None = None, 
         model: str = "claude-haiku-4-5-20251001",
         use_preprocessor: bool = True,
@@ -68,7 +68,7 @@ class VibeWidget(anywidget.AnyWidget):
         
         Args:
             description: Natural language description of desired visualization
-            df: DataFrame to visualize
+            df: DataFrame to visualize (optional - can create widgets without data)
             api_key: Anthropic API key
             model: Claude model to use
             use_preprocessor: Whether to use the intelligent preprocessor (recommended)
@@ -84,8 +84,8 @@ class VibeWidget(anywidget.AnyWidget):
             display(progress)
         
         try:
-            # Step 1: Analyze schema
-            if progress:
+            # Step 1: Analyze schema (if data provided)
+            if df is not None and progress:
                 progress.add_timeline_item(
                     "Analyzing data",
                     f"Schema: {df.shape[0]} rows × {df.shape[1]} columns",
@@ -94,25 +94,45 @@ class VibeWidget(anywidget.AnyWidget):
                 )
                 progress.add_micro_bubble("Analyzing data schema...")
                 progress.update_progress(10)
+            elif progress:
+                progress.add_timeline_item(
+                    "Preparing widget",
+                    "No data provided - generating standalone widget",
+                    icon="○",
+                    complete=False
+                )
+                progress.update_progress(10)
             
             llm_provider = ClaudeProvider(api_key=api_key, model=model)
             
             # Step 2: Preprocess data to create rich profile
             data_profile = context 
-            if isinstance(context, DataProfile):
-                enhanced_description = f"{description}\n\nData Profile: {data_profile.to_markdown()}"
+            if df is not None:
+                if isinstance(context, DataProfile):
+                    enhanced_description = f"{description}\n\nData Profile: {data_profile.to_markdown()}"
+                else:
+                    data_info = self._extract_data_info(df)
+                    enhanced_description = f"{description}\n\n======================\n\n CONTEXT::DATA_INFO:\n\n {data_info}"
+                    data_profile = None
+                
+                if progress:
+                    progress.add_timeline_item(
+                        "Schema analyzed",
+                        f"Columns: {', '.join(df.columns.tolist()[:3])}{'...' if len(df.columns) > 3 else ''}",
+                        icon="✓",
+                        complete=True
+                    )
             else:
-                data_info = self._extract_data_info(df)
-                enhanced_description = f"{description}\n\n======================\n\n CONTEXT::DATA_INFO:\n\n {data_info}"
+                enhanced_description = description
                 data_profile = None
-            
-            if progress:
-                progress.add_timeline_item(
-                    "Schema analyzed",
-                    f"Columns: {', '.join(df.columns.tolist()[:3])}{'...' if len(df.columns) > 3 else ''}",
-                    icon="✓",
-                    complete=True
-                )
+                
+                if progress:
+                    progress.add_timeline_item(
+                        "Widget prepared",
+                        "Ready to generate standalone widget",
+                        icon="✓",
+                        complete=True
+                    )
             
             # Step 3: Generate widget code with enhanced context
             if progress:
@@ -125,7 +145,7 @@ class VibeWidget(anywidget.AnyWidget):
                 progress.add_micro_bubble("Generating widget code...")
                 progress.update_progress(20)
             
-            data_info = self._extract_data_info(df)
+            data_info = self._extract_data_info(df) if df is not None else None
             
             # Batch updates to reduce UI thrashing
             chunk_buffer = []
@@ -190,7 +210,7 @@ class VibeWidget(anywidget.AnyWidget):
                 progress.add_micro_bubble("Saving widget...")
                 progress.update_progress(90)
             
-            widget_hash = hashlib.md5(f"{description}{df.shape}".encode()).hexdigest()[:8]
+            widget_hash = hashlib.md5(f"{description}{df.shape if df is not None else 'no-data'}".encode()).hexdigest()[:8]
             widget_dir = Path(__file__).parent / "widgets"
             widget_dir.mkdir(exist_ok=True)
             widget_file = widget_dir / f"widget_{widget_hash}.js"
@@ -210,8 +230,11 @@ class VibeWidget(anywidget.AnyWidget):
             self._esm = widget_code
             
             # Convert data to JSON and clean for serialization
-            data_json = df.to_dict(orient="records")
-            data_json = _clean_for_json(data_json)
+            if df is not None:
+                data_json = df.to_dict(orient="records")
+                data_json = _clean_for_json(data_json)
+            else:
+                data_json = []
             
             # Initialize widget
             super().__init__(
@@ -361,7 +384,7 @@ class VibeWidget(anywidget.AnyWidget):
 
 def create(
     description: str,
-    df: pd.DataFrame | str | Path,
+    df: pd.DataFrame | str | Path | None = None,
     api_key: str | None = None,
     model: str = "claude-haiku-4-5-20251001",
     context: dict | DataProfile | None = None,
@@ -373,11 +396,12 @@ def create(
     
     Args:
         description: Natural language description of the visualization
-        df: DataFrame to visualize OR path to data file (CSV, NetCDF, GeoJSON, etc.)
+        df: DataFrame to visualize OR path to data file (CSV, NetCDF, GeoJSON, etc.) OR None for standalone widgets
         api_key: Anthropic API key (or set ANTHROPIC_API_KEY env var)
         model: Claude model to use
         context: Additional context (dict with domain/purpose/etc.) OR DataProfile object
         use_preprocessor: Whether to use intelligent preprocessing (recommended)
+        show_progress: Whether to show progress widget
     
     Returns:
         VibeWidget instance
@@ -385,6 +409,9 @@ def create(
     Examples:
         >>> # Simple DataFrame
         >>> widget = create("show temperature trends", df)
+        
+        >>> # Standalone widget without data
+        >>> widget = create("create a temperature input widget with a slider")
         
         >>> # With context dict for better results
         >>> widget = create(
@@ -408,7 +435,7 @@ def create(
         ... )
     """
     # Handle file paths
-    if isinstance(df, (str, Path)):
+    if df is not None and isinstance(df, (str, Path)):
         from vibe_widget.data_parser.preprocessor import preprocess_data
         
         # If context is a DataProfile, use it directly and skip preprocessing
@@ -534,6 +561,8 @@ def create(
         # Sample if DataFrame is large enough
         if len(df) > 1000:
             df = df.sample(1000)
+    elif df is not None and not isinstance(df, pd.DataFrame):
+        raise ValueError(f"df must be a DataFrame, file path, or None, got {type(df)}")
     
     # Create widget
     widget = VibeWidget(
