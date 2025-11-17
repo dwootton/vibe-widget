@@ -30,6 +30,9 @@ dependencies = [
     "anywidget>=0.9.0",
     "anthropic>=0.40.0",
     "pandas>=2.0.0",
+    "crawl4ai>=0.3.0",
+    "beautifulsoup4>=4.12.0",
+    "nest-asyncio>=1.5.0",
 ]
 
 [project.optional-dependencies]
