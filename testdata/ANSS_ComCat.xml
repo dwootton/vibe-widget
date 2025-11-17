@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <origin>U.S. Geological Survey, Earthquake Hazards Program</origin>
+        <pubdate>2017</pubdate>
+        <title>Advanced National Seismic System (ANSS) Comprehensive Catalog of Earthquake Events and Products</title>
+        <geoform>Maps and Data</geoform>
+        <pubinfo>
+          <pubplace>Various</pubplace>
+          <publish>Various</publish>
+        </pubinfo>
+        <onlink>https://doi.org/10.5066/F7MS3QZH</onlink>
+      </citeinfo>
+    </citation>
+    <descript>
+      <abstract>The ANSS Comprehensive Catalog (ComCat) contains earthquake source parameters and other products produced by contributing seismic networks.  Important digital catalogs of earthquake source parameters (e.g. Centennial Catalog, Global Centroid Moment Tensor Catalog) are loaded into ComCat. New and updated data are added to the catalog dynamically as sources publish or update products.  Access to the ComCat is via the online search page, on which a user can select a wide variety of criteria to locate earthquake events of interest.&#xD;
+Source Parameters:&#xD;
+     -amplitude                    - hypocenter                    - magnitude &#xD;
+     - phase data                  - finite fault                     - focal mechanism&#xD;
+     - moment tensor           - tectonic summary         - regional information&#xD;
+Products:&#xD;
+     - Did You Feel It?         - PAGER                         - ShakeMap&#xD;
+     - Real Time Feeds       - Preliminary Determination of Epicenters (PDE) Bulletin</abstract>
+      <purpose>The purpose of the dataset is to provide a comprehensive catalog of earthquake related data and and products.</purpose>
+    </descript>
+    <timeperd>
+      <timeinfo>
+        <rngdates>
+          <begdate>1800</begdate>
+          <enddate>present</enddate>
+        </rngdates>
+      </timeinfo>
+      <current>publication date</current>
+    </timeperd>
+    <status>
+      <progress>In work</progress>
+      <update>Continually</update>
+    </status>
+    <spdom>
+      <bounding>
+        <westbc>-180.0</westbc>
+        <eastbc>180.0</eastbc>
+        <northbc>90.0</northbc>
+        <southbc>-90.0</southbc>
+      </bounding>
+    </spdom>
+    <keywords>
+      <theme>
+        <themekt>USGS Thesaurus</themekt>
+        <themekey>USGS</themekey>
+        <themekey>Geologic Hazards Science Center</themekey>
+        <themekey>GHSC</themekey>
+        <themekey>Earthquake Hazards Program</themekey>
+        <themekey>Advanced National Seismic System</themekey>
+        <themekey>ANSS</themekey>
+        <themekey>Comprehensive Earthquake Catalog</themekey>
+        <themekey>ComCat</themekey>
+        <themekey>earthquake hazard</themekey>
+        <themekey>seismology</themekey>
+        <themekey>seismic hazard</themekey>
+        <themekey>earth science</themekey>
+        <themekey>geophysics</themekey>
+        <themekey>real time monitoring</themekey>
+        <themekey>tectonophysics</themekey>
+        <themekey>finite fault</themekey>
+        <themekey>focal mechanism</themekey>
+        <themekey>moment tensor</themekey>
+        <themekey>phase data</themekey>
+        <themekey>regional earthquake</themekey>
+        <themekey>tectonic summary</themekey>
+        <themekey>Did You Feel It</themekey>
+        <themekey>Did You Feel It?</themekey>
+        <themekey>DYFI</themekey>
+        <themekey>Preliminary Determination of Epicenter</themekey>
+        <themekey>PDE</themekey>
+        <themekey>epicenter</themekey>
+        <themekey>Prompt Assessment of Global Earthquakes for Response</themekey>
+        <themekey>PAGER</themekey>
+        <themekey>ShakeMap</themekey>
+        <themekey>earthquake scenarios</themekey>
+      </theme>
+      <place>
+        <placekt>Geographic Names Information System (GNIS)</placekt>
+        <placekey>Earth</placekey>
+      </place>
+    </keywords>
+    <accconst>No access constraints as all data are non-proprietary</accconst>
+    <useconst>The data you have secured from the ANSS Comprehensive Catalog may include data that have not received Director’s approval and as such are provisional and subject to revision. The data are released on the condition that neither the USGS nor the United States Government may be held liable for any damages resulting from its authorized or unauthorized use</useconst>
+    <ptcontac>
+      <cntinfo>
+        <cntperp>
+          <cntper>Cecily Wolfe</cntper>
+          <cntorg>U.S. Geological Survey</cntorg>
+        </cntperp>
+        <cntaddr>
+          <addrtype>mailing and physical</addrtype>
+          <address>12201 Sunrise Valley Dr</address>
+          <city>Reston</city>
+          <state>VA</state>
+          <postal>20192</postal>
+          <country>USA</country>
+        </cntaddr>
+        <cntvoice>703-648-6714</cntvoice>
+        <cntemail>cwolfe@usgs.gov</cntemail>
+      </cntinfo>
+    </ptcontac>
+    <datacred>Data are provided by dozens of national and international seismic networks. Attributions can be found on individual data points.</datacred>
+    <native>XML, QuakeML 1.2, GeoJSON, KML, CSV, JPEG</native>
+  </idinfo>
+  <dataqual>
+    <attracc>
+      <attraccr>The attribute accuracy depends on the contributed individual dataset and may or may not be available for any record.</attraccr>
+    </attracc>
+    <logic>A statement on system performance metrics and completeness is under development.</logic>
+    <complete>A statement on system performance metrics and completeness is under development.</complete>
+    <posacc>
+      <horizpa>
+        <horizpar>The positional accuracy depends on the contributed individual dataset and may or may not be available for any record.</horizpar>
+      </horizpa>
+      <vertacc>
+        <vertaccr>The positional accuracy depends on the contributed individual dataset and may or may not be available for any record.</vertaccr>
+      </vertacc>
+    </posacc>
+    <lineage>
+      <procstep>
+        <procdesc>Seismic data processing is a complex process that varies by data type and contributor. The data were produced by many tools and models. See http://pubs.usgs.gov/fs/2006/3050/  for further information.</procdesc>
+        <procdate>2017</procdate>
+      </procstep>
+    </lineage>
+  </dataqual>
+  <spref>
+    <horizsys>
+      <geograph>
+        <latres>0.0198476977</latres>
+        <longres>0.0197281547</longres>
+        <geogunit>Decimal seconds</geogunit>
+      </geograph>
+      <geodetic>
+        <horizdn>Datum WGS 1984</horizdn>
+        <ellips>WGS 1984</ellips>
+        <semiaxis>6378137.0</semiaxis>
+        <denflat>298.25722</denflat>
+      </geodetic>
+    </horizsys>
+  </spref>
+  <eainfo>
+    <overview>
+      <eaover>The data dictionary elements originate from concepts of seismology, earthquake science, geophysics, and computer science.</eaover>
+      <eadetcit>https://earthquake.usgs.gov/data/comcat/</eadetcit>
+    </overview>
+  </eainfo>
+  <distinfo>
+    <distrib>
+      <cntinfo>
+        <cntperp>
+          <cntper>Cecily Wolfe</cntper>
+          <cntorg>U.S. Geological Survey</cntorg>
+        </cntperp>
+        <cntaddr>
+          <addrtype>mailing and physical</addrtype>
+          <address>12201 Sunrise Valley Dr</address>
+          <city>Reston</city>
+          <state>VA</state>
+          <postal>20192</postal>
+          <country>USA</country>
+        </cntaddr>
+        <cntvoice>703-648-6714</cntvoice>
+        <cntemail>cwolfe@usgs.gov</cntemail>
+      </cntinfo>
+    </distrib>
+    <distliab>Unless otherwise stated, all data, metadata and related materials are considered to satisfy the quality standards relative to the purpose for which the data were collected. Although these data and associated metadata have been reviewed for accuracy and completeness and approved for release by the U.S. Geological Survey (USGS), no warranty expressed or implied is made regarding the display or utility of the data on any other system or for general or scientific purposes, nor shall the act of distribution constitute any such warranty.</distliab>
+    <stdorder>
+      <digform>
+        <digtinfo>
+          <formname>ATOM</formname>
+          <formvern>1.0</formvern>
+          <formcont>Real time earthquake notification feed using a basic syndication format supported by a variety of feed readers. This is a good option for casually subscribing to earthquake information.</formcont>
+        </digtinfo>
+        <digtopt>
+          <onlinopt>
+            <computer>
+              <networka>
+                <networkr>http://earthquake.usgs.gov/earthquakes/feed/v1.0/atom.php</networkr>
+              </networka>
+            </computer>
+            <accinstr>Please refer to the service URL for instructions.</accinstr>
+          </onlinopt>
+        </digtopt>
+      </digform>
+      <fees>None</fees>
+    </stdorder>
+  </distinfo>
+  <metainfo>
+    <metd>20170130</metd>
+    <metc>
+      <cntinfo>
+        <cntperp>
+          <cntper>Cecily Wolfe</cntper>
+          <cntorg>U.S. Geological Survey</cntorg>
+        </cntperp>
+        <cntpos>ANSS Coordinator</cntpos>
+        <cntaddr>
+          <addrtype>mailing and physical</addrtype>
+          <address>12201 Sunrise Valley Dr</address>
+          <city>Reston</city>
+          <state>VA</state>
+          <postal>20192</postal>
+          <country>USA</country>
+        </cntaddr>
+        <cntvoice>703-648-6714</cntvoice>
+        <cntemail>cwolfe@usgs.gov</cntemail>
+      </cntinfo>
+    </metc>
+    <metstdn>Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001-1998</metstdv>
+  </metainfo>
+</metadata>
+
