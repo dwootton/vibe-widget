@@ -43,7 +43,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/vibe-widget"
+Homepage = "https://www.dylanwootton.com/vibe-widgets/index.html"
 Documentation = "https://github.com/yourusername/vibe-widget#readme"
 Repository = "https://github.com/yourusername/vibe-widget"
 Issues = "https://github.com/yourusername/vibe-widget/issues"
