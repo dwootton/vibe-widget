@@ -48,7 +48,7 @@ pip-wheel-metadata/
 
 # Jupyter
 .ipynb_checkpoints
-# *.ipynb
+*.ipynb
 
 # Environment variables
 .env
@@ -66,5 +66,7 @@ output/
 
 
 /venv311/
-# **/widgets/**
-# /testdata/
+**/widgets/**
+/testdata/
+
+/tests/
