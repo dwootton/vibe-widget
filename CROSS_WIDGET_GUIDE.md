@@ -27,7 +27,7 @@ histogram = vw.create(
     "histogram filtered by selection",
     data=flights_df,
     imports={
-        "selected_indices": scatter.selected_indices
+        "selected_indices": scatter  # Pass the widget object itself
     }
 )
 ```
@@ -56,7 +56,7 @@ histogram = vw.create(
     "histogram of flight delays, filtered by selection from scatter plot",
     data=df,
     imports={
-        "selected_indices": scatter.selected_indices
+        "selected_indices": scatter  # Pass the widget object
     }
 )
 
@@ -82,7 +82,7 @@ landscape = vw.create(
     "3D landscape viewer with Three.js showing terrain mesh and water plane",
     data=None,
     imports={
-        "heightmap": painter.heightmap
+        "heightmap": painter  # Pass the widget object
     }
 )
 
@@ -108,7 +108,7 @@ planet_chart = vw.create(
     "bar chart showing planet properties, highlight selected planet",
     data=planets_df,
     imports={
-        "selected_planet": solar_system.selected_planet
+        "selected_planet": solar_system  # Pass the widget object
     }
 )
 
@@ -138,8 +138,8 @@ combined_view = vw.create(
     "table filtered by both brush selection AND selected airlines",
     data=flights_df,
     imports={
-        "selected_indices": scatter.selected_indices,
-        "selected_airlines": airline_filter.selected_airlines
+        "selected_indices": scatter,  # Pass the widget objects
+        "selected_airlines": airline_filter
     }
 )
 ```

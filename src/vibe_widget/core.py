@@ -98,8 +98,12 @@ class VibeWidget(anywidget.AnyWidget):
         
         # Initialize import traits with values from source widgets
         for import_name, import_source in (imports or {}).items():
-            if hasattr(import_source, "__self__") and hasattr(import_source.__self__, import_name):
-                # It's a trait reference from another widget
+            # Check if it's a widget object (has trait_names method)
+            if hasattr(import_source, 'trait_names') and hasattr(import_source, import_name):
+                # It's a widget - get the current value of the trait
+                init_values[import_name] = import_source._trait_values.get(import_name, None)
+            elif hasattr(import_source, "__self__") and hasattr(import_source.__self__, import_name):
+                # It's a trait reference from another widget (bound method style)
                 init_values[import_name] = import_source.__self__._trait_values.get(import_name, None)
             else:
                 # It's a direct value
@@ -488,7 +492,7 @@ def create(
         >>> histogram = create(
         ...     "histogram filtered by selection",
         ...     df,
-        ...     imports={"selected_indices": scatter.selected_indices}
+        ...     imports={"selected_indices": scatter}
         ... )
         
         >>> # From file (auto-detects format)
@@ -758,11 +762,29 @@ def create(
     # Link imported traits to their sources
     if imports:
         for import_name, import_source in imports.items():
-            if hasattr(import_source, "__self__") and hasattr(import_source.__self__, import_name):
-                # It's a trait from another widget - create bidirectional link
-                source_widget = import_source.__self__
+            # Check if it's a widget object (has trait_names method)
+            if hasattr(import_source, 'trait_names') and hasattr(import_source, import_name):
+                # It's a widget - link to its trait
+                source_widget = import_source
                 source_trait_name = import_name
-                traitlets.link((source_widget, source_trait_name), (widget, import_name))
+                
+                try:
+                    link = traitlets.link((source_widget, source_trait_name), (widget, import_name))
+                    print(f"✓ Linked {import_name}: {source_widget.__class__.__name__} -> {widget.__class__.__name__}")
+                except Exception as e:
+                    print(f"✗ Failed to link {import_name}: {e}")
+            elif hasattr(import_source, "__self__"):
+                # It's a bound method or trait reference
+                source_widget = import_source.__self__
+                
+                if hasattr(source_widget, import_name):
+                    source_trait_name = import_name
+                    
+                    try:
+                        link = traitlets.link((source_widget, source_trait_name), (widget, import_name))
+                        print(f"✓ Linked {import_name}: {source_widget.__class__.__name__} -> {widget.__class__.__name__}")
+                    except Exception as e:
+                        print(f"✗ Failed to link {import_name}: {e}")
     
     # Explicitly display the widget to ensure it renders
     try:
