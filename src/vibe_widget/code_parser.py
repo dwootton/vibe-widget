@@ -11,47 +11,71 @@ class CodeStreamParser:
     PATTERNS = {
         "import": (
             r'import\s+.*?\s+from\s+["\'](?:https?://)?(?:esm\.sh/)?([^"\'@]+)(?:@([^"\']+))?',
-            "📦 Importing {package}..."
+            "Importing {package}..."
         ),
-        "function_render": (
-            r'function\s+render\s*\(',
-            "⚙️ Building render function..."
+        "export_function": (
+            r'export\s+default\s+function',
+            "Creating widget component..."
         ),
         "const_data": (
             r'const\s+data\s*=\s*model\.get\(',
-            "📊 Loading data..."
+            "Loading data..."
+        ),
+        "react_hooks": (
+            r'React\.(?:useState|useEffect|useRef|useMemo|useCallback)',
+            "Setting up React hooks..."
+        ),
+        "html_template": (
+            r'html`',
+            "Building UI components..."
+        ),
+        "style_object": (
+            r'style=\$\{\{',
+            "Applying styles..."
+        ),
+        "data_map": (
+            r'\.map\(\(',
+            "Processing data..."
         ),
         "svg_create": (
             r'\.append\(["\']svg["\']\)',
-            "🎨 Creating SVG canvas..."
+            "Creating SVG canvas..."
         ),
         "element_create": (
             r'\.append\(["\'](?:div|canvas|g|circle|rect|path)["\']\)',
-            "🎨 Adding visualization elements..."
+            "Adding visualization elements..."
         ),
         "scale": (
             r'd3\.scale(?:Linear|Band|Time|Point)',
-            "📏 Setting up scales..."
+            "Setting up scales..."
         ),
         "axis": (
             r'd3\.axis(?:Bottom|Left|Top|Right)',
-            "📐 Creating axes..."
+            "Creating axes..."
         ),
         "data_binding": (
             r'model\.on\(["\']change:',
-            "🔄 Setting up reactivity..."
+            "Setting up reactivity..."
         ),
         "selection": (
             r'\.selectAll\(["\'][^"\']+["\']\)',
-            "🎯 Binding data to elements..."
+            "Binding data to elements..."
         ),
         "transition": (
             r'\.transition\(\)',
-            "✨ Adding animations..."
+            "Adding animations..."
         ),
         "event_listener": (
             r'\.on\(["\'](?:click|mouseover|mouseout)',
-            "👆 Adding interactivity..."
+            "Adding interactivity..."
+        ),
+        "conditional_render": (
+            r'\$\{[^}]*&&[^}]*html`',
+            "Adding conditional rendering..."
+        ),
+        "return_statement": (
+            r'return\s+html`',
+            "Finalizing component..."
         ),
     }
     
@@ -106,7 +130,7 @@ class CodeStreamParser:
                         "type": "action_tile",
                         "title": "Loaded dependency",
                         "message": message,
-                        "icon": "📦"
+                        "icon": "→"
                     })
         
         return updates

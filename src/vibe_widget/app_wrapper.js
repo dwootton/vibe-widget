@@ -16,58 +16,90 @@ function ProgressMap({ logs }) {
   return html`
     <div class="progress-wrapper">
       <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400&display=swap');
+        
         .progress-wrapper {
-          padding: 20px;
+          position: relative;
+          padding: 32px;
+          background: 
+            radial-gradient(
+              circle at 50% 0%,
+              rgba(243, 119, 38, 0.08),
+              transparent 60%
+            ),
+            #1a1a1a;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
+        
         .progress-title {
-          margin-bottom: 16px;
-          color: #c9d1d9;
-          font-size: 18px;
+          font-family: 'Inter', sans-serif;
+          font-size: 16px;
           font-weight: 600;
+          color: rgba(255, 255, 255, 0.9);
+          margin-bottom: 20px;
+          letter-spacing: -0.01em;
         }
+        
         .progress-container {
           width: 100%;
-          max-height: 300px;
-          background: #0d1117;
-          color: #c9d1d9;
-          font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
-          font-size: 13px;
-          line-height: 1.6;
+          max-height: 280px;
+          background: rgba(30, 30, 30, 0.5);
+          color: rgba(255, 255, 255, 0.6);
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 12px;
+          line-height: 1.7;
           padding: 16px;
           border-radius: 6px;
-          border: 1px solid #30363d;
+          border: 1px solid rgba(255, 255, 255, 0.06);
           overflow-y: auto;
         }
+        
         .progress-container::-webkit-scrollbar {
-          width: 8px;
+          width: 4px;
         }
+        
         .progress-container::-webkit-scrollbar-track {
-          background: #161b22;
+          background: transparent;
         }
+        
         .progress-container::-webkit-scrollbar-thumb {
-          background: #30363d;
-          border-radius: 4px;
+          background: rgba(243, 119, 38, 0.3);
+          border-radius: 2px;
         }
+        
         .progress-container::-webkit-scrollbar-thumb:hover {
-          background: #484f58;
+          background: rgba(243, 119, 38, 0.5);
         }
+        
         .log-entry {
-          padding: 4px 0;
-          color: #8b949e;
+          padding: 2px 0;
+          color: rgba(255, 255, 255, 0.5);
+          opacity: 0;
+          animation: fadeIn 0.3s ease-out forwards;
+          animation-delay: calc(var(--entry-index) * 0.03s);
         }
+        
         .log-entry:last-child {
-          color: #58a6ff;
-          animation: fadeIn 0.3s ease-in;
+          color: #F37726;
         }
+        
+        .log-entry::before {
+          content: '▸ ';
+          color: rgba(243, 119, 38, 0.5);
+          margin-right: 6px;
+        }
+        
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateX(-4px); }
-          to { opacity: 1; transform: translateX(0); }
+          to {
+            opacity: 1;
+          }
         }
       </style>
       <h3 class="progress-title">Generating Widget...</h3>
       <div class="progress-container" ref=${containerRef}>
         ${logs.map((log, idx) => html`
-          <div key=${idx} class="log-entry">${log}</div>
+          <div key=${idx} class="log-entry" style=${{ '--entry-index': idx }}>${log}</div>
         `)}
       </div>
     </div>
@@ -286,7 +318,7 @@ function AppWrapper({ model }) {
   }
 
   return html`
-    <div class="vibe-container" style=${{ position: 'relative', width: '100%', minHeight: '400px' }}>
+    <div class="vibe-container" style=${{ position: 'relative', width: '100%' }}>
       <${SandboxedRunner} code=${code} model=${model} />
       <${FloatingMenu} isOpen=${isMenuOpen} onToggle=${() => setMenuOpen(!isMenuOpen)} />
     </div>

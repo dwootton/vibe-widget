@@ -187,7 +187,7 @@ CRITICAL Requirements - Dependency Injection Pattern:
 8. DO NOT import React or ReactDOM (they are injected via props)
 9. DO NOT use JSX syntax (use html tagged templates instead)
 10. DO NOT wrap in markdown code fences
-11. DO NOT use 100vh for height - use fixed heights (e.g., 500px) or 100%
+11. DO NOT use 100vh or viewport units - use fixed heights (e.g., 500px, 600px) - viewport units break Jupyter
 12. ALWAYS include proper cleanup in useEffect return statements to prevent memory leaks
 
 Example structure:
@@ -242,6 +242,7 @@ Key Syntax Rules:
 Focus on:
 - **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
 - **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
+- NEVER use emojis.
 - **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
 - **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
 - **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.

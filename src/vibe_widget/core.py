@@ -135,9 +135,10 @@ class VibeWidget(anywidget.AnyWidget):
             
             chunk_buffer = []
             update_counter = 0
+            last_pattern_count = 0
             
             def stream_callback(chunk: str):
-                nonlocal update_counter
+                nonlocal update_counter, last_pattern_count
                 
                 chunk_buffer.append(chunk)
                 update_counter += 1
@@ -145,9 +146,9 @@ class VibeWidget(anywidget.AnyWidget):
                 updates = parser.parse_chunk(chunk)
                 
                 should_update = (
-                    update_counter % 100 == 0 or 
+                    update_counter % 30 == 0 or 
                     parser.has_new_pattern() or
-                    len(''.join(chunk_buffer)) > 1000
+                    len(''.join(chunk_buffer)) > 500
                 )
                 
                 if should_update:
@@ -160,6 +161,13 @@ class VibeWidget(anywidget.AnyWidget):
                             current_logs = list(self.logs)
                             current_logs.append(update["message"])
                             self.logs = current_logs
+                    
+                    current_pattern_count = len(parser.detected)
+                    if current_pattern_count == last_pattern_count and update_counter % 100 == 0:
+                        current_logs = list(self.logs)
+                        current_logs.append(f"Generating code... ({update_counter} chunks)")
+                        self.logs = current_logs
+                    last_pattern_count = current_pattern_count
             
             widget_code = llm_provider.generate_widget_code(
                 enhanced_description, 
