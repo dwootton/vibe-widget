@@ -20,6 +20,78 @@ class ClaudeProvider(LLMProvider):
             )
         self.model = model
         self.client = Anthropic(api_key=self.api_key)
+    
+    def _build_exports_imports_section(self, exports: dict, imports: dict) -> str:
+        """Build the exports/imports section of the prompt"""
+        if not exports and not imports:
+            return ""
+        
+        sections = []
+        
+        if exports:
+            export_list = "\n".join([f"- {name}: {desc}" for name, desc in exports.items()])
+            sections.append(f"""
+EXPORTS (State to share with other widgets):
+{export_list}
+
+You MUST:
+- Update these exported traits using model.set("{list(exports.keys())[0]}", value) followed by model.save_changes()
+- Initialize them with appropriate default values (empty arrays, null, etc.)
+- Update them whenever the user interacts with the visualization
+
+Example for exporting selected_indices:
+```
+function render({{ model, el }}) {{
+  // Initialize the export
+  model.set("selected_indices", []);
+  model.save_changes();
+  
+  // Update on user interaction
+  someElement.addEventListener('click', () => {{
+    const selected = [1, 2, 3]; // Calculate selection
+    model.set("selected_indices", selected);
+    model.save_changes();
+  }});
+}}
+```""")
+        
+        if imports:
+            import_list = "\n".join([f"- {name}: {desc}" for name, desc in imports.items()])
+            sections.append(f"""
+IMPORTS (State from other widgets):
+{import_list}
+
+You MUST:
+- Read these imported values using model.get("{list(imports.keys())[0]}")
+- Listen for changes using model.on("change:{list(imports.keys())[0]}", callback)
+- Update your visualization when imported values change
+
+Example for importing selected_indices:
+```
+function render({{ model, el }}) {{
+  function updateVisualization() {{
+    const selectedIndices = model.get("selected_indices") || [];
+    const allData = model.get("data");
+    
+    // Filter or highlight based on selection
+    const filteredData = selectedIndices.length > 0
+      ? selectedIndices.map(i => allData[i])
+      : allData;
+    
+    // Re-render with filtered data
+    // ...
+  }}
+  
+  // Initial render
+  updateVisualization();
+  
+  // Listen for changes
+  model.on("change:selected_indices", updateVisualization);
+  model.on("change:data", updateVisualization);
+}}
+```""")
+        
+        return "\n".join(sections)
 
     def generate_widget_code(
         self, 
@@ -118,6 +190,8 @@ Return ONLY the complete revised React application code. No markdown fences, no 
         columns = data_info.get("columns", [])
         dtypes = data_info.get("dtypes", {})
         sample_data = data_info.get("sample", {})
+        exports = data_info.get("exports", {})
+        imports = data_info.get("imports", {})
 
         return f"""Create a visualization based on this request: {description}
 
@@ -125,6 +199,8 @@ Data schema:
 - Columns: {', '.join(columns)}
 - Types: {dtypes}
 - Sample data: {sample_data}
+
+{self._build_exports_imports_section(exports, imports)}
 
 CRITICAL AFM Requirements:
 1. Must follow the anywidget specification exactly
@@ -156,23 +232,53 @@ function render({{ model, el }}) {{
 
 export default {{ render }};
 ```
+  // Optional: listen to model changes
+  model.on("change:data", () => {{
+    // Update visualization
+  }});
+}}
+
+export default {{ render }};
+```
+
+CROSS-WIDGET PATTERNS (when exports/imports specified):
+
+Scatter with brush EXPORTS selected_indices:
+```
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+function render({{ model, el }}) {{
+  const data = model.get("data");
+  model.set("selected_indices", []);
+  model.save_changes();
+  
+  const brush = d3.brush().on("end", (event) => {{
+    if (!event.selection) {{
+      model.set("selected_indices", []);
+    }} else {{
+      const selected = []; // Calculate indices in brush
+      model.set("selected_indices", selected);
+    }}
+    model.save_changes();
+  }});
+}}
+```
+
+Histogram IMPORTS selected_indices:
+```
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+function render({{ model, el }}) {{
+  function update() {{
+    const data = model.get("data");
+    const selectedIndices = model.get("selected_indices") || [];
+    const filtered = selectedIndices.length > 0 ? selectedIndices.map(i => data[i]) : data;
+    // Re-render with filtered
+  }}
+  update();
+  model.on("change:selected_indices", update);
+}}
+```
+
+Initialize exports, update with model.set()+model.save_changes(), listen to imports with model.on("change:name", fn).
 
 
-## Frontend Aesthetics Guidelines
-
-Focus on:
-- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
-- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
-- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
-- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
-- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
-
-NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
-
-Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
-
-**IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
-
-Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
-
-Return ONLY the JavaScript code. No markdown fences, no explanations."""
+"""

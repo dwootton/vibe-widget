@@ -52,8 +52,9 @@ class VibeWidget(anywidget.AnyWidget):
     description = traitlets.Unicode("").tag(sync=True)
     data_profile_md = traitlets.Unicode("").tag(sync=True)  # For debugging/display
 
-    def __init__(
-        self, 
+    @classmethod
+    def _create_with_dynamic_traits(
+        cls,
         description: str, 
         df: pd.DataFrame, 
         api_key: str | None = None, 
@@ -61,21 +62,91 @@ class VibeWidget(anywidget.AnyWidget):
         use_preprocessor: bool = True,
         context: dict | None = None,
         show_progress: bool = True,
+        exports: dict[str, str] | None = None,
+        imports: dict[str, Any] | None = None,
         **kwargs
     ):
         """
-        Create a VibeWidget with optional intelligent preprocessing
-        
-        Args:
-            description: Natural language description of desired visualization
-            df: DataFrame to visualize
-            api_key: Anthropic API key
-            model: Claude model to use
-            use_preprocessor: Whether to use the intelligent preprocessor (recommended)
-            context: Additional context about the data (domain, purpose, etc.)
-            show_progress: Whether to show progress widget
-            **kwargs: Additional widget parameters
+        Create a VibeWidget with optional dynamic traits for exports/imports
         """
+        # If we have exports or imports, create a dynamic class
+        if exports or imports:
+            # Create dynamic traits dict
+            dynamic_traits = {}
+            for export_name in (exports or {}).keys():
+                dynamic_traits[export_name] = traitlets.Any(default_value=None).tag(sync=True)
+            for import_name in (imports or {}).keys():
+                if import_name not in dynamic_traits:
+                    dynamic_traits[import_name] = traitlets.Any(default_value=None).tag(sync=True)
+            
+            # Create a new class with these traits
+            DynamicWidgetClass = type(
+                'DynamicVibeWidget',
+                (cls,),
+                dynamic_traits
+            )
+            widget_class = DynamicWidgetClass
+        else:
+            widget_class = cls
+        
+        # Build init_values dict with initial values for traits
+        init_values = {}
+        
+        # Initialize export traits with None (they'll be updated by JS)
+        for export_name in (exports or {}).keys():
+            init_values[export_name] = None
+        
+        # Initialize import traits with values from source widgets
+        for import_name, import_source in (imports or {}).items():
+            if hasattr(import_source, "__self__") and hasattr(import_source.__self__, import_name):
+                # It's a trait reference from another widget
+                init_values[import_name] = import_source.__self__._trait_values.get(import_name, None)
+            else:
+                # It's a direct value
+                init_values[import_name] = import_source
+        
+        # Create instance - use normal instantiation, passing a special flag
+        # to skip the normal initialization
+        instance = widget_class.__new__(widget_class)
+        
+        # Now run custom initialization
+        instance._custom_init(
+            description=description,
+            df=df,
+            api_key=api_key,
+            model=model,
+            use_preprocessor=use_preprocessor,
+            context=context,
+            show_progress=show_progress,
+            exports=exports,
+            imports=imports,
+            init_values=init_values,
+            **kwargs
+        )
+        
+        return instance
+    
+    def _custom_init(
+        self,
+        description: str, 
+        df: pd.DataFrame, 
+        api_key: str | None = None, 
+        model: str = "claude-haiku-4-5-20251001",
+        use_preprocessor: bool = True,
+        context: dict | None = None,
+        show_progress: bool = True,
+        exports: dict[str, str] | None = None,
+        imports: dict[str, Any] | None = None,
+        init_values: dict = None,
+        **kwargs
+    ):
+        """
+        Custom initialization that runs after __new__
+        """
+        # Store exports/imports metadata for prompt generation
+        self._exports = exports or {}
+        self._imports = imports or {}
+        
         progress = None
         parser = CodeStreamParser()
         
@@ -126,6 +197,10 @@ class VibeWidget(anywidget.AnyWidget):
                 progress.update_progress(20)
             
             data_info = self._extract_data_info(df)
+            
+            # Add exports/imports to data_info for LLM
+            data_info["exports"] = self._exports
+            data_info["imports"] = {k: v for k, v in (self._imports or {}).items()}
             
             # Batch updates to reduce UI thrashing
             chunk_buffer = []
@@ -213,13 +288,15 @@ class VibeWidget(anywidget.AnyWidget):
             data_json = df.to_dict(orient="records")
             data_json = _clean_for_json(data_json)
             
-            # Initialize widget
-            super().__init__(
-                data=data_json,
-                description=enhanced_description,
-                data_profile_md=data_profile.to_markdown() if data_profile else "",
-                **kwargs
-            )
+            # Update init_values with data
+            init_values.update({
+                "data": data_json,
+                "description": enhanced_description,
+                "data_profile_md": data_profile.to_markdown() if data_profile else "",
+            })
+            
+            # Initialize widget using anywidget's __init__
+            anywidget.AnyWidget.__init__(self, **init_values, **kwargs)
             
         except Exception as e:
             if progress:
@@ -361,23 +438,27 @@ class VibeWidget(anywidget.AnyWidget):
 
 def create(
     description: str,
-    df: pd.DataFrame | str | Path,
+    df: pd.DataFrame | str | Path = None,
     api_key: str | None = None,
     model: str = "claude-haiku-4-5-20251001",
     context: dict | DataProfile | None = None,
     use_preprocessor: bool = True,
     show_progress: bool = True,
+    exports: dict[str, str] | None = None,
+    imports: dict[str, Any] | None = None,
 ) -> VibeWidget:
     """
     Create a VibeWidget visualization with intelligent preprocessing.
     
     Args:
         description: Natural language description of the visualization
-        df: DataFrame to visualize OR path to data file (CSV, NetCDF, GeoJSON, etc.)
+        df: DataFrame to visualize OR path to data file (CSV, NetCDF, GeoJSON, etc.) OR None if using only imports
         api_key: Anthropic API key (or set ANTHROPIC_API_KEY env var)
         model: Claude model to use
         context: Additional context (dict with domain/purpose/etc.) OR DataProfile object
         use_preprocessor: Whether to use intelligent preprocessing (recommended)
+        exports: Dict of {trait_name: description} for traits this widget exposes
+        imports: Dict of {trait_name: source} where source is another widget's trait or value
     
     Returns:
         VibeWidget instance
@@ -396,9 +477,19 @@ def create(
         ...     }
         ... )
         
-        >>> # With pre-computed profile
-        >>> profile = preprocess_data(df, api_key=api_key)
-        >>> widget = create("visualize patterns", df, context=profile)
+        >>> # With exports (widget exposes selected_indices)
+        >>> scatter = create(
+        ...     "scatter plot with brush selection",
+        ...     df,
+        ...     exports={"selected_indices": "list of selected point indices"}
+        ... )
+        
+        >>> # With imports (widget consumes selected_indices from scatter)
+        >>> histogram = create(
+        ...     "histogram filtered by selection",
+        ...     df,
+        ...     imports={"selected_indices": scatter.selected_indices}
+        ... )
         
         >>> # From file (auto-detects format)
         >>> widget = create(
@@ -647,8 +738,12 @@ def create(
         if len(df) > 1000:
             df = df.sample(1000)
     
-    # Create widget
-    widget = VibeWidget(
+    # Handle None data case (widget using only imports)
+    if df is None:
+        df = pd.DataFrame()  # Empty DataFrame
+    
+    # Create widget using factory method
+    widget = VibeWidget._create_with_dynamic_traits(
         description=description, 
         df=df, 
         api_key=api_key, 
@@ -656,7 +751,18 @@ def create(
         use_preprocessor=use_preprocessor,
         context=context,
         show_progress=show_progress,
+        exports=exports,
+        imports=imports,
     )
+    
+    # Link imported traits to their sources
+    if imports:
+        for import_name, import_source in imports.items():
+            if hasattr(import_source, "__self__") and hasattr(import_source.__self__, import_name):
+                # It's a trait from another widget - create bidirectional link
+                source_widget = import_source.__self__
+                source_trait_name = import_name
+                traitlets.link((source_widget, source_trait_name), (widget, import_name))
     
     # Explicitly display the widget to ensure it renders
     try:

@@ -95,6 +95,31 @@ mypy src/
 - ⚛️ React-based interactive widgets
 - 📊 Pandas DataFrame integration
 - 🔧 Extensible LLM provider system
+- 🔗 **NEW:** Cross-widget interactions with exports/imports (see [CROSS_WIDGET_GUIDE.md](CROSS_WIDGET_GUIDE.md))
+
+## Cross-Widget Interactions
+
+Create connected visualizations where interactions in one widget update another:
+
+```python
+# Create scatter plot with brush selection
+scatter = vw.create(
+    "scatter plot with brush selection",
+    data=df,
+    exports={"selected_indices": "list of selected point indices"}
+)
+
+# Create histogram that responds to selection
+histogram = vw.create(
+    "histogram filtered by selection",
+    data=df,
+    imports={"selected_indices": scatter.selected_indices}
+)
+
+# Now brushing in the scatter plot automatically updates the histogram!
+```
+
+See [CROSS_WIDGET_GUIDE.md](CROSS_WIDGET_GUIDE.md) for complete documentation and examples.
 
 ## License
 
