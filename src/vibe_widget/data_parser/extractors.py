@@ -70,12 +70,25 @@ class DataExtractor(ABC):
         """Create column profile from pandas Series"""
         dtype = self._infer_dtype(series)
         
+        # Safe conversion to int, handling NaN and edge cases
+        def safe_int(value):
+            try:
+                if pd.isna(value):
+                    return 0
+                return int(float(value))
+            except (ValueError, TypeError):
+                return 0
+        
+        count_val = series.count()
+        missing_val = series.isna().sum()
+        unique_val = series.nunique()
+        
         profile = ColumnProfile(
             name=name,
             dtype=dtype,
-            count=int(series.count()),
-            missing_count=int(series.isna().sum()),
-            unique_count=int(series.nunique())
+            count=safe_int(count_val),
+            missing_count=safe_int(missing_val),
+            unique_count=safe_int(unique_val)
         )
         
         # Numeric analysis
@@ -134,7 +147,15 @@ class DataFrameExtractor(DataExtractor):
         
         # Analyze each column - ONLY structural properties
         for col in source.columns:
-            col_profile = self._analyze_column(source[col], str(col))
+            # Get the column as a Series - handle duplicate column names
+            col_data = source[col]
+            # If we get a DataFrame (due to duplicate names), take the first column
+            if isinstance(col_data, pd.DataFrame):
+                col_data = col_data.iloc[:, 0]
+            # Ensure we have a Series
+            if not isinstance(col_data, pd.Series):
+                continue
+            col_profile = self._analyze_column(col_data, str(col))
             profile.columns.append(col_profile)
         
         # Sample data for LLM to analyze
@@ -602,7 +623,26 @@ class PDFExtractor(DataExtractor):
         
         # First row is often headers
         if len(df) > 0:
-            df.columns = df.iloc[0]
+            # Get header row and clean it up
+            header_row = df.iloc[0]
+            # Convert to strings and handle empty/duplicate names
+            new_columns = []
+            seen = {}
+            for i, col in enumerate(header_row):
+                # Convert to string, handle NaN/None
+                col_str = str(col) if pd.notna(col) else f"Column_{i}"
+                # Handle empty strings
+                if not col_str or col_str.strip() == "":
+                    col_str = f"Column_{i}"
+                # Handle duplicates by appending suffix
+                if col_str in seen:
+                    seen[col_str] += 1
+                    col_str = f"{col_str}_{seen[col_str]}"
+                else:
+                    seen[col_str] = 0
+                new_columns.append(col_str)
+            
+            df.columns = new_columns
             df = df[1:]
             df = df.reset_index(drop=True)
         
@@ -628,35 +668,91 @@ class WebExtractor(DataExtractor):
     def extract(self, source: str) -> DataProfile:
         """Extract structural profile from web content"""
         try:
-            from crawl4ai import WebCrawler
+            from crawl4ai import AsyncWebCrawler
+            import asyncio
         except ImportError:
             raise ImportError(
                 "crawl4ai required for web extraction. Install with: pip install crawl4ai"
             )
         
-        # Crawl the URL
-        crawler = WebCrawler()
-        result = crawler.run(url=source)
+        # Helper function to run async crawl
+        async def _crawl_url(url: str):
+            async with AsyncWebCrawler() as crawler:
+                result = await crawler.arun(url=url)
+                return result
+        
+        # Run the async crawl - handle both cases: with and without running event loop
+        try:
+            try:
+                # Check if there's already a running event loop (e.g., in Jupyter)
+                loop = asyncio.get_running_loop()
+                # If we're in a running loop, use nest_asyncio to allow nested event loops
+                try:
+                    import nest_asyncio
+                    nest_asyncio.apply()
+                    result = asyncio.run(_crawl_url(source))
+                except ImportError:
+                    # If nest_asyncio not available, create a new event loop in a thread
+                    import concurrent.futures
+                    import threading
+                    
+                    def run_in_thread():
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        try:
+                            return new_loop.run_until_complete(_crawl_url(source))
+                        finally:
+                            new_loop.close()
+                    
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(run_in_thread)
+                        result = future.result()
+            except RuntimeError:
+                # No running event loop, safe to use asyncio.run()
+                result = asyncio.run(_crawl_url(source))
+        except Exception as e:
+            raise ValueError(f"Failed to crawl URL: {source}. Error: {e}")
         
         # Extract structured data if available
-        # This is simplified - real implementation would need to parse HTML tables, lists, etc.
         if not result.success:
             raise ValueError(f"Failed to crawl URL: {source}")
         
-        # Try to extract tables from HTML
-        try:
-            import pandas as pd
-            from io import StringIO
-            # Read HTML tables
-            tables = pd.read_html(StringIO(result.html))
-            if tables:
-                df = tables[0]  # Use first table
+        # Get HTML content from result
+        html_content = result.html if hasattr(result, 'html') else ""
+        # Get markdown content - it might be an object with raw_markdown attribute
+        if hasattr(result, 'markdown'):
+            if hasattr(result.markdown, 'raw_markdown'):
+                markdown_content = result.markdown.raw_markdown
+            elif isinstance(result.markdown, str):
+                markdown_content = result.markdown
             else:
-                # No tables, create a text-based profile
-                df = pd.DataFrame({'content': [result.markdown]})
-        except:
-            # Fallback: treat as text content
-            df = pd.DataFrame({'content': [result.markdown]})
+                markdown_content = str(result.markdown)
+        else:
+            markdown_content = ""
+        
+        # Try to extract tables from HTML first
+        try:
+            from io import StringIO
+            if html_content:
+                tables = pd.read_html(StringIO(html_content))
+                if tables:
+                    df = tables[0]  # Use first table
+                else:
+                    # No tables, try to parse structured content (e.g., Hacker News)
+                    df = self._parse_web_content(html_content, source)
+            else:
+                # No HTML, try markdown or create text-based profile
+                df = pd.DataFrame({'content': [markdown_content[:5000]] if markdown_content else ['No content extracted']})
+        except Exception:
+            # Fallback: try to parse structured content
+            try:
+                if html_content:
+                    df = self._parse_web_content(html_content, source)
+                else:
+                    df = pd.DataFrame({'content': [markdown_content[:5000]] if markdown_content else ['No content extracted']})
+            except Exception:
+                # Last resort: create a text-based profile
+                df = pd.DataFrame({'content': [markdown_content[:5000]] if markdown_content else ['No content extracted']})
         
         # Use DataFrame extractor
         df_extractor = DataFrameExtractor()
@@ -666,6 +762,102 @@ class WebExtractor(DataExtractor):
         profile.source_uri = source
         
         return profile
+    
+    def _parse_web_content(self, html: str, url: str) -> pd.DataFrame:
+        """
+        Parse web content into structured DataFrame.
+        Handles common sites like Hacker News, Reddit, etc.
+        """
+        try:
+            from bs4 import BeautifulSoup
+        except ImportError:
+            # Fallback: return empty DataFrame with content
+            return pd.DataFrame({'content': [html[:1000]]})
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Hacker News specific parsing
+        if 'news.ycombinator.com' in url or 'hackernews' in url.lower():
+            stories = []
+            
+            # Find all story rows (they have class 'athing')
+            story_rows = soup.find_all('tr', class_='athing')
+            
+            for row in story_rows:
+                story = {}
+                
+                # Find title link
+                title_elem = row.find('a', class_='titlelink')
+                if title_elem:
+                    story['title'] = title_elem.get_text(strip=True)
+                    story['url'] = title_elem.get('href', '')
+                    if story['url'].startswith('item?'):
+                        story['url'] = f"https://news.ycombinator.com/{story['url']}"
+                
+                # Find score and metadata in next row
+                next_row = row.find_next_sibling('tr')
+                if next_row:
+                    # Score
+                    score_elem = next_row.find('span', class_='score')
+                    if score_elem:
+                        score_text = score_elem.get_text(strip=True)
+                        try:
+                            story['score'] = int(score_text.split()[0])
+                        except (ValueError, IndexError):
+                            story['score'] = 0
+                    else:
+                        story['score'] = 0
+                    
+                    # Author
+                    author_elem = next_row.find('a', class_='hnuser')
+                    if author_elem:
+                        story['author'] = author_elem.get_text(strip=True)
+                    
+                    # Time
+                    time_elem = next_row.find('span', class_='age')
+                    if time_elem:
+                        story['time'] = time_elem.get('title', time_elem.get_text(strip=True))
+                    
+                    # Comments
+                    comment_links = next_row.find_all('a', href=lambda x: x and 'item?id=' in x)
+                    for link in comment_links:
+                        link_text = link.get_text(strip=True)
+                        if 'comment' in link_text.lower() or 'discuss' in link_text.lower():
+                            try:
+                                # Extract number from text like "42 comments"
+                                import re
+                                nums = re.findall(r'\d+', link_text)
+                                if nums:
+                                    story['comments'] = int(nums[0])
+                                else:
+                                    story['comments'] = 0
+                            except (ValueError, IndexError):
+                                story['comments'] = 0
+                            break
+                    else:
+                        story['comments'] = 0
+                
+                if story.get('title'):
+                    stories.append(story)
+            
+            if stories:
+                return pd.DataFrame(stories)
+        
+        # Generic parsing: try to find lists or structured content
+        # Look for common list patterns
+        lists = soup.find_all(['ul', 'ol'])
+        if lists:
+            items = []
+            for ul in lists[:5]:  # Limit to first 5 lists
+                for li in ul.find_all('li', recursive=False):
+                    text = li.get_text(strip=True)
+                    if text and len(text) > 10:  # Filter out very short items
+                        items.append({'item': text})
+            if items:
+                return pd.DataFrame(items)
+        
+        # Fallback: return content as single row
+        return pd.DataFrame({'content': [soup.get_text(strip=True)[:5000]]})
 
 
 # Registry of extractors (ORDER MATTERS - more specific first)

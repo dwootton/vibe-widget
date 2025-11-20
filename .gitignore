@@ -68,3 +68,5 @@ output/
 /venv311/
 **/widgets/**
 /testdata/
+
+/tests/

@@ -515,9 +515,121 @@ def create(
             
             # First row is often headers
             if len(df_converted) > 0:
-                df_converted.columns = df_converted.iloc[0]
+                # Get header row and clean it up
+                header_row = df_converted.iloc[0]
+                # Convert to strings and handle empty/duplicate names
+                new_columns = []
+                seen = {}
+                for i, col in enumerate(header_row):
+                    # Convert to string, handle NaN/None
+                    col_str = str(col) if pd.notna(col) else f"Column_{i}"
+                    # Handle empty strings
+                    if not col_str or col_str.strip() == "":
+                        col_str = f"Column_{i}"
+                    # Handle duplicates by appending suffix
+                    if col_str in seen:
+                        seen[col_str] += 1
+                        col_str = f"{col_str}_{seen[col_str]}"
+                    else:
+                        seen[col_str] = 0
+                    new_columns.append(col_str)
+                
+                df_converted.columns = new_columns
                 df_converted = df_converted[1:]
                 df_converted = df_converted.reset_index(drop=True)
+        elif profile.source_type == "web":
+            # Web URLs need to be scraped - use the extractor logic
+            from vibe_widget.data_parser.extractors import WebExtractor
+            extractor = WebExtractor()
+            # Re-extract to get the DataFrame (extractor creates it internally)
+            # We'll scrape it again to get the DataFrame
+            source_url = str(df) if isinstance(df, str) else str(df)
+            
+            try:
+                from crawl4ai import AsyncWebCrawler
+                import asyncio
+            except ImportError:
+                raise ImportError(
+                    "crawl4ai required for web extraction. Install with: pip install crawl4ai"
+                )
+            
+            # Helper function to run async crawl
+            async def _crawl_url(url: str):
+                async with AsyncWebCrawler() as crawler:
+                    result = await crawler.arun(url=url)
+                    return result
+            
+            # Run the async crawl - handle both cases: with and without running event loop
+            try:
+                try:
+                    # Check if there's already a running event loop (e.g., in Jupyter)
+                    loop = asyncio.get_running_loop()
+                    # If we're in a running loop, use nest_asyncio to allow nested event loops
+                    try:
+                        import nest_asyncio
+                        nest_asyncio.apply()
+                        result = asyncio.run(_crawl_url(source_url))
+                    except ImportError:
+                        # If nest_asyncio not available, create a new event loop in a thread
+                        import concurrent.futures
+                        import threading
+                        
+                        def run_in_thread():
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                return new_loop.run_until_complete(_crawl_url(source_url))
+                            finally:
+                                new_loop.close()
+                        
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(run_in_thread)
+                            result = future.result()
+                except RuntimeError:
+                    # No running event loop, safe to use asyncio.run()
+                    result = asyncio.run(_crawl_url(source_url))
+            except Exception as e:
+                raise ValueError(f"Failed to crawl URL: {source_url}. Error: {e}")
+            
+            if not result.success:
+                raise ValueError(f"Failed to crawl URL: {source_url}")
+            
+            # Get HTML content from result
+            html_content = result.html if hasattr(result, 'html') else ""
+            # Get markdown content - it might be an object with raw_markdown attribute
+            if hasattr(result, 'markdown'):
+                if hasattr(result.markdown, 'raw_markdown'):
+                    markdown_content = result.markdown.raw_markdown
+                elif isinstance(result.markdown, str):
+                    markdown_content = result.markdown
+                else:
+                    markdown_content = str(result.markdown)
+            else:
+                markdown_content = ""
+            
+            # Try to extract tables from HTML first
+            try:
+                from io import StringIO
+                if html_content:
+                    tables = pd.read_html(StringIO(html_content))
+                    if tables:
+                        df_converted = tables[0]  # Use first table
+                    else:
+                        # No tables, try to parse structured content (e.g., Hacker News)
+                        df_converted = extractor._parse_web_content(html_content, source_url)
+                else:
+                    # No HTML, try markdown or create text-based profile
+                    df_converted = pd.DataFrame({'content': [markdown_content[:5000]] if markdown_content else ['No content extracted']})
+            except Exception as e:
+                # Fallback: try to parse structured content
+                try:
+                    if html_content:
+                        df_converted = extractor._parse_web_content(html_content, source_url)
+                    else:
+                        df_converted = pd.DataFrame({'content': [markdown_content[:5000]] if markdown_content else ['No content extracted']})
+                except Exception as e2:
+                    # Last resort: create a text-based profile
+                    df_converted = pd.DataFrame({'content': [markdown_content[:5000]] if markdown_content else ['No content extracted']})
         else:
             raise ValueError(f"Unsupported source type: {profile.source_type}")
         
