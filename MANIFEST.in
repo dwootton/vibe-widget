@@ -1,3 +1,4 @@
 include README.md
 include LICENSE
+include src/vibe_widget/app_wrapper.js
 recursive-include src/vibe_widget/widgets *.js

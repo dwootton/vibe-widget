@@ -13,8 +13,6 @@ from IPython.display import display
 
 from vibe_widget.code_parser import CodeStreamParser
 from vibe_widget.llm.claude import ClaudeProvider
-from vibe_widget.progress import ProgressWidget
-from vibe_widget.data_parser.preprocessor import DataPreprocessor
 from vibe_widget.data_parser.data_profile import DataProfile
 
 
@@ -59,6 +57,78 @@ class VibeWidget(anywidget.AnyWidget):
     error_message = traitlets.Unicode("").tag(sync=True)
     retry_count = traitlets.Int(0).tag(sync=True)
 
+    @classmethod
+    def _create_with_dynamic_traits(
+        cls,
+        description: str,
+        df: pd.DataFrame,
+        api_key: str | None = None,
+        model: str = "claude-haiku-4-5-20251001",
+        use_preprocessor: bool = True,
+        context: dict | None = None,
+        show_progress: bool = True,
+        exports: dict[str, str] | None = None,
+        imports: dict[str, Any] | None = None,
+        **kwargs,
+    ) -> "VibeWidget":
+        """Return a widget instance that includes traitlets for declared exports/imports."""
+        exports = exports or {}
+        imports = imports or {}
+
+        dynamic_traits: dict[str, traitlets.TraitType] = {}
+        for export_name in exports.keys():
+            dynamic_traits[export_name] = traitlets.Any(default_value=None).tag(sync=True)
+        for import_name in imports.keys():
+            if import_name not in dynamic_traits:
+                dynamic_traits[import_name] = traitlets.Any(default_value=None).tag(sync=True)
+
+        widget_class = (
+            type("DynamicVibeWidget", (cls,), dynamic_traits) if dynamic_traits else cls
+        )
+
+        init_values: dict[str, Any] = {}
+        for export_name in exports.keys():
+            init_values[export_name] = None
+        for import_name, import_source in imports.items():
+            init_values[import_name] = cls._initial_import_value(import_name, import_source)
+
+        return widget_class(
+            description=description,
+            df=df,
+            api_key=api_key,
+            model=model,
+            use_preprocessor=use_preprocessor,
+            context=context,
+            show_progress=show_progress,
+            exports=exports,
+            imports=imports,
+            **init_values,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _initial_import_value(import_name: str, import_source: Any) -> Any:
+        """Figure out an initial default value for an imported trait."""
+        if hasattr(import_source, "trait_names") and hasattr(import_source, import_name):
+            return getattr(import_source, import_name)
+        if hasattr(import_source, "__self__") and hasattr(import_source.__self__, import_name):
+            return getattr(import_source.__self__, import_name)
+        return import_source
+
+    def _serialize_imports_for_prompt(self) -> dict[str, str]:
+        """Convert import sources to human-readable descriptions for the LLM prompt."""
+        serialized: dict[str, str] = {}
+        for name, source in (self._imports or {}).items():
+            if isinstance(source, str):
+                serialized[name] = source
+            elif hasattr(source, "__class__"):
+                serialized[name] = (
+                    f"Trait '{name}' from widget {source.__class__.__name__}"
+                )
+            else:
+                serialized[name] = repr(source)
+        return serialized
+
     def __init__(
         self, 
         description: str, 
@@ -68,6 +138,8 @@ class VibeWidget(anywidget.AnyWidget):
         use_preprocessor: bool = True,
         context: dict | None = None,
         show_progress: bool = True,
+        exports: dict[str, str] | None = None,
+        imports: dict[str, Any] | None = None,
         **kwargs
     ):
         """
@@ -81,9 +153,13 @@ class VibeWidget(anywidget.AnyWidget):
             use_preprocessor: Whether to use the intelligent preprocessor (recommended)
             context: Additional context about the data (domain, purpose, etc.)
             show_progress: Whether to show progress widget (deprecated - now uses internal state)
+            exports: Dict of trait_name -> description for state this widget exposes
+            imports: Dict of trait_name -> source widget/value for state this widget consumes
             **kwargs: Additional widget parameters
         """
         parser = CodeStreamParser()
+        self._exports = exports or {}
+        self._imports = imports or {}
         
         app_wrapper_path = Path(__file__).parent / "app_wrapper.js"
         self._esm = app_wrapper_path.read_text()
@@ -132,6 +208,9 @@ class VibeWidget(anywidget.AnyWidget):
             self.logs = self.logs + ["Generating widget code..."]
             
             data_info = self._extract_data_info(df)
+            data_info["exports"] = self._exports
+            data_info["imports"] = self._serialize_imports_for_prompt()
+            self.data_info = data_info
             
             chunk_buffer = []
             update_counter = 0
@@ -360,23 +439,27 @@ class VibeWidget(anywidget.AnyWidget):
 
 def create(
     description: str,
-    df: pd.DataFrame | str | Path,
+    df: pd.DataFrame | str | Path | None = None,
     api_key: str | None = None,
     model: str = "claude-haiku-4-5-20251001",
     context: dict | DataProfile | None = None,
     use_preprocessor: bool = True,
     show_progress: bool = True,
+    exports: dict[str, str] | None = None,
+    imports: dict[str, Any] | None = None,
 ) -> VibeWidget:
     """
     Create a VibeWidget visualization with intelligent preprocessing.
     
     Args:
         description: Natural language description of the visualization
-        df: DataFrame to visualize OR path to data file (CSV, NetCDF, GeoJSON, etc.)
+        df: DataFrame to visualize OR path to data file (CSV, NetCDF, GeoJSON, etc.) OR None when using imports only
         api_key: Anthropic API key (or set ANTHROPIC_API_KEY env var)
         model: Claude model to use
         context: Additional context (dict with domain/purpose/etc.) OR DataProfile object
         use_preprocessor: Whether to use intelligent preprocessing (recommended)
+        exports: Dict of {trait_name: description} for traits this widget exposes
+        imports: Dict of {trait_name: source} where source is another widget's trait or literal value
     
     Returns:
         VibeWidget instance
@@ -646,16 +729,43 @@ def create(
         if len(df) > 1000:
             df = df.sample(1000)
     
-    # Create widget
-    widget = VibeWidget(
-        description=description, 
-        df=df, 
-        api_key=api_key, 
+    # Handle None data scenario (widget driven solely by imports)
+    if df is None:
+        df = pd.DataFrame()
+
+    widget = VibeWidget._create_with_dynamic_traits(
+        description=description,
+        df=df,
+        api_key=api_key,
         model=model,
         use_preprocessor=use_preprocessor,
         context=context,
         show_progress=show_progress,
+        exports=exports,
+        imports=imports,
     )
+
+    # Link imported traits so they stay synchronized automatically
+    if imports:
+        for import_name, import_source in imports.items():
+            if hasattr(import_source, "trait_names") and hasattr(import_source, import_name):
+                try:
+                    traitlets.link((import_source, import_name), (widget, import_name))
+                    print(
+                        f"✓ Linked {import_name}: {import_source.__class__.__name__} -> {widget.__class__.__name__}"
+                    )
+                except Exception as exc:  # pragma: no cover - debug aid
+                    print(f"✗ Failed to link {import_name}: {exc}")
+            elif hasattr(import_source, "__self__"):
+                source_widget = import_source.__self__
+                if hasattr(source_widget, import_name):
+                    try:
+                        traitlets.link((source_widget, import_name), (widget, import_name))
+                        print(
+                            f"✓ Linked {import_name}: {source_widget.__class__.__name__} -> {widget.__class__.__name__}"
+                        )
+                    except Exception as exc:  # pragma: no cover - debug aid
+                        print(f"✗ Failed to link {import_name}: {exc}")
     
     # Explicitly display the widget to ensure it renders
     try:
