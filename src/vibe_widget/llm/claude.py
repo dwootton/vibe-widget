@@ -6,12 +6,18 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 
 from vibe_widget.llm.base import LLMProvider
+from vibe_widget.llm.agentic import AgentOrchestrator
 
 load_dotenv()
 
 
 class ClaudeProvider(LLMProvider):
-    def __init__(self, api_key: str | None = None, model: str = "claude-haiku-4-5-20251001"):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str = "claude-haiku-4-5-20251001",
+        agentic: bool = False,
+    ):
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
             raise ValueError(
@@ -19,13 +25,26 @@ class ClaudeProvider(LLMProvider):
             )
         self.model = model
         self.client = Anthropic(api_key=self.api_key)
+        self.agentic = agentic
+        self.orchestrator = AgentOrchestrator(self) if agentic else None
 
     def generate_widget_code(
         self,
         description: str,
         data_info: dict[str, Any],
         progress_callback: Callable[[str], None] | None = None,
+        df=None,
     ) -> str:
+        # Use agentic orchestration if enabled
+        if self.agentic and self.orchestrator:
+            return self.orchestrator.generate_widget_code(
+                description=description,
+                data_info=data_info,
+                progress_callback=progress_callback,
+                df=df,
+            )
+
+        # Otherwise use simple single-pass generation
         prompt = self._build_prompt(description, data_info)
 
         if progress_callback:
@@ -57,6 +76,16 @@ class ClaudeProvider(LLMProvider):
         data_info: dict[str, Any],
         progress_callback: Callable[[str], None] | None = None,
     ) -> str:
+        # Use agentic orchestration if enabled
+        if self.agentic and self.orchestrator:
+            return self.orchestrator.revise_widget_code(
+                current_code=current_code,
+                revision_description=revision_description,
+                data_info=data_info,
+                progress_callback=progress_callback,
+            )
+
+        # Otherwise use simple revision
         prompt = self._build_revision_prompt(current_code, revision_description, data_info)
 
         if progress_callback:
@@ -87,6 +116,15 @@ class ClaudeProvider(LLMProvider):
         error_message: str,
         data_info: dict[str, Any],
     ) -> str:
+        # Use agentic orchestration if enabled
+        if self.agentic and self.orchestrator:
+            return self.orchestrator.fix_code_error(
+                broken_code=broken_code,
+                error_message=error_message,
+                data_info=data_info,
+            )
+
+        # Otherwise use simple fix
         prompt = self._build_fix_prompt(broken_code, error_message, data_info)
 
         message = self.client.messages.create(
@@ -393,3 +431,14 @@ React.useEffect(() => {{
         code = re.sub(r"```(?:javascript|jsx?|typescript|tsx?)?\s*\n?", "", code)
         code = re.sub(r"\n?```\s*", "", code)
         return code.strip()
+
+    def get_pipeline_artifacts(self) -> dict[str, Any]:
+        """Get pipeline artifacts from agentic orchestration.
+
+        Returns:
+            Dict containing wrangle_code, plan, generated_code, validation, etc.
+            Empty dict if not in agentic mode or no artifacts yet.
+        """
+        if self.agentic and self.orchestrator:
+            return self.orchestrator.get_pipeline_artifacts()
+        return {}

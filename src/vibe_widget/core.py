@@ -69,6 +69,7 @@ class VibeWidget(anywidget.AnyWidget):
         show_progress: bool = True,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
+        agentic: bool = False,
         **kwargs,
     ) -> "VibeWidget":
         """Return a widget instance that includes traitlets for declared exports/imports."""
@@ -102,6 +103,7 @@ class VibeWidget(anywidget.AnyWidget):
             show_progress=show_progress,
             exports=exports,
             imports=imports,
+            agentic=agentic,
             **init_values,
             **kwargs,
         )
@@ -140,6 +142,7 @@ class VibeWidget(anywidget.AnyWidget):
         show_progress: bool = True,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
+        agentic: bool = False,
         **kwargs
     ):
         """
@@ -155,11 +158,14 @@ class VibeWidget(anywidget.AnyWidget):
             show_progress: Whether to show progress widget (deprecated - now uses internal state)
             exports: Dict of trait_name -> description for state this widget exposes
             imports: Dict of trait_name -> source widget/value for state this widget consumes
+            agentic: Whether to use agentic orchestration (multi-step with tools)
             **kwargs: Additional widget parameters
         """
         parser = CodeStreamParser()
         self._exports = exports or {}
         self._imports = imports or {}
+        self._agentic = agentic
+        self._pipeline_artifacts = {}  # Store data wrangling code, plans, etc.
         
         app_wrapper_path = Path(__file__).parent / "app_wrapper.js"
         self._esm = app_wrapper_path.read_text()
@@ -191,7 +197,7 @@ class VibeWidget(anywidget.AnyWidget):
         try:
             self.logs = [f"Analyzing data: {df.shape[0]} rows × {df.shape[1]} columns"]
             
-            self.llm_provider = ClaudeProvider(api_key=api_key, model=model)
+            self.llm_provider = ClaudeProvider(api_key=api_key, model=model, agentic=agentic)
             self.data_info = self._extract_data_info(df)
             llm_provider = self.llm_provider
             
@@ -251,8 +257,13 @@ class VibeWidget(anywidget.AnyWidget):
             widget_code = llm_provider.generate_widget_code(
                 enhanced_description, 
                 data_info,
-                progress_callback=stream_callback
+                progress_callback=stream_callback,
+                df=df,
             )
+            
+            # Store pipeline artifacts if in agentic mode
+            if agentic:
+                self._pipeline_artifacts = llm_provider.get_pipeline_artifacts()
             
             self.logs = self.logs + [f"Code generated: {len(widget_code)} characters"]
             
@@ -383,6 +394,33 @@ class VibeWidget(anywidget.AnyWidget):
             "shape": df.shape,
             "sample": df.head(3).to_dict(orient="records"),
         }
+
+    def get_pipeline_artifacts(self) -> dict[str, Any]:
+        """Get pipeline artifacts from agentic generation.
+
+        Returns:
+            Dict containing:
+            - wrangle_code: Python code for data transformation (if any)
+            - plan: Implementation plan (if agentic mode used)
+            - validation: Validation results (if agentic mode used)
+        """
+        return self._pipeline_artifacts
+
+    def get_data_wrangle_code(self) -> str | None:
+        """Get the Python data wrangling code generated (if any).
+
+        Returns:
+            Python code string or None if no wrangling was performed
+        """
+        return self._pipeline_artifacts.get("wrangle_code")
+
+    def get_implementation_plan(self) -> dict[str, Any] | None:
+        """Get the implementation plan from agentic generation.
+
+        Returns:
+            Plan dict or None if not in agentic mode
+        """
+        return self._pipeline_artifacts.get("plan")
     
     def _merge_profiles(self, provided_profile: DataProfile, extracted_profile: DataProfile) -> DataProfile:
         """Merge a provided profile with an extracted profile, preserving provided metadata"""
@@ -447,6 +485,7 @@ def create(
     show_progress: bool = True,
     exports: dict[str, str] | None = None,
     imports: dict[str, Any] | None = None,
+    agentic: bool = False,
 ) -> VibeWidget:
     """
     Create a VibeWidget visualization with intelligent preprocessing.
@@ -460,6 +499,7 @@ def create(
         use_preprocessor: Whether to use intelligent preprocessing (recommended)
         exports: Dict of {trait_name: description} for traits this widget exposes
         imports: Dict of {trait_name: source} where source is another widget's trait or literal value
+        agentic: Whether to use agentic orchestration with tools (advanced, more robust)
     
     Returns:
         VibeWidget instance
@@ -467,6 +507,18 @@ def create(
     Examples:
         >>> # Simple DataFrame
         >>> widget = create("show temperature trends", df)
+        
+        >>> # With agentic orchestration for complex scenarios
+        >>> widget = create(
+        ...     "create an interactive dashboard with data transformation",
+        ...     df,
+        ...     agentic=True  # Enables multi-step planning and validation
+        ... )
+        
+        >>> # Access pipeline artifacts in agentic mode
+        >>> widget = create("visualize patterns", df, agentic=True)
+        >>> wrangle_code = widget.get_data_wrangle_code()  # Get generated Python code
+        >>> plan = widget.get_implementation_plan()  # Get widget plan
         
         >>> # With context dict for better results
         >>> widget = create(
@@ -743,6 +795,7 @@ def create(
         show_progress=show_progress,
         exports=exports,
         imports=imports,
+        agentic=agentic,
     )
 
     # Link imported traits so they stay synchronized automatically
