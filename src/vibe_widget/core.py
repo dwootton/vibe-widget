@@ -222,37 +222,55 @@ class VibeWidget(anywidget.AnyWidget):
             update_counter = 0
             last_pattern_count = 0
             
-            def stream_callback(chunk: str):
+            def stream_callback(event_type: str, message: str):
+                """Handle progress events from LLM provider."""
                 nonlocal update_counter, last_pattern_count
                 
-                chunk_buffer.append(chunk)
-                update_counter += 1
-                
-                updates = parser.parse_chunk(chunk)
-                
-                should_update = (
-                    update_counter % 30 == 0 or 
-                    parser.has_new_pattern() or
-                    len(''.join(chunk_buffer)) > 500
-                )
-                
-                if should_update:
-                    if chunk_buffer:
-                        snippet = ''.join(chunk_buffer)[:100]
-                        chunk_buffer.clear()
+                if agentic:
+                    # In agentic mode, display structured events
+                    event_messages = {
+                        "step": f"{message}",
+                        "iteration": f"{message}",
+                        "thinking": f"(╭ರ_•́): {message}",
+                        "tool": f"{message}",
+                        "tool_result": f"{message}",
+                        "complete": f"✓ {message}",
+                        "error": f"✘ {message}",
+                    }
+                    display_msg = event_messages.get(event_type, message)
+                    current_logs = list(self.logs)
+                    current_logs.append(display_msg)
+                    self.logs = current_logs
+                else:
+                    # In simple mode, parse streaming chunks
+                    chunk_buffer.append(message)
+                    update_counter += 1
                     
-                    for update in updates:
-                        if update["type"] == "micro_bubble":
+                    updates = parser.parse_chunk(message)
+                    
+                    should_update = (
+                        update_counter % 30 == 0 or 
+                        parser.has_new_pattern() or
+                        len(''.join(chunk_buffer)) > 500
+                    )
+                    
+                    if should_update:
+                        if chunk_buffer:
+                            snippet = ''.join(chunk_buffer)[:100]
+                            chunk_buffer.clear()
+                        
+                        for update in updates:
+                            if update["type"] == "micro_bubble":
+                                current_logs = list(self.logs)
+                                current_logs.append(update["message"])
+                                self.logs = current_logs
+                        
+                        current_pattern_count = len(parser.detected)
+                        if current_pattern_count == last_pattern_count and update_counter % 100 == 0:
                             current_logs = list(self.logs)
-                            current_logs.append(update["message"])
+                            current_logs.append(f"Generating code... ({update_counter} chunks)")
                             self.logs = current_logs
-                    
-                    current_pattern_count = len(parser.detected)
-                    if current_pattern_count == last_pattern_count and update_counter % 100 == 0:
-                        current_logs = list(self.logs)
-                        current_logs.append(f"Generating code... ({update_counter} chunks)")
-                        self.logs = current_logs
-                    last_pattern_count = current_pattern_count
+                        last_pattern_count = current_pattern_count
             
             widget_code = llm_provider.generate_widget_code(
                 enhanced_description, 
@@ -569,6 +587,17 @@ def create(
                 geojson = json.load(f)
             records = [feat['properties'] for feat in geojson.get('features', [])]
             df_converted = pd.DataFrame(records)
+        elif profile.source_type == "json":
+            import json
+            with open(df, 'r') as f:
+                data = json.load(f)
+            # Handle different JSON structures
+            if isinstance(data, list):
+                df_converted = pd.DataFrame(data)
+            elif isinstance(data, dict):
+                df_converted = pd.DataFrame([data])
+            else:
+                raise ValueError(f"Unsupported JSON structure: {type(data)}")
         elif profile.source_type == "isf":
             # ISF files need to be parsed - use the extractor logic
             from vibe_widget.data_parser.extractors import ISFExtractor

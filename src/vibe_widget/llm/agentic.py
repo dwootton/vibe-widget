@@ -26,7 +26,7 @@ class AgentOrchestrator:
     def __init__(
         self,
         llm_provider,
-        max_iterations: int = 15,
+        max_iterations: int = 12,
         max_repair_attempts: int = 3,
     ):
         self.llm_provider = llm_provider
@@ -65,7 +65,7 @@ class AgentOrchestrator:
         self,
         description: str,
         data_info: dict[str, Any],
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
         df=None,
     ) -> str:
         """Generate widget code using agentic orchestration.
@@ -93,6 +93,7 @@ class AgentOrchestrator:
         while iteration < self.max_iterations:
             iteration += 1
             self._emit_progress(progress_callback, "iteration", f"Iteration {iteration}/{self.max_iterations}")
+            # print(f"Iteration {iteration}/{self.max_iterations}")
 
             try:
                 # Call LLM with tools
@@ -111,7 +112,7 @@ class AgentOrchestrator:
                 for block in response.content:
                     if block.type == "text":
                         assistant_content.append({"type": "text", "text": block.text})
-                        self._emit_progress(progress_callback, "thinking", block.text[:200])
+                        self._emit_progress(progress_callback, "thinking", block.text)
 
                     elif block.type == "tool_use":
                         tool_name = block.name
@@ -123,6 +124,7 @@ class AgentOrchestrator:
                             "tool",
                             f"Using tool: {tool_name}",
                         )
+                        # print(f"Using tool: {tool_name}")
 
                         # Execute tool
                         tool = self.registry.get(tool_name)
@@ -132,6 +134,7 @@ class AgentOrchestrator:
                                 tool_input["df"] = df
 
                             result = tool.execute(**tool_input)
+                            # print(f"Tool {tool_name} executed.\n{result}")
 
                             # Store artifacts
                             if tool_name == "data_wrangle" and result.success:
@@ -211,7 +214,7 @@ class AgentOrchestrator:
         current_code: str,
         revision_description: str,
         data_info: dict[str, Any],
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
     ) -> str:
         """Revise widget code using agentic orchestration."""
         system_prompt = self._build_system_prompt()
@@ -242,7 +245,7 @@ Use available tools to validate, test, and improve the code. Ensure all changes 
         broken_code: str,
         error_message: str,
         data_info: dict[str, Any],
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
     ) -> str:
         """Fix code error using diagnostic tools."""
         # Use diagnostic tool first
@@ -286,7 +289,7 @@ Use error_diagnose to analyze the error, then code_repair to fix it. Validate th
 
     def _run_orchestration_loop(
         self,
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
     ) -> str:
         """Run the orchestration loop until completion."""
         system_prompt = self._build_system_prompt()
@@ -365,12 +368,12 @@ Use error_diagnose to analyze the error, then code_repair to fix it. Validate th
         """Build system prompt for orchestrator."""
         return """You are an expert widget code generation agent with access to specialized tools.
 
-Your goal is to generate high-quality React widgets for AnyWidget following exact specifications.
+Your goal is to generate high-quality and interactive React widgets for AnyWidget following exact specifications.
 
 WORKFLOW:
 1. Understand the user's requirements and data context
 2. Use data tools if data analysis/transformation is needed
-3. Create an implementation plan with code_plan
+3. Create an implementation plan with code_plan ONLY IF the data is complex (e.g., large datasets, complex transformations, weird data formats)
 4. Generate widget code with code_generate
 5. Validate code with code_validate
 6. Test runtime safety with runtime_test
@@ -384,6 +387,7 @@ TOOL USAGE PRINCIPLES:
 - For large datasets, ensure proper sampling to avoid performance issues
 - Add defensive null checks for all data access
 - Initialize exports immediately and subscribe to imports with cleanup
+- Its okay to start with code_generate, no need to overthink or overcomplicate
 
 QUALITY STANDARDS:
 - Code must follow AnyWidget + htm conventions exactly
@@ -412,12 +416,13 @@ DATA CONTEXT:
 
 Use available tools to:
 1. Analyze data if needed (for visualizations, understand sampling requirements)
-2. Create implementation plan
-3. Generate high-quality widget code
+2. Create implementation plan ONLY IF data is complex (e.g., large datasets, complex transformations, weird data formats)
+3. Generate high-quality and interactive widget code (with traitlets as needed)
 4. Validate and test the code
 5. Ensure all requirements are met
+6. Proceed directly to code generation without planning for most scenarios.
 
-Start by planning your approach, then use tools systematically.
+Start by understanding the data context, then use tools systematically.
 """
 
     def _format_tool_result(self, result) -> str:
@@ -439,13 +444,13 @@ Start by planning your approach, then use tools systematically.
 
     def _emit_progress(
         self,
-        callback: Callable[[str], None] | None,
+        callback: Callable[[str, str], None] | None,
         event_type: str,
         message: str,
     ):
-        """Emit progress event."""
+        """Emit progress event with type and message."""
         if callback:
-            callback(f"[{event_type.upper()}] {message}")
+            callback(event_type, message)
 
     def get_pipeline_artifacts(self) -> dict[str, Any]:
         """Get all artifacts generated during orchestration.

@@ -393,16 +393,6 @@ def preprocess_data(
     
     Returns:
         Complete DataProfile
-    
-    Example:
-        >>> import pandas as pd
-        >>> df = pd.read_csv("data.csv")
-        >>> profile = preprocess_data(
-        ...     df,
-        ...     context={"description": "Sales data from Q4 2024"},
-        ...     save_to="profiles/sales_q4"
-        ... )
-        >>> print(profile.to_markdown())
     """
     preprocessor = DataPreprocessor(api_key=api_key)
     profile = preprocessor.process(

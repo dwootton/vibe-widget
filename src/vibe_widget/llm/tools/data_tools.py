@@ -167,7 +167,7 @@ class DataLoadTool(Tool):
             return ToolResult(success=True, output=output, metadata=metadata)
 
         except Exception as e:
-            return ToolResult(success=False, error=str(e))
+            return ToolResult(success=False, output={}, error=str(e))
 
 
 class DataProfileTool(Tool):
@@ -193,44 +193,50 @@ class DataProfileTool(Tool):
             }
         }
 
-    def execute(self, data: dict[str, Any]) -> ToolResult:
+    def execute(self, data: dict[str, Any], df: pd.DataFrame | None = None) -> ToolResult:
         """Generate data profile."""
         try:
-            df = data.get("dataframe")
-            if df is None:
-                return ToolResult(success=False, error="No dataframe in data")
+            # If df is provided directly (from orchestrator), use it
+            if df is not None:
+                dataframe = df
+            else:
+                # Otherwise extract from data dict (from previous tool result)
+                dataframe = data.get("dataframe")
+            
+            if dataframe is None:
+                return ToolResult(success=False, output={}, error="No dataframe in data")
 
             profile = {
-                "shape": {"rows": len(df), "columns": len(df.columns)},
+                "shape": {"rows": len(dataframe), "columns": len(dataframe.columns)},
                 "columns": {},
             }
 
-            for col in df.columns:
+            for col in dataframe.columns:
                 col_profile = {
-                    "dtype": str(df[col].dtype),
-                    "null_count": int(df[col].isnull().sum()),
-                    "null_percentage": float(df[col].isnull().sum() / len(df) * 100),
-                    "unique_count": int(df[col].nunique()),
+                    "dtype": str(dataframe[col].dtype),
+                    "null_count": int(dataframe[col].isnull().sum()),
+                    "null_percentage": float(dataframe[col].isnull().sum() / len(dataframe) * 100),
+                    "unique_count": int(dataframe[col].nunique()),
                 }
 
                 # Add statistics for numeric columns
-                if pd.api.types.is_numeric_dtype(df[col]):
+                if pd.api.types.is_numeric_dtype(dataframe[col]):
                     col_profile["stats"] = {
-                        "min": float(df[col].min()) if not df[col].isnull().all() else None,
-                        "max": float(df[col].max()) if not df[col].isnull().all() else None,
-                        "mean": float(df[col].mean()) if not df[col].isnull().all() else None,
-                        "median": float(df[col].median()) if not df[col].isnull().all() else None,
+                        "min": float(dataframe[col].min()) if not dataframe[col].isnull().all() else None,
+                        "max": float(dataframe[col].max()) if not dataframe[col].isnull().all() else None,
+                        "mean": float(dataframe[col].mean()) if not dataframe[col].isnull().all() else None,
+                        "median": float(dataframe[col].median()) if not dataframe[col].isnull().all() else None,
                     }
 
                 # Add sample values
-                col_profile["sample_values"] = df[col].dropna().head(3).tolist()
+                col_profile["sample_values"] = dataframe[col].dropna().head(3).tolist()
 
                 profile["columns"][col] = col_profile
 
-            return ToolResult(success=True, output=profile, metadata={"dataframe": df})
+            return ToolResult(success=True, output=profile, metadata={"dataframe": dataframe})
 
         except Exception as e:
-            return ToolResult(success=False, error=str(e))
+            return ToolResult(success=False, output={}, error=str(e))
 
 
 class DataWrangleTool(Tool):
@@ -311,4 +317,4 @@ Return ONLY the Python code block, no explanations before or after.
             )
 
         except Exception as e:
-            return ToolResult(success=False, error=str(e))
+            return ToolResult(success=False, output={}, error=str(e))

@@ -277,7 +277,7 @@ class NetCDFExtractor(DataExtractor):
 
 
 class GeoJSONExtractor(DataExtractor):
-    """Extract profile from GeoJSON data - structural analysis only"""
+    """Extract profile from GeoJSON or general JSON data - structural analysis only"""
     
     def can_handle(self, source: Any) -> bool:
         if isinstance(source, (str, Path)):
@@ -288,40 +288,51 @@ class GeoJSONExtractor(DataExtractor):
         return False
     
     def extract(self, source: Any) -> DataProfile:
-        """Extract structural profile from GeoJSON"""
-        # Load GeoJSON
+        """Extract structural profile from GeoJSON or general JSON"""
+        # Load JSON
         if isinstance(source, (str, Path)):
             with open(source, 'r') as f:
-                geojson = json.load(f)
+                data = json.load(f)
             source_uri = str(source)
         else:
-            geojson = source
+            data = source
             source_uri = None
         
-        features = geojson.get('features', [])
-        
-        # Convert to DataFrame for analysis
-        records = []
-        for feature in features:
-            properties = feature.get('properties', {})
-            geometry = feature.get('geometry', {})
-            
-            record = properties.copy()
-            record['geometry_type'] = geometry.get('type')
-            records.append(record)
-        
-        df = pd.DataFrame(records)
+        # Handle different JSON structures
+        if isinstance(data, dict) and 'features' in data:
+            # GeoJSON FeatureCollection format
+            features = data.get('features', [])
+            records = []
+            for feature in features:
+                properties = feature.get('properties', {})
+                geometry = feature.get('geometry', {})
+                
+                record = properties.copy()
+                record['geometry_type'] = geometry.get('type')
+                records.append(record)
+            df = pd.DataFrame(records)
+            is_geojson = True
+        elif isinstance(data, list):
+            # Plain JSON array of objects
+            df = pd.DataFrame(data)
+            is_geojson = False
+        elif isinstance(data, dict):
+            # Single JSON object - convert to single-row DataFrame
+            df = pd.DataFrame([data])
+            is_geojson = False
+        else:
+            raise ValueError(f"Unsupported JSON structure: {type(data)}")
         
         # Use DataFrame extractor as base
         df_extractor = DataFrameExtractor()
         profile = df_extractor.extract(df)
         
-        # Override with geojson-specific info
-        profile.source_type = "geojson"
+        # Override with appropriate source type
+        profile.source_type = "geojson" if is_geojson else "json"
         profile.source_uri = source_uri
         
-        # Add geometry column info (structural)
-        if 'geometry_type' in df.columns:
+        # Add geometry column info (structural) - only for GeoJSON
+        if is_geojson and 'geometry_type' in df.columns:
             geom_col = ColumnProfile(
                 name="geometry",
                 dtype="geospatial",
@@ -867,7 +878,7 @@ EXTRACTORS = [
     PDFExtractor(),          # .pdf files
     XLSXExtractor(),         # .xlsx, .xls files
     XMLExtractor(),          # .xml files
-    GeoJSONExtractor(),      # .geojson, .json (GeoJSON format)
+    GeoJSONExtractor(),      # .geojson, .json (both GeoJSON and plain JSON formats)
     CSVExtractor(),          # .csv, .tsv files
     WebExtractor(),          # http://, https:// URLs
     APIExtractor(),          # dict with data/results/items keys

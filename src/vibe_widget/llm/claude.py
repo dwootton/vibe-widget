@@ -32,7 +32,7 @@ class ClaudeProvider(LLMProvider):
         self,
         description: str,
         data_info: dict[str, Any],
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
         df=None,
     ) -> str:
         # Use agentic orchestration if enabled
@@ -56,7 +56,8 @@ class ClaudeProvider(LLMProvider):
             ) as stream:
                 for text in stream.text_stream:
                     code_chunks.append(text)
-                    progress_callback(text)
+                    # Emit as streaming chunks with 'chunk' type
+                    progress_callback("chunk", text)
 
             code = "".join(code_chunks)
         else:
@@ -74,7 +75,7 @@ class ClaudeProvider(LLMProvider):
         current_code: str,
         revision_description: str,
         data_info: dict[str, Any],
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
     ) -> str:
         # Use agentic orchestration if enabled
         if self.agentic and self.orchestrator:
@@ -97,7 +98,7 @@ class ClaudeProvider(LLMProvider):
             ) as stream:
                 for text in stream.text_stream:
                     code_chunks.append(text)
-                    progress_callback(text)
+                    progress_callback("chunk", text)
 
             code = "".join(code_chunks)
         else:
@@ -158,7 +159,7 @@ Data schema:
 {exports_imports_section}
 
 ═══════════════════════════════════════════════════════════════
-🔴 CRITICAL REACT + HTM SPECIFICATION
+CRITICAL REACT + HTM SPECIFICATION
 ═══════════════════════════════════════════════════════════════
 
 MUST FOLLOW EXACTLY:
@@ -173,7 +174,7 @@ MUST FOLLOW EXACTLY:
 9. Avoid 100vh/100vw—use fixed heights (360–640px) or flex layouts that respect notebook constraints
 10. Never wrap the output in markdown code fences
 
-✅ CORRECT Template:
+CORRECT Template:
 ```javascript
 import * as d3 from "https://esm.sh/d3@7";
 
@@ -214,19 +215,19 @@ Key Syntax Rules:
 - Children: html`<div>${{children}}</div>`
 
 ═══════════════════════════════════════════════════════════════
-🚫 COMMON PITFALLS TO AVOID
+COMMON PITFALLS TO AVOID
 ═══════════════════════════════════════════════════════════════
 
-❌ Incorrect Three.js imports → use https://esm.sh/three@0.160 + matching submodules
-❌ Typos in constants (THREE.PCFShadowShadowMap) → spell EXACTLY (THREE.PCFSoftShadowMap)
-❌ Touching geometry attributes without checking they exist → guard geometry.attributes.position
-❌ Mutating data without null checks → verify model.get() payloads before iterating
-❌ Appending to document.body or using window globals instead of html refs
-❌ Forgetting cleanup → every effect must remove listeners, observers, raf handles, timers
-❌ Exporting state only once or forgetting model.save_changes()
+✘ Incorrect Three.js imports → use https://esm.sh/three@0.160 + matching submodules
+✘ Typos in constants (THREE.PCFShadowShadowMap) → spell EXACTLY (THREE.PCFSoftShadowMap)
+✘ Touching geometry attributes without checking they exist → guard geometry.attributes.position
+✘ Mutating data without null checks → verify model.get() payloads before iterating
+✘ Appending to document.body or using window globals instead of html refs
+✘ Forgetting cleanup → every effect must remove listeners, observers, raf handles, timers
+✘ Exporting state only once or forgetting model.save_changes()
 
 ═══════════════════════════════════════════════════════════════
-🎨 FRONTEND AESTHETICS
+FRONTEND AESTHETICS
 ═══════════════════════════════════════════════════════════════
 
 - Typography: pick distinctive pairings—avoid generic system fonts
@@ -237,7 +238,7 @@ Key Syntax Rules:
 - Never use emojis
 
 ═══════════════════════════════════════════════════════════════
-🎯 QUALITY CHECKLIST
+QUALITY CHECKLIST
 ═══════════════════════════════════════════════════════════════
 
 ✓ CDN imports pinned to explicit versions
@@ -250,7 +251,7 @@ Key Syntax Rules:
 ✓ Styling leverages CSS variables + purposeful layout polish
 
 ═══════════════════════════════════════════════════════════════
-📝 OUTPUT REQUIREMENTS
+OUTPUT REQUIREMENTS
 ═══════════════════════════════════════════════════════════════
 
 Generate ONLY the working JavaScript code (imports → export default function Widget...).
@@ -360,13 +361,13 @@ EXPORTS (State shared with other widgets)
 ═══════════════════════════════════════════════════════════════
 {export_list}
 
-🔴 CRITICAL EXPORT LIFECYCLE:
+CRITICAL EXPORT LIFECYCLE:
 1. Initialize every export when the widget mounts
 2. Update exports continuously (dragging, painting, playback, etc.)
 3. Call model.set + model.save_changes() together every time the value changes
 4. Remove listeners in React.useEffect cleanup blocks
 
-✅ Example – Canvas selection
+Example – Canvas selection
 ```javascript
 React.useEffect(() => {{
   const canvas = canvasRef.current;
@@ -395,13 +396,13 @@ IMPORTS (State provided by other widgets)
 ═══════════════════════════════════════════════════════════════
 {import_list}
 
-🔴 CRITICAL IMPORT RULES:
+CRITICAL IMPORT RULES:
 1. Read imports via model.get inside effects or memoized callbacks
 2. Subscribe with model.on("change:trait", handler) and unsubscribe on cleanup
 3. Guard against null/empty payloads before mutating DOM/WebGL state
 4. Trigger rerenders or recalculations immediately after each import change
 
-✅ Example – React + heightmap import
+Example – React + heightmap import
 ```javascript
 React.useEffect(() => {{
   if (!meshRef.current) return;

@@ -83,9 +83,9 @@ class CLIExecuteTool(Tool):
             )
 
         except subprocess.TimeoutExpired:
-            return ToolResult(success=False, error="Command timed out after 30 seconds")
+            return ToolResult(success=False, output="", error="Command timed out after 30 seconds")
         except Exception as e:
-            return ToolResult(success=False, error=str(e))
+            return ToolResult(success=False, output="", error=str(e))
 
 
 class RuntimeTestTool(Tool):
@@ -171,7 +171,7 @@ class RuntimeTestTool(Tool):
             )
 
         except Exception as e:
-            return ToolResult(success=False, error=f"Runtime test error: {str(e)}")
+            return ToolResult(success=False, output={}, error=f"Runtime test error: {str(e)}")
 
 
 class ErrorDiagnoseTool(Tool):
@@ -379,4 +379,4 @@ Return ONLY the corrected JavaScript code. No markdown fences or explanations.
             )
 
         except Exception as e:
-            return ToolResult(success=False, error=f"Repair error: {str(e)}")
+            return ToolResult(success=False, output={}, error=f"Repair error: {str(e)}")
