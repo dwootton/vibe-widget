@@ -89,7 +89,6 @@ class AgenticOrchestrator:
         
         # Build data context for LLM
         data_info = self._build_data_info(df, exports, imports)
-        print(data_info)
         
         self._emit(progress_callback, "step", f"Data: {df.shape[0]} rows × {df.shape[1]} columns")
         
@@ -288,14 +287,14 @@ class AgenticOrchestrator:
         
         # Detect potential data characteristics
         is_geospatial = any(
-            col.lower() in ['lat', 'latitude', 'lon', 'longitude', 'lng', 'geometry']
+            str(col).lower() in ['lat', 'latitude', 'lon', 'longitude', 'lng', 'geometry']
             for col in df.columns
         )
         
         temporal_cols = [
             col for col in df.columns
             if pd.api.types.is_datetime64_any_dtype(df[col])
-            or col.lower() in ['date', 'time', 'datetime', 'timestamp']
+            or str(col).lower() in ['date', 'time', 'datetime', 'timestamp']
         ]
         
         return {

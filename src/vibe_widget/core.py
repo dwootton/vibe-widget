@@ -283,7 +283,9 @@ class VibeWidget(anywidget.AnyWidget):
             )
             
             self._pipeline_artifacts = self.orchestrator.get_pipeline_artifacts()
-            self.logs = self.logs + [f"Code generated: {len(widget_code)} characters"]
+            current_logs = list(self.logs)
+            current_logs.append(f"Code generated: {len(widget_code)} characters")
+            self.logs = current_logs
             
             # Save to widget store
             notebook_path = store.get_notebook_path()
@@ -411,7 +413,12 @@ def create(
     else:
         df = processor.process(data)
         
-    print(f"!!Data processed: {df.shape[0]} rows × {df.shape[1]} columns")
+        
+    # clean and sample data
+    if df.shape[0] > 100000 or df.shape[1] > 1000:
+        df = df.sample(n=100000, random_state=42) if df.shape[0] > 100000 else df
+        df = df.iloc[:, :1000] if df.shape[1] > 1000 else df
+        print(f"Data too large, sampled to shape: {df.shape}")
     
     # Try to extract the variable name from caller's frame
     data_var_name = None

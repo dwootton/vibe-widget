@@ -689,15 +689,13 @@ class WebExtractor(DataExtractor):
         # Helper function to run async crawl
         async def _crawl_url(url: str):
             async with AsyncWebCrawler() as crawler:
-                result = await crawler.arun(url=url)
+                result = await crawler.arun(url=url) 
                 return result
         
-        # Run the async crawl - handle both cases: with and without running event loop
+
         try:
             try:
-                # Check if there's already a running event loop (e.g., in Jupyter)
                 loop = asyncio.get_running_loop()
-                # If we're in a running loop, use nest_asyncio to allow nested event loops
                 try:
                     import nest_asyncio
                     nest_asyncio.apply()
