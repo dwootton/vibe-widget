@@ -49,7 +49,6 @@ function ProgressMap({ logs }) {
           font-family: 'JetBrains Mono', monospace;
           font-size: 12px;
           line-height: 1.7;
-          padding: 16px;
           border-radius: 6px;
           border: 1px solid rgba(255, 255, 255, 0.06);
           overflow-y: auto;
@@ -96,7 +95,6 @@ function ProgressMap({ logs }) {
           }
         }
       </style>
-      <h3 class="progress-title">Generating Widget...</h3>
       <div class="progress-container" ref=${containerRef}>
         ${logs.map((log, idx) => html`
           <div key=${idx} class="log-entry" style=${{ '--entry-index': idx }}>${log}</div>

@@ -14,6 +14,7 @@ from IPython.display import display
 from vibe_widget.code_parser import CodeStreamParser
 from vibe_widget.llm.claude import ClaudeProvider
 from vibe_widget.data_parser.data_profile import DataProfile
+from vibe_widget.widget_store import WidgetStore
 
 
 def _clean_for_json(obj: Any) -> Any:
@@ -70,6 +71,8 @@ class VibeWidget(anywidget.AnyWidget):
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
         agentic: bool = False,
+        data_var_name: str | None = None,
+        regenerate: bool = False,
         **kwargs,
     ) -> "VibeWidget":
         """Return a widget instance that includes traitlets for declared exports/imports."""
@@ -104,6 +107,8 @@ class VibeWidget(anywidget.AnyWidget):
             exports=exports,
             imports=imports,
             agentic=agentic,
+            data_var_name=data_var_name,
+            regenerate=regenerate,
             **init_values,
             **kwargs,
         )
@@ -143,6 +148,8 @@ class VibeWidget(anywidget.AnyWidget):
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
         agentic: bool = False,
+        data_var_name: str | None = None,
+        regenerate: bool = False,
         **kwargs
     ):
         """
@@ -159,6 +166,8 @@ class VibeWidget(anywidget.AnyWidget):
             exports: Dict of trait_name -> description for state this widget exposes
             imports: Dict of trait_name -> source widget/value for state this widget consumes
             agentic: Whether to use agentic orchestration (multi-step with tools)
+            data_var_name: Variable name of the data parameter for cache key (e.g., "df", "flights_df")
+            regenerate: Force regeneration even if cache exists (default: False)
             **kwargs: Additional widget parameters
         """
         parser = CodeStreamParser()
@@ -166,6 +175,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._imports = imports or {}
         self._agentic = agentic
         self._pipeline_artifacts = {}  # Store data wrangling code, plans, etc.
+        self._widget_metadata = None  # Store metadata for future edit() operations
         
         app_wrapper_path = Path(__file__).parent / "app_wrapper.js"
         self._esm = app_wrapper_path.read_text()
@@ -195,6 +205,52 @@ class VibeWidget(anywidget.AnyWidget):
                 pass
         
         try:
+            # Initialize widget store
+            store = WidgetStore()
+            
+            # Check cache before generating (unless regenerate=True)
+            imports_serialized = self._serialize_imports_for_prompt()
+            cached_widget = None if regenerate else store.lookup(
+                description=description,
+                data_var_name=data_var_name,
+                model=model,
+                use_preprocessor=use_preprocessor,
+                context=context,
+                exports=self._exports,
+                imports_serialized=imports_serialized,
+                agentic=agentic,
+            )
+            
+            if cached_widget:
+                # Cache hit! Load the widget without calling LLM
+                self.logs = [f"✓ Loaded cached widget: {cached_widget['slug']} v{cached_widget['version']} (no LLM call)"]
+                self.logs = self.logs + [f"Cache key: {cached_widget['id']}"]
+                
+                # Load widget code
+                widget_code = store.load_widget_code(cached_widget)
+                self.code = widget_code
+                self.status = "ready"
+                
+                # Set description based on context
+                data_profile = context if isinstance(context, DataProfile) else None
+                if isinstance(context, DataProfile):
+                    self.description = f"{description}\n\nData Profile: {data_profile.to_markdown()}"
+                else:
+                    data_info = self._extract_data_info(df)
+                    self.description = f"{description}\n\n======================\n\n CONTEXT::DATA_INFO:\n\n {data_info}"
+                
+                self.data_profile_md = data_profile.to_markdown() if data_profile else ""
+                self._widget_metadata = cached_widget
+                
+                # Store data_info for potential error recovery
+                self.data_info = self._extract_data_info(df)
+                self.data_info["exports"] = self._exports
+                self.data_info["imports"] = imports_serialized
+                self.llm_provider = ClaudeProvider(api_key=api_key, model=model, agentic=agentic)
+                
+                return
+            
+            # Cache miss - proceed with generation
             self.logs = [f"Analyzing data: {df.shape[0]} rows × {df.shape[1]} columns"]
             
             self.llm_provider = ClaudeProvider(api_key=api_key, model=model, agentic=agentic)
@@ -285,18 +341,28 @@ class VibeWidget(anywidget.AnyWidget):
             
             self.logs = self.logs + [f"Code generated: {len(widget_code)} characters"]
             
-            widget_hash = hashlib.md5(f"{description}{df.shape}".encode()).hexdigest()[:8]
-            widget_dir = Path(__file__).parent / "widgets"
-            widget_dir.mkdir(exist_ok=True)
-            widget_file = widget_dir / f"widget_{widget_hash}.js"
+            # Save to widget store
+            notebook_path = store.get_notebook_path()
+            widget_entry = store.save(
+                widget_code=widget_code,
+                description=description,
+                data_var_name=data_var_name,
+                model=model,
+                use_preprocessor=use_preprocessor,
+                context=context,
+                exports=self._exports,
+                imports_serialized=imports_serialized,
+                agentic=agentic,
+                notebook_path=notebook_path,
+            )
             
-            widget_file.write_text(widget_code)
-            
-            self.logs = self.logs + [f"Widget saved: widget_{widget_hash}.js"]
+            self.logs = self.logs + [f"Widget saved: {widget_entry['slug']} v{widget_entry['version']}"]
+            self.logs = self.logs + [f"Location: .vibewidget/widgets/{widget_entry['file_name']}"]
             self.code = widget_code
             self.status = "ready"
             self.description = enhanced_description
             self.data_profile_md = data_profile.to_markdown() if data_profile else ""
+            self._widget_metadata = widget_entry
             
         except Exception as e:
             self.status = "error"
@@ -318,10 +384,13 @@ class VibeWidget(anywidget.AnyWidget):
         self.logs = self.logs + ["Asking LLM to fix the error..."]
         
         try:
+            # Clean data_info to avoid serialization issues with timestamps
+            clean_data_info = _clean_for_json(self.data_info)
+            
             fixed_code = self.llm_provider.fix_code_error(
                 self.code,
                 error_msg,
-                self.data_info
+                clean_data_info
             )
             
             self.logs = self.logs + ["Code fixed, retrying..."]
@@ -504,6 +573,7 @@ def create(
     exports: dict[str, str] | None = None,
     imports: dict[str, Any] | None = None,
     agentic: bool = False,
+    regenerate: bool = False,
 ) -> VibeWidget:
     """
     Create a VibeWidget visualization with intelligent preprocessing.
@@ -518,6 +588,7 @@ def create(
         exports: Dict of {trait_name: description} for traits this widget exposes
         imports: Dict of {trait_name: source} where source is another widget's trait or literal value
         agentic: Whether to use agentic orchestration with tools (advanced, more robust)
+        regenerate: Force regeneration even if cache exists (default: False)
     
     Returns:
         VibeWidget instance
@@ -813,6 +884,33 @@ def create(
     # Handle None data scenario (widget driven solely by imports)
     if df is None:
         df = pd.DataFrame()
+    
+    # Try to extract the variable name from the caller's frame
+    data_var_name = None
+    try:
+        import inspect
+        frame = inspect.currentframe()
+        if frame and frame.f_back:
+            caller_frame = frame.f_back
+            caller_locals = caller_frame.f_locals
+            
+            # Strategy: check which variable in caller's namespace matches our df object
+            # This works even with multi-line calls in notebooks
+            if df is not None and not isinstance(df, (str, Path)):
+                for var_name, var_value in caller_locals.items():
+                    # Skip private/magic variables and modules
+                    if var_name.startswith('_') or var_name in ['pd', 'vw', 'os']:
+                        continue
+                    # Check if this variable is the same DataFrame object
+                    try:
+                        if isinstance(var_value, pd.DataFrame) and var_value is df:
+                            data_var_name = var_name
+                            break
+                    except Exception:
+                        continue
+    except Exception:
+        # If extraction fails, just continue without variable name
+        pass
 
     widget = VibeWidget._create_with_dynamic_traits(
         description=description,
@@ -825,6 +923,8 @@ def create(
         exports=exports,
         imports=imports,
         agentic=agentic,
+        data_var_name=data_var_name,
+        regenerate=regenerate,
     )
 
     # Link imported traits so they stay synchronized automatically

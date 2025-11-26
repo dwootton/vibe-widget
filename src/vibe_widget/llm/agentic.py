@@ -217,6 +217,12 @@ class AgentOrchestrator:
         progress_callback: Callable[[str, str], None] | None = None,
     ) -> str:
         """Revise widget code using agentic orchestration."""
+        # Import the cleaning function to handle timestamps
+        import sys
+        if 'vibe_widget.core' in sys.modules:
+            from vibe_widget.core import _clean_for_json
+            data_info = _clean_for_json(data_info)
+        
         system_prompt = self._build_system_prompt()
 
         user_message = f"""Revise the following widget code according to the user's request.
@@ -230,7 +236,7 @@ CURRENT CODE:
 ```
 
 DATA INFO:
-{json.dumps(data_info, indent=2)}
+{json.dumps(data_info, indent=2, default=str)}
 
 Use available tools to validate, test, and improve the code. Ensure all changes meet requirements.
 """
@@ -248,6 +254,12 @@ Use available tools to validate, test, and improve the code. Ensure all changes 
         progress_callback: Callable[[str, str], None] | None = None,
     ) -> str:
         """Fix code error using diagnostic tools."""
+        # Import the cleaning function to handle timestamps
+        import sys
+        if 'vibe_widget.core' in sys.modules:
+            from vibe_widget.core import _clean_for_json
+            data_info = _clean_for_json(data_info)
+        
         # Use diagnostic tool first
         diagnose_tool = self.registry.get("error_diagnose")
         diagnosis = diagnose_tool.execute(error_message=error_message, code=broken_code)
@@ -277,7 +289,7 @@ BROKEN CODE:
 ```
 
 DATA INFO:
-{json.dumps(data_info, indent=2)}
+{json.dumps(data_info, indent=2, default=str)}
 
 Use error_diagnose to analyze the error, then code_repair to fix it. Validate the fixed code.
 """
