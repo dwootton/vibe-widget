@@ -277,7 +277,6 @@ class CodeValidateTool(Tool):
 
 
             # Check 4: Export lifecycle (if exports expected)
-            print(expected_exports)
             if expected_exports:
                 for export_name in expected_exports:
                     #? Error: Export 'Widget' never set with model.set(); Missing model.save_changes() call for exports

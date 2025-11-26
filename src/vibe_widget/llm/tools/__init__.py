@@ -7,7 +7,6 @@ from vibe_widget.llm.tools.data_tools import (
     DataWrangleTool,
 )
 from vibe_widget.llm.tools.code_tools import (
-    CodePlanTool,
     CodeGenerateTool,
     CodeValidateTool,
 )
@@ -15,8 +14,8 @@ from vibe_widget.llm.tools.execution_tools import (
     RuntimeTestTool,
     ErrorDiagnoseTool,
     CodeRepairTool,
+    CLIExecuteTool,
 )
-from vibe_widget.llm.tools.system_tools import CLIExecuteTool
 
 __all__ = [
     "Tool",
@@ -25,7 +24,6 @@ __all__ = [
     "DataLoadTool",
     "DataProfileTool",
     "DataWrangleTool",
-    "CodePlanTool",
     "CodeGenerateTool",
     "CodeValidateTool",
     "RuntimeTestTool",

@@ -2,10 +2,11 @@
 Agentic Orchestrator for widget generation.
 
 Design philosophy:
-- Process data first with appropriate Python tools (no LLM for parsing)
-- Use LLM only for: code generation, error repair, data wrangling decisions
-- Always run validation and testing after code generation
-- Keep prompt context concise and focused
+- Accept DataFrame directly (data processing done upstream)
+- Use LLM only for: code generation, validation, error repair
+- Agent decides when to use data tools, gen tools, etc.
+- Always validate after generation, regenerate if needed
+- Keep prompts concise - agent responds with tool calls only
 """
 
 import json
@@ -15,8 +16,6 @@ from typing import Any, Callable, Tuple
 from anthropic import Anthropic
 import pandas as pd
 
-from vibe_widget.data_parser.data_profile import DataProfile
-from vibe_widget.data_parser.data_processor import DataProcessor
 from vibe_widget.llm.tools import (
     ToolRegistry,
     ToolResult,
@@ -31,12 +30,11 @@ class AgenticOrchestrator:
     Main orchestrator for widget generation.
     
     Flow:
-    1. Process data (Python-based, no LLM)
-    2. Generate code (LLM tool)
+    1. Receive DataFrame (already processed by DataProcessor)
+    2. Generate code with LLM
     3. Validate code (Python-based)
-    4. Test runtime (Python-based)
-    5. If errors: repair with LLM
-    6. Return final code
+    4. If errors: repair with LLM
+    5. Return final code
     """
     
     def __init__(
@@ -55,9 +53,6 @@ class AgenticOrchestrator:
         self.client = Anthropic(api_key=self.api_key)
         self.max_repair_attempts = max_repair_attempts
         
-        # Data processor (Python-based)
-        self.data_processor = DataProcessor()
-        
         # Python-based validation tools
         self.validate_tool = CodeValidateTool()
         self.runtime_tool = RuntimeTestTool()
@@ -69,47 +64,40 @@ class AgenticOrchestrator:
     def generate(
         self,
         description: str,
-        source: Any,
+        df: pd.DataFrame,
         exports: dict[str, str] | None = None,
         imports: dict[str, str] | None = None,
         progress_callback: Callable[[str, str], None] | None = None,
-    ) -> Tuple[str, pd.DataFrame, DataProfile]:
+    ) -> Tuple[str, pd.DataFrame]:
         """
-        Generate widget code from description and data source.
+        Generate widget code from description and DataFrame.
         
         Args:
             description: Natural language widget description
-            source: Data source (DataFrame, file path, URL, etc.)
+            df: DataFrame to visualize
             exports: Dict of export trait names -> descriptions
             imports: Dict of import trait names -> descriptions
             progress_callback: Optional callback for progress updates
         
         Returns:
-            Tuple of (widget_code, processed_dataframe, data_profile)
+            Tuple of (widget_code, processed_dataframe)
         """
         exports = exports or {}
         imports = imports or {}
         
-        self._emit(progress_callback, "step", "Processing data...")
+        self._emit(progress_callback, "step", "Analyzing data...")
         
-        # Step 1: Process data with Python tools
-        df, profile, needs_agentic = self.data_processor.process(source)
+        # Build data context for LLM
+        data_info = self._build_data_info(df, exports, imports)
+        print(data_info)
         
-        # If agentic processing needed (PDF, web, unknown), use LLM tools
-        if needs_agentic and df.empty:
-            self._emit(progress_callback, "step", "Data requires advanced extraction...")
-            df, profile = self._agentic_data_extraction(source, profile, progress_callback)
+        self._emit(progress_callback, "step", f"Data: {df.shape[0]} rows × {df.shape[1]} columns")
         
-        self._emit(progress_callback, "step", f"Data ready: {df.shape[0]} rows × {df.shape[1]} columns")
-        
-        # Step 2: Prepare context for code generation
-        data_info = self._build_data_info(df, profile, exports, imports)
-        
-        # Step 3: Generate code with LLM
+        # Generate code with LLM
         self._emit(progress_callback, "step", "Generating widget code...")
         code = self._generate_code(description, data_info, progress_callback)
         
-        # Step 4: Validate code (Python-based)
+        # Validate code
         self._emit(progress_callback, "step", "Validating code...")
         validation = self.validate_tool.execute(
             code=code,
@@ -117,11 +105,11 @@ class AgenticOrchestrator:
             expected_imports=list(imports.keys()),
         )
         
-        # Step 5: Runtime test (Python-based)
+        # Runtime test
         self._emit(progress_callback, "step", "Testing runtime...")
         runtime = self.runtime_tool.execute(code=code)
         
-        # Step 6: If errors, attempt repair
+        # Repair loop if needed
         repair_attempts = 0
         while repair_attempts < self.max_repair_attempts:
             issues = []
@@ -157,9 +145,8 @@ class AgenticOrchestrator:
         # Store artifacts
         self.artifacts["generated_code"] = code
         self.artifacts["validation"] = validation.output
-        self.artifacts["data_profile"] = profile
         
-        return code, df, profile
+        return code, df
     
     def fix_runtime_error(
         self,
@@ -182,7 +169,6 @@ class AgenticOrchestrator:
         """
         self._emit(progress_callback, "step", "Diagnosing error...")
         
-        # Diagnose the error
         diagnosis = self.diagnose_tool.execute(
             error_message=error_message,
             code=code,
@@ -190,7 +176,6 @@ class AgenticOrchestrator:
         
         self._emit(progress_callback, "step", "Repairing code...")
         
-        # Repair with LLM
         fixed_code = self._repair_code(
             code=code,
             issues=[diagnosis.output.get("full_error", error_message)],
@@ -292,32 +277,26 @@ class AgenticOrchestrator:
         
         return self._clean_code(message.content[0].text)
     
-    def _agentic_data_extraction(
-        self,
-        source: Any,
-        profile: DataProfile,
-        progress_callback: Callable[[str, str], None] | None = None,
-    ) -> Tuple[pd.DataFrame, DataProfile]:
-        """
-        Use LLM-assisted extraction for complex sources (PDF, web, unknown).
-        This is called when Python extractors fail or return empty data.
-        """
-        # For now, return the profile as-is and empty DataFrame
-        # The agentic system will work with sample_records in the profile
-        if profile.sample_records:
-            return pd.DataFrame(profile.sample_records), profile
-        return pd.DataFrame(), profile
-    
     def _build_data_info(
         self,
         df: pd.DataFrame,
-        profile: DataProfile,
         exports: dict[str, str],
         imports: dict[str, str],
     ) -> dict[str, Any]:
         """Build concise data info for LLM context."""
-        # Get sample data
         sample = df.head(3).to_dict(orient="records") if not df.empty else []
+        
+        # Detect potential data characteristics
+        is_geospatial = any(
+            col.lower() in ['lat', 'latitude', 'lon', 'longitude', 'lng', 'geometry']
+            for col in df.columns
+        )
+        
+        temporal_cols = [
+            col for col in df.columns
+            if pd.api.types.is_datetime64_any_dtype(df[col])
+            or col.lower() in ['date', 'time', 'datetime', 'timestamp']
+        ]
         
         return {
             "columns": df.columns.tolist(),
@@ -326,11 +305,8 @@ class AgenticOrchestrator:
             "sample": sample,
             "exports": exports,
             "imports": imports,
-            # From profile (if available)
-            "is_timeseries": profile.is_timeseries,
-            "temporal_column": profile.temporal_column,
-            "is_geospatial": profile.is_geospatial,
-            "coordinate_columns": profile.coordinate_columns,
+            "is_geospatial": is_geospatial,
+            "temporal_columns": temporal_cols,
         }
     
     def _build_generation_prompt(
@@ -350,10 +326,10 @@ class AgenticOrchestrator:
         if exports:
             export_list = "\n".join([f"- {name}: {desc}" for name, desc in exports.items()])
             traits_section += f"""
-EXPORTS (state to share with other widgets):
+EXPORTS (state to share):
 {export_list}
-- Initialize exports on mount with model.set() + model.save_changes()
-- Update on user interaction with model.set() + model.save_changes()
+- Initialize: model.set() + model.save_changes()
+- Update on interaction: model.set() + model.save_changes()
 """
         
         if imports:
@@ -361,9 +337,9 @@ EXPORTS (state to share with other widgets):
             traits_section += f"""
 IMPORTS (state from other widgets):
 {import_list}
-- Read with model.get("{list(imports.keys())[0] if imports else 'trait'}")
-- Subscribe with model.on("change:trait", handler)
-- Unsubscribe in cleanup with model.off("change:trait", handler)
+- Read: model.get("trait")
+- Subscribe: model.on("change:trait", handler)
+- Cleanup: model.off("change:trait", handler)
 """
         
         return f"""Generate a React widget for AnyWidget.
@@ -376,7 +352,7 @@ DATA:
 - Sample: {json.dumps(sample[:2], default=str) if sample else 'None'}
 {traits_section}
 
-CRITICAL RULES:
+RULES:
 1. export default function Widget({{ model, html, React }}) {{ ... }}
 2. Use html`...` tagged templates (htm), NOT JSX
 3. Access data: const data = model.get("data") || []
@@ -404,8 +380,7 @@ export default function Widget({{ model, html, React }}) {{
 }}
 ```
 
-OUTPUT: Only JavaScript code. No markdown fences. No explanations.
-"""
+OUTPUT: Only JavaScript code. No markdown. No explanations."""
     
     def _build_repair_prompt(
         self,
@@ -423,7 +398,7 @@ OUTPUT: Only JavaScript code. No markdown fences. No explanations.
 DIAGNOSIS:
 - Type: {diagnosis.get('error_type', 'unknown')}
 - Cause: {diagnosis.get('root_cause', 'unknown')}
-- Suggested fix: {diagnosis.get('suggested_fix', 'unknown')}
+- Fix: {diagnosis.get('suggested_fix', 'unknown')}
 """
         
         return f"""Fix this AnyWidget code.
@@ -432,7 +407,7 @@ ISSUES:
 {issues_text}
 {diagnosis_text}
 
-BROKEN CODE:
+CODE:
 ```javascript
 {code}
 ```
@@ -449,8 +424,7 @@ RULES:
 4. Every useEffect needs cleanup return
 5. CDN imports with versions
 
-OUTPUT: Only fixed JavaScript code. No markdown fences.
-"""
+OUTPUT: Only fixed JavaScript code. No markdown."""
     
     def _build_revision_prompt(
         self,
@@ -463,7 +437,7 @@ OUTPUT: Only fixed JavaScript code. No markdown fences.
 
 REQUEST: {revision_request}
 
-CURRENT CODE:
+CODE:
 ```javascript
 {code}
 ```
@@ -474,13 +448,12 @@ DATA:
 - Imports: {data_info.get('imports', {{}})}
 
 RULES:
-1. Keep same structure: export default function Widget({{ model, html, React }})
+1. Keep: export default function Widget({{ model, html, React }})
 2. Use html`...` templates
-3. Maintain all cleanup handlers
+3. Maintain cleanup handlers
 4. Keep CDN imports versioned
 
-OUTPUT: Only revised JavaScript code. No markdown fences.
-"""
+OUTPUT: Only revised JavaScript code. No markdown."""
     
     def _clean_code(self, code: str) -> str:
         """Clean code output."""
