@@ -1,473 +1,503 @@
-"""Agentic orchestrator for widget generation with streaming support."""
+"""
+Agentic Orchestrator for widget generation.
+
+Design philosophy:
+- Process data first with appropriate Python tools (no LLM for parsing)
+- Use LLM only for: code generation, error repair, data wrangling decisions
+- Always run validation and testing after code generation
+- Keep prompt context concise and focused
+"""
 
 import json
-from typing import Any, Callable
+import re
+from typing import Any, Callable, Tuple
 
 from anthropic import Anthropic
+import pandas as pd
 
+from vibe_widget.data_parser.data_profile import DataProfile
+from vibe_widget.data_parser.data_processor import DataProcessor
 from vibe_widget.llm.tools import (
-    CLIExecuteTool,
-    CodeGenerateTool,
-    CodePlanTool,
-    CodeRepairTool,
-    CodeValidateTool,
-    DataLoadTool,
-    DataProfileTool,
-    DataWrangleTool,
-    ErrorDiagnoseTool,
-    RuntimeTestTool,
     ToolRegistry,
+    ToolResult,
+    CodeValidateTool,
+    RuntimeTestTool,
+    ErrorDiagnoseTool,
 )
 
 
-class AgentOrchestrator:
-    """Orchestrates agentic widget generation with tool use and iteration."""
-
+class AgenticOrchestrator:
+    """
+    Main orchestrator for widget generation.
+    
+    Flow:
+    1. Process data (Python-based, no LLM)
+    2. Generate code (LLM tool)
+    3. Validate code (Python-based)
+    4. Test runtime (Python-based)
+    5. If errors: repair with LLM
+    6. Return final code
+    """
+    
     def __init__(
         self,
-        llm_provider,
-        max_iterations: int = 12,
+        api_key: str | None = None,
+        model: str = "claude-haiku-4-5-20251001",
         max_repair_attempts: int = 3,
     ):
-        self.llm_provider = llm_provider
-        self.client = Anthropic(api_key=llm_provider.api_key)
-        self.model = llm_provider.model
-        self.max_iterations = max_iterations
+        import os
+        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        if not self.api_key:
+            raise ValueError(
+                "API key required. Pass api_key or set ANTHROPIC_API_KEY env variable."
+            )
+        self.model = model
+        self.client = Anthropic(api_key=self.api_key)
         self.max_repair_attempts = max_repair_attempts
-
-        # Initialize tool registry
-        self.registry = ToolRegistry()
-        self._register_tools()
-
-        # Track orchestration state
-        self.conversation_history = []
+        
+        # Data processor (Python-based)
+        self.data_processor = DataProcessor()
+        
+        # Python-based validation tools
+        self.validate_tool = CodeValidateTool()
+        self.runtime_tool = RuntimeTestTool()
+        self.diagnose_tool = ErrorDiagnoseTool()
+        
+        # Artifacts from generation
         self.artifacts = {}
-
-    def _register_tools(self):
-        """Register all available tools."""
-        # Data tools
-        self.registry.register(DataLoadTool())
-        self.registry.register(DataProfileTool())
-        self.registry.register(DataWrangleTool(self.llm_provider))
-
-        # Code tools
-        self.registry.register(CodePlanTool(self.llm_provider))
-        self.registry.register(CodeGenerateTool(self.llm_provider))
-        self.registry.register(CodeValidateTool())
-
-        # Execution tools
-        self.registry.register(CLIExecuteTool())
-        self.registry.register(RuntimeTestTool())
-        self.registry.register(ErrorDiagnoseTool())
-        self.registry.register(CodeRepairTool(self.llm_provider))
-
-    def generate_widget_code(
+    
+    def generate(
         self,
         description: str,
-        data_info: dict[str, Any],
+        source: Any,
+        exports: dict[str, str] | None = None,
+        imports: dict[str, str] | None = None,
         progress_callback: Callable[[str, str], None] | None = None,
-        df=None,
-    ) -> str:
-        """Generate widget code using agentic orchestration.
-
-        Args:
-            description: User's widget description
-            data_info: Data information dict
-            progress_callback: Callback for streaming progress updates
-            df: Optional DataFrame for data tools
-
-        Returns:
-            Final validated widget code
+    ) -> Tuple[str, pd.DataFrame, DataProfile]:
         """
-        # Initialize conversation with system prompt
-        system_prompt = self._build_system_prompt()
-
-        # Build initial user message
-        user_message = self._build_initial_message(description, data_info)
-
-        self.conversation_history = [{"role": "user", "content": user_message}]
-
-        self._emit_progress(progress_callback, "step", "Starting agentic widget generation...")
-
-        iteration = 0
-        while iteration < self.max_iterations:
-            iteration += 1
-            self._emit_progress(progress_callback, "iteration", f"Iteration {iteration}/{self.max_iterations}")
-            # print(f"Iteration {iteration}/{self.max_iterations}")
-
-            try:
-                # Call LLM with tools
-                response = self.client.messages.create(
-                    model=self.model,
-                    max_tokens=8192,
-                    system=system_prompt,
-                    messages=self.conversation_history,
-                    tools=self.registry.to_anthropic_tools(),
-                )
-
-                # Process response
-                assistant_content = []
-                tool_results = []
-
-                for block in response.content:
-                    if block.type == "text":
-                        assistant_content.append({"type": "text", "text": block.text})
-                        self._emit_progress(progress_callback, "thinking", block.text)
-
-                    elif block.type == "tool_use":
-                        tool_name = block.name
-                        tool_input = block.input
-                        tool_id = block.id
-
-                        self._emit_progress(
-                            progress_callback,
-                            "tool",
-                            f"Using tool: {tool_name}",
-                        )
-                        # print(f"Using tool: {tool_name}")
-
-                        # Execute tool
-                        tool = self.registry.get(tool_name)
-                        if tool:
-                            # Inject df if needed
-                            if tool_name in ["data_load", "data_profile"] and df is not None:
-                                tool_input["df"] = df
-
-                            result = tool.execute(**tool_input)
-                            # print(f"Tool {tool_name} executed.\n{result}")
-
-                            # Store artifacts
-                            if tool_name == "data_wrangle" and result.success:
-                                self.artifacts["wrangle_code"] = result.output.get("code")
-                            elif tool_name == "code_plan" and result.success:
-                                self.artifacts["plan"] = result.output
-                            elif tool_name == "code_generate" and result.success:
-                                self.artifacts["generated_code"] = result.output.get("code")
-                            elif tool_name == "code_validate" and result.success:
-                                self.artifacts["validation"] = result.output
-
-                            # Emit progress
-                            if result.success:
-                                self._emit_progress(
-                                    progress_callback,
-                                    "tool_result",
-                                    f"{tool_name}: Success",
-                                )
-                            else:
-                                self._emit_progress(
-                                    progress_callback,
-                                    "tool_result",
-                                    f"{tool_name}: {result.error}",
-                                )
-
-                            # Format result for LLM
-                            tool_result_content = self._format_tool_result(result)
-                        else:
-                            tool_result_content = json.dumps(
-                                {"error": f"Tool {tool_name} not found"}
-                            )
-
-                        assistant_content.append(
-                            {"type": "tool_use", "id": tool_id, "name": tool_name, "input": tool_input}
-                        )
-                        tool_results.append(
-                            {"type": "tool_result", "tool_use_id": tool_id, "content": tool_result_content}
-                        )
-
-                # Add assistant message to history
-                self.conversation_history.append({"role": "assistant", "content": assistant_content})
-
-                # If there are tool results, add them and continue
-                if tool_results:
-                    self.conversation_history.append({"role": "user", "content": tool_results})
-                    continue
-
-                # Check if we have final code
-                if response.stop_reason == "end_turn":
-                    # Look for final code in artifacts
-                    final_code = self.artifacts.get("generated_code")
-                    if final_code:
-                        self._emit_progress(progress_callback, "complete", "Widget generation complete")
-                        return final_code
-
-                    # If no code yet, prompt agent to proceed
-                    self.conversation_history.append(
-                        {
-                            "role": "user",
-                            "content": "Please proceed to generate the widget code if not already done.",
-                        }
-                    )
-
-            except Exception as e:
-                self._emit_progress(progress_callback, "error", f"Orchestration error: {str(e)}")
-                raise
-
-        # Max iterations reached
-        final_code = self.artifacts.get("generated_code")
-        if final_code:
-            return final_code
-
-        raise RuntimeError(f"Failed to generate widget after {self.max_iterations} iterations")
-
-    def revise_widget_code(
-        self,
-        current_code: str,
-        revision_description: str,
-        data_info: dict[str, Any],
-        progress_callback: Callable[[str, str], None] | None = None,
-    ) -> str:
-        """Revise widget code using agentic orchestration."""
-        # Import the cleaning function to handle timestamps
-        import sys
-        if 'vibe_widget.core' in sys.modules:
-            from vibe_widget.core import _clean_for_json
-            data_info = _clean_for_json(data_info)
+        Generate widget code from description and data source.
         
-        system_prompt = self._build_system_prompt()
-
-        user_message = f"""Revise the following widget code according to the user's request.
-
-USER REQUEST:
-{revision_description}
-
-CURRENT CODE:
-```javascript
-{current_code}
-```
-
-DATA INFO:
-{json.dumps(data_info, indent=2, default=str)}
-
-Use available tools to validate, test, and improve the code. Ensure all changes meet requirements.
-"""
-
-        self.conversation_history = [{"role": "user", "content": user_message}]
-        self.artifacts = {"generated_code": current_code}
-
-        return self._run_orchestration_loop(progress_callback)
-
-    def fix_code_error(
+        Args:
+            description: Natural language widget description
+            source: Data source (DataFrame, file path, URL, etc.)
+            exports: Dict of export trait names -> descriptions
+            imports: Dict of import trait names -> descriptions
+            progress_callback: Optional callback for progress updates
+        
+        Returns:
+            Tuple of (widget_code, processed_dataframe, data_profile)
+        """
+        exports = exports or {}
+        imports = imports or {}
+        
+        self._emit(progress_callback, "step", "Processing data...")
+        
+        # Step 1: Process data with Python tools
+        df, profile, needs_agentic = self.data_processor.process(source)
+        
+        # If agentic processing needed (PDF, web, unknown), use LLM tools
+        if needs_agentic and df.empty:
+            self._emit(progress_callback, "step", "Data requires advanced extraction...")
+            df, profile = self._agentic_data_extraction(source, profile, progress_callback)
+        
+        self._emit(progress_callback, "step", f"Data ready: {df.shape[0]} rows × {df.shape[1]} columns")
+        
+        # Step 2: Prepare context for code generation
+        data_info = self._build_data_info(df, profile, exports, imports)
+        
+        # Step 3: Generate code with LLM
+        self._emit(progress_callback, "step", "Generating widget code...")
+        code = self._generate_code(description, data_info, progress_callback)
+        
+        # Step 4: Validate code (Python-based)
+        self._emit(progress_callback, "step", "Validating code...")
+        validation = self.validate_tool.execute(
+            code=code,
+            expected_exports=list(exports.keys()),
+            expected_imports=list(imports.keys()),
+        )
+        
+        # Step 5: Runtime test (Python-based)
+        self._emit(progress_callback, "step", "Testing runtime...")
+        runtime = self.runtime_tool.execute(code=code)
+        
+        # Step 6: If errors, attempt repair
+        repair_attempts = 0
+        while repair_attempts < self.max_repair_attempts:
+            issues = []
+            
+            if not validation.success:
+                issues.extend(validation.output.get("issues", []))
+            if not runtime.success:
+                issues.extend(runtime.output.get("issues", []))
+            
+            if not issues:
+                break
+            
+            repair_attempts += 1
+            self._emit(progress_callback, "step", f"Repairing code (attempt {repair_attempts})...")
+            
+            code = self._repair_code(
+                code=code,
+                issues=issues,
+                data_info=data_info,
+                progress_callback=progress_callback,
+            )
+            
+            # Re-validate
+            validation = self.validate_tool.execute(
+                code=code,
+                expected_exports=list(exports.keys()),
+                expected_imports=list(imports.keys()),
+            )
+            runtime = self.runtime_tool.execute(code=code)
+        
+        self._emit(progress_callback, "complete", "Widget generation complete")
+        
+        # Store artifacts
+        self.artifacts["generated_code"] = code
+        self.artifacts["validation"] = validation.output
+        self.artifacts["data_profile"] = profile
+        
+        return code, df, profile
+    
+    def fix_runtime_error(
         self,
-        broken_code: str,
+        code: str,
         error_message: str,
         data_info: dict[str, Any],
         progress_callback: Callable[[str, str], None] | None = None,
     ) -> str:
-        """Fix code error using diagnostic tools."""
-        # Import the cleaning function to handle timestamps
-        import sys
-        if 'vibe_widget.core' in sys.modules:
-            from vibe_widget.core import _clean_for_json
-            data_info = _clean_for_json(data_info)
+        """
+        Fix a runtime error in widget code.
         
-        # Use diagnostic tool first
-        diagnose_tool = self.registry.get("error_diagnose")
-        diagnosis = diagnose_tool.execute(error_message=error_message, code=broken_code)
-
-        if not diagnosis.success:
-            # Fallback to simple repair
-            repair_tool = self.registry.get("code_repair")
-            result = repair_tool.execute(
-                code=broken_code,
-                diagnosis={"error_type": "unknown", "full_error": error_message},
+        Args:
+            code: Current widget code with error
+            error_message: Error message from runtime
+            data_info: Data context information
+            progress_callback: Optional progress callback
+        
+        Returns:
+            Fixed widget code
+        """
+        self._emit(progress_callback, "step", "Diagnosing error...")
+        
+        # Diagnose the error
+        diagnosis = self.diagnose_tool.execute(
+            error_message=error_message,
+            code=code,
+        )
+        
+        self._emit(progress_callback, "step", "Repairing code...")
+        
+        # Repair with LLM
+        fixed_code = self._repair_code(
+            code=code,
+            issues=[diagnosis.output.get("full_error", error_message)],
+            data_info=data_info,
+            diagnosis=diagnosis.output,
+            progress_callback=progress_callback,
+        )
+        
+        return fixed_code
+    
+    def revise_code(
+        self,
+        code: str,
+        revision_request: str,
+        data_info: dict[str, Any],
+        progress_callback: Callable[[str, str], None] | None = None,
+    ) -> str:
+        """
+        Revise widget code based on user request.
+        
+        Args:
+            code: Current widget code
+            revision_request: User's revision request
+            data_info: Data context information
+            progress_callback: Optional progress callback
+        
+        Returns:
+            Revised widget code
+        """
+        self._emit(progress_callback, "step", "Revising widget code...")
+        
+        prompt = self._build_revision_prompt(code, revision_request, data_info)
+        
+        code_chunks = []
+        with self.client.messages.stream(
+            model=self.model,
+            max_tokens=8192,
+            messages=[{"role": "user", "content": prompt}],
+        ) as stream:
+            for text in stream.text_stream:
+                code_chunks.append(text)
+                self._emit(progress_callback, "chunk", text)
+        
+        revised_code = self._clean_code("".join(code_chunks))
+        
+        # Validate
+        self._emit(progress_callback, "step", "Validating revision...")
+        validation = self.validate_tool.execute(code=revised_code)
+        
+        if not validation.success:
+            self._emit(progress_callback, "step", "Fixing validation issues...")
+            revised_code = self._repair_code(
+                code=revised_code,
+                issues=validation.output.get("issues", []),
                 data_info=data_info,
+                progress_callback=progress_callback,
             )
-            if result.success:
-                return result.output["code"]
-            raise RuntimeError(f"Failed to repair code: {result.error}")
+        
+        self._emit(progress_callback, "complete", "Revision complete")
+        return revised_code
+    
+    def _generate_code(
+        self,
+        description: str,
+        data_info: dict[str, Any],
+        progress_callback: Callable[[str, str], None] | None = None,
+    ) -> str:
+        """Generate widget code using LLM."""
+        prompt = self._build_generation_prompt(description, data_info)
+        
+        code_chunks = []
+        with self.client.messages.stream(
+            model=self.model,
+            max_tokens=8192,
+            messages=[{"role": "user", "content": prompt}],
+        ) as stream:
+            for text in stream.text_stream:
+                code_chunks.append(text)
+                self._emit(progress_callback, "chunk", text)
+        
+        return self._clean_code("".join(code_chunks))
+    
+    def _repair_code(
+        self,
+        code: str,
+        issues: list[str],
+        data_info: dict[str, Any],
+        diagnosis: dict[str, Any] | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
+    ) -> str:
+        """Repair code using LLM."""
+        prompt = self._build_repair_prompt(code, issues, data_info, diagnosis)
+        
+        message = self.client.messages.create(
+            model=self.model,
+            max_tokens=8192,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        
+        return self._clean_code(message.content[0].text)
+    
+    def _agentic_data_extraction(
+        self,
+        source: Any,
+        profile: DataProfile,
+        progress_callback: Callable[[str, str], None] | None = None,
+    ) -> Tuple[pd.DataFrame, DataProfile]:
+        """
+        Use LLM-assisted extraction for complex sources (PDF, web, unknown).
+        This is called when Python extractors fail or return empty data.
+        """
+        # For now, return the profile as-is and empty DataFrame
+        # The agentic system will work with sample_records in the profile
+        if profile.sample_records:
+            return pd.DataFrame(profile.sample_records), profile
+        return pd.DataFrame(), profile
+    
+    def _build_data_info(
+        self,
+        df: pd.DataFrame,
+        profile: DataProfile,
+        exports: dict[str, str],
+        imports: dict[str, str],
+    ) -> dict[str, Any]:
+        """Build concise data info for LLM context."""
+        # Get sample data
+        sample = df.head(3).to_dict(orient="records") if not df.empty else []
+        
+        return {
+            "columns": df.columns.tolist(),
+            "dtypes": {col: str(dtype) for col, dtype in df.dtypes.items()},
+            "shape": df.shape,
+            "sample": sample,
+            "exports": exports,
+            "imports": imports,
+            # From profile (if available)
+            "is_timeseries": profile.is_timeseries,
+            "temporal_column": profile.temporal_column,
+            "is_geospatial": profile.is_geospatial,
+            "coordinate_columns": profile.coordinate_columns,
+        }
+    
+    def _build_generation_prompt(
+        self,
+        description: str,
+        data_info: dict[str, Any],
+    ) -> str:
+        """Build concise generation prompt."""
+        columns = data_info.get("columns", [])
+        dtypes = data_info.get("dtypes", {})
+        sample = data_info.get("sample", [])
+        exports = data_info.get("exports", {})
+        imports = data_info.get("imports", {})
+        
+        # Build exports/imports section
+        traits_section = ""
+        if exports:
+            export_list = "\n".join([f"- {name}: {desc}" for name, desc in exports.items()])
+            traits_section += f"""
+EXPORTS (state to share with other widgets):
+{export_list}
+- Initialize exports on mount with model.set() + model.save_changes()
+- Update on user interaction with model.set() + model.save_changes()
+"""
+        
+        if imports:
+            import_list = "\n".join([f"- {name}: {desc}" for name, desc in imports.items()])
+            traits_section += f"""
+IMPORTS (state from other widgets):
+{import_list}
+- Read with model.get("{list(imports.keys())[0] if imports else 'trait'}")
+- Subscribe with model.on("change:trait", handler)
+- Unsubscribe in cleanup with model.off("change:trait", handler)
+"""
+        
+        return f"""Generate a React widget for AnyWidget.
 
-        # Use orchestrated repair
-        system_prompt = self._build_system_prompt()
-        user_message = f"""Fix the following widget code error using available tools.
+TASK: {description}
 
-ERROR MESSAGE:
-{error_message}
+DATA:
+- Columns: {', '.join(str(c) for c in columns) if columns else 'No data'}
+- Types: {dtypes}
+- Sample: {json.dumps(sample[:2], default=str) if sample else 'None'}
+{traits_section}
+
+CRITICAL RULES:
+1. export default function Widget({{ model, html, React }}) {{ ... }}
+2. Use html`...` tagged templates (htm), NOT JSX
+3. Access data: const data = model.get("data") || []
+4. Every useEffect MUST return cleanup function
+5. Use class= not className= in html templates
+6. CDN imports with versions: https://esm.sh/d3@7
+7. Fixed heights (400-600px), never 100vh
+8. No document.body, no ReactDOM.render
+
+TEMPLATE:
+```javascript
+import * as d3 from "https://esm.sh/d3@7";
+
+export default function Widget({{ model, html, React }}) {{
+  const data = model.get("data") || [];
+  const containerRef = React.useRef(null);
+
+  React.useEffect(() => {{
+    if (!containerRef.current) return;
+    // Initialize visualization
+    return () => {{ /* cleanup */ }};
+  }}, [data]);
+
+  return html`<div ref=${{containerRef}} style=${{{{ height: '400px' }}}}></div>`;
+}}
+```
+
+OUTPUT: Only JavaScript code. No markdown fences. No explanations.
+"""
+    
+    def _build_repair_prompt(
+        self,
+        code: str,
+        issues: list[str],
+        data_info: dict[str, Any],
+        diagnosis: dict[str, Any] | None = None,
+    ) -> str:
+        """Build repair prompt."""
+        issues_text = "\n".join([f"- {issue}" for issue in issues])
+        
+        diagnosis_text = ""
+        if diagnosis:
+            diagnosis_text = f"""
+DIAGNOSIS:
+- Type: {diagnosis.get('error_type', 'unknown')}
+- Cause: {diagnosis.get('root_cause', 'unknown')}
+- Suggested fix: {diagnosis.get('suggested_fix', 'unknown')}
+"""
+        
+        return f"""Fix this AnyWidget code.
+
+ISSUES:
+{issues_text}
+{diagnosis_text}
 
 BROKEN CODE:
 ```javascript
-{broken_code}
+{code}
 ```
 
-DATA INFO:
-{json.dumps(data_info, indent=2, default=str)}
-
-Use error_diagnose to analyze the error, then code_repair to fix it. Validate the fixed code.
-"""
-
-        self.conversation_history = [{"role": "user", "content": user_message}]
-        self.artifacts = {}
-
-        return self._run_orchestration_loop(progress_callback)
-
-    def _run_orchestration_loop(
-        self,
-        progress_callback: Callable[[str, str], None] | None = None,
-    ) -> str:
-        """Run the orchestration loop until completion."""
-        system_prompt = self._build_system_prompt()
-        iteration = 0
-
-        while iteration < self.max_iterations:
-            iteration += 1
-            self._emit_progress(progress_callback, "iteration", f"Iteration {iteration}/{self.max_iterations}")
-
-            try:
-                response = self.client.messages.create(
-                    model=self.model,
-                    max_tokens=8192,
-                    system=system_prompt,
-                    messages=self.conversation_history,
-                    tools=self.registry.to_anthropic_tools(),
-                )
-
-                assistant_content = []
-                tool_results = []
-
-                for block in response.content:
-                    if block.type == "text":
-                        assistant_content.append({"type": "text", "text": block.text})
-                        self._emit_progress(progress_callback, "thinking", block.text[:200])
-
-                    elif block.type == "tool_use":
-                        tool_name = block.name
-                        tool_input = block.input
-                        tool_id = block.id
-
-                        self._emit_progress(progress_callback, "tool", f"Using: {tool_name}")
-
-                        tool = self.registry.get(tool_name)
-                        if tool:
-                            result = tool.execute(**tool_input)
-
-                            if tool_name == "code_repair" and result.success:
-                                self.artifacts["generated_code"] = result.output.get("code")
-
-                            tool_result_content = self._format_tool_result(result)
-                        else:
-                            tool_result_content = json.dumps({"error": f"Tool {tool_name} not found"})
-
-                        assistant_content.append(
-                            {"type": "tool_use", "id": tool_id, "name": tool_name, "input": tool_input}
-                        )
-                        tool_results.append(
-                            {"type": "tool_result", "tool_use_id": tool_id, "content": tool_result_content}
-                        )
-
-                self.conversation_history.append({"role": "assistant", "content": assistant_content})
-
-                if tool_results:
-                    self.conversation_history.append({"role": "user", "content": tool_results})
-                    continue
-
-                if response.stop_reason == "end_turn":
-                    final_code = self.artifacts.get("generated_code")
-                    if final_code:
-                        return final_code
-                    self.conversation_history.append(
-                        {"role": "user", "content": "Please provide the final code."}
-                    )
-
-            except Exception as e:
-                self._emit_progress(progress_callback, "error", str(e))
-                raise
-
-        final_code = self.artifacts.get("generated_code")
-        if final_code:
-            return final_code
-        raise RuntimeError("Failed to complete orchestration")
-
-    def _build_system_prompt(self) -> str:
-        """Build system prompt for orchestrator."""
-        return """You are an expert widget code generation agent with access to specialized tools.
-
-Your goal is to generate high-quality and interactive React widgets for AnyWidget following exact specifications.
-
-WORKFLOW:
-1. Understand the user's requirements and data context
-2. Use data tools if data analysis/transformation is needed
-3. Create an implementation plan with code_plan ONLY IF the data is complex (e.g., large datasets, complex transformations, weird data formats)
-4. Generate widget code with code_generate
-5. Validate code with code_validate
-6. Test runtime safety with runtime_test
-7. If errors occur, use error_diagnose then code_repair
-8. Iterate until validation passes
-
-TOOL USAGE PRINCIPLES:
-- Use tools sequentially, building on previous results
-- Always validate generated code before returning
-- For data-heavy widgets, profile data first to understand sampling needs
-- For large datasets, ensure proper sampling to avoid performance issues
-- Add defensive null checks for all data access
-- Initialize exports immediately and subscribe to imports with cleanup
-- Its okay to start with code_generate, no need to overthink or overcomplicate
-
-QUALITY STANDARDS:
-- Code must follow AnyWidget + htm conventions exactly
-- Every React.useEffect must have cleanup handler
-- CDN imports must be version-pinned
-- Export/import lifecycle must be complete
-- No JSX, ReactDOM.render, or document.body manipulation
-- Proper error handling and null guards
-
-When you have final validated code, indicate completion clearly.
-"""
-
-    def _build_initial_message(self, description: str, data_info: dict[str, Any]) -> str:
-        """Build initial user message."""
-        return f"""Generate a React widget for AnyWidget with the following requirements:
-
-USER DESCRIPTION:
-{description}
-
-DATA CONTEXT:
+DATA:
 - Columns: {data_info.get('columns', [])}
-- Types: {data_info.get('dtypes', {})}
-- Sample: {data_info.get('sample', {})}
-- Exports: {data_info.get('exports', {})}
-- Imports: {data_info.get('imports', {})}
+- Exports: {data_info.get('exports', {{}})}
+- Imports: {data_info.get('imports', {{}})}
 
-Use available tools to:
-1. Analyze data if needed (for visualizations, understand sampling requirements)
-2. Create implementation plan ONLY IF data is complex (e.g., large datasets, complex transformations, weird data formats)
-3. Generate high-quality and interactive widget code (with traitlets as needed)
-4. Validate and test the code
-5. Ensure all requirements are met
-6. Proceed directly to code generation without planning for most scenarios.
+RULES:
+1. export default function Widget({{ model, html, React }})
+2. html`...` templates, not JSX
+3. Guard all data access with null checks
+4. Every useEffect needs cleanup return
+5. CDN imports with versions
 
-Start by understanding the data context, then use tools systematically.
+OUTPUT: Only fixed JavaScript code. No markdown fences.
 """
+    
+    def _build_revision_prompt(
+        self,
+        code: str,
+        revision_request: str,
+        data_info: dict[str, Any],
+    ) -> str:
+        """Build revision prompt."""
+        return f"""Revise this AnyWidget code.
 
-    def _format_tool_result(self, result) -> str:
-        """Format tool result for LLM consumption."""
-        if result.success:
-            # Truncate very large outputs
-            output_str = json.dumps(result.output, default=str)
-            if len(output_str) > 10000:
-                # For dataframes, only send metadata
-                if isinstance(result.output, dict) and "dataframe" in result.output:
-                    output_copy = {k: v for k, v in result.output.items() if k != "dataframe"}
-                    output_copy["dataframe"] = "<truncated>"
-                    output_str = json.dumps(output_copy, default=str)
-                else:
-                    output_str = output_str[:10000] + "...(truncated)"
-            return output_str
-        else:
-            return json.dumps({"error": result.error, "success": False})
+REQUEST: {revision_request}
 
-    def _emit_progress(
+CURRENT CODE:
+```javascript
+{code}
+```
+
+DATA:
+- Columns: {data_info.get('columns', [])}
+- Exports: {data_info.get('exports', {{}})}
+- Imports: {data_info.get('imports', {{}})}
+
+RULES:
+1. Keep same structure: export default function Widget({{ model, html, React }})
+2. Use html`...` templates
+3. Maintain all cleanup handlers
+4. Keep CDN imports versioned
+
+OUTPUT: Only revised JavaScript code. No markdown fences.
+"""
+    
+    def _clean_code(self, code: str) -> str:
+        """Clean code output."""
+        code = re.sub(r"```(?:javascript|jsx?|typescript|tsx?)?\s*\n?", "", code)
+        code = re.sub(r"\n?```\s*", "", code)
+        return code.strip()
+    
+    def _emit(
         self,
         callback: Callable[[str, str], None] | None,
         event_type: str,
         message: str,
     ):
-        """Emit progress event with type and message."""
+        """Emit progress event."""
         if callback:
             callback(event_type, message)
-
+    
     def get_pipeline_artifacts(self) -> dict[str, Any]:
-        """Get all artifacts generated during orchestration.
-
-        Returns:
-            Dict containing wrangle_code, plan, generated_code, validation, etc.
-        """
+        """Get artifacts from the generation pipeline."""
         return self.artifacts

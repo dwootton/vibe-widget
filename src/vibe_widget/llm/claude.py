@@ -1,3 +1,8 @@
+"""
+Claude provider - Simple wrapper for backward compatibility.
+Main orchestration is now in AgenticOrchestrator.
+"""
+
 import os
 import re
 from typing import Any, Callable
@@ -6,17 +11,22 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 
 from vibe_widget.llm.base import LLMProvider
-from vibe_widget.llm.agentic import AgentOrchestrator
+from vibe_widget.llm.agentic import AgenticOrchestrator
 
 load_dotenv()
 
 
 class ClaudeProvider(LLMProvider):
+    """
+    Claude provider for widget code generation.
+    
+    This is now a thin wrapper around AgenticOrchestrator for backward compatibility.
+    """
+    
     def __init__(
         self,
         api_key: str | None = None,
         model: str = "claude-haiku-4-5-20251001",
-        agentic: bool = False,
     ):
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
@@ -25,8 +35,7 @@ class ClaudeProvider(LLMProvider):
             )
         self.model = model
         self.client = Anthropic(api_key=self.api_key)
-        self.agentic = agentic
-        self.orchestrator = AgentOrchestrator(self) if agentic else None
+        self.orchestrator = AgenticOrchestrator(api_key=self.api_key, model=model)
 
     def generate_widget_code(
         self,
@@ -35,16 +44,7 @@ class ClaudeProvider(LLMProvider):
         progress_callback: Callable[[str, str], None] | None = None,
         df=None,
     ) -> str:
-        # Use agentic orchestration if enabled
-        if self.agentic and self.orchestrator:
-            return self.orchestrator.generate_widget_code(
-                description=description,
-                data_info=data_info,
-                progress_callback=progress_callback,
-                df=df,
-            )
-
-        # Otherwise use simple single-pass generation
+        """Generate widget code using simple single-pass generation."""
         prompt = self._build_prompt(description, data_info)
 
         if progress_callback:
@@ -56,7 +56,6 @@ class ClaudeProvider(LLMProvider):
             ) as stream:
                 for text in stream.text_stream:
                     code_chunks.append(text)
-                    # Emit as streaming chunks with 'chunk' type
                     progress_callback("chunk", text)
 
             code = "".join(code_chunks)
@@ -77,39 +76,13 @@ class ClaudeProvider(LLMProvider):
         data_info: dict[str, Any],
         progress_callback: Callable[[str, str], None] | None = None,
     ) -> str:
-        # Use agentic orchestration if enabled
-        if self.agentic and self.orchestrator:
-            return self.orchestrator.revise_widget_code(
-                current_code=current_code,
-                revision_description=revision_description,
-                data_info=data_info,
-                progress_callback=progress_callback,
-            )
-
-        # Otherwise use simple revision
-        prompt = self._build_revision_prompt(current_code, revision_description, data_info)
-
-        if progress_callback:
-            code_chunks = []
-            with self.client.messages.stream(
-                model=self.model,
-                max_tokens=8192,
-                messages=[{"role": "user", "content": prompt}],
-            ) as stream:
-                for text in stream.text_stream:
-                    code_chunks.append(text)
-                    progress_callback("chunk", text)
-
-            code = "".join(code_chunks)
-        else:
-            message = self.client.messages.create(
-                model=self.model,
-                max_tokens=8192,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            code = message.content[0].text
-
-        return self._clean_code(code)
+        """Revise widget code."""
+        return self.orchestrator.revise_code(
+            code=current_code,
+            revision_request=revision_description,
+            data_info=data_info,
+            progress_callback=progress_callback,
+        )
 
     def fix_code_error(
         self,
@@ -117,24 +90,12 @@ class ClaudeProvider(LLMProvider):
         error_message: str,
         data_info: dict[str, Any],
     ) -> str:
-        # Use agentic orchestration if enabled
-        if self.agentic and self.orchestrator:
-            return self.orchestrator.fix_code_error(
-                broken_code=broken_code,
-                error_message=error_message,
-                data_info=data_info,
-            )
-
-        # Otherwise use simple fix
-        prompt = self._build_fix_prompt(broken_code, error_message, data_info)
-
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=8192,
-            messages=[{"role": "user", "content": prompt}],
+        """Fix code error."""
+        return self.orchestrator.fix_runtime_error(
+            code=broken_code,
+            error_message=error_message,
+            data_info=data_info,
         )
-
-        return self._clean_code(message.content[0].text)
 
     def _build_prompt(self, description: str, data_info: dict[str, Any]) -> str:
         columns = data_info.get("columns", [])
@@ -152,7 +113,7 @@ TASK: {description}
 ═══════════════════════════════════════════════════════════════
 
 Data schema:
-- Columns: {', '.join(columns) if columns else 'No data (widget uses imports only)'}
+- Columns: {', '.join(str(c) for c in columns) if columns else 'No data (widget uses imports only)'}
 - Types: {dtypes}
 - Sample data: {sample_data}
 
@@ -164,6 +125,7 @@ CRITICAL REACT + HTM SPECIFICATION
 
 MUST FOLLOW EXACTLY:
 1. Export a default function: export default function Widget({{ model, html, React }}) {{ ... }}
+   ⚠️ CRITICAL: Parameter MUST be "React" exactly - NOT "React: ReactLib" or any alias
 2. Use html tagged templates (htm) for markup—no JSX or ReactDOM.render
 3. Access data with model.get("data") and treat it as immutable
 4. Append DOM nodes via refs rendered inside html templates (never touch document.body)
@@ -262,91 +224,6 @@ Generate ONLY the working JavaScript code (imports → export default function W
 Begin the response with code immediately.
 """
 
-    def _build_revision_prompt(
-        self,
-        current_code: str,
-        revision_description: str,
-        data_info: dict[str, Any],
-    ) -> str:
-        columns = data_info.get("columns", [])
-        dtypes = data_info.get("dtypes", {})
-        sample_data = data_info.get("sample", {})
-        exports = data_info.get("exports", {})
-        imports = data_info.get("imports", {})
-
-        exports_imports_section = self._build_exports_imports_section(exports, imports)
-
-        return f"""Revise the following AnyWidget React bundle code according to the request.
-
-REVISION REQUEST: {revision_description}
-
-CURRENT CODE:
-```javascript
-{current_code}
-```
-
-Data schema:
-- Columns: {', '.join(columns) if columns else 'No data (widget uses imports only)'}
-- Types: {dtypes}
-- Sample data: {sample_data}
-
-{exports_imports_section}
-
-Follow the SAME constraints as generation:
-- export default function Widget({{ model, html, React }})
-- html tagged templates only (no JSX)
-- ESM CDN imports with locked versions
-- Initialize/stream exports, subscribe to imports with model.on/model.off
-- Thorough cleanup in every React.useEffect
-- Respect notebook sizing (no 100vh) and keep styling bold + intentional
-
-Return only the full revised JavaScript code with imports through export default. No markdown fences or explanations.
-"""
-
-    def _build_fix_prompt(
-        self,
-        broken_code: str,
-        error_message: str,
-        data_info: dict[str, Any],
-    ) -> str:
-        columns = data_info.get("columns", [])
-        dtypes = data_info.get("dtypes", {})
-        sample_data = data_info.get("sample", {})
-        exports = data_info.get("exports", {})
-        imports = data_info.get("imports", {})
-
-        exports_imports_section = self._build_exports_imports_section(exports, imports)
-
-        return f"""Fix the AnyWidget React bundle code below. Keep the interaction model identical while eliminating the runtime error.
-
-ERROR MESSAGE:
-{error_message}
-
-BROKEN CODE:
-```javascript
-{broken_code}
-```
-
-Data schema:
-- Columns: {', '.join(columns) if columns else 'No data (widget uses imports only)'}
-- Types: {dtypes}
-- Sample data: {sample_data}
-
-{exports_imports_section}
-
-MANDATORY FIX RULES:
-1. Export default function Widget({{ model, html, React }})
-2. Use html tagged templates (htm) instead of JSX
-3. Guard every model.get payload before iterating or accessing properties
-4. Keep CDN imports version-pinned
-5. Restore all cleanup handlers (listeners, observers, RAF, timers, WebGL resources)
-6. Initialize exports immediately and call model.save_changes() after every model.set
-7. Subscribe to imported traits with model.on/model.off
-8. Do not wrap output in markdown fences or add commentary
-
-Return ONLY the corrected JavaScript code.
-"""
-
     def _build_exports_imports_section(self, exports: dict, imports: dict) -> str:
         if not exports and not imports:
             return ""
@@ -434,12 +311,5 @@ React.useEffect(() => {{
         return code.strip()
 
     def get_pipeline_artifacts(self) -> dict[str, Any]:
-        """Get pipeline artifacts from agentic orchestration.
-
-        Returns:
-            Dict containing wrangle_code, plan, generated_code, validation, etc.
-            Empty dict if not in agentic mode or no artifacts yet.
-        """
-        if self.agentic and self.orchestrator:
-            return self.orchestrator.get_pipeline_artifacts()
-        return {}
+        """Get pipeline artifacts from orchestration."""
+        return self.orchestrator.get_pipeline_artifacts()

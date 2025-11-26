@@ -58,11 +58,9 @@ class WidgetStore:
         description: str,
         data_var_name: str | None,
         model: str,
-        use_preprocessor: bool,
-        context_fingerprint: str,
+        profile_fingerprint: str,
         exports_signature: str,
         imports_signature: str,
-        agentic: bool,
     ) -> tuple[str, str]:
         """
         Compute cache key from simplified inputs.
@@ -71,11 +69,9 @@ class WidgetStore:
             description: User's description string
             data_var_name: Variable name of the data parameter (e.g., "df", "flights_df")
             model: Model name
-            use_preprocessor: Whether preprocessor is used
-            context_fingerprint: Hash of context dict or DataProfile
+            profile_fingerprint: Hash of DataProfile
             exports_signature: Stable representation of exports
             imports_signature: Stable representation of imports
-            agentic: Whether agentic mode is enabled
         
         Returns:
             (full_hash, short_hash) tuple
@@ -85,11 +81,9 @@ class WidgetStore:
             "description": description,
             "data_var_name": data_var_name or "",
             "model": model,
-            "use_preprocessor": use_preprocessor,
-            "context_fingerprint": context_fingerprint,
+            "profile_fingerprint": profile_fingerprint,
             "exports_signature": exports_signature,
             "imports_signature": imports_signature,
-            "agentic": agentic,
         }
         
         # Compute hash
@@ -185,11 +179,9 @@ class WidgetStore:
         description: str,
         data_var_name: str | None,
         model: str,
-        use_preprocessor: bool,
-        context: Any,
         exports: dict[str, str] | None,
         imports_serialized: dict[str, str] | None,
-        agentic: bool,
+        profile: Any = None,
     ) -> dict[str, Any] | None:
         """
         Look up a cached widget by cache key.
@@ -198,7 +190,7 @@ class WidgetStore:
             Widget metadata dict if found, None otherwise
         """
         # Compute signatures
-        context_fingerprint = self._compute_context_fingerprint(context)
+        profile_fingerprint = self._compute_context_fingerprint(profile)
         exports_signature = self._compute_exports_signature(exports)
         imports_signature = self._compute_imports_signature(imports_serialized)
         
@@ -207,11 +199,9 @@ class WidgetStore:
             description=description,
             data_var_name=data_var_name,
             model=model,
-            use_preprocessor=use_preprocessor,
-            context_fingerprint=context_fingerprint,
+            profile_fingerprint=profile_fingerprint,
             exports_signature=exports_signature,
             imports_signature=imports_signature,
-            agentic=agentic,
         )
         
         # Search index
@@ -236,11 +226,9 @@ class WidgetStore:
         description: str,
         data_var_name: str | None,
         model: str,
-        use_preprocessor: bool,
-        context: Any,
         exports: dict[str, str] | None,
         imports_serialized: dict[str, str] | None,
-        agentic: bool,
+        profile: Any = None,
         notebook_path: str | None = None,
     ) -> dict[str, Any]:
         """
@@ -250,7 +238,7 @@ class WidgetStore:
             Widget metadata dict
         """
         # Compute signatures
-        context_fingerprint = self._compute_context_fingerprint(context)
+        profile_fingerprint = self._compute_context_fingerprint(profile)
         exports_signature = self._compute_exports_signature(exports)
         imports_signature = self._compute_imports_signature(imports_serialized)
         
@@ -259,11 +247,9 @@ class WidgetStore:
             description=description,
             data_var_name=data_var_name,
             model=model,
-            use_preprocessor=use_preprocessor,
-            context_fingerprint=context_fingerprint,
+            profile_fingerprint=profile_fingerprint,
             exports_signature=exports_signature,
             imports_signature=imports_signature,
-            agentic=agentic,
         )
         
         # Generate slug

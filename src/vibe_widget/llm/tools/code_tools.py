@@ -1,131 +1,13 @@
 """Code generation and validation tools."""
 
-import ast
 import re
 from typing import Any
 
 from vibe_widget.llm.tools.base import Tool, ToolResult
 
 
-class CodePlanTool(Tool):
-    """Tool for creating a plan for widget code generation."""
-
-    def __init__(self, llm_provider):
-        super().__init__(
-            name="code_plan",
-            description=(
-                "Create a detailed plan for widget implementation including: "
-                "component structure, libraries needed, interaction patterns, "
-                "export/import traits, and styling approach. "
-                "This plan guides the code generation process."
-            ),
-        )
-        self.llm_provider = llm_provider
-
-    @property
-    def parameters_schema(self) -> dict[str, Any]:
-        return {
-            "description": {
-                "type": "string",
-                "description": "User's widget description/requirements",
-                "required": True,
-            },
-            "data_profile": {
-                "type": "object",
-                "description": "Data profile from profiling step (can be None)",
-                "required": False,
-            },
-            "exports": {
-                "type": "object",
-                "description": "Export traits specification",
-                "required": False,
-            },
-            "imports": {
-                "type": "object",
-                "description": "Import traits specification",
-                "required": False,
-            },
-        }
-
-    def execute(
-        self,
-        description: str,
-        data_profile: dict[str, Any] | None = None,
-        exports: dict[str, str] | None = None,
-        imports: dict[str, str] | None = None,
-    ) -> ToolResult:
-        """Generate implementation plan."""
-        try:
-            prompt = f"""Create a detailed implementation plan for an AnyWidget React component.
-
-Widget Description:
-{description}
-
-Data Profile:
-{data_profile if data_profile else "No data - widget uses imports or is standalone"}
-
-Exports (state shared with other widgets):
-{exports if exports else "None"}
-
-Imports (state from other widgets):
-{imports if imports else "None"}
-
-Generate a structured and concise plan with:
-1. Component purpose and interaction model
-2. Required libraries (with CDN URLs and versions)
-3. State management approach
-4. Export/import lifecycle (initialization, updates, subscriptions)
-5. Layout and styling strategy
-6. Key implementation considerations
-
-Return the plan in JSON format with keys "purpose", "libraries", "state", "interactions", "styling", and "considerations".
-ONLY provide the JSON without any extra text, not explanation, no pseudo code, just JSON.
-Example output format:
-{{
-  "purpose": "Brief component purpose",
-  "libraries": [
-    {{"name": "library-name", "version": "X.Y", "cdn": "https://..."}}
-  ],
-  "state": {{
-    "local": ["state1", "state2"],
-    "exports": ["export1"],
-    "imports": ["import1"]
-  }},
-  "interactions": ["interaction1", "interaction2"],
-  "styling": {{"approach": "description", "key_elements": ["element1", "element2"]}},
-  "considerations": ["consideration1", "consideration2"]
-}}
-"""
-
-            from anthropic import Anthropic
-
-            client = Anthropic(api_key=self.llm_provider.api_key)
-            message = client.messages.create(
-                model=self.llm_provider.model,
-                max_tokens=1024,
-                messages=[{"role": "user", "content": prompt}],
-            )
-
-            plan_text = message.content[0].text
-            # Extract JSON from response
-            import json
-
-            # Try to find JSON block
-            json_match = re.search(r"\{.*\}", plan_text, re.DOTALL)
-            if json_match:
-                plan = json.loads(json_match.group(0))
-            else:
-                # Fallback: return text as-is
-                plan = {"raw": plan_text}
-
-            return ToolResult(success=True, output=plan)
-
-        except Exception as e:
-            return ToolResult(success=False, output={}, error=str(e))
-
-
 class CodeGenerateTool(Tool):
-    """Tool for generating widget code based on plan."""
+    """Tool for generating widget code directly without a separate planning step."""
 
     def __init__(self, llm_provider):
         super().__init__(
@@ -141,14 +23,9 @@ class CodeGenerateTool(Tool):
     @property
     def parameters_schema(self) -> dict[str, Any]:
         return {
-            "plan": {
-                "type": "object",
-                "description": "Implementation plan from code_plan tool",
-                "required": True,
-            },
             "description": {
                 "type": "string",
-                "description": "Original widget description",
+                "description": "Widget description and requirements",
                 "required": True,
             },
             "data_info": {
@@ -160,16 +37,15 @@ class CodeGenerateTool(Tool):
 
     def execute(
         self,
-        plan: dict[str, Any],
         description: str,
         data_info: dict[str, Any],
     ) -> ToolResult:
-        """Generate widget code."""
+        """Generate widget code directly."""
         try:
-            # Build detailed prompt using the specification from claude.py
-            prompt = self._build_generation_prompt(plan, description, data_info)
+            # Use the prompt building from claude.py (already has full specification)
+            prompt = self._build_generation_prompt(description, data_info)
 
-            # Generate with streaming support
+            # Generate with API
             from anthropic import Anthropic
 
             client = Anthropic(api_key=self.llm_provider.api_key)
@@ -185,7 +61,7 @@ class CodeGenerateTool(Tool):
 
             return ToolResult(
                 success=True,
-                output={"code": code, "plan": plan},
+                output={"code": code},
                 metadata={"description": description},
             )
 
@@ -193,7 +69,7 @@ class CodeGenerateTool(Tool):
             return ToolResult(success=False, output={}, error=str(e))
 
     def _build_generation_prompt(
-        self, plan: dict[str, Any], description: str, data_info: dict[str, Any]
+        self, description: str, data_info: dict[str, Any]
     ) -> str:
         """Build generation prompt with full specification."""
         import json
@@ -251,7 +127,8 @@ DATA SCHEMA:
 CRITICAL REACT + HTM SPECIFICATION:
 
 MUST FOLLOW EXACTLY:
-1. Export a default function: export default function Widget({{ model, html, React }}) {{ ... }}
+1. Export a default function: export default function Widget({ model, html, React }) { ... }
+   ⚠️ CRITICAL: Parameter MUST be "React" exactly - NOT "React: ReactLib" or any alias
 2. Use html tagged templates (htm) for markup—no JSX or ReactDOM.render
 3. Access data with model.get("data") and treat it as immutable
 4. Append DOM nodes via refs rendered inside html templates (never touch document.body)
