@@ -49,6 +49,7 @@ pip-wheel-metadata/
 # Jupyter
 .ipynb_checkpoints
 *.ipynb
+!examples/*.ipynb
 
 # Environment variables
 .env

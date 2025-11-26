@@ -1,8 +1,39 @@
-# Vibe Widget
+# Vibe Widget ✨
 
-Create interactive visualizations using natural language and LLMs.
+![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Claude](https://img.shields.io/badge/Claude-Haiku%204.5-blueviolet)
+![Jupyter](https://img.shields.io/badge/jupyter-widgets-orange)
 
-## Installation
+**Transform natural language into beautiful, interactive visualizations — powered by Claude AI.**
+
+Vibe Widget is an agentic visualization library that generates custom interactive widgets from plain English descriptions. Just describe what you want to visualize, provide your data, and let the AI create a tailored React component that brings your data to life.
+
+## What Makes Vibe Widget Special?
+
+### 🤖 **AI-Powered Widget Generation**
+No more fighting with plotting APIs or wrestling with configuration options. Simply describe your visualization in natural language, and Claude generates production-ready React code customized to your exact needs.
+
+### 🔗 **Cross-Widget Interactions**
+Create **linked visualizations** where interactions in one widget dynamically update others. Brush-select points in a scatter plot to filter a histogram. Click a planet in 3D space to highlight it in a chart. Paint terrain on a canvas and watch it render in 3D — all with automatic state synchronization.
+
+### 📂 **Universal Data Support**
+Load data from anywhere:
+- **DataFrames**: Pandas DataFrames
+- **Files**: CSV, JSON, NetCDF, XML, ISF (seismic data)
+- **Documents**: PDF tables extracted automatically
+- **Web**: Scrape and visualize data from any URL
+- **Live**: Real-time data streams
+
+### 🎨 **Truly Custom Visualizations**
+Unlike traditional plotting libraries with fixed chart types, Vibe Widget generates **completely custom** React components. Want a 3D solar system? A terrain painter? An interactive game board? Just describe it.
+
+### 💾 **Smart Caching**
+Generated widgets are automatically cached with intelligent versioning. Recreating the same visualization is instant, and you can track all your widget variations.
+
+---
+
+## 🚀 Installation
 
 ```bash
 pip install vibe-widget
@@ -14,113 +45,295 @@ Or with `uv`:
 uv pip install vibe-widget
 ```
 
-## Quick Start
-
-```python
-import pandas as pd
-import vibe_widget as vw
-
-df = pd.DataFrame({
-    'height': [150, 160, 170, 180, 190],
-    'weight': [50, 60, 70, 80, 90]
-})
-
-vw.create("an interactive scatterplot of height and weight", df)
-```
-
-This will:
-1. Analyze your data structure
-2. Generate a React component via Claude API
-3. Return an HTML file with the interactive visualization
-
-## API Key Setup
-
 Set your Anthropic API key:
 
 ```bash
 export ANTHROPIC_API_KEY='your-api-key-here'
 ```
 
-Or pass it directly:
+---
+
+## ⚡ Quick Start
 
 ```python
-vw.create(
-    "a bar chart of sales by region", 
-    df, 
-    api_key="your-api-key-here"
+import pandas as pd
+import vibe_widget as vw
+
+# Load your data
+df = pd.read_csv('sales_data.csv')
+
+# Create a visualization with natural language
+widget = vw.create(
+    "interactive bar chart showing sales by region, sorted by revenue, with hover tooltips",
+    df
 )
 ```
 
-## Saving to File
+That's it! The AI will:
+1. ✅ Analyze your data structure
+2. ✅ Generate a custom React component
+3. ✅ Validate and test the code
+4. ✅ Display the interactive widget in your notebook
+
+---
+
+## 📚 Usage Examples
+
+### 📊 **Basic Visualization**
 
 ```python
-vw.create(
-    "an interactive line chart showing trends over time",
+import vibe_widget as vw
+import pandas as pd
+
+# Create a simple chart
+df = pd.DataFrame({
+    'planet': ['Mercury', 'Venus', 'Earth', 'Mars'],
+    'distance': [0.39, 0.72, 1.0, 1.52],
+    'mass': [0.055, 0.815, 1.0, 0.107]
+})
+
+widget = vw.create(
+    "3D scatter plot showing planet distance from sun vs orbital period, with size based on mass",
+    df
+)
+```
+
+### 🌐 **Web Scraping**
+
+```python
+# Automatically scrape and visualize web data
+widget = vw.create(
+    "Show Hacker News stories as interactive cards with sorting by score and filtering",
+    "https://news.ycombinator.com"
+)
+```
+
+### 📄 **PDF Extraction**
+
+```python
+# Extract and visualize tables from PDFs
+widget = vw.create(
+    "interactive table from the PDF with sorting and filtering capabilities",
+    "report.pdf"
+)
+```
+
+### 🌍 **Scientific Data (NetCDF)**
+
+```python
+# Visualize climate/ocean data
+widget = vw.create(
+    "interactive heatmap showing sea surface temperature patterns, zoomable and pannable",
+    "sea_surface_temp.nc"
+)
+```
+
+### 🔗 **Cross-Widget Interactions**
+
+Create **linked visualizations** that communicate with each other:
+
+```python
+# Widget 1: Scatter plot with brush selection
+scatter = vw.create(
+    "scatter plot of temperature vs humidity with brush selection",
     df,
-    output_path="output/visualization.html"
+    exports={"selected_indices": "indices of selected points"}
+)
+
+# Widget 2: Histogram that responds to selection
+histogram = vw.create(
+    "histogram of temperature, highlighting selected points from scatter plot",
+    df,
+    imports={"selected_indices": scatter}
+)
+
+# Now selecting points in the scatter plot automatically updates the histogram! 🎉
+```
+
+**More Cross-Widget Examples:**
+
+- 🎮 **Interactive Terrain Editor**: Paint terrain on a 2D canvas → Watch it render in 3D
+- 🪐 **Solar System Explorer**: Click planets in 3D → Highlight data in charts
+- 🎯 **Data Filtering**: Brush points in one chart → Filter multiple other visualizations
+- 🎲 **Game States**: Game board → AI decision tree visualization
+
+See [`examples/cross_widget_interactions.ipynb`](examples/cross_widget_interactions.ipynb) for complete examples!
+
+---
+
+## 🎯 Key Features
+
+### 🧠 **Intelligent Data Processing**
+- Automatic data type detection and conversion
+- Smart sampling for large datasets (>100k rows)
+- Multi-format support (CSV, JSON, NetCDF, XML, ISF, PDF)
+- Web scraping with automatic content extraction
+
+### 🛠️ **Agentic Code Generation**
+- LLM-powered React component generation
+- Automatic validation and error repair
+- Self-healing code with diagnostic feedback
+- Iterative refinement until production-ready
+
+### 🔄 **State Management**
+- Automatic trait linking between widgets
+- Bidirectional data synchronization
+- Export/import system for cross-widget communication
+- Built on Jupyter widgets (ipywidgets) for robust state handling
+
+### 💾 **Smart Caching System**
+- Automatic widget versioning
+- Content-based cache keys
+- Instant recreation of previously generated widgets
+- Organized storage in `.vibewidget/` directory
+
+### 📦 **Production Ready**
+- Full TypeScript/JSX support in generated components
+- Modern React patterns (hooks, effects)
+- Clean, maintainable generated code
+- Comprehensive error handling
+
+---
+
+## 🎨 API Reference
+
+### `vw.create()`
+
+The main function for creating visualizations:
+
+```python
+widget = vw.create(
+    description: str,              # Natural language description
+    data: DataFrame | str | Path,  # Data source
+    api_key: str | None = None,    # Anthropic API key (or use env var)
+    model: str = "claude-haiku-4-5-20251001",  # Claude model
+    show_progress: bool = True,    # Show generation progress
+    exports: dict | None = None,   # Traits to export for other widgets
+    imports: dict | None = None,   # Traits to import from other widgets
 )
 ```
 
-## Development
+**Parameters:**
 
-Install with dev dependencies:
+- **`description`**: Natural language description of your visualization
+  - Be specific about chart types, interactions, styling, etc.
+  - Examples: "3D scatter plot with rotation controls", "bar chart with hover tooltips sorted by value"
+
+- **`data`**: Your data source, can be:
+  - Pandas DataFrame
+  - File path (CSV, JSON, NetCDF, XML, ISF, PDF)
+  - URL (for web scraping)
+  - `None` (for widgets driven purely by imports)
+
+- **`exports`**: Dictionary of traits this widget exposes
+  - Keys: trait names
+  - Values: descriptions of what the trait contains
+  - Example: `{"selected_indices": "list of selected point indices"}`
+
+- **`imports`**: Dictionary of traits this widget imports
+  - Keys: trait names
+  - Values: source widget or trait reference
+  - Example: `{"selected_indices": scatter_widget}`
+
+**Returns:** `VibeWidget` instance (Jupyter widget) that displays immediately
+
+---
+
+## 🧪 Examples & Tutorials
+
+Check out these notebooks to see Vibe Widget in action:
+
+1. **[`examples/pdf_and_web_extraction.ipynb`](examples/pdf_and_web_extraction.ipynb)**
+   - Extract and visualize PDF tables
+   - Scrape and display web content
+   - Multi-format data handling
+
+2. **[`examples/cross_widget_interactions.ipynb`](examples/cross_widget_interactions.ipynb)**
+   - Linked scatter plot and histogram
+   - 3D terrain painter with live rendering
+   - Interactive solar system with data highlighting
+   - AI game with decision tree visualization
+
+3. **[`tests/test_agentic_demo.ipynb`](tests/test_agentic_demo.ipynb)**
+   - Comprehensive test suite
+   - All data formats
+   - Edge cases and error handling
+
+---
+
+## 🏗️ Architecture
+
+```
+User Input (natural language + data)
+          ↓
+    DataProcessor (detects format, extracts data)
+          ↓
+    AgenticOrchestrator (LLM-based code generation)
+          ↓
+    Tools: CodeValidator, RuntimeTester, ErrorDiagnose
+          ↓
+    WidgetStore (caching & versioning)
+          ↓
+    VibeWidget (rendered in Jupyter)
+```
+
+**Key Components:**
+
+- **`DataProcessor`**: Universal data loader supporting 10+ formats
+- **`AgenticOrchestrator`**: Claude-powered code generation with validation
+- **`WidgetStore`**: Intelligent caching with version control
+- **`VibeWidget`**: Jupyter widget wrapper with state management
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how to get started:
 
 ```bash
+# Clone the repo
+git clone https://github.com/yourusername/vibe-widget.git
+cd vibe-widget
+
+# Install with dev dependencies
 pip install -e ".[dev]"
-```
 
-Run tests:
-
-```bash
+# Run tests
 pytest
-```
 
-Lint and format:
-
-```bash
+# Lint and format
 ruff check .
 ruff format .
 ```
 
-Type checking:
+---
 
-```bash
-mypy src/
-```
+## 📄 License
 
-## Features
+MIT License - see [LICENSE](LICENSE) file for details
 
-- 🚀 Modern Python packaging (pyproject.toml, src layout)
-- 🤖 LLM-powered visualization generation
-- ⚛️ React-based interactive widgets
-- 📊 Pandas DataFrame integration
-- 🔧 Extensible LLM provider system
-- 🔗 **NEW:** Cross-widget interactions with exports/imports (see [CROSS_WIDGET_GUIDE.md](CROSS_WIDGET_GUIDE.md))
+---
 
-## Cross-Widget Interactions
+## 🙏 Acknowledgments
 
-Create connected visualizations where interactions in one widget update another:
+- Powered by [Claude](https://www.anthropic.com/claude) (Anthropic)
+- Built on [anywidget](https://github.com/manzt/anywidget) and [ipywidgets](https://ipywidgets.readthedocs.io/)
+- Inspired by the vision of natural language programming
 
-```python
-# Create scatter plot with brush selection
-scatter = vw.create(
-    "scatter plot with brush selection",
-    data=df,
-    exports={"selected_indices": "list of selected point indices"}
-)
+---
 
-# Create histogram that responds to selection
-histogram = vw.create(
-    "histogram filtered by selection",
-    data=df,
-    imports={"selected_indices": scatter.selected_indices}
-)
+## 🔗 Links
 
-# Now brushing in the scatter plot automatically updates the histogram!
-```
+- **Documentation**: [GitHub README](https://github.com/yourusername/vibe-widget#readme)
+- **Issues**: [GitHub Issues](https://github.com/yourusername/vibe-widget/issues)
+- **Examples**: [Jupyter Notebooks](examples/)
 
-See [CROSS_WIDGET_GUIDE.md](CROSS_WIDGET_GUIDE.md) for complete documentation and examples.
+---
 
-## License
+<div align="center">
 
-MIT
+**Made with ❤️ and Claude AI**
+
+[⭐ Star on GitHub](https://github.com/yourusername/vibe-widget) | [📖 Documentation](https://www.dylanwootton.com/vibe-widgets/index.html) | [🐛 Report Bug](https://github.com/yourusername/vibe-widget/issues)
+
+</div>
