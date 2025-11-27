@@ -28,8 +28,9 @@ classifiers = [
 
 dependencies = [
     "anywidget>=0.9.0",
-    "litellm>=1.0.0",
     "anthropic>=0.40.0",
+    "google-generativeai>=0.8.0",
+    "openai>=1.50.0",
     "pandas>=2.0.0",
     "python-dotenv>=1.0.0",
     "crawl4ai>=0.3.0",

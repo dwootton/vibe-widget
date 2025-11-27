@@ -1,0 +1,35 @@
+{
+  "openai": {
+    "premium": [
+      { "id": "gpt-5" },
+      { "id": "o3-pro" }
+    ],
+    "standard": [
+      { "id": "gpt-4.1" },
+      { "id": "gpt-4o" },
+      { "id": "gpt-4o-mini" }
+    ]
+  },
+  "anthropic": {
+    "premium": [
+      { "id": "claude-opus-4-5" },
+      { "id": "claude-opus-4-1" }
+    ],
+    "standard": [
+      { "id": "claude-sonnet-4-5" },
+      { "id": "claude-sonnet-3.5" },
+      { "id": "claude-haiku-4-5" }
+    ]
+  },
+  "google_gemini": {
+    "premium": [
+      { "id": "gemini-2.5-pro" },
+      { "id": "gemini-3-pro-preview" }
+    ],
+    "standard": [
+      { "id": "gemini-2.5-flash" },
+      { "id": "gemini-2.5-flash-lite" },
+      { "id": "gemini-flash-latest" }
+    ]
+  }
+}

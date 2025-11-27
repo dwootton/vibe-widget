@@ -12,7 +12,7 @@ import traitlets
 from IPython.display import display
 
 from vibe_widget.code_parser import CodeStreamParser
-from vibe_widget.llm import LiteLLMProvider
+from vibe_widget.llm.provider_factory import get_provider
 from vibe_widget.config import Config, get_global_config
 from vibe_widget.data_parser.data_profile import DataProfile
 
@@ -195,8 +195,8 @@ class VibeWidget(anywidget.AnyWidget):
             # Validate configuration has what we need
             config.validate()
             
-            # Create LiteLLM provider
-            self.llm_provider = LiteLLMProvider(config.model, config.api_key)
+            # Create LLM provider (pass mode for premium support)
+            self.llm_provider = get_provider(config.model, config.api_key, config.mode)
             self.data_info = self._extract_data_info(df)
             llm_provider = self.llm_provider
             

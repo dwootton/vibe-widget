@@ -1,56 +1,34 @@
-"""LiteLLM provider implementation for unified LLM access."""
+"""Anthropic Claude provider implementation."""
 
 import os
 import re
 from typing import Any, Callable
 
-import litellm
-from litellm import completion
+from anthropic import Anthropic
 
 from vibe_widget.llm.base import LLMProvider
 
-# Latest model versions - update these as new models are released
-LATEST_MODELS = {
-    "anthropic": "claude-opus-4-5-20251101",    # Latest Claude Opus
-    "openai": "gpt-5.1-2025-11-13",            # Latest GPT-5.1
-    "google": "gemini-3-pro-preview",          # Latest Gemini 3 Pro
-}
 
-# Configure LiteLLM settings
-litellm.drop_params = True  # Drop unsupported parameters automatically
-litellm.num_retries = 3     # Retry failed requests
-litellm.request_timeout = 120  # 2 minute timeout
-
-
-class LiteLLMProvider(LLMProvider):
-    """Unified LLM provider using LiteLLM."""
+class AnthropicProvider(LLMProvider):
+    """Anthropic Claude provider using the official SDK."""
     
     def __init__(self, model: str, api_key: str | None = None):
         """
-        Initialize LiteLLM provider.
+        Initialize Anthropic provider.
         
         Args:
-            model: Model name or shortcut ("anthropic", "openai", "google")
+            model: Model name or shortcut ("claude", "anthropic")
             api_key: Optional API key (otherwise uses environment)
         """
-        # Handle simple provider names
-        if model in LATEST_MODELS:
-            self.model = LATEST_MODELS[model]
-        else:
-            self.model = model
+        # Model should already be resolved by Config
+        self.model = model
         
-        # Set API key if provided
-        if api_key:
-            self._set_api_key(api_key)
-    
-    def _set_api_key(self, api_key: str):
-        """Set the appropriate API key based on model."""
-        if "claude" in self.model or "anthropic" in self.model:
-            os.environ["ANTHROPIC_API_KEY"] = api_key
-        elif "gpt" in self.model or "openai" in self.model:
-            os.environ["OPENAI_API_KEY"] = api_key
-        elif "gemini" in self.model or "google" in self.model:
-            os.environ["GEMINI_API_KEY"] = api_key
+        # Set up API key
+        api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("Anthropic API key required. Set ANTHROPIC_API_KEY environment variable or pass api_key parameter.")
+        
+        self.client = Anthropic(api_key=api_key)
     
     def generate_widget_code(
         self,
@@ -58,28 +36,32 @@ class LiteLLMProvider(LLMProvider):
         data_info: dict[str, Any],
         progress_callback: Callable[[str], None] | None = None,
     ) -> str:
-        """Generate widget code using LiteLLM."""
+        """Generate widget code using Claude."""
         prompt = self._build_prompt(description, data_info)
         
         try:
-            # LiteLLM handles all providers uniformly
-            response = completion(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                stream=bool(progress_callback),
-                # Let LiteLLM handle max_tokens based on model
-                temperature=0.7,
-            )
-            
             if progress_callback:
-                return self._handle_stream(response, progress_callback)
+                # Stream the response
+                with self.client.messages.stream(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=8192,
+                    temperature=0.7,
+                ) as stream:
+                    return self._handle_stream(stream, progress_callback)
             else:
-                return self._clean_code(response.choices[0].message.content)
+                # Get complete response
+                response = self.client.messages.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=8192,
+                    temperature=0.7,
+                )
+                return self._clean_code(response.content[0].text)
                 
         except Exception as e:
-            # LiteLLM provides detailed error messages
-            if "context_length_exceeded" in str(e):
-                # Try with a shorter prompt
+            # Check for context length issues
+            if "context" in str(e).lower() or "token" in str(e).lower():
                 return self._retry_with_shorter_prompt(description, data_info, progress_callback)
             else:
                 raise
@@ -94,17 +76,22 @@ class LiteLLMProvider(LLMProvider):
         """Revise existing widget code."""
         prompt = self._build_revision_prompt(current_code, revision_description, data_info)
         
-        response = completion(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            stream=bool(progress_callback),
-            temperature=0.7,
-        )
-        
         if progress_callback:
-            return self._handle_stream(response, progress_callback)
+            with self.client.messages.stream(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=8192,
+                temperature=0.7,
+            ) as stream:
+                return self._handle_stream(stream, progress_callback)
         else:
-            return self._clean_code(response.choices[0].message.content)
+            response = self.client.messages.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=8192,
+                temperature=0.7,
+            )
+            return self._clean_code(response.content[0].text)
     
     def fix_code_error(
         self,
@@ -115,22 +102,22 @@ class LiteLLMProvider(LLMProvider):
         """Fix errors in widget code."""
         prompt = self._build_fix_prompt(broken_code, error_message, data_info)
         
-        response = completion(
+        # Use lower temperature for fixing
+        response = self.client.messages.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,  # Lower temperature for fixing
+            max_tokens=8192,
+            temperature=0.3,
         )
         
-        return self._clean_code(response.choices[0].message.content)
+        return self._clean_code(response.content[0].text)
     
-    def _handle_stream(self, response, progress_callback: Callable[[str], None]) -> str:
+    def _handle_stream(self, stream, progress_callback: Callable[[str], None]) -> str:
         """Handle streaming response."""
         code_chunks = []
-        for chunk in response:
-            if chunk.choices[0].delta.content:
-                text = chunk.choices[0].delta.content
-                code_chunks.append(text)
-                progress_callback(text)
+        for text in stream.text_stream:
+            code_chunks.append(text)
+            progress_callback(text)
         
         return self._clean_code("".join(code_chunks))
     
@@ -151,17 +138,22 @@ class LiteLLMProvider(LLMProvider):
         
         prompt = self._build_prompt(description, reduced_info)
         
-        response = completion(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            stream=bool(progress_callback),
-            temperature=0.7,
-        )
-        
         if progress_callback:
-            return self._handle_stream(response, progress_callback)
+            with self.client.messages.stream(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=8192,
+                temperature=0.7,
+            ) as stream:
+                return self._handle_stream(stream, progress_callback)
         else:
-            return self._clean_code(response.choices[0].message.content)
+            response = self.client.messages.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=8192,
+                temperature=0.7,
+            )
+            return self._clean_code(response.content[0].text)
     
     def _build_prompt(self, description: str, data_info: dict[str, Any]) -> str:
         """Build the prompt for code generation."""
