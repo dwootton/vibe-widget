@@ -2,17 +2,17 @@
 
 ![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Claude](https://img.shields.io/badge/Claude-Haiku%204.5-blueviolet)
+![Multi-Provider](https://img.shields.io/badge/LLM-Multi%20Provider-blueviolet)
 ![Jupyter](https://img.shields.io/badge/jupyter-widgets-orange)
 
-**Transform natural language into beautiful, interactive visualizations — powered by Claude AI.**
+**Transform natural language into beautiful, interactive visualizations — powered by AI (Claude, GPT, Gemini).**
 
 Vibe Widget is an agentic visualization library that generates custom interactive widgets from plain English descriptions. Just describe what you want to visualize, provide your data, and let the AI create a tailored React component that brings your data to life.
 
 ## What Makes Vibe Widget Special?
 
 ### 🤖 **AI-Powered Widget Generation**
-No more fighting with plotting APIs or wrestling with configuration options. Simply describe your visualization in natural language, and Claude generates production-ready React code customized to your exact needs.
+No more fighting with plotting APIs or wrestling with configuration options. Simply describe your visualization in natural language, and AI (Claude, GPT, or Gemini) generates production-ready React code customized to your exact needs.
 
 ### 🔗 **Cross-Widget Interactions**
 Create **linked visualizations** where interactions in one widget dynamically update others. Brush-select points in a scatter plot to filter a histogram. Click a planet in 3D space to highlight it in a chart. Paint terrain on a canvas and watch it render in 3D — all with automatic state synchronization.
@@ -45,10 +45,17 @@ Or with `uv`:
 uv pip install vibe-widget
 ```
 
-Set your Anthropic API key:
+Set your API key(s) for the provider(s) you want to use:
 
 ```bash
+# For Claude models (Anthropic)
 export ANTHROPIC_API_KEY='your-api-key-here'
+
+# For GPT models (OpenAI) 
+export OPENAI_API_KEY='your-api-key-here'
+
+# For Gemini models (Google)
+export GEMINI_API_KEY='your-api-key-here'
 ```
 
 ---
@@ -58,6 +65,16 @@ export ANTHROPIC_API_KEY='your-api-key-here'
 ```python
 import pandas as pd
 import vibe_widget as vw
+
+# Optional: Configure your preferred model (defaults to Claude)
+vw.config(model="gemini")  # Use Google Gemini
+# or
+vw.config(model="openai", mode="premium")  # Use GPT-5 or o3-pro
+# or 
+vw.config(model="anthropic", mode="standard")  # Use Claude Sonnet
+
+# See all available models
+print(vw.models())
 
 # Load your data
 df = pd.read_csv('sales_data.csv')
@@ -205,11 +222,12 @@ The main function for creating visualizations:
 widget = vw.create(
     description: str,              # Natural language description
     data: DataFrame | str | Path,  # Data source
-    api_key: str | None = None,    # Anthropic API key (or use env var)
-    model: str = "claude-haiku-4-5-20251001",  # Claude model
+    api_key: str | None = None,    # API key for selected provider (or use env vars)
+    model: str | None = None,      # Model to use (see vw.models() for options)
     show_progress: bool = True,    # Show generation progress
     exports: dict | None = None,   # Traits to export for other widgets
     imports: dict | None = None,   # Traits to import from other widgets
+    config: Config | None = None,  # Optional Config object with model settings
 )
 ```
 
@@ -225,6 +243,15 @@ widget = vw.create(
   - URL (for web scraping)
   - `None` (for widgets driven purely by imports)
 
+- **`model`**: LLM model to use (optional)
+  - Shortcuts: `"anthropic"`, `"openai"`, `"gemini"`
+  - Specific models: `"claude-3-5-sonnet"`, `"gpt-4-turbo"`, `"gemini-1.5-pro"`
+  - Use `vw.models()` to see all available options
+  
+- **`config`**: Config object for model settings
+  - Can be created with `vw.Config(model="gemini", mode="premium")`
+  - Overrides the `model` and `api_key` parameters if provided
+
 - **`exports`**: Dictionary of traits this widget exposes
   - Keys: trait names
   - Values: descriptions of what the trait contains
@@ -236,6 +263,36 @@ widget = vw.create(
   - Example: `{"selected_indices": scatter_widget}`
 
 **Returns:** `VibeWidget` instance (Jupyter widget) that displays immediately
+
+---
+
+### Model Configuration
+
+Vibe Widget supports multiple AI providers. You can configure models in several ways:
+
+```python
+import vibe_widget as vw
+
+# Method 1: Global configuration
+vw.config(model="gemini", mode="standard")  # Use Gemini Flash (fast/cheap)
+vw.config(model="openai", mode="premium")   # Use GPT-5 (powerful/expensive)
+
+# Method 2: Per-widget configuration
+config = vw.Config(model="anthropic", mode="premium")
+widget = vw.create("your visualization", df, config=config)
+
+# Method 3: Direct model specification
+widget = vw.create("your visualization", df, model="claude-3-5-sonnet")
+
+# See available models
+all_models = vw.models()                    # All providers and models
+gemini_models = vw.models("gemini")         # Just Gemini models
+premium_models = vw.models(mode="premium")  # All premium tier models
+```
+
+**Modes:**
+- `"standard"`: Fast, cost-effective models (default)
+- `"premium"`: Most capable, higher-cost models
 
 ---
 

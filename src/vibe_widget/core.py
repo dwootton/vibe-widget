@@ -369,7 +369,7 @@ def create(
     description: str,
     df: pd.DataFrame | str | Path | None = None,
     api_key: str | None = None,
-    model: str = "claude-haiku-4-5-20251001",
+    model: str | None = None,
     context: dict | DataProfile | None = None,
     use_preprocessor: bool = True,
     show_progress: bool = True,
@@ -383,8 +383,8 @@ def create(
     Args:
         description: Natural language description of the visualization
         df: DataFrame to visualize OR path to data file (CSV, NetCDF, GeoJSON, etc.) OR None when using imports only
-        api_key: Anthropic API key (or set ANTHROPIC_API_KEY env var)
-        model: Claude model to use
+        api_key: API key for the selected provider (or set ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY env vars)
+        model: Model to use (e.g., "gemini", "openai", "anthropic") or specific model ID. See vw.models() for available options
         context: Additional context (dict with domain/purpose/etc.) OR DataProfile object
         use_preprocessor: Whether to use intelligent preprocessing (recommended)
         exports: Dict of {trait_name: description} for traits this widget exposes
@@ -404,15 +404,15 @@ def create(
     if config:
         if not api_key:
             api_key = config.api_key
-        if model == "claude-haiku-4-5-20251001":  # Only override if using default
+        if not model:  # Use config model if no model specified
             model = config.model
     
     # If still no config, try to get global config
-    elif not api_key or model == "claude-haiku-4-5-20251001":
+    elif not api_key or not model:
         global_config = get_global_config()
         if not api_key:
             api_key = global_config.api_key
-        if model == "claude-haiku-4-5-20251001":  # Only override if using default
+        if not model:  # Use global config model if no model specified
             model = global_config.model
     
     # Handle file paths

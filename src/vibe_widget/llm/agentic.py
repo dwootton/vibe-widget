@@ -40,7 +40,7 @@ class AgenticOrchestrator:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "claude-haiku-4-5-20251001",
+        model: str | None = None,
         max_repair_attempts: int = 3,
     ):
         import os
@@ -49,7 +49,8 @@ class AgenticOrchestrator:
             raise ValueError(
                 "API key required. Pass api_key or set ANTHROPIC_API_KEY env variable."
             )
-        self.model = model
+        # Use claude-3-5-sonnet as default if no model specified
+        self.model = model or "claude-3-5-sonnet-20241022"
         self.client = Anthropic(api_key=self.api_key)
         self.max_repair_attempts = max_repair_attempts
         
