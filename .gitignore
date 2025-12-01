@@ -73,9 +73,10 @@ node_modules/
 
 /venv311/
 **/widgets/**
-/testdata/
+/testdata/**
 
 /tests/
+/testdata/
 
 /planningtester.ipynb
 

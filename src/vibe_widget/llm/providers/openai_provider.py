@@ -5,7 +5,7 @@ from typing import Any, Callable
 
 from openai import OpenAI
 
-from vibe_widget.llm.base import LLMProvider
+from vibe_widget.llm.providers.base import LLMProvider
 
 
 class OpenAIProvider(LLMProvider):

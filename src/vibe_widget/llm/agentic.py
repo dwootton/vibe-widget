@@ -12,7 +12,12 @@ from typing import Any, Callable, Tuple
 
 import pandas as pd
 
+
 from vibe_widget.llm.providers.base import LLMProvider
+# Tool imports
+from vibe_widget.llm.tools.data_tools import DataLoadTool, DataProfileTool, DataWrangleTool
+from vibe_widget.llm.tools.code_tools import CodeValidateTool
+from vibe_widget.llm.tools.execution_tools import RuntimeTestTool, ErrorDiagnoseTool
 
 
 class AgenticOrchestrator:
@@ -41,6 +46,17 @@ class AgenticOrchestrator:
         """
         self.provider = provider
         self.max_repair_attempts = max_repair_attempts
+
+        # Tool instances
+        self.data_load_tool = DataLoadTool()
+        self.data_profile_tool = DataProfileTool()
+        self.data_wrangle_tool = DataWrangleTool(llm_provider=provider)
+        self.validate_tool = CodeValidateTool()
+        self.runtime_tool = RuntimeTestTool()
+        self.diagnose_tool = ErrorDiagnoseTool()
+
+        # For storing artifacts if needed
+        self.artifacts = {}
     
     def generate(
         self,

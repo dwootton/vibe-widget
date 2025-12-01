@@ -283,21 +283,13 @@ WidgetStore caches it
 You get a working visualization
 ```
 
-**Architecture (Simplified & Clean)**:
+**Architecture**:
 - **core.py** - Main VibeWidget class and `create()` function
-- **data_processor.py** - Unified data loading (CSV, JSON, NetCDF, PDF, web, etc.)
+- **DataLoader()** - Unified data loading (CSV, JSON, NetCDF, PDF, web, etc.)
 - **agentic.py** - Orchestrates LLM code generation and validation
 - **providers/** - Multi-provider LLM support (Anthropic, OpenAI, Gemini)
 - **util.py** - Clean utility functions for JSON serialization & trait handling
 - **widget_store.py** - Smart caching system
-
-**Recent Cleanup (Dec 2024)**:
-- ✅ Removed unused tool system (was over-engineered for agentic use)
-- ✅ Removed data profiling/extraction abstractions (simplified to direct processing)
-- ✅ Consolidated utility functions into util.py
-- ✅ Streamlined imports and dependencies
-- ✅ Result: Cleaner codebase, easier to understand and maintain
-
 ---
 
 ## Contributing

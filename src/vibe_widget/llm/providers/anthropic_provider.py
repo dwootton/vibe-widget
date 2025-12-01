@@ -5,7 +5,7 @@ from typing import Any, Callable
 
 from anthropic import Anthropic
 
-from vibe_widget.llm.base import LLMProvider
+from vibe_widget.llm.providers.base import LLMProvider
 
 
 class AnthropicProvider(LLMProvider):

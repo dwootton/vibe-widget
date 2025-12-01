@@ -2,10 +2,10 @@
 
 from typing import Optional
 
-from vibe_widget.llm.base import LLMProvider
-from vibe_widget.llm.gemini_provider import GeminiProvider
-from vibe_widget.llm.anthropic_provider import AnthropicProvider
-from vibe_widget.llm.openai_provider import OpenAIProvider
+from vibe_widget.llm.providers.base import LLMProvider
+from vibe_widget.llm.providers.gemini_provider import GeminiProvider
+from vibe_widget.llm.providers.anthropic_provider import AnthropicProvider
+from vibe_widget.llm.providers.openai_provider import OpenAIProvider
 
 
 def get_provider(model: str, api_key: Optional[str] = None, mode: str = "standard") -> LLMProvider:

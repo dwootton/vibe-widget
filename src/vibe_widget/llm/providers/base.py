@@ -77,12 +77,15 @@ class LLMProvider(ABC):
         
         exports_imports_section = self._build_exports_imports_section(exports, imports)
         
+        # Convert columns to strings to handle integer or other non-string column names
+        columns_str = ', '.join(str(col) for col in columns) if columns else 'No data (widget uses imports only)'
+        
         return f"""You are an expert JavaScript + React developer building a high-quality interactive visualization that runs inside an AnyWidget React bundle.
 
 TASK: {description}
 
 Data schema:
-- Columns: {', '.join(columns) if columns else 'No data (widget uses imports only)'}
+- Columns: {columns_str}
 - Types: {dtypes}
 - Sample data: {sample_data}
 
@@ -293,13 +296,13 @@ CRITICAL: Subscribe with model.on("change:trait", handler), unsubscribe in clean
         ]
         
         return {
-            "columns": df.columns.tolist(),
-            "dtypes": {col: str(dtype) for col, dtype in df.dtypes.items()},
+            "columns": [str(col) for col in df.columns.tolist()],
+            "dtypes": {str(col): str(dtype) for col, dtype in df.dtypes.items()},
             "shape": df.shape,
             "sample": sample,
             "exports": exports,
             "imports": imports,
             "is_geospatial": is_geospatial,
-            "temporal_columns": temporal_cols,
+            "temporal_columns": [str(col) for col in temporal_cols],
         }
 

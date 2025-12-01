@@ -54,20 +54,25 @@ class WidgetStore:
         self,
         description: str,
         data_var_name: str | None,
-        model: str,
+        data_shape: tuple[int, int],
         exports_signature: str,
         imports_signature: str,
     ) -> tuple[str, str]:
         """
         Compute cache key from inputs.
+        Only hashes: stripped description, var name, data shape, exports, and imports.
+        Does NOT include model or notebook path to avoid unnecessary regeneration.
         
         Returns:
             (full_hash, short_hash) tuple
         """
+        # Strip whitespace from description for consistent hashing
+        stripped_description = " ".join(description.split())
+        
         cache_input = {
-            "description": description,
+            "description": stripped_description,
             "data_var_name": data_var_name or "",
-            "model": model,
+            "data_shape": list(data_shape),  # Convert tuple to list for JSON
             "exports_signature": exports_signature,
             "imports_signature": imports_signature,
         }
@@ -119,12 +124,19 @@ class WidgetStore:
         self,
         description: str,
         data_var_name: str | None,
-        model: str,
+        data_shape: tuple[int, int],
         exports: dict[str, str] | None,
         imports_serialized: dict[str, str] | None,
     ) -> dict[str, Any] | None:
         """
         Look up a cached widget by cache key.
+        
+        Args:
+            description: Widget description
+            data_var_name: Variable name of the data
+            data_shape: Shape of the data as (rows, columns)
+            exports: Export trait definitions
+            imports_serialized: Import trait values
         
         Returns:
             Widget metadata dict if found, None otherwise
@@ -135,7 +147,7 @@ class WidgetStore:
         full_hash, short_hash = self._compute_cache_key(
             description=description,
             data_var_name=data_var_name,
-            model=model,
+            data_shape=data_shape,
             exports_signature=exports_signature,
             imports_signature=imports_signature,
         )
@@ -157,6 +169,7 @@ class WidgetStore:
         widget_code: str,
         description: str,
         data_var_name: str | None,
+        data_shape: tuple[int, int],
         model: str,
         exports: dict[str, str] | None,
         imports_serialized: dict[str, str] | None,
@@ -164,6 +177,16 @@ class WidgetStore:
     ) -> dict[str, Any]:
         """
         Save a newly generated widget to the store.
+        
+        Args:
+            widget_code: Generated JavaScript code
+            description: Widget description
+            data_var_name: Variable name of the data
+            data_shape: Shape of the data as (rows, columns)
+            model: Model used for generation (stored for reference, not in cache key)
+            exports: Export trait definitions
+            imports_serialized: Import trait values
+            notebook_path: Path to notebook (stored for reference, not in cache key)
         
         Returns:
             Widget metadata dict
@@ -174,7 +197,7 @@ class WidgetStore:
         full_hash, short_hash = self._compute_cache_key(
             description=description,
             data_var_name=data_var_name,
-            model=model,
+            data_shape=data_shape,
             exports_signature=exports_signature,
             imports_signature=imports_signature,
         )
@@ -204,6 +227,7 @@ class WidgetStore:
             "file_name": file_name,
             "description": description,
             "data_var_name": data_var_name,
+            "data_shape": list(data_shape),  # Convert tuple to list for JSON
             "model": model,
             "exports_signature": exports_signature,
             "imports_signature": imports_signature,

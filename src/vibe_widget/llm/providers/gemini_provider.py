@@ -5,7 +5,7 @@ from typing import Any, Callable
 
 import google.generativeai as genai
 
-from vibe_widget.llm.base import LLMProvider
+from vibe_widget.llm.providers.base import LLMProvider
 
 
 class GeminiProvider(LLMProvider):

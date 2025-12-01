@@ -13,7 +13,7 @@ from vibe_widget.utils.code_parser import CodeStreamParser
 from vibe_widget.llm import get_provider
 from vibe_widget.llm.agentic import AgenticOrchestrator
 from vibe_widget.llm.providers.base import LLMProvider
-from vibe_widget.data_parser.data_processor import process_data
+from vibe_widget.llm.tools.data_tools import DataLoadTool
 from vibe_widget.config import get_global_config, Config
 from vibe_widget.utils.widget_store import WidgetStore
 from vibe_widget.utils.util import clean_for_json, initial_import_value, serialize_imports_for_prompt
@@ -134,6 +134,40 @@ class VibeWidget(anywidget.AnyWidget):
             config = get_global_config()
             provider = get_provider(model, config.api_key)
             
+            # Serialize imports for cache lookup
+            # For cache purposes, we only care about the trait names, not the widget instances
+            imports_serialized = {}
+            if self._imports:
+                for import_name in self._imports.keys():
+                    # Just use the trait name as a placeholder - the actual widget instance
+                    # shouldn't affect caching since we only care about the interface
+                    imports_serialized[import_name] = f"<imported_trait:{import_name}>"
+            
+            # Check cache first
+            store = WidgetStore()
+            cached_widget = store.lookup(
+                description=description,
+                data_var_name=data_var_name,
+                data_shape=df.shape,
+                exports=self._exports,
+                imports_serialized=imports_serialized,
+            )
+            
+            if cached_widget:
+                # Use cached widget
+                self.logs = self.logs + ["✓ Found cached widget"]
+                self.logs = self.logs + [f"  {cached_widget['slug']} v{cached_widget['version']}"]
+                self.logs = self.logs + [f"  Created: {cached_widget['created_at'][:10]}"]
+                widget_code = store.load_widget_code(cached_widget)
+                self.code = widget_code
+                self.status = "ready"
+                self.description = description
+                self._widget_metadata = cached_widget
+                
+                # Store data_info for error recovery
+                self.data_info = LLMProvider.build_data_info(df, self._exports, imports_serialized)
+                return
+            
             # Create agentic orchestrator with the provider
             self.orchestrator = AgenticOrchestrator(provider=provider)
             
@@ -190,15 +224,6 @@ class VibeWidget(anywidget.AnyWidget):
                     current_logs.append(display_msg)
                     self.logs = current_logs
             
-            # Serialize imports for data_info
-            imports_serialized = {}
-            if self._imports:
-                for import_name, import_value in self._imports.items():
-                    if hasattr(import_value, 'value'):
-                        imports_serialized[import_name] = import_value.value
-                    else:
-                        imports_serialized[import_name] = str(import_value)
-            
             # Generate code using the agentic orchestrator
             widget_code, processed_df = self.orchestrator.generate(
                 description=description,
@@ -212,13 +237,13 @@ class VibeWidget(anywidget.AnyWidget):
             current_logs.append(f"Code generated: {len(widget_code)} characters")
             self.logs = current_logs
             
-            # Save to widget store
-            store = WidgetStore()
+            # Save to widget store (reuse store instance from cache lookup)
             notebook_path = store.get_notebook_path()
             widget_entry = store.save(
                 widget_code=widget_code,
                 description=description,
                 data_var_name=data_var_name,
+                data_shape=df.shape,
                 model=model,
                 exports=self._exports,
                 imports_serialized=imports_serialized,
@@ -317,7 +342,13 @@ def create(
     elif isinstance(data, pd.DataFrame):
         df = data
     else:
-        df = process_data(data)
+        # Use DataLoadTool to load any supported data source
+        result = DataLoadTool().execute(data)
+        print("Loading data...", result)
+        if result.success:
+            df = result.output.get("dataframe", pd.DataFrame())
+        else:
+            raise ValueError(f"Failed to load data: {result.error}")
     
     # TODO: better data wrangling and preprocessing
     if len(df) > 5000:
