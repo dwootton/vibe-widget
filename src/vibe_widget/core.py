@@ -27,6 +27,7 @@ class VibeWidget(anywidget.AnyWidget):
     code = traitlets.Unicode("").tag(sync=True)
     error_message = traitlets.Unicode("").tag(sync=True)
     retry_count = traitlets.Int(0).tag(sync=True)
+    grab_edit_request = traitlets.Dict({}).tag(sync=True)
 
     @classmethod
     def _create_with_dynamic_traits(
@@ -120,6 +121,7 @@ class VibeWidget(anywidget.AnyWidget):
         )
         
         self.observe(self._on_error, names='error_message')
+        self.observe(self._on_grab_edit, names='grab_edit_request')
         
         if show_progress:
             try:
@@ -296,6 +298,77 @@ class VibeWidget(anywidget.AnyWidget):
             self.status = "error"
             self.logs = self.logs + [f"Fix attempt failed: {str(e)}"]
             self.error_message = ""
+
+    def _on_grab_edit(self, change):
+        """Handle element edit requests from frontend (React Grab)."""
+        request = change['new']
+        if not request:
+            return
+        
+        element_desc = request.get('element', {})
+        user_prompt = request.get('prompt', '')
+        
+        if not user_prompt:
+            return
+        
+        self.status = 'generating'
+        self.logs = self.logs + [f"Editing element: {element_desc.get('tag', 'unknown')}"]
+        
+        try:
+            revision_request = self._build_grab_revision_request(element_desc, user_prompt)
+            
+            clean_data_info = clean_for_json(self.data_info)
+            
+            revised_code = self.orchestrator.revise_code(
+                code=self.code,
+                revision_request=revision_request,
+                data_info=clean_data_info,
+            )
+            
+            self.code = revised_code
+            self.status = 'ready'
+            self.logs = self.logs + ['Edit applied']
+            
+        except Exception as e:
+            self.status = 'error'
+            self.logs = self.logs + [f'Edit failed: {str(e)}']
+        
+        self.grab_edit_request = {}
+
+    def _build_grab_revision_request(self, element_desc: dict, user_prompt: str) -> str:
+        """Build a revision request that identifies the element for the LLM."""
+        sibling_hint = ""
+        sibling_count = element_desc.get('siblingCount', 1)
+        is_data_bound = element_desc.get('isDataBound', False)
+        
+        if is_data_bound:
+            sibling_hint = f"""
+
+IMPORTANT: This element is likely DATA-BOUND (one of {sibling_count} sibling <{element_desc.get('tag')}> elements).
+This typically means it was created by D3's .selectAll().data().join() pattern or similar.
+To modify this element, find and modify the D3 selection code that creates these elements,
+not a single static element in the template."""
+        
+        style_info = ""
+        style_hints = element_desc.get('styleHints', {})
+        if style_hints:
+            style_parts = [f"{k}: {v}" for k, v in style_hints.items() if v and v != 'none']
+            if style_parts:
+                style_info = f"\n- Current styles: {', '.join(style_parts)}"
+        
+        return f"""USER REQUEST: {user_prompt}
+
+TARGET ELEMENT:
+- Tag: {element_desc.get('tag')}
+- Classes: {element_desc.get('classes', 'none')}
+- Text content: {element_desc.get('text', 'none')}
+- SVG/HTML attributes: {element_desc.get('attributes', 'none')}
+- Location in DOM: {element_desc.get('ancestors', '')} > {element_desc.get('tag')}
+- Sibling count: {sibling_count} (same tag in parent){style_info}
+- HTML representation: {element_desc.get('description', '')}
+{sibling_hint}
+
+Find this element in the code and apply the requested change. The element should be identifiable by its tag, classes, text content, or SVG attributes. Modify ONLY this element or closely related code."""
 
 
 def create(

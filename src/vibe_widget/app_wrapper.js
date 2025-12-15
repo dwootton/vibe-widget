@@ -196,7 +196,7 @@ function SandboxedRunner({ code, model }) {
   return html`<${GuestWidget} model=${model} html=${html} React=${React} />`;
 }
 
-function FloatingMenu({ isOpen, onToggle }) {
+function FloatingMenu({ isOpen, onToggle, onGrabModeStart }) {
   return html`
     <div class="floating-menu-container">
       <style>
@@ -262,7 +262,7 @@ function FloatingMenu({ isOpen, onToggle }) {
       
       ${isOpen && html`
         <div class="menu-options">
-          <div class="menu-option disabled">Edit (Coming Soon)</div>
+          <div class="menu-option" onClick=${onGrabModeStart}>Edit Element</div>
           <div class="menu-option disabled">Export (Coming Soon)</div>
           <div class="menu-option disabled">View Source</div>
         </div>
@@ -276,6 +276,8 @@ function AppWrapper({ model }) {
   const [logs, setLogs] = React.useState(model.get('logs'));
   const [code, setCode] = React.useState(model.get('code'));
   const [isMenuOpen, setMenuOpen] = React.useState(false);
+  const [grabMode, setGrabMode] = React.useState(null);
+
 
   React.useEffect(() => {
     const onStatusChange = () => setStatus(model.get('status'));
@@ -292,6 +294,31 @@ function AppWrapper({ model }) {
       model.off('change:code', onCodeChange);
     };
   }, [model]);
+
+  const handleGrabStart = () => {
+    setMenuOpen(false);
+    setGrabMode('selecting');
+  };
+
+  const handleElementSelect = (elementDescription, elementBounds) => {
+    // Store both the description (for LLM) and bounds (for positioning)
+    setGrabMode({ element: elementDescription, bounds: elementBounds });
+  };
+
+  const handleEditSubmit = (prompt) => {
+    model.set('grab_edit_request', {
+      element: grabMode.element,
+      prompt: prompt,
+    });
+    model.save_changes();
+    setGrabMode(null);
+  };
+
+  const handleCancel = () => {
+    setGrabMode(null);
+  };
+
+ 
 
   if (status === 'generating') {
     return html`<${ProgressMap} logs=${logs} />`;
@@ -318,7 +345,27 @@ function AppWrapper({ model }) {
   return html`
     <div class="vibe-container" style=${{ position: 'relative', width: '100%' }}>
       <${SandboxedRunner} code=${code} model=${model} />
-      <${FloatingMenu} isOpen=${isMenuOpen} onToggle=${() => setMenuOpen(!isMenuOpen)} />
+      <${FloatingMenu} 
+        isOpen=${isMenuOpen} 
+        onToggle=${() => setMenuOpen(!isMenuOpen)}
+        onGrabModeStart=${handleGrabStart}
+      />
+      
+      ${grabMode === 'selecting' && html`
+        <${SelectionOverlay} 
+          onElementSelect=${handleElementSelect}
+          onCancel=${handleCancel}
+        />
+      `}
+      
+      ${grabMode && grabMode !== 'selecting' && html`
+        <${EditPromptPanel}
+          elementBounds=${grabMode.bounds}
+          elementDescription=${grabMode.element}
+          onSubmit=${handleEditSubmit}
+          onCancel=${handleCancel}
+        />
+      `}
     </div>
   `;
 }
@@ -333,3 +380,347 @@ function render({ model, el }) {
 }
 
 export default { render };
+
+
+
+
+function SelectionOverlay({ onElementSelect, onCancel }) {
+  const [hoveredEl, setHoveredEl] = React.useState(null);
+  const [bounds, setBounds] = React.useState(null);
+  
+  React.useEffect(() => {
+    // Use position-aware lookup instead of e.target
+    const handleMouseMove = (e) => {
+      const el = getElementAtPosition(e.clientX, e.clientY);
+      
+      if (el !== hoveredEl) {
+        setHoveredEl(el);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          setBounds({
+            top: rect.top,
+            left: rect.left,
+            right: rect.right,
+            bottom: rect.bottom,
+            width: rect.width,
+            height: rect.height,
+          });
+        } else {
+          setBounds(null);
+        }
+      }
+    };
+    
+    const handleClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (hoveredEl && bounds) {
+        const description = describeElement(hoveredEl);
+        onElementSelect(description, bounds);
+      }
+    };
+    
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove, true);
+    document.addEventListener('click', handleClick, true);
+    document.addEventListener('keydown', handleEscape);
+    
+    // Change cursor to indicate grab mode
+    document.body.style.cursor = 'crosshair';
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove, true);
+      document.removeEventListener('click', handleClick, true);
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.cursor = '';
+    };
+  }, [hoveredEl, bounds, onElementSelect, onCancel]);
+  
+  return html`
+    <div class="grab-overlay" style=${{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
+      ${bounds && html`
+        <div class="highlight-box" style=${{
+          position: 'fixed',
+          left: bounds.left + 'px',
+          top: bounds.top + 'px',
+          width: bounds.width + 'px',
+          height: bounds.height + 'px',
+          border: '2px solid #667eea',
+          background: 'rgba(102, 126, 234, 0.1)',
+          borderRadius: '2px',
+          pointerEvents: 'none',
+          transition: 'all 0.1s ease-out',
+        }}/>
+      `}
+      <div class="grab-hint" style=${{
+        position: 'fixed',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: 'rgba(0,0,0,0.85)',
+        color: 'white',
+        padding: '10px 20px',
+        borderRadius: '8px',
+        fontSize: '13px',
+        pointerEvents: 'none',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+      }}>
+        Click an element to edit${' '}&bull;${' '}Escape to cancel
+      </div>
+    </div>
+  `;
+}
+function EditPromptPanel({ elementBounds, elementDescription, onSubmit, onCancel }) {
+  const [prompt, setPrompt] = React.useState('');
+  const panelRef = React.useRef(null);
+  const [position, setPosition] = React.useState({ top: 0, left: 0 });
+  
+  const PANEL_WIDTH = 320;
+  const PANEL_HEIGHT = 52; // Approximate height of compact input
+  const PADDING = 12;
+  const GAP = 8; // Gap between element and panel
+  
+  React.useEffect(() => {
+    if (!elementBounds) return;
+    
+    const viewport = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+    
+    // Calculate element center
+    const elCenterX = elementBounds.left + elementBounds.width / 2;
+    const elCenterY = elementBounds.top + elementBounds.height / 2;
+    
+    // Default: position below the element, centered horizontally
+    let top = elementBounds.bottom + GAP;
+    let left = elCenterX - PANEL_WIDTH / 2;
+    
+    // If panel would go off the bottom, position above the element
+    if (top + PANEL_HEIGHT + PADDING > viewport.height) {
+      top = elementBounds.top - PANEL_HEIGHT - GAP;
+    }
+    
+    // If panel would still be off screen (element at very top), position to the side
+    if (top < PADDING) {
+      top = Math.max(PADDING, elCenterY - PANEL_HEIGHT / 2);
+      // Position to the right of element if there's room, otherwise left
+      if (elementBounds.right + GAP + PANEL_WIDTH + PADDING < viewport.width) {
+        left = elementBounds.right + GAP;
+      } else {
+        left = elementBounds.left - PANEL_WIDTH - GAP;
+      }
+    }
+    
+    // Clamp horizontal position to stay on screen
+    left = Math.max(PADDING, Math.min(left, viewport.width - PANEL_WIDTH - PADDING));
+    
+    // Clamp vertical position
+    top = Math.max(PADDING, Math.min(top, viewport.height - PANEL_HEIGHT - PADDING));
+    
+    setPosition({ top, left });
+  }, [elementBounds]);
+  
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && prompt.trim()) {
+      onSubmit(prompt);
+    } else if (e.key === 'Escape') {
+      onCancel();
+    }
+  };
+  
+  return html`
+    <div 
+      ref=${panelRef}
+      class="edit-panel" 
+      style=${{
+        position: 'fixed',
+        top: position.top + 'px',
+        left: position.left + 'px',
+        width: PANEL_WIDTH + 'px',
+        background: 'rgba(26, 26, 26, 0.95)',
+        border: '1px solid rgba(255, 255, 255, 0.15)',
+        borderRadius: '10px',
+        padding: '8px',
+        zIndex: 10001,
+        backdropFilter: 'blur(8px)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+        display: 'flex',
+        gap: '6px',
+        alignItems: 'center',
+      }}
+    >
+      <input
+        type="text"
+        value=${prompt}
+        onInput=${(e) => setPrompt(e.target.value)}
+        onKeyDown=${handleKeyDown}
+        placeholder="What would you like to change?"
+        style=${{
+          flex: 1,
+          padding: '10px 12px',
+          borderRadius: '6px',
+          border: '1px solid rgba(255,255,255,0.1)',
+          background: 'rgba(255,255,255,0.05)',
+          color: 'white',
+          fontSize: '13px',
+          outline: 'none',
+        }}
+        autoFocus
+      />
+      <button 
+        onClick=${() => prompt.trim() && onSubmit(prompt)} 
+        disabled=${!prompt.trim()}
+        style=${{ 
+          padding: '10px 14px', 
+          borderRadius: '6px',
+          background: prompt.trim() 
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            : 'rgba(255,255,255,0.1)',
+          color: prompt.trim() ? 'white' : 'rgba(255,255,255,0.4)',
+          border: 'none',
+          cursor: prompt.trim() ? 'pointer' : 'not-allowed',
+          fontSize: '13px',
+          fontWeight: 500,
+          transition: 'all 0.2s',
+        }}
+      >
+        Apply
+      </button>
+    </div>
+  `;
+}
+
+
+function isElementVisible(element, computedStyle) {
+  if (!computedStyle) computedStyle = window.getComputedStyle(element);
+  
+  // Check visibility and display
+  if (computedStyle.visibility === 'hidden') return false;
+  if (computedStyle.display === 'none') return false;
+  if (parseFloat(computedStyle.opacity) === 0) return false;
+  
+  // Check if element has dimensions
+  const rect = element.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) return false;
+  
+  return true;
+}
+
+function isValidGrabbableElement(element) {
+  // Skip non-element nodes
+  if (!(element instanceof Element)) return false;
+  
+  // Skip the grab overlay itself and its children
+  if (element.closest('.grab-overlay')) return false;
+  
+  // Skip script, style, and other non-visual elements
+  const skipTags = ['SCRIPT', 'STYLE', 'LINK', 'META', 'HEAD', 'HTML', 'BODY'];
+  if (skipTags.includes(element.tagName)) return false;
+  
+  const computedStyle = window.getComputedStyle(element);
+  
+  // Must be visible
+  if (!isElementVisible(element, computedStyle)) return false;
+  
+  // Must have pointer events enabled
+  if (computedStyle.pointerEvents === 'none') return false;
+  
+  // Prefer elements that are likely meaningful content
+  const meaningfulTags = [
+    'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'SPAN', 'A', 'BUTTON',
+    'IMG', 'SVG', 'RECT', 'CIRCLE', 'PATH', 'LINE', 'TEXT', 'G',
+    'CANVAS', 'VIDEO', 'TABLE', 'TH', 'TD', 'LI', 'LABEL', 'INPUT'
+  ];
+  
+  const hasMeaningfulTag = meaningfulTags.includes(element.tagName);
+  const hasClass = element.classList.length > 0;
+  const hasText = element.textContent?.trim().length > 0;
+  const isSVGChild = element instanceof SVGElement;
+  
+  // Accept if it's a meaningful tag, has classes, has text, or is SVG
+  return hasMeaningfulTag || hasClass || hasText || isSVGChild;
+}
+
+// ============================================
+// Position-Aware Element Lookup
+// ============================================
+
+function getElementAtPosition(clientX, clientY) {
+  // Get all elements at this point, from topmost to bottom
+  const elementsAtPoint = document.elementsFromPoint(clientX, clientY);
+  
+  for (const element of elementsAtPoint) {
+    if (isValidGrabbableElement(element)) {
+      return element;
+    }
+  }
+  
+  return null;
+}
+
+// ============================================
+// Element Description for LLM
+// ============================================
+
+function describeElement(el) {
+  const tag = el.tagName.toLowerCase();
+  const classes = Array.from(el.classList).join(' ');
+  const text = el.textContent?.trim().substring(0, 50);
+  const ancestors = getAncestorPath(el);
+  
+  // Sibling context (important for D3 data-bound elements)
+  const siblingCount = el.parentElement
+    ? Array.from(el.parentElement.children).filter(
+        sibling => sibling.tagName === el.tagName
+      ).length
+    : 1;
+  
+  // For SVG elements, include key attributes
+  let attrs = '';
+  if (el instanceof SVGElement) {
+    attrs = ['fill', 'stroke', 'd', 'cx', 'cy', 'r', 'x', 'y', 'width', 'height']
+      .map(a => {
+        const val = el.getAttribute(a);
+        return val ? `${a}="${val.substring(0, 30)}"` : '';
+      })
+      .filter(Boolean)
+      .join(' ');
+  }
+  
+  // Compute style hints for identification
+  const computedStyle = window.getComputedStyle(el);
+  const styleHints = {
+    color: computedStyle.color,
+    backgroundColor: computedStyle.backgroundColor,
+    fill: computedStyle.fill,
+  };
+  
+  return {
+    tag,
+    classes,
+    text: text || null,
+    attributes: attrs || null,
+    ancestors,
+    siblingCount,
+    isDataBound: siblingCount > 1, // Likely D3/data-bound if many siblings of same type
+    styleHints,
+    description: `<${tag}${classes ? ` class="${classes}"` : ''}${attrs ? ` ${attrs}` : ''}>${text || ''}</${tag}>`
+  };
+}
+
+function getAncestorPath(el, depth = 3) {
+  const path = [];
+  let current = el.parentElement;
+  while (current && path.length < depth) {
+    if (current.tagName !== 'DIV' || current.className) {
+      path.push(`${current.tagName.toLowerCase()}${current.className ? '.' + current.className.split(' ')[0] : ''}`);
+    }
+    current = current.parentElement;
+  }
+  return path.reverse().join(' > ');
+}
