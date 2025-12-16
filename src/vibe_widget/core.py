@@ -155,6 +155,9 @@ class VibeWidget(anywidget.AnyWidget):
                 imports_serialized=imports_serialized,
             )
             
+            # Create agentic orchestrator with the provider (needed for edits even if cached)
+            self.orchestrator = AgenticOrchestrator(provider=provider)
+            
             if cached_widget:
                 # Use cached widget
                 self.logs = self.logs + ["✓ Found cached widget"]
@@ -169,9 +172,6 @@ class VibeWidget(anywidget.AnyWidget):
                 # Store data_info for error recovery
                 self.data_info = LLMProvider.build_data_info(df, self._exports, imports_serialized)
                 return
-            
-            # Create agentic orchestrator with the provider
-            self.orchestrator = AgenticOrchestrator(provider=provider)
             
             self.logs = self.logs + ["Generating widget code..."]
             
@@ -312,7 +312,21 @@ class VibeWidget(anywidget.AnyWidget):
             return
         
         self.status = 'generating'
-        self.logs = self.logs + [f"Editing element: {element_desc.get('tag', 'unknown')}"]
+        self.logs = [f"Editing: {user_prompt[:50]}{'...' if len(user_prompt) > 50 else ''}"]
+        
+        def progress_callback(event_type: str, message: str):
+            """Stream progress updates to frontend."""
+            event_messages = {
+                "step": f"➤ {message}",
+                "thinking": f"💭 {message[:100]}...",
+                "complete": f"✓ {message}",
+                "error": f"✘ {message}",
+                "chunk": None,  # Don't log raw chunks
+            }
+            
+            display_msg = event_messages.get(event_type)
+            if display_msg:
+                self.logs = self.logs + [display_msg]
         
         try:
             revision_request = self._build_grab_revision_request(element_desc, user_prompt)
@@ -323,15 +337,16 @@ class VibeWidget(anywidget.AnyWidget):
                 code=self.code,
                 revision_request=revision_request,
                 data_info=clean_data_info,
+                progress_callback=progress_callback,
             )
             
             self.code = revised_code
             self.status = 'ready'
-            self.logs = self.logs + ['Edit applied']
+            self.logs = self.logs + ['✓ Edit applied']
             
         except Exception as e:
             self.status = 'error'
-            self.logs = self.logs + [f'Edit failed: {str(e)}']
+            self.logs = self.logs + [f'✘ Edit failed: {str(e)}']
         
         self.grab_edit_request = {}
 
