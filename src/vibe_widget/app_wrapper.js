@@ -4,6 +4,21 @@ import htm from "https://esm.sh/htm@3";
 
 const html = htm.bind(React.createElement);
 
+// Inject global styles to fix Jupyter widget background
+const globalStyles = document.createElement('style');
+globalStyles.textContent = `
+  .cell-output-ipywidget-background {
+    background: transparent !important;
+  }
+  .jp-OutputArea-output {
+    background: transparent !important;
+  }
+`;
+if (!document.querySelector('#vibe-widget-global-styles')) {
+  globalStyles.id = 'vibe-widget-global-styles';
+  document.head.appendChild(globalStyles);
+}
+
 function ProgressMap({ logs }) {
   const containerRef = React.useRef(null);
 
