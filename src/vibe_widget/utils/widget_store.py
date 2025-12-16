@@ -152,15 +152,23 @@ class WidgetStore:
             imports_signature=imports_signature,
         )
         
-        for widget_entry in self.index["widgets"]:
-            if widget_entry["hash"] == full_hash:
-                widget_file = self.widgets_dir / widget_entry["file_name"]
-                if widget_file.exists():
-                    widget_entry["last_used_at"] = datetime.utcnow().isoformat()
-                    self._save_index()
-                    return widget_entry
-                else:
-                    return None
+        matching_entries = [
+            entry for entry in self.index["widgets"]
+            if entry.get("hash") == full_hash
+        ]
+        
+        if not matching_entries:
+            return None
+        
+        # Prefer the highest version for this cache key (latest saved)
+        matching_entries.sort(key=lambda e: e.get("version", 0), reverse=True)
+        
+        for widget_entry in matching_entries:
+            widget_file = self.widgets_dir / widget_entry["file_name"]
+            if widget_file.exists():
+                widget_entry["last_used_at"] = datetime.utcnow().isoformat()
+                self._save_index()
+                return widget_entry
         
         return None
     
