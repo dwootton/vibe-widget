@@ -343,6 +343,19 @@ function AppWrapper({ model }) {
   // Always render the widget if we have code, regardless of status
   const hasCode = code && code.length > 0;
 
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+        e.preventDefault();
+        if (!isLoading && hasCode && !grabMode) {
+          handleGrabStart();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isLoading, hasCode, grabMode]);
+
 
   return html`
     <div class="vibe-container" style=${{ position: 'relative', width: '100%' }}>
@@ -433,6 +446,7 @@ function LoadingOverlay({ logs, hasExistingWidget }) {
 function SelectionOverlay({ onElementSelect, onCancel }) {
   const [hoveredEl, setHoveredEl] = React.useState(null);
   const [bounds, setBounds] = React.useState(null);
+  const [tagName, setTagName] = React.useState(null);
 
   React.useEffect(() => {
     // Use position-aware lookup instead of e.target
@@ -451,8 +465,10 @@ function SelectionOverlay({ onElementSelect, onCancel }) {
             width: rect.width,
             height: rect.height,
           });
+          setTagName(el.tagName.toLowerCase());
         } else {
           setBounds(null);
+          setTagName(null);
         }
       }
     };
@@ -514,12 +530,32 @@ function SelectionOverlay({ onElementSelect, onCancel }) {
         top: bounds.top + 'px',
         width: bounds.width + 'px',
         height: bounds.height + 'px',
-        border: '2px solid #667eea',
-        background: 'rgba(102, 126, 234, 0.1)',
+        outline: '2px solid #f97316',
+        outlineOffset: '0px',
+        background: 'rgba(249, 115, 22, 0.1)',
         borderRadius: '2px',
         pointerEvents: 'none',
         transition: 'all 0.1s ease-out',
-      }}/>
+        boxSizing: 'border-box',
+      }}>
+          ${tagName && html`
+            <div style=${{
+              position: 'absolute',
+              top: '-18px',
+              left: '-2px',
+              background: '#f97316',
+              color: 'white',
+              fontSize: '10px',
+              fontWeight: 600,
+              padding: '1px 5px',
+              borderRadius: '3px 3px 0 0',
+              whiteSpace: 'nowrap',
+              fontFamily: 'ui-monospace, monospace',
+            }}>
+              ${tagName}
+            </div>
+          `}
+        </div>
       `}
       <div class="grab-hint" style=${{
       position: 'fixed',
@@ -639,12 +675,32 @@ function EditPromptPanel({ elementBounds, elementDescription, initialPrompt, onS
           top: elementBounds.top + 'px',
           width: elementBounds.width + 'px',
           height: elementBounds.height + 'px',
-          border: '2px solid #667eea',
-          background: 'rgba(102, 126, 234, 0.1)',
+          outline: '2px solid #f97316',
+          outlineOffset: '0px',
+          background: 'rgba(249, 115, 22, 0.1)',
           borderRadius: '2px',
           pointerEvents: 'none',
           zIndex: 10000,
-        }}/>
+          boxSizing: 'border-box',
+        }}>
+          ${elementDescription?.tag && html`
+            <div style=${{
+              position: 'absolute',
+              top: '-18px',
+              left: '-2px',
+              background: '#f97316',
+              color: 'white',
+              fontSize: '10px',
+              fontWeight: 600,
+              padding: '1px 5px',
+              borderRadius: '3px 3px 0 0',
+              whiteSpace: 'nowrap',
+              fontFamily: 'ui-monospace, monospace',
+            }}>
+              ${elementDescription.tag.toLowerCase()}
+            </div>
+          `}
+        </div>
       `}
       <div 
         ref=${panelRef}
