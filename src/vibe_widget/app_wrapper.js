@@ -454,10 +454,29 @@ function SelectionOverlay({ onElementSelect, onCancel }) {
     const handleClick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-
-      if (hoveredEl && bounds) {
-        const description = describeElement(hoveredEl);
-        onElementSelect(description, bounds);
+      
+      // Re-query element at click position to avoid stale closure
+      const clickedEl = getElementAtPosition(e.clientX, e.clientY);
+      
+      console.log('[Grab] Click at', e.clientX, e.clientY);
+      console.log('[Grab] Found element:', clickedEl);
+      console.log('[Grab] Element tag:', clickedEl?.tagName);
+      
+      if (clickedEl) {
+        const rect = clickedEl.getBoundingClientRect();
+        const clickBounds = {
+          top: rect.top,
+          left: rect.left,
+          right: rect.right,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+        };
+        const description = describeElement(clickedEl);
+        console.log('[Grab] Description:', description);
+        onElementSelect(description, clickBounds);
+      } else {
+        console.log('[Grab] No valid element at click position');
       }
     };
 
@@ -657,9 +676,15 @@ function isValidGrabbableElement(element) {
 
   // Skip the grab overlay itself and its children
   if (element.closest('.grab-overlay')) return false;
+  
+  // Skip the edit panel
+  if (element.closest('.edit-panel')) return false;
+  
+  // Skip the loading overlay
+  if (element.closest('.loading-overlay')) return false;
 
   // Skip script, style, and other non-visual elements
-  const skipTags = ['SCRIPT', 'STYLE', 'LINK', 'META', 'HEAD', 'HTML', 'BODY'];
+  const skipTags = ['SCRIPT', 'STYLE', 'LINK', 'META', 'HEAD', 'HTML', 'BODY', 'DEFS', 'CLIPPATH'];
   if (skipTags.includes(element.tagName)) return false;
 
   const computedStyle = window.getComputedStyle(element);
@@ -667,23 +692,25 @@ function isValidGrabbableElement(element) {
   // Must be visible
   if (!isElementVisible(element, computedStyle)) return false;
 
-  // Must have pointer events enabled
-  if (computedStyle.pointerEvents === 'none') return false;
+  // Skip pointer-events:none ONLY for non-SVG elements
+  // SVG elements often have pointer-events:none for interaction reasons but we still want to select them
+  const isSVGElement = element instanceof SVGElement;
+  if (!isSVGElement && computedStyle.pointerEvents === 'none') return false;
 
   // Prefer elements that are likely meaningful content
   const meaningfulTags = [
     'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'SPAN', 'A', 'BUTTON',
     'IMG', 'SVG', 'RECT', 'CIRCLE', 'PATH', 'LINE', 'TEXT', 'G',
-    'CANVAS', 'VIDEO', 'TABLE', 'TH', 'TD', 'LI', 'LABEL', 'INPUT'
+    'CANVAS', 'VIDEO', 'TABLE', 'TH', 'TD', 'LI', 'LABEL', 'INPUT',
+    'POLYGON', 'POLYLINE', 'ELLIPSE'
   ];
 
   const hasMeaningfulTag = meaningfulTags.includes(element.tagName);
   const hasClass = element.classList.length > 0;
   const hasText = element.textContent?.trim().length > 0;
-  const isSVGChild = element instanceof SVGElement;
 
   // Accept if it's a meaningful tag, has classes, has text, or is SVG
-  return hasMeaningfulTag || hasClass || hasText || isSVGChild;
+  return hasMeaningfulTag || hasClass || hasText || isSVGElement;
 }
 
 // ============================================
@@ -757,8 +784,13 @@ function getAncestorPath(el, depth = 3) {
   const path = [];
   let current = el.parentElement;
   while (current && path.length < depth) {
-    if (current.tagName !== 'DIV' || current.className) {
-      path.push(`${current.tagName.toLowerCase()}${current.className ? '.' + current.className.split(' ')[0] : ''}`);
+    // Handle both HTML className (string) and SVG className (SVGAnimatedString)
+    const className = typeof current.className === 'string' 
+      ? current.className 
+      : current.className?.baseVal || '';
+    
+    if (current.tagName !== 'DIV' || className) {
+      path.push(`${current.tagName.toLowerCase()}${className ? '.' + className.split(' ')[0] : ''}`);
     }
     current = current.parentElement;
   }
