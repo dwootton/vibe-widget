@@ -28,6 +28,8 @@ class VibeWidget(anywidget.AnyWidget):
     error_message = traitlets.Unicode("").tag(sync=True)
     retry_count = traitlets.Int(0).tag(sync=True)
     grab_edit_request = traitlets.Dict({}).tag(sync=True)
+    cancel_edit = traitlets.Bool(False).tag(sync=True)
+    edit_in_progress = traitlets.Bool(False).tag(sync=True)
 
     @classmethod
     def _create_with_dynamic_traits(
@@ -311,10 +313,13 @@ class VibeWidget(anywidget.AnyWidget):
         if not user_prompt:
             return
         
+        old_code = self.code
+        self._pending_old_code = old_code
+        self.edit_in_progress = True
+        self.cancel_edit = False
         self.status = 'generating'
         self.logs = [f"Editing: {user_prompt[:50]}{'...' if len(user_prompt) > 50 else ''}"]
         
-        old_code = self.code
         old_position = 0
         showed_analyzing = False
         showed_applying = False
@@ -326,6 +331,9 @@ class VibeWidget(anywidget.AnyWidget):
         def progress_callback(event_type: str, message: str):
             """Stream progress updates to frontend."""
             nonlocal old_position, showed_analyzing, showed_applying
+            
+            if self.cancel_edit:
+                raise Exception("Edit cancelled by user")
             
             if event_type == "chunk":
                 chunk = message
@@ -354,7 +362,6 @@ class VibeWidget(anywidget.AnyWidget):
                                 self.logs = self.logs + [update["message"]]
                 return
             
-            # Only show complete/error messages
             if event_type == "complete":
                 self.logs = self.logs + [f"✓ {message}"]
             elif event_type == "error":
@@ -372,15 +379,47 @@ class VibeWidget(anywidget.AnyWidget):
                 progress_callback=progress_callback,
             )
             
-            self.code = revised_code
-            self.status = 'ready'
-            self.logs = self.logs + ['✓ Edit applied']
+            if self.cancel_edit:
+                self.code = old_code
+                self.status = 'ready'
+                self.logs = self.logs + ['✗ Edit cancelled']
+            else:
+                self.code = revised_code
+                self.status = 'ready'
+                self.logs = self.logs + ['✓ Edit applied']
+                
+                store = WidgetStore()
+                imports_serialized = {}
+                if self._imports:
+                    for import_name in self._imports.keys():
+                        imports_serialized[import_name] = f"<imported_trait:{import_name}>"
+                
+                widget_entry = store.save(
+                    widget_code=revised_code,
+                    description=self.description,
+                    data_var_name=self._widget_metadata.get('data_var_name') if self._widget_metadata else None,
+                    data_shape=tuple(self._widget_metadata.get('data_shape', [0, 0])) if self._widget_metadata else (0, 0),
+                    model=self._widget_metadata.get('model', 'unknown') if self._widget_metadata else 'unknown',
+                    exports=self._exports,
+                    imports_serialized=imports_serialized,
+                    notebook_path=store.get_notebook_path(),
+                )
+                self._widget_metadata = widget_entry
+                self.logs = self.logs + [f"Saved: {widget_entry['slug']} v{widget_entry['version']}"]
             
         except Exception as e:
-            self.status = 'error'
-            self.logs = self.logs + [f'✘ Edit failed: {str(e)}']
+            if "cancelled" in str(e).lower():
+                self.code = old_code
+                self.status = 'ready'
+                self.logs = self.logs + ['✗ Edit cancelled']
+            else:
+                self.status = 'error'
+                self.logs = self.logs + [f'✘ Edit failed: {str(e)}']
         
+        self.edit_in_progress = False
+        self.cancel_edit = False
         self.grab_edit_request = {}
+        self._pending_old_code = None
 
     def _build_grab_revision_request(self, element_desc: dict, user_prompt: str) -> str:
         """Build a revision request that identifies the element for the LLM."""

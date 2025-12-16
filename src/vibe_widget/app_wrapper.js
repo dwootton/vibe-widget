@@ -410,7 +410,15 @@ function AppWrapper({ model }) {
     `}
     
     ${isLoading && html`
-      <${LoadingOverlay} logs=${logs} hasExistingWidget=${hasCode} />
+      <${LoadingOverlay} 
+        logs=${logs} 
+        hasExistingWidget=${hasCode}
+        editInProgress=${model.get('edit_in_progress')}
+        onCancel=${() => {
+          model.set('cancel_edit', true);
+          model.save_changes();
+        }}
+      />
     `}
     
     ${!isLoading && hasCode && html`
@@ -453,9 +461,9 @@ function render({ model, el }) {
 
 export default { render };
 
-function LoadingOverlay({ logs, hasExistingWidget }) {
-  // If there's an existing widget, show progress overlay on top
-  // If no widget yet, show full progress view
+function LoadingOverlay({ logs, hasExistingWidget, editInProgress, onCancel }) {
+  const [cancelHovered, setCancelHovered] = React.useState(false);
+  
   if (hasExistingWidget) {
     return html`
       <div class="loading-overlay" style=${{
@@ -474,12 +482,36 @@ function LoadingOverlay({ logs, hasExistingWidget }) {
           maxWidth: '500px',
         }}>
           <${ProgressMap} logs=${logs} />
+          ${editInProgress && html`
+            <div style=${{
+              display: 'flex',
+              justifyContent: 'center',
+              marginTop: '16px',
+            }}>
+              <button
+                onClick=${onCancel}
+                onMouseEnter=${() => setCancelHovered(true)}
+                onMouseLeave=${() => setCancelHovered(false)}
+                style=${{
+                  padding: '8px 20px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  background: cancelHovered ? 'rgba(255, 100, 100, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                  color: cancelHovered ? '#ff6b6b' : 'rgba(255, 255, 255, 0.7)',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                Cancel Edit
+              </button>
+            </div>
+          `}
         </div>
       </div>
     `;
   }
 
-  // No existing widget - show full progress view
   return html`<${ProgressMap} logs=${logs} />`;
 }
 
@@ -582,7 +614,7 @@ function SelectionOverlay({ onElementSelect, onCancel }) {
           ${tagName && html`
             <div style=${{
               position: 'absolute',
-              top: '-18px',
+              top: '-14px',
               left: '-2px',
               background: '#f97316',
               color: 'white',
