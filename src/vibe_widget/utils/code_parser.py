@@ -159,3 +159,115 @@ class CodeStreamParser:
             "has_interaction": "event_listener" in self.detected,
             "detected_patterns": list(self.detected),
         }
+
+
+class RevisionStreamParser:
+    """Parse streaming code during revisions to detect edit-specific landmarks."""
+    
+    BUBBLE_COOLDOWN = 0.3
+    
+    PATTERNS = {
+        "fill_color": (
+            r'fill[=:]\s*["\']?#[0-9a-fA-F]+|fill[=:]\s*["\']?\w+',
+            "Updating fill color..."
+        ),
+        "stroke_color": (
+            r'stroke[=:]\s*["\']?#[0-9a-fA-F]+',
+            "Adjusting stroke..."
+        ),
+        "style_change": (
+            r'style=\$\{\{[^}]*(?:color|background|font|border|padding|margin)',
+            "Applying style changes..."
+        ),
+        "attr_update": (
+            r'\.attr\(["\'](?:fill|stroke|r|width|height|x|y|cx|cy)',
+            "Updating element attributes..."
+        ),
+        "text_update": (
+            r'\.text\(|textContent',
+            "Updating text content..."
+        ),
+        "transition": (
+            r'\.transition\(\)',
+            "Adding transition effects..."
+        ),
+        "event_handler": (
+            r'\.on\(["\'](?:click|mouseover|mouseout|mouseenter|mouseleave)',
+            "Configuring interactions..."
+        ),
+        "scale_domain": (
+            r'\.domain\(\[',
+            "Adjusting scale domain..."
+        ),
+        "scale_range": (
+            r'\.range\(\[',
+            "Setting scale range..."
+        ),
+        "opacity": (
+            r'opacity[=:]\s*[\d.]+',
+            "Adjusting opacity..."
+        ),
+        "font_size": (
+            r'font-?[sS]ize[=:]\s*[\d]+',
+            "Updating font size..."
+        ),
+        "transform": (
+            r'transform[=:]\s*["\']|\.attr\(["\']transform',
+            "Applying transformations..."
+        ),
+        "class_update": (
+            r'class[=:]\s*["\']|classList',
+            "Updating element classes..."
+        ),
+        "dimension": (
+            r'(?:width|height)[=:]\s*[\d]+',
+            "Adjusting dimensions..."
+        ),
+        "radius": (
+            r'(?:rx|ry|r)[=:]\s*[\d]+|\.attr\(["\']r["\']',
+            "Updating radius..."
+        ),
+        "border_radius": (
+            r'border-?[rR]adius[=:]\s*[\d]+',
+            "Adjusting border radius..."
+        ),
+    }
+    
+    def __init__(self):
+        self.buffer = ""
+        self.detected = set()
+        self.last_bubble_time = {}
+        self.has_new_updates = False
+        
+    def parse_chunk(self, chunk: str) -> List[Dict[str, str]]:
+        """Parse a code chunk and return detected micro-updates."""
+        self.buffer += chunk
+        updates = []
+        self.has_new_updates = False
+        current_time = time.time()
+        
+        for pattern_name, (regex, message_template) in self.PATTERNS.items():
+            if pattern_name in self.detected:
+                continue
+                
+            match = re.search(regex, self.buffer)
+            if match:
+                if pattern_name in self.last_bubble_time:
+                    if current_time - self.last_bubble_time[pattern_name] < self.BUBBLE_COOLDOWN:
+                        continue
+                
+                self.detected.add(pattern_name)
+                self.last_bubble_time[pattern_name] = current_time
+                self.has_new_updates = True
+                
+                updates.append({
+                    "type": "micro_bubble",
+                    "message": message_template,
+                    "pattern": pattern_name,
+                })
+        
+        return updates
+    
+    def has_new_pattern(self) -> bool:
+        """Check if new patterns were detected in last parse."""
+        return self.has_new_updates

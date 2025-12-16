@@ -9,7 +9,7 @@ import anywidget
 import pandas as pd
 import traitlets
 
-from vibe_widget.utils.code_parser import CodeStreamParser
+from vibe_widget.utils.code_parser import CodeStreamParser, RevisionStreamParser
 from vibe_widget.llm import get_provider
 from vibe_widget.llm.agentic import AgenticOrchestrator
 from vibe_widget.llm.providers.base import LLMProvider
@@ -314,31 +314,164 @@ class VibeWidget(anywidget.AnyWidget):
         self.status = 'generating'
         self.logs = [f"Editing: {user_prompt[:50]}{'...' if len(user_prompt) > 50 else ''}"]
         
-        chunk_count = 0
+        import random
+        
+        prompt_lower = user_prompt.lower()
+        
+        general_phrases = [
+            "Reading through the code...",
+            "Understanding the structure...",
+            "Scanning components...",
+            "Reviewing the layout...",
+            "Checking element hierarchy...",
+            "Analyzing the template...",
+            "Looking at the data flow...",
+            "Examining the render logic...",
+            "Tracing the code path...",
+            "Mapping out dependencies...",
+        ]
+        
+        color_phrases = [
+            "Examining color values...",
+            "Looking at the palette...",
+            "Checking fill properties...",
+            "Reviewing stroke colors...",
+            "Analyzing color scheme...",
+        ]
+        
+        layout_phrases = [
+            "Checking positioning...",
+            "Reviewing margins...",
+            "Looking at spacing...",
+            "Examining dimensions...",
+            "Analyzing the grid...",
+        ]
+        
+        style_phrases = [
+            "Reviewing visual styles...",
+            "Checking CSS properties...",
+            "Looking at formatting...",
+            "Examining appearance...",
+        ]
+        
+        interaction_phrases = [
+            "Checking event handlers...",
+            "Looking at interactions...",
+            "Reviewing click behavior...",
+            "Examining hover states...",
+        ]
+        
+        data_phrases = [
+            "Reviewing data bindings...",
+            "Checking data mappings...",
+            "Looking at data flow...",
+            "Examining the data loop...",
+        ]
+        
+        text_phrases = [
+            "Looking at text elements...",
+            "Checking labels...",
+            "Reviewing text content...",
+            "Examining typography...",
+        ]
+        
+        progress_phrases = list(general_phrases)
+        
+        color_keywords = ['color', 'fill', 'stroke', 'background', 'red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'black', 'white', 'grey', 'gray', 'hex', '#']
+        layout_keywords = ['size', 'width', 'height', 'margin', 'padding', 'position', 'move', 'larger', 'smaller', 'bigger', 'spacing', 'gap']
+        style_keywords = ['style', 'appearance', 'look', 'border', 'radius', 'shadow', 'opacity', 'transparent']
+        interaction_keywords = ['click', 'hover', 'mouse', 'event', 'interactive', 'tooltip', 'select']
+        data_keywords = ['data', 'values', 'numbers', 'scale', 'axis', 'domain', 'range']
+        text_keywords = ['text', 'label', 'title', 'font', 'word', 'name', 'caption']
+        
+        if any(kw in prompt_lower for kw in color_keywords):
+            progress_phrases.extend(color_phrases)
+        if any(kw in prompt_lower for kw in layout_keywords):
+            progress_phrases.extend(layout_phrases)
+        if any(kw in prompt_lower for kw in style_keywords):
+            progress_phrases.extend(style_phrases)
+        if any(kw in prompt_lower for kw in interaction_keywords):
+            progress_phrases.extend(interaction_phrases)
+        if any(kw in prompt_lower for kw in data_keywords):
+            progress_phrases.extend(data_phrases)
+        if any(kw in prompt_lower for kw in text_keywords):
+            progress_phrases.extend(text_phrases)
+        
+        random.shuffle(progress_phrases)
+        used_phrases = set()
+        
+        old_code = self.code
+        old_position = 0
+        in_divergent_section = False
+        showed_analyzing = False
+        showed_applying = False
+        new_code_buffer = ""
+        chunks_since_last_log = 0
+        
+        parser = RevisionStreamParser()
         
         def progress_callback(event_type: str, message: str):
             """Stream progress updates to frontend."""
-            nonlocal chunk_count
+            nonlocal old_position, in_divergent_section, new_code_buffer
+            nonlocal showed_analyzing, showed_applying, chunks_since_last_log
+            nonlocal used_phrases
             
             if event_type == "chunk":
-                chunk_count += 1
-                if chunk_count % 20 == 0:
-                    if self.logs and self.logs[-1].startswith("Generating code..."):
-                        self.logs = self.logs[:-1] + [f"Generating code... ({chunk_count} chunks)"]
-                    else:
-                        self.logs = self.logs + [f"Generating code... ({chunk_count} chunks)"]
+                chunk = message
+                new_code_buffer += chunk
+                chunks_since_last_log += 1
+                
+                if not showed_analyzing:
+                    self.logs = self.logs + ["Analyzing code..."]
+                    showed_analyzing = True
+                    chunks_since_last_log = 0
+                
+                old_segment = old_code[old_position:old_position + len(chunk)]
+                
+                if chunk == old_segment and not in_divergent_section:
+                    old_position += len(chunk)
+                    
+                    if chunks_since_last_log >= 80:
+                        available = [p for p in progress_phrases if p not in used_phrases]
+                        if available:
+                            phrase = available[0]
+                            used_phrases.add(phrase)
+                            self.logs = self.logs + [phrase]
+                            chunks_since_last_log = 0
+                else:
+                    # Diverged from old code! Turn on logging
+                    if not showed_applying:
+                        self.logs = self.logs + ["Applying changes..."]
+                        showed_applying = True
+                        chunks_since_last_log = 0
+                    in_divergent_section = True
+                    
+                    # Parse and log patterns while in divergent section
+                    updates = parser.parse_chunk(chunk)
+                    if parser.has_new_pattern():
+                        for update in updates:
+                            if update["type"] == "micro_bubble":
+                                self.logs = self.logs + [update["message"]]
+                                chunks_since_last_log = 0
+                    
+                    # Check if we've returned to matching old code
+                    # Look ahead in old code to see if we can re-sync
+                    remaining_old = old_code[old_position:]
+                    if len(new_code_buffer) > 50:
+                        # Try to find where new code rejoins old code
+                        sync_point = remaining_old.find(chunk)
+                        if sync_point != -1 and sync_point < 200:
+                            # Found a re-sync point, turn off divergent mode (but don't reset showed_applying)
+                            in_divergent_section = False
+                            old_position += sync_point + len(chunk)
+                            new_code_buffer = ""
                 return
             
-            event_messages = {
-                "step": f"➤ {message}",
-                "thinking": f"💭 {message[:100]}...",
-                "complete": f"✓ {message}",
-                "error": f"✘ {message}",
-            }
-            
-            display_msg = event_messages.get(event_type)
-            if display_msg:
-                self.logs = self.logs + [display_msg]
+            # Only show complete/error messages
+            if event_type == "complete":
+                self.logs = self.logs + [f"✓ {message}"]
+            elif event_type == "error":
+                self.logs = self.logs + [f"✘ {message}"]
         
         try:
             revision_request = self._build_grab_revision_request(element_desc, user_prompt)
