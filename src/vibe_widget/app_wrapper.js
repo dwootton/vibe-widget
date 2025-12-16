@@ -536,12 +536,26 @@ function SelectionOverlay({ onElementSelect, onCancel }) {
 function EditPromptPanel({ elementBounds, elementDescription, onSubmit, onCancel }) {
   const [prompt, setPrompt] = React.useState('');
   const panelRef = React.useRef(null);
+  const textareaRef = React.useRef(null);
   const [position, setPosition] = React.useState({ top: 0, left: 0 });
+  const [textareaHeight, setTextareaHeight] = React.useState(40);
 
   const PANEL_WIDTH = 320;
-  const PANEL_HEIGHT = 52; // Approximate height of compact input
+  const MIN_TEXTAREA_HEIGHT = 40;
+  const MAX_TEXTAREA_HEIGHT = 288;
+  const LINE_HEIGHT = 24;
   const PADDING = 12;
-  const GAP = 8; // Gap between element and panel
+  const GAP = 8;
+
+  React.useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = MIN_TEXTAREA_HEIGHT + 'px';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      const newHeight = Math.min(Math.max(scrollHeight, MIN_TEXTAREA_HEIGHT), MAX_TEXTAREA_HEIGHT);
+      setTextareaHeight(newHeight);
+      textareaRef.current.style.height = newHeight + 'px';
+    }
+  }, [prompt]);
 
   React.useEffect(() => {
     if (!elementBounds) return;
@@ -551,23 +565,20 @@ function EditPromptPanel({ elementBounds, elementDescription, onSubmit, onCancel
       height: window.innerHeight,
     };
 
-    // Calculate element center
+    const panelHeight = textareaHeight + 56;
+
     const elCenterX = elementBounds.left + elementBounds.width / 2;
     const elCenterY = elementBounds.top + elementBounds.height / 2;
 
-    // Default: position below the element, centered horizontally
     let top = elementBounds.bottom + GAP;
     let left = elCenterX - PANEL_WIDTH / 2;
 
-    // If panel would go off the bottom, position above the element
-    if (top + PANEL_HEIGHT + PADDING > viewport.height) {
-      top = elementBounds.top - PANEL_HEIGHT - GAP;
+    if (top + panelHeight + PADDING > viewport.height) {
+      top = elementBounds.top - panelHeight - GAP;
     }
 
-    // If panel would still be off screen (element at very top), position to the side
     if (top < PADDING) {
-      top = Math.max(PADDING, elCenterY - PANEL_HEIGHT / 2);
-      // Position to the right of element if there's room, otherwise left
+      top = Math.max(PADDING, elCenterY - panelHeight / 2);
       if (elementBounds.right + GAP + PANEL_WIDTH + PADDING < viewport.width) {
         left = elementBounds.right + GAP;
       } else {
@@ -575,18 +586,21 @@ function EditPromptPanel({ elementBounds, elementDescription, onSubmit, onCancel
       }
     }
 
-    // Clamp horizontal position to stay on screen
     left = Math.max(PADDING, Math.min(left, viewport.width - PANEL_WIDTH - PADDING));
-
-    // Clamp vertical position
-    top = Math.max(PADDING, Math.min(top, viewport.height - PANEL_HEIGHT - PADDING));
+    top = Math.max(PADDING, Math.min(top, viewport.height - panelHeight - PADDING));
 
     setPosition({ top, left });
-  }, [elementBounds]);
+  }, [elementBounds, textareaHeight]);
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && prompt.trim()) {
-      onSubmit(prompt);
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        e.stopPropagation();
+      } else if (prompt.trim()) {
+        e.preventDefault();
+        e.stopPropagation();
+        onSubmit(prompt);
+      }
     } else if (e.key === 'Escape') {
       onCancel();
     }
@@ -609,47 +623,80 @@ function EditPromptPanel({ elementBounds, elementDescription, onSubmit, onCancel
       backdropFilter: 'blur(8px)',
       boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
       display: 'flex',
+      flexDirection: 'column',
       gap: '6px',
-      alignItems: 'center',
     }}
     >
-      <input
-        type="text"
-        value=${prompt}
-        onInput=${(e) => setPrompt(e.target.value)}
-        onKeyDown=${handleKeyDown}
-        placeholder="What would you like to change?"
-        style=${{
-      flex: 1,
-      padding: '10px 12px',
-      borderRadius: '6px',
-      border: '1px solid rgba(255,255,255,0.1)',
-      background: 'rgba(255,255,255,0.05)',
-      color: 'white',
-      fontSize: '13px',
-      outline: 'none',
-    }}
-        autoFocus
-      />
-      <button 
-        onClick=${() => prompt.trim() && onSubmit(prompt)} 
-        disabled=${!prompt.trim()}
-        style=${{
-      padding: '10px 14px',
-      borderRadius: '6px',
-      background: prompt.trim()
-        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-        : 'rgba(255,255,255,0.1)',
-      color: prompt.trim() ? 'white' : 'rgba(255,255,255,0.4)',
-      border: 'none',
-      cursor: prompt.trim() ? 'pointer' : 'not-allowed',
-      fontSize: '13px',
-      fontWeight: 500,
-      transition: 'all 0.2s',
-    }}
-      >
-        Apply
-      </button>
+      <div style=${{ display: 'flex', gap: '6px', width: '100%', alignItems: 'flex-start' }}>
+        <textarea
+          ref=${textareaRef}
+          value=${prompt}
+          onInput=${(e) => setPrompt(e.target.value)}
+          onKeyDown=${handleKeyDown}
+          placeholder="What would you like to change?"
+          rows="1"
+          style=${{
+        flex: 1,
+        minHeight: MIN_TEXTAREA_HEIGHT + 'px',
+        maxHeight: MAX_TEXTAREA_HEIGHT + 'px',
+        padding: '10px 12px',
+        borderRadius: '6px',
+        border: '1px solid rgba(255,255,255,0.1)',
+        background: 'rgba(255,255,255,0.05)',
+        color: 'white',
+        fontSize: '13px',
+        lineHeight: '20px',
+        outline: 'none',
+        resize: 'none',
+        overflowY: textareaHeight >= MAX_TEXTAREA_HEIGHT ? 'auto' : 'hidden',
+        boxSizing: 'border-box',
+        fontFamily: 'inherit',
+      }}
+          autoFocus
+        />
+        <button 
+          onClick=${() => prompt.trim() ? onSubmit(prompt) : onCancel()} 
+          style=${{
+        width: '32px',
+        height: '32px',
+        borderRadius: '6px',
+        background: prompt.trim()
+          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          : 'rgba(255,255,255,0.1)',
+        color: 'white',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '14px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s',
+        padding: 0,
+        flexShrink: 0,
+        marginTop: '4px',
+      }}
+          title=${prompt.trim() ? "Send (Enter)" : "Cancel (Esc)"}
+        >
+          ${prompt.trim() ? html`
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5"></line>
+              <polyline points="5 12 12 5 19 12"></polyline>
+            </svg>
+          ` : html`
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          `}
+        </button>
+      </div>
+      <div style=${{
+        fontSize: '11px',
+        color: 'rgba(255,255,255,0.4)',
+        paddingLeft: '4px',
+      }}>
+        Enter to send, Shift+Enter for new line
+      </div>
     </div>
   `;
 }
