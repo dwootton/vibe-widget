@@ -35,7 +35,7 @@ class VibeWidget(anywidget.AnyWidget):
         cls,
         description: str,
         df: pd.DataFrame,
-        model: str = "claude-haiku-4-5-20251001",
+        model: str = "openrouter",
         show_progress: bool = True,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
@@ -79,7 +79,7 @@ class VibeWidget(anywidget.AnyWidget):
         self, 
         description: str, 
         df: pd.DataFrame, 
-        model: str = "claude-haiku-4-5-20251001",
+        model: str = "openrouter",
         show_progress: bool = True,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
@@ -92,7 +92,7 @@ class VibeWidget(anywidget.AnyWidget):
         Args:
             description: Natural language description of desired visualization
             df: DataFrame to visualize
-            model: Claude model to use
+            model: OpenRouter model to use (or alias resolved via config)
             show_progress: Whether to show progress widget (deprecated - now uses internal state)
             exports: Dict of trait_name -> description for state this widget exposes
             imports: Dict of trait_name -> source widget/value for state this widget consumes
@@ -135,7 +135,7 @@ class VibeWidget(anywidget.AnyWidget):
             self.logs = [f"Analyzing data: {df.shape[0]} rows × {df.shape[1]} columns"]
             
             config = get_global_config()
-            provider = get_provider(model, config.api_key)
+            provider = get_provider(model, config.api_key, config.mode)
             
             # Serialize imports for cache lookup
             # For cache purposes, we only care about the trait names, not the widget instances
@@ -174,7 +174,7 @@ class VibeWidget(anywidget.AnyWidget):
                 self.data_info = LLMProvider.build_data_info(df, self._exports, imports_serialized)
                 return
             
-            self.logs = self.logs + ["Generating widget code..."]
+            self.logs = self.logs + ["Generating widget code"]
             
             chunk_buffer = []
             update_counter = 0
@@ -185,8 +185,8 @@ class VibeWidget(anywidget.AnyWidget):
                 nonlocal update_counter, last_pattern_count
                 
                 event_messages = {
-                    "step": f"➤ {message}",
-                    "thinking": f"💭 {message[:150]}...",
+                    "step": f"{message}",
+                    "thinking": f"{message[:150]}",
                     "complete": f"✓ {message}",
                     "error": f"✘ {message}",
                     "chunk": message,
@@ -219,7 +219,7 @@ class VibeWidget(anywidget.AnyWidget):
                         current_pattern_count = len(parser.detected)
                         if current_pattern_count == last_pattern_count and update_counter % 100 == 0:
                             current_logs = list(self.logs)
-                            current_logs.append(f"Generating code... ({update_counter} chunks)")
+                            current_logs.append(f"Generating code ({update_counter} chunks)")
                             self.logs = current_logs
                         last_pattern_count = current_pattern_count
                 else:
@@ -280,7 +280,7 @@ class VibeWidget(anywidget.AnyWidget):
         
         error_preview = error_msg.split('\n')[0][:100]
         self.logs = self.logs + [f"Error detected (attempt {self.retry_count}): {error_preview}"]
-        self.logs = self.logs + ["Asking LLM to fix the error..."]
+        self.logs = self.logs + ["Asking LLM to fix the error"]
         
         try:
             clean_data_info = clean_for_json(self.data_info)
@@ -291,7 +291,7 @@ class VibeWidget(anywidget.AnyWidget):
                 data_info=clean_data_info,
             )
             
-            self.logs = self.logs + ["Code fixed, retrying..."]
+            self.logs = self.logs + ["Code fixed, retrying"]
             self.code = fixed_code
             self.status = 'ready'
             self.error_message = ""
@@ -461,7 +461,7 @@ def create(
     Args:
         description: Natural language description of the visualization
         data: DataFrame to visualize OR path to data file (CSV, NetCDF, GeoJSON, etc.) OR URL OR None when using imports only
-        model: Model to use (e.g., "gemini", "openai", "anthropic") or specific model ID. See vw.models() for available options
+        model: Model to use (any OpenRouter-supported model ID or shortcut). See vw.models() for available options
         show_progress: Whether to show progress widget
         exports: Dict of {trait_name: description} for traits this widget exposes
         imports: Dict of {trait_name: source} where source is another widget's trait

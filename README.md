@@ -247,14 +247,15 @@ Style it: "dark theme", "sorted by value", "highlight outliers"
 
 **Model Selection**  
 ```python
-vw.config(model="gemini", mode="standard")   # fast & cheap
-vw.config(model="openai", mode="premium")    # powerful & pricey
+vw.config(model="openrouter")                 # uses the standard default (see vw.models())
+vw.config(model="openrouter", mode="premium") # uses the premium default
 
 # or per-widget
-widget = vw.create("...", df, model="claude-3-5-sonnet")
+widget = vw.create("...", df, model="openai/gpt-5.1-codex")
 
 # see all options
-print(vw.models())
+vw.models()  # prints defaults + pinned options, and returns a dict-like object (concise repr in notebooks)
+vw.models(show="all")  # prints a longer live list too
 ```
 
 ---

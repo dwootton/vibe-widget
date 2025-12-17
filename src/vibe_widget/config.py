@@ -4,10 +4,12 @@ Simplified configuration management for Vibe Widget.
 
 import os
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional, Literal
 from pathlib import Path
 import json
+import time
 
+import requests
 
 # Load models manifest
 def _load_models_manifest() -> Dict[str, Any]:
@@ -18,51 +20,119 @@ def _load_models_manifest() -> Dict[str, Any]:
 
 MODELS_MANIFEST = _load_models_manifest()
 
+_OPENROUTER_MODELS_CACHE: dict[str, Any] | None = None
+_OPENROUTER_MODELS_CACHE_TS: float | None = None
+
+
+class ModelsCatalog(dict):
+    """Dict-like return type with a concise notebook-friendly repr."""
+
+    def __repr__(self) -> str:  # pragma: no cover
+        keys = list(self.keys())
+        if not keys:
+            return "ModelsCatalog({})"
+
+        openrouter = self.get("openrouter", {})
+        standard = openrouter.get("standard", [])
+        premium = openrouter.get("premium", [])
+        latest = openrouter.get("latest", [])
+        return (
+            "ModelsCatalog("
+            f"standard={len(standard)}, premium={len(premium)}, latest={len(latest)}"
+            ")  # Use dict(vw.models(...)) to see full data"
+        )
+
+    def __str__(self) -> str:  # pragma: no cover
+        return self.__repr__()
+
+    def _repr_pretty_(self, p, cycle) -> None:  # pragma: no cover
+        p.text(self.__repr__())
+
+
+def _fetch_openrouter_models(
+    refresh: bool = True,
+    cache_ttl_seconds: int = 3600,
+    timeout_seconds: int = 10,
+) -> list[str] | None:
+    """Fetch the latest OpenRouter model IDs (best-effort)."""
+    global _OPENROUTER_MODELS_CACHE, _OPENROUTER_MODELS_CACHE_TS
+
+    now = time.time()
+    if (
+        not refresh
+        and _OPENROUTER_MODELS_CACHE is not None
+        and _OPENROUTER_MODELS_CACHE_TS is not None
+        and (now - _OPENROUTER_MODELS_CACHE_TS) < cache_ttl_seconds
+    ):
+        return _OPENROUTER_MODELS_CACHE.get("ids")
+
+    if (
+        _OPENROUTER_MODELS_CACHE is not None
+        and _OPENROUTER_MODELS_CACHE_TS is not None
+        and (now - _OPENROUTER_MODELS_CACHE_TS) < cache_ttl_seconds
+        and not refresh
+    ):
+        return _OPENROUTER_MODELS_CACHE.get("ids")
+
+    try:
+        headers = {}
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        resp = requests.get(
+            "https://openrouter.ai/api/v1/models",
+            headers=headers or None,
+            timeout=timeout_seconds,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        model_items = data.get("data", [])
+        ids = sorted(
+            {
+                item.get("id")
+                for item in model_items
+                if isinstance(item, dict) and item.get("id")
+            }
+        )
+
+        _OPENROUTER_MODELS_CACHE = {"ids": ids}
+        _OPENROUTER_MODELS_CACHE_TS = now
+        return ids
+    except Exception:
+        return None
+
 # Build model mappings from manifest
 def _build_model_maps() -> tuple[dict, dict]:
     """Build premium and standard model mappings from manifest."""
-    premium = {}
-    standard = {}
-    
-    for provider, tiers in MODELS_MANIFEST.items():
-        # Get first model from each tier as default
-        if tiers.get("premium"):
-            model_id = tiers["premium"][0]["id"]
-            if provider == "openai":
-                premium["openai"] = model_id
-                premium["gpt"] = model_id
-            elif provider == "anthropic":
-                premium["anthropic"] = model_id
-                premium["claude"] = model_id
-            elif provider == "google_gemini":
-                premium["google"] = model_id
-                premium["gemini"] = model_id
-        
-        if tiers.get("standard"):
-            model_id = tiers["standard"][0]["id"]
-            if provider == "openai":
-                standard["openai"] = model_id
-                standard["gpt"] = model_id
-            elif provider == "anthropic":
-                standard["anthropic"] = model_id
-                standard["claude"] = model_id
-            elif provider == "google_gemini":
-                standard["google"] = model_id
-                standard["gemini"] = model_id
-    
+    premium: dict[str, str] = {}
+    standard: dict[str, str] = {}
+
+    # OpenRouter is the single gateway; use the first item in each tier as default.
+    openrouter_manifest = MODELS_MANIFEST.get("openrouter", {})
+
+    if openrouter_manifest.get("premium"):
+        premium_model = openrouter_manifest["premium"][0]["id"]
+        premium["openrouter"] = premium_model
+
+    if openrouter_manifest.get("standard"):
+        standard_model = openrouter_manifest["standard"][0]["id"]
+        standard["openrouter"] = standard_model
+
     return premium, standard
+
 
 PREMIUM_MODELS, STANDARD_MODELS = _build_model_maps()
 
-# Keep LATEST_MODELS for backward compatibility (points to premium)
-LATEST_MODELS = PREMIUM_MODELS
+# Keep LATEST_MODELS for backward compatibility (tracks the default standard choice)
+LATEST_MODELS = {"openrouter": STANDARD_MODELS.get("openrouter") or PREMIUM_MODELS.get("openrouter")}
 
 
 @dataclass
 class Config:
     """Configuration for Vibe Widget LLM models."""
     
-    model: str = "anthropic"  # Default to latest Claude
+    model: str = "openrouter"  # Default to OpenRouter standard tier
     api_key: Optional[str] = None
     temperature: float = 0.7
     streaming: bool = True
@@ -82,21 +152,7 @@ class Config:
     
     def _get_api_key_from_env(self) -> Optional[str]:
         """Get the appropriate API key from environment based on model."""
-        # Check which model we're using and get the right key
-        if "claude" in self.model or "anthropic" in self.model:
-            return os.getenv("ANTHROPIC_API_KEY")
-        elif "gpt" in self.model or "openai" in self.model:
-            return os.getenv("OPENAI_API_KEY")
-        elif "gemini" in self.model or "google" in self.model:
-            return os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        
-        # Fallback: check all common API keys
-        return (
-            os.getenv("ANTHROPIC_API_KEY") or
-            os.getenv("OPENAI_API_KEY") or
-            os.getenv("GEMINI_API_KEY") or
-            os.getenv("GOOGLE_API_KEY")
-        )
+        return os.getenv("OPENROUTER_API_KEY")
     
     def validate(self):
         """Validate that the configuration has required fields."""
@@ -109,19 +165,9 @@ class Config:
         
         # Both modes just need the appropriate API key for the selected model
         if not self.api_key:
-            # Provide helpful error message based on model
-            if "claude" in self.model:
-                key_name = "ANTHROPIC_API_KEY"
-            elif "gpt" in self.model:
-                key_name = "OPENAI_API_KEY"
-            elif "gemini" in self.model:
-                key_name = "GEMINI_API_KEY or GOOGLE_API_KEY"
-            else:
-                key_name = "API_KEY"
-            
             raise ValueError(
                 f"No API key found for {self.model}. "
-                f"Set {key_name} environment variable or pass api_key parameter."
+                "Set OPENROUTER_API_KEY (or pass api_key parameter)."
             )
     
     def to_dict(self) -> dict:
@@ -197,7 +243,7 @@ def config(
     Configure Vibe Widget with model settings.
     
     Args:
-        model: Model name or shortcut ("anthropic", "openai", "google")
+        model: Model name or ID (OpenRouter-supported)
         api_key: API key for the model provider
         temperature: Temperature setting for generation
         mode: "standard" (fast/cheap models) or "premium" (powerful/expensive models)
@@ -209,26 +255,22 @@ def config(
     Examples:
         >>> import vibe_widget as vw
         >>> 
-        >>> # Standard mode (default) - uses fast/cheap models
-        >>> vw.config(model="gemini")   # Uses gemini-1.5-flash
-        >>> vw.config(model="claude")   # Uses claude-3-haiku
-        >>> vw.config(model="openai")   # Uses gpt-3.5-turbo
-        >>> 
-        >>> # Premium mode - uses powerful/expensive models
-        >>> vw.config(mode="premium", model="gemini")  # Uses gemini-1.5-pro
-        >>> vw.config(mode="premium", model="claude")  # Uses claude-3-5-sonnet
-        >>> vw.config(mode="premium", model="openai")  # Uses gpt-4-turbo
-        >>> 
-        >>> # Use specific model versions
-        >>> vw.config(model="gpt-4-turbo")
-        >>> vw.config(model="claude-3-haiku")
+        >>> # Standard mode (default) - fast/affordable
+        >>> vw.config(model="openrouter")   # Uses google/gemini-2.5-flash
+        >>>
+        >>> # Premium mode - stronger models
+        >>> vw.config(mode="premium", model="openrouter")  # Uses google/gemini-3-pro-preview
+        >>>
+        >>> # Use specific model IDs
+        >>> vw.config(model="openai/gpt-5.1-codex")
+        >>> vw.config(model="anthropic/claude-opus-4.5")
     """
     global _global_config
     
     # Create new config or update existing
     if _global_config is None:
         _global_config = Config(
-            model=model or "anthropic",
+            model=model or "openrouter",
             api_key=api_key,
             temperature=temperature or 0.7,
             mode=mode or "standard",
@@ -261,13 +303,8 @@ def config(
             _global_config.mode = mode
             # If mode changed and we have a shortcut model, re-resolve it
             model_map = PREMIUM_MODELS if mode == "premium" else STANDARD_MODELS
-            # Check if the current model is a shortcut (exists in either dict keys)
-            for shortcut in ["anthropic", "claude", "openai", "google", "gemini"]:
-                if _global_config.model == PREMIUM_MODELS.get(shortcut) or \
-                   _global_config.model == STANDARD_MODELS.get(shortcut):
-                    # Re-resolve based on new mode
-                    _global_config.model = model_map.get(shortcut, _global_config.model)
-                    break
+            if _global_config.model == PREMIUM_MODELS.get("openrouter") or _global_config.model == STANDARD_MODELS.get("openrouter"):
+                _global_config.model = model_map.get("openrouter", _global_config.model)
         
         # Update any additional kwargs
         for key, value in kwargs.items():
@@ -281,13 +318,25 @@ def config(
     return _global_config
 
 
-def models(provider: Optional[str] = None, mode: Optional[str] = None) -> Dict[str, List[str]]:
+def models(
+    provider: Optional[str] = None,
+    mode: Optional[str] = None,
+    *,
+    refresh: bool = True,
+    verbose: bool = True,
+    show: Literal["summary", "all", "none"] = "summary",
+    limit: int = 30,
+) -> Dict[str, Dict[str, List[str]]]:
     """
-    Get available models for providers.
+    Get available model IDs (OpenRouter), optionally fetching the latest list.
     
     Args:
-        provider: Optional provider filter ("openai", "anthropic", "gemini", "google")
+        provider: Optional provider filter ("openrouter")
         mode: Optional mode filter ("standard" or "premium")
+        refresh: When True, tries to fetch latest models from OpenRouter
+        verbose: When True, prints helpful config instructions
+        show: "summary" prints defaults + pinned options; "all" also prints a live list; "none" prints nothing
+        limit: Max models to print per provider group
     
     Returns:
         Dictionary of available models by provider and tier
@@ -299,58 +348,91 @@ def models(provider: Optional[str] = None, mode: Optional[str] = None) -> Dict[s
         >>> vw.models()
         
         >>> # Get models for a specific provider
-        >>> vw.models("gemini")
-        >>> vw.models("openai")
+        >>> vw.models("openrouter")
         
         >>> # Get only premium models
         >>> vw.models(mode="premium")
         
-        >>> # Get gemini premium models
-        >>> vw.models("gemini", mode="premium")
+        >>> # Get premium defaults
+        >>> vw.models("openrouter", mode="premium")
     """
-    result = {}
-    
-    # Map provider aliases
-    provider_map = {
-        "gemini": "google_gemini",
-        "google": "google_gemini",
-        "claude": "anthropic",
-        "gpt": "openai"
+    result: Dict[str, Dict[str, List[str]]] = {}
+
+    provider_key = (provider or "openrouter").lower()
+    if provider_key != "openrouter":
+        provider_key = "openrouter"
+
+    provider_manifest = MODELS_MANIFEST.get("openrouter", {})
+    manifest_standard = [m["id"] for m in provider_manifest.get("standard", [])]
+    manifest_premium = [m["id"] for m in provider_manifest.get("premium", [])]
+
+    latest_ids = _fetch_openrouter_models(refresh=refresh)
+    latest_ids = latest_ids or []
+
+    def _filter_prefix(prefix: str) -> list[str]:
+        return [m for m in latest_ids if m.startswith(prefix)]
+
+    data: Dict[str, List[str]] = {
+        "defaults": [
+            f"standard={STANDARD_MODELS.get('openrouter')}",
+            f"premium={PREMIUM_MODELS.get('openrouter')}",
+        ],
+        "standard": manifest_standard,
+        "premium": manifest_premium,
+        "latest": latest_ids,
+        "google": _filter_prefix("google/"),
+        "anthropic": _filter_prefix("anthropic/"),
+        "openai": _filter_prefix("openai/"),
     }
-    
-    if provider:
-        provider = provider.lower()
-        provider_key = provider_map.get(provider, provider)
-        
-        # Filter to specific provider
-        if provider_key in MODELS_MANIFEST:
-            provider_models = MODELS_MANIFEST[provider_key]
-            if mode:
-                # Filter to specific mode
-                if mode in provider_models:
-                    result[provider_key] = {
-                        mode: [m["id"] for m in provider_models[mode]]
-                    }
+
+    if mode in {"standard", "premium"}:
+        data = {
+            "defaults": data["defaults"],
+            mode: data[mode],
+            "latest": data["latest"],
+            "google": data["google"],
+            "anthropic": data["anthropic"],
+            "openai": data["openai"],
+        }
+
+    result[provider_key] = data
+
+    if verbose and show != "none":
+        standard_default = STANDARD_MODELS.get("openrouter")
+        premium_default = PREMIUM_MODELS.get("openrouter")
+
+        print("Model selection (OpenRouter)")
+        print("Defaults:")
+        print(f'  vw.config(model="openrouter")  # -> {standard_default}')
+        print(f'  vw.config(model="openrouter", mode="premium")  # -> {premium_default}')
+        print("Explicit examples:")
+        print(f'  vw.config(model="{standard_default}")')
+        print(f'  vw.config(model="{premium_default}", mode="premium")')
+        print("Pinned options:")
+        print(f"  standard: {manifest_standard}")
+        print(f"  premium:  {manifest_premium}")
+        print('More: `vw.models(show="all")` or `vw.models(verbose=False)`.\n')
+        print("Tip: set OPENROUTER_API_KEY in your environment.\n")
+
+        if show == "all":
+            if latest_ids:
+                def _print_group(name: str, ids: list[str]) -> None:
+                    if not ids:
+                        return
+                    shown = ids[: max(0, limit)]
+                    suffix = "" if len(ids) <= len(shown) else f" (+{len(ids) - len(shown)} more)"
+                    print(f"{name} models ({len(ids)}):{suffix}")
+                    for mid in shown:
+                        print(f"  - {mid}")
+                    print()
+
+                _print_group("google", data.get("google", []))
+                _print_group("anthropic", data.get("anthropic", []))
+                _print_group("openai", data.get("openai", []))
             else:
-                # All modes for this provider
-                result[provider_key] = {
-                    tier: [m["id"] for m in models]
-                    for tier, models in provider_models.items()
-                }
-    else:
-        # All providers
-        for prov, tiers in MODELS_MANIFEST.items():
-            if mode:
-                # Filter to specific mode
-                if mode in tiers:
-                    result[prov] = {
-                        mode: [m["id"] for m in tiers[mode]]
-                    }
-            else:
-                # All modes
-                result[prov] = {
-                    tier: [m["id"] for m in models]
-                    for tier, models in tiers.items()
-                }
-    
-    return result
+                print(
+                    "Could not fetch the latest OpenRouter model list right now; "
+                    "returning the pinned manifest models.\n"
+                )
+
+    return ModelsCatalog(result)

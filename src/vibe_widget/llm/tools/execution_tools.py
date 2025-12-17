@@ -318,59 +318,18 @@ class CodeRepairTool(Tool):
     ) -> ToolResult:
         """Repair widget code."""
         try:
-            prompt = f"""Fix the broken AnyWidget React code based on the error diagnosis.
-
-ERROR DIAGNOSIS:
-Type: {diagnosis.get('error_type')}
-Root Cause: {diagnosis.get('root_cause')}
-Suggested Fix: {diagnosis.get('suggested_fix')}
-Full Error: {diagnosis.get('full_error')}
-
-BROKEN CODE:
-```javascript
-{code}
-```
-
-DATA INFO:
-Columns: {data_info.get('columns', [])}
-Types: {data_info.get('dtypes', {})}
-Exports: {data_info.get('exports', {})}
-Imports: {data_info.get('imports', {})}
-
-FIX REQUIREMENTS:
-1. Keep the same interaction model and functionality
-2. Address the specific error identified in diagnosis
-3. Add defensive checks where needed (null checks, type guards)
-4. Maintain proper export/import lifecycle
-5. Keep cleanup handlers intact
-6. Follow AnyWidget + htm conventions
-
-CRITICAL RULES:
-- export default function Widget({{ model, html, React }})
-- Use html tagged templates (htm) not JSX
-- Guard model.get() payloads before use
-- Keep CDN imports version-pinned
-- Initialize exports and call model.save_changes()
-- Subscribe to imports with model.on/model.off
-- Return cleanup in every React.useEffect
-
-Return ONLY the corrected JavaScript code. No markdown fences or explanations.
-"""
-
-            from anthropic import Anthropic
-
-            client = Anthropic(api_key=self.llm_provider.api_key)
-            message = client.messages.create(
-                model=self.llm_provider.model,
-                max_tokens=8192,
-                messages=[{"role": "user", "content": prompt}],
+            error_message = (
+                diagnosis.get("full_error")
+                or diagnosis.get("root_cause")
+                or diagnosis.get("suggested_fix")
+                or "Unknown error"
             )
 
-            fixed_code = message.content[0].text
-            # Clean code
-            fixed_code = re.sub(r"```(?:javascript|jsx?|typescript|tsx?)?\s*\n?", "", fixed_code)
-            fixed_code = re.sub(r"\n?```\s*", "", fixed_code)
-            fixed_code = fixed_code.strip()
+            fixed_code = self.llm_provider.fix_code_error(
+                broken_code=code,
+                error_message=error_message,
+                data_info=data_info,
+            )
 
             return ToolResult(
                 success=True,

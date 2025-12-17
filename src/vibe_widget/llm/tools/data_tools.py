@@ -520,19 +520,19 @@ df = df.copy()
 Return ONLY the Python code block, no explanations before or after.
 """
 
-            # Use LLM to generate code
-            from anthropic import Anthropic
+            client = getattr(self.llm_provider, "client", None)
+            if client is None:
+                return ToolResult(success=False, output={}, error="LLM client unavailable for wrangling.")
 
-            client = Anthropic(api_key=self.llm_provider.api_key)
-            message = client.messages.create(
+            response = client.chat.completions.create(
                 model=self.llm_provider.model,
-                max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
+                max_tokens=2048,
+                temperature=0.3,
             )
 
-            code = message.content[0].text
-            # Clean code
-            code = code.replace("```python", "").replace("```", "").strip()
+            code = response.choices[0].message.content or ""
+            code = self.llm_provider.clean_code(code)
 
             return ToolResult(
                 success=True,

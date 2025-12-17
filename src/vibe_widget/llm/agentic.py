@@ -82,7 +82,7 @@ class AgenticOrchestrator:
         exports = exports or {}
         imports = imports or {}
         
-        self._emit(progress_callback, "step", "Analyzing data...")
+        self._emit(progress_callback, "step", "Analyzing data")
         
         # Build data context for LLM using base class method
         data_info = LLMProvider.build_data_info(df, exports, imports)
@@ -90,7 +90,7 @@ class AgenticOrchestrator:
         self._emit(progress_callback, "step", f"Data: {df.shape[0]} rows × {df.shape[1]} columns")
         
         # Generate code with LLM provider
-        self._emit(progress_callback, "step", "Generating widget code...")
+        self._emit(progress_callback, "step", "Generating widget code")
         code = self.provider.generate_widget_code(
             description=description,
             data_info=data_info,
@@ -98,7 +98,7 @@ class AgenticOrchestrator:
         )
         
         # Validate code
-        self._emit(progress_callback, "step", "Validating code...")
+        self._emit(progress_callback, "step", "Validating code")
         validation = self.validate_tool.execute(
             code=code,
             expected_exports=list(exports.keys()),
@@ -106,7 +106,7 @@ class AgenticOrchestrator:
         )
         
         # Runtime test
-        self._emit(progress_callback, "step", "Testing runtime...")
+        self._emit(progress_callback, "step", "Testing runtime")
         runtime = self.runtime_tool.execute(code=code)
         
         # Repair loop if needed
@@ -123,7 +123,7 @@ class AgenticOrchestrator:
                 break
             
             repair_attempts += 1
-            self._emit(progress_callback, "step", f"Repairing code (attempt {repair_attempts})...")
+            self._emit(progress_callback, "step", f"Repairing code (attempt {repair_attempts})")
             
             # Use provider's fix_code_error for first issue if it's a clear error
             if len(issues) == 1 and ("error" in issues[0].lower() or "exception" in issues[0].lower()):
@@ -178,7 +178,7 @@ class AgenticOrchestrator:
             code=code,
         )
         
-        self._emit(progress_callback, "step", "Repairing code...")
+        self._emit(progress_callback, "step", "Repairing code")
         
         fixed_code = self.provider.fix_code_error(
             broken_code=code,
