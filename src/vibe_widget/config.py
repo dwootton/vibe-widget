@@ -140,13 +140,9 @@ class Config:
     
     def __post_init__(self):
         """Resolve model name and load API key from environment."""
-        # Handle simple provider names based on mode
         model_map = PREMIUM_MODELS if self.mode == "premium" else STANDARD_MODELS
+        self.model = model_map.get(self.model, self.model)
         
-        if self.model in model_map:
-            self.model = model_map[self.model]
-        
-        # Load API key from environment if not provided
         if not self.api_key:
             self.api_key = self._get_api_key_from_env()
     
@@ -253,8 +249,6 @@ def config(
         Configuration instance
     
     Examples:
-        >>> import vibe_widget as vw
-        >>> 
         >>> # Standard mode (default) - fast/affordable
         >>> vw.config(model="openrouter")   # Uses google/gemini-2.5-flash
         >>>
@@ -277,14 +271,9 @@ def config(
             **kwargs
         )
     else:
-        # Update existing config
         if model is not None:
-            _global_config.model = model
-            # Re-resolve if it's a shortcut based on current mode
             model_map = PREMIUM_MODELS if _global_config.mode == "premium" else STANDARD_MODELS
-            if model in model_map:
-                _global_config.model = model_map[model]
-            # When model changes, reload the appropriate API key
+            _global_config.model = model_map.get(model, model)
             if api_key is None:
                 _global_config.api_key = _global_config._get_api_key_from_env()
         
@@ -293,7 +282,6 @@ def config(
             _global_config.api_key = api_key
         else:
             # When api_key is None (not provided), always reload from environment
-            # This ensures we pick up the right key for the current model
             _global_config.api_key = _global_config._get_api_key_from_env()
         
         if temperature is not None:
@@ -301,17 +289,14 @@ def config(
         
         if mode is not None:
             _global_config.mode = mode
-            # If mode changed and we have a shortcut model, re-resolve it
             model_map = PREMIUM_MODELS if mode == "premium" else STANDARD_MODELS
             if _global_config.model == PREMIUM_MODELS.get("openrouter") or _global_config.model == STANDARD_MODELS.get("openrouter"):
                 _global_config.model = model_map.get("openrouter", _global_config.model)
         
-        # Update any additional kwargs
         for key, value in kwargs.items():
             if hasattr(_global_config, key):
                 setattr(_global_config, key, value)
         
-        # Re-load API key if needed
         if not _global_config.api_key:
             _global_config.api_key = _global_config._get_api_key_from_env()
     
@@ -342,16 +327,11 @@ def models(
         Dictionary of available models by provider and tier
     
     Examples:
-        >>> import vibe_widget as vw
-        >>> 
         >>> # Get all models
         >>> vw.models()
         
         >>> # Get models for a specific provider
         >>> vw.models("openrouter")
-        
-        >>> # Get only premium models
-        >>> vw.models(mode="premium")
         
         >>> # Get premium defaults
         >>> vw.models("openrouter", mode="premium")

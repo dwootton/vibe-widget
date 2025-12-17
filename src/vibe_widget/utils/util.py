@@ -2,9 +2,12 @@
 Utility functions for VibeWidget.
 Helper functions for data cleaning, serialization, and trait management.
 """
+from pathlib import Path
 from typing import Any
 import pandas as pd
 import numpy as np
+from vibe_widget.llm.tools.data_tools import DataLoadTool
+from vibe_widget.config import Config, get_global_config
 
 
 def clean_for_json(obj: Any) -> Any:
@@ -57,3 +60,24 @@ def initial_import_value(import_name: str, import_source: Any) -> Any:
         return trait_value.value if hasattr(trait_value, 'value') else trait_value
     else:
         return import_source
+
+
+
+
+def load_data(data: pd.DataFrame | str | Path | None, max_rows: int = 5000) -> pd.DataFrame:
+    """Load and prepare data from various sources."""
+    if data is None:
+        return pd.DataFrame()
+    
+    if isinstance(data, pd.DataFrame):
+        df = data
+    else:
+        result = DataLoadTool().execute(data)
+        if not result.success:
+            raise ValueError(f"Failed to load data: {result.error}")
+        df = result.output.get("dataframe", pd.DataFrame())
+    
+    if len(df) > max_rows:
+        df = df.sample(max_rows)
+    
+    return df

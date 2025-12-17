@@ -518,19 +518,17 @@ df = df.copy()
 Return ONLY the Python code block, no explanations before or after.
 """
 
-            client = getattr(self.llm_provider, "client", None)
-            if client is None:
-                return ToolResult(success=False, output={}, error="LLM client unavailable for wrangling.")
+            if not hasattr(self.llm_provider, 'client'):
+                return ToolResult(success=False, output={}, error="LLM provider does not support data wrangling.")
 
-            response = client.chat.completions.create(
+            response = self.llm_provider.client.chat.completions.create(
                 model=self.llm_provider.model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=2048,
                 temperature=0.3,
             )
 
-            code = response.choices[0].message.content or ""
-            code = self.llm_provider.clean_code(code)
+            code = self.llm_provider.clean_code(response.choices[0].message.content or "")
 
             return ToolResult(
                 success=True,

@@ -108,9 +108,6 @@ Set your API key for your preferred AI provider:
 
 ```bash
 # Choose one based on your preferred model
-export ANTHROPIC_API_KEY='your-key'    # for Claude (default)
-export OPENAI_API_KEY='your-key'       # for GPT
-export GEMINI_API_KEY='your-key'       # for Gemini
 export OPENROUTER_API_KEY='your-key'   # for OpenRouter models
 ```
 
@@ -137,11 +134,7 @@ That's it. The AI analyzes your data, generates React code, validates it, and re
 ### Configuration
 
 ```python
-# Choose your AI model (optional, defaults to Claude)
 vw.config(model="gemini")  # or "openai", "anthropic", "openrouter"
-
-# Or specify per widget
-widget = vw.create("scatter plot", df, model="openai/gpt-4-turbo")
 
 # View available models
 vw.models()
@@ -242,7 +235,6 @@ Create a new widget from scratch.
 widget = vw.create(
     description: str,           # Natural language description
     data=None,                  # DataFrame, file path, URL, or None
-    model=None,                 # AI model to use (optional)
     show_progress=True,         # Show generation progress
     exports=None,               # Dict of {trait_name: description}
     imports=None,               # Dict of {trait_name: source_widget}
@@ -263,13 +255,6 @@ widget = vw.create(
   - `str` (URL): Web page to scrape
   - `None`: For widgets driven purely by imports
 
-- `model`: AI model selection
-  - `"anthropic"` / `"claude"`: Claude models (default)
-  - `"openai"` / `"gpt"`: GPT models
-  - `"gemini"`: Google Gemini
-  - `"openrouter"`: OpenRouter service
-  - Specific model: `"openai/gpt-4-turbo"`
-
 - `exports`: State this widget shares with others
   - Format: `{"trait_name": "description of what this represents"}`
   - Example: `{"selected": "indices of selected data points"}`
@@ -287,7 +272,6 @@ widget = vw.revise(
     description: str,           # Description of changes
     source,                     # Widget, ComponentReference, ID, or path
     data=None,                  # Optional new data
-    model=None,                 # Optional model override
     show_progress=True,
     exports=None,
     imports=None,
