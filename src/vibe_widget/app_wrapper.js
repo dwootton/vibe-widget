@@ -21,6 +21,8 @@ if (!document.querySelector('#vibe-widget-global-styles')) {
 
 function ProgressMap({ logs }) {
   const containerRef = React.useRef(null);
+  const [spinnerFrame, setSpinnerFrame] = React.useState(0);
+  const spinnerFrames = ['/', '-', '\\', '|'];
 
   React.useEffect(() => {
     if (containerRef.current) {
@@ -28,44 +30,45 @@ function ProgressMap({ logs }) {
     }
   }, [logs]);
 
+  React.useEffect(() => {
+    if (!logs || logs.length === 0) return;
+    const interval = setInterval(() => {
+      setSpinnerFrame((f) => (f + 1) % spinnerFrames.length);
+    }, 120);
+    return () => clearInterval(interval);
+  }, [logs]);
+
+  const sanitizeLogText = (log) => {
+    const upper = String(log ?? '').toUpperCase();
+    return upper.replace(/[.\u2026]+$/g, '').trimEnd();
+  };
+
   return html`
     <div class="progress-wrapper">
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400&display=swap');
-        
         .progress-wrapper {
           position: relative;
-          padding: 32px;
-          background: 
-            radial-gradient(
-              circle at 50% 0%,
-              rgba(243, 119, 38, 0.08),
-              transparent 60%
-            ),
-            #1a1a1a;
-          border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 12px;
+          background: transparent;
         }
         
-        .progress-title {
-          font-family: 'Inter', sans-serif;
-          font-size: 16px;
-          font-weight: 600;
-          color: rgba(255, 255, 255, 0.9);
-          margin-bottom: 20px;
-          letter-spacing: -0.01em;
+        .progress-bezel {
+          border-radius: 6px;
+          background: #1A1A1A;
+          border: 3px solid #F2F0E9;
+          box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.5);
         }
         
         .progress-container {
           width: 100%;
           max-height: 280px;
-          background: rgba(30, 30, 30, 0.5);
-          color: rgba(255, 255, 255, 0.6);
-          font-family: 'JetBrains Mono', monospace;
+          padding: 10px 12px;
+          background: transparent;
+          color: #F2F0E9;
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
           font-size: 12px;
-          line-height: 1.7;
-          border-radius: 6px;
-          border: none;
+          line-height: 1.4;
           overflow-y: auto;
         }
         
@@ -87,66 +90,78 @@ function ProgressMap({ logs }) {
         }
         
         .log-entry {
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
           padding: 2px 0;
-          color: rgba(255, 255, 255, 0.5);
+          color: #D1D5DB;
           opacity: 0;
           animation: fadeIn 0.3s ease-out forwards;
           animation-delay: calc(var(--entry-index) * 0.03s);
+          white-space: pre-wrap;
+          word-break: break-word;
         }
-        
-        .log-entry:last-child {
-          color: #F37726;
+
+        .log-icon {
+          width: 14px;
+          flex: 0 0 14px;
+          color: #6B7280;
         }
-        
-        .log-entry::before {
-          content: '▸ ';
-          color: rgba(243, 119, 38, 0.5);
-          margin-right: 6px;
+
+        .log-icon--active {
+          color: #f97316;
         }
-        
-        .animated-dots {
+
+        .log-entry--done .log-text {
+          text-transform: uppercase;
+          color: #D1D5DB;
+        }
+
+        .log-entry--active .log-text {
+          background: #f97316;
+          color: #000000;
+          padding: 1px 4px;
+          text-transform: uppercase;
           display: inline-block;
-          margin-left: 2px;
         }
-        
-        .animated-dots span {
-          animation: dotPulse 1.4s infinite;
-          opacity: 0;
+
+        .cursor {
+          display: inline-block;
+          margin-left: 4px;
+          animation: cursorBlink 1s steps(2, end) infinite;
         }
-        
-        .animated-dots span:nth-child(1) {
-          animation-delay: 0s;
+
+        @keyframes cursorBlink {
+          0%, 49% { opacity: 1; }
+          50%, 100% { opacity: 0; }
         }
-        
-        .animated-dots span:nth-child(2) {
-          animation-delay: 0.2s;
-        }
-        
-        .animated-dots span:nth-child(3) {
-          animation-delay: 0.4s;
-        }
-        
-        @keyframes dotPulse {
-          0%, 80%, 100% {
-            opacity: 0;
-          }
-          40% {
-            opacity: 1;
-          }
-        }
-        
+
         @keyframes fadeIn {
           to {
             opacity: 1;
           }
         }
       </style>
-      <div class="progress-container" ref=${containerRef}>
-        ${logs.map((log, idx) => html`
-          <div key=${idx} class="log-entry" style=${{ '--entry-index': idx }}>
-            ${log}${idx === logs.length - 1 && html`<span class="animated-dots"><span>.</span><span>.</span><span>.</span></span>`}
-          </div>
-        `)}
+      <div class="progress-bezel">
+        <div class="progress-container" ref=${containerRef}>
+          ${logs.map((log, idx) => {
+            const isActive = idx === logs.length - 1;
+            const icon = isActive ? spinnerFrames[spinnerFrame] : '■';
+            const text = sanitizeLogText(log);
+            return html`
+              <div
+                key=${idx}
+                class=${`log-entry ${isActive ? 'log-entry--active' : 'log-entry--done'}`}
+                style=${{ '--entry-index': idx }}
+              >
+                <span class=${`log-icon ${isActive ? 'log-icon--active' : ''}`}>${icon}</span>
+                <span class="log-text">
+                  ${text}${isActive && html`<span class="cursor">█</span>`}
+                </span>
+              </div>
+            `;
+          })}
+        </div>
       </div>
     </div>
   `;
