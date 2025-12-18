@@ -138,7 +138,7 @@ export default function ProgressMap({ logs }) {
       </style>
       <div class="progress-bezel">
         <div class="progress-heading">
-          Welcome to Vibe Widgets32!
+          Welcome to Vibe Widgets!
         </div>
         <div class="progress-container" ref=${containerRef}>
           ${logs.map((log, idx) => {
