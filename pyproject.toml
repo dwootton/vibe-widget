@@ -10,7 +10,8 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Dylan Wootton", email = "dwootton@mit.edu" },
+    { name = "Ryan Yen" }
 ]
 keywords = ["visualization", "widgets", "llm", "interactive", "jupyter"]
 classifiers = [
@@ -47,10 +48,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://www.dylanwootton.com/vibe-widgets/index.html"
-Documentation = "https://github.com/yourusername/vibe-widget#readme"
-Repository = "https://github.com/yourusername/vibe-widget"
-Issues = "https://github.com/yourusername/vibe-widget/issues"
+Homepage = "https://vibewidget.dev"
+Documentation = "https://vibewidget.dev"
+Repository = "https://github.com/dwootton/vibe-widget"
+Issues = "https://github.com/dwootton/vibe-widget/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vibe_widget"]

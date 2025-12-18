@@ -349,8 +349,8 @@ Natural Language → Data Processing → AI Code Generation → Validation → C
 Contributions welcome! To get started:
 
 ```bash
-git clone https://github.com/dwootton/vibe-widgets.git
-cd vibe-widgets
+git clone https://github.com/dwootton/vibe-widget.git
+cd vibe-widget
 pip install -e ".[dev]"
 pytest
 ```
@@ -374,4 +374,4 @@ Built with:
 
 ---
 
-**[Documentation](https://www.dylanwootton.com/vibe-widgets/) | [GitHub](https://github.com/dwootton/vibe-widgets) | [Report Issues](https://github.com/dwootton/vibe-widgets/issues)**
+**[Documentation](https://vibewidget.dev) | [GitHub](https://github.com/dwootton/vibe-widget) | [Report Issues](https://github.com/dwootton/vibe-widget/issues)**
