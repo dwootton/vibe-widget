@@ -58,7 +58,13 @@ pip-wheel-metadata/
 
 # Generated widgets
 *.html
+!web/index.html
 output/
+
+# Web build output
+web/dist/
+web/.env.local
+web/node_modules/
 
 .meridian/
 
@@ -69,6 +75,9 @@ output/
 node_modules/
 **/node_modules/
 
+# Generated widget artifacts (Python package)
+src/vibe_widget/dist/
+src/vibe_widget/frontend/node_modules/.package-lock.json
 
 
 /venv311/

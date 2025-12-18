@@ -20,6 +20,8 @@ def _load_models_manifest() -> Dict[str, Any]:
 
 MODELS_MANIFEST = _load_models_manifest()
 
+DEFAULT_MODEL = "google/gemini-3-flash-preview"
+
 _OPENROUTER_MODELS_CACHE: dict[str, Any] | None = None
 _OPENROUTER_MODELS_CACHE_TS: float | None = None
 
@@ -132,7 +134,7 @@ LATEST_MODELS = {"openrouter": STANDARD_MODELS.get("openrouter") or PREMIUM_MODE
 class Config:
     """Configuration for Vibe Widget LLM models."""
     
-    model: str = "openrouter"  # Default to OpenRouter standard tier
+    model: str = DEFAULT_MODEL  # Default to Gemini Flash preview via OpenRouter
     api_key: Optional[str] = None
     temperature: float = 0.7
     streaming: bool = True
@@ -250,7 +252,7 @@ def config(
     
     Examples:
         >>> # Standard mode (default) - fast/affordable
-        >>> vw.config(model="openrouter")   # Uses google/gemini-2.5-flash
+        >>> vw.config()   # Uses google/gemini-3-flash-preview
         >>>
         >>> # Premium mode - stronger models
         >>> vw.config(mode="premium", model="openrouter")  # Uses google/gemini-3-pro-preview
@@ -264,7 +266,7 @@ def config(
     # Create new config or update existing
     if _global_config is None:
         _global_config = Config(
-            model=model or "openrouter",
+            model=model or DEFAULT_MODEL,
             api_key=api_key,
             temperature=temperature or 0.7,
             mode=mode or "standard",
@@ -383,6 +385,7 @@ def models(
 
         print("Model selection (OpenRouter)")
         print("Defaults:")
+        print(f"  default: {DEFAULT_MODEL}")
         print(f'  vw.config(model="openrouter")  # -> {standard_default}')
         print(f'  vw.config(model="openrouter", mode="premium")  # -> {premium_default}')
         print("Explicit examples:")

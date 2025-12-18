@@ -2,7 +2,7 @@
 
 ![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Multi-Provider](https://img.shields.io/badge/LLM-Multi%20Provider-blueviolet)
+![Provider](https://img.shields.io/badge/LLM-OpenRouter-blueviolet)
 ![PyPI - Version](https://img.shields.io/pypi/v/vibe-widget)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/vibe-widget)
 
@@ -93,8 +93,8 @@ Not limited to standard charts. Generate 3D visualizations, interactive games, c
 **Smart Caching**  
 Generated widgets are automatically cached. Same description and data structure loads instantly from disk without regenerating.
 
-**Multi-Model Support**  
-Choose between Claude (Anthropic), GPT (OpenAI), Gemini (Google), or any OpenRouter-supported model.
+**Model Defaults That Make Sense**  
+Uses OpenRouter with the fast default `google/gemini-3-flash-preview`; override via `vw.config(model=\"...\")`.
 
 ---
 
@@ -104,11 +104,10 @@ Choose between Claude (Anthropic), GPT (OpenAI), Gemini (Google), or any OpenRou
 pip install vibe-widget
 ```
 
-Set your API key for your preferred AI provider:
+Set your OpenRouter API key:
 
 ```bash
-# Choose one based on your preferred model
-export OPENROUTER_API_KEY='your-key'   # for OpenRouter models
+export OPENROUTER_API_KEY='your-key'
 ```
 
 ---
@@ -320,7 +319,7 @@ Natural Language → Data Processing → AI Code Generation → Validation → C
 - **Core Module** (`core.py`): Main VibeWidget class, `create()` and `revise()` functions
 - **Data Loading** (`data_tools.py`): Universal data loader supporting 15+ formats
 - **Agentic Orchestration** (`agentic.py`): Coordinates LLM code generation and validation
-- **Multi-Provider LLMs** (`providers/`): Support for Anthropic, OpenAI, Google, OpenRouter
+- **LLM Provider** (`providers/openrouter_provider.py`): OpenRouter-only gateway with pinned defaults
 - **Validation Tools** (`code_tools.py`): Syntax checking and code validation
 - **Widget Store** (`widget_store.py`): Smart caching and version management
 - **Code Parser** (`code_parser.py`): Stream parsing for real-time generation feedback
@@ -366,7 +365,7 @@ MIT License - see [LICENSE](LICENSE) for details
 ## Acknowledgments
 
 Built with:
-- [Anthropic Claude](https://www.anthropic.com/), [OpenAI GPT](https://openai.com/), [Google Gemini](https://deepmind.google/technologies/gemini/)
+- [OpenRouter](https://openrouter.ai/) models (defaults to Google Gemini Flash Preview)
 - [anywidget](https://anywidget.dev/) & [ipywidgets](https://ipywidgets.readthedocs.io/)
 - [Traitlets](https://traitlets.readthedocs.io/) for state management
 - [Crawl4AI](https://github.com/unclecode/crawl4ai) for web scraping

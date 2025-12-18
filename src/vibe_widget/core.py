@@ -3,8 +3,8 @@ Core VibeWidget implementation.
 Clean, robust widget generation without legacy profile logic.
 """
 from pathlib import Path
-from turtle import mode
 from typing import Any
+import warnings
 
 import anywidget
 import pandas as pd
@@ -13,7 +13,14 @@ import traitlets
 from vibe_widget.utils.code_parser import CodeStreamParser, RevisionStreamParser
 from vibe_widget.llm.agentic import AgenticOrchestrator
 from vibe_widget.llm.providers.base import LLMProvider
-from vibe_widget.config import get_global_config, Config, PREMIUM_MODELS, STANDARD_MODELS
+from vibe_widget.config import (
+    DEFAULT_MODEL,
+    Config,
+    PREMIUM_MODELS,
+    STANDARD_MODELS,
+    get_global_config,
+    set_global_config,
+)
 from vibe_widget.llm.providers.openrouter_provider import OpenRouterProvider
 
 from vibe_widget.utils.widget_store import WidgetStore
@@ -57,7 +64,7 @@ class VibeWidget(anywidget.AnyWidget):
         cls,
         description: str,
         df: pd.DataFrame,
-        model: str = "openrouter",
+        model: str = DEFAULT_MODEL,
         show_progress: bool = True,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
@@ -101,7 +108,7 @@ class VibeWidget(anywidget.AnyWidget):
         self, 
         description: str, 
         df: pd.DataFrame, 
-        model: str = "openrouter",
+        model: str = DEFAULT_MODEL,
         show_progress: bool = True,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
@@ -135,7 +142,11 @@ class VibeWidget(anywidget.AnyWidget):
         self._base_components = base_components or []
         self._base_widget_id = base_widget_id
         
-        app_wrapper_path = Path(__file__).parent / "app_wrapper.js"
+        app_wrapper_dir = Path(__file__).parent
+        app_wrapper_path = app_wrapper_dir / "AppWrapper.js"
+        if not app_wrapper_path.exists():
+            # Fallback for older builds
+            app_wrapper_path = app_wrapper_dir / "app_wrapper.js"
         self._esm = app_wrapper_path.read_text()
         
         data_json = df.to_dict(orient="records")
@@ -165,11 +176,7 @@ class VibeWidget(anywidget.AnyWidget):
         try:
             self.logs = [f"Analyzing data: {df.shape[0]} rows × {df.shape[1]} columns"]
             
-            config = get_global_config()
-            # provider = get_provider(model, config.api_key, config.mode)
-            model_map = PREMIUM_MODELS if mode == "premium" else STANDARD_MODELS
-            resolved_model = model_map.get(model, model)
-    
+            resolved_model, config = _resolve_model(model)
             provider = OpenRouterProvider(resolved_model, config.api_key)
             
             # Serialize imports for cache lookup
@@ -278,7 +285,7 @@ class VibeWidget(anywidget.AnyWidget):
                 description=description,
                 data_var_name=data_var_name,
                 data_shape=df.shape,
-                model=model,
+                model=resolved_model,
                 exports=self._exports,
                 imports_serialized=imports_serialized,
                 notebook_path=notebook_path,
@@ -555,6 +562,26 @@ def _display_widget(widget: VibeWidget) -> None:
         pass
 
 
+def _resolve_model(
+    model_override: str | None = None,
+    config_override: Config | None = None,
+) -> tuple[str, Config]:
+    """Resolve the model using global config; config arg is deprecated shim."""
+    if config_override is not None:
+        warnings.warn(
+            "Passing `config` to create/revise is deprecated; call vw.config(...) first.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        set_global_config(config_override)
+
+    config = get_global_config()
+    candidate = model_override or config.model
+    model_map = PREMIUM_MODELS if config.mode == "premium" else STANDARD_MODELS
+    resolved_model = model_map.get(candidate, candidate)
+    return resolved_model, config
+
+
 def create(
     description: str,
     data: pd.DataFrame | str | Path | None = None,
@@ -571,7 +598,7 @@ def create(
         show_progress: Whether to show progress
         exports: Dict of {trait_name: description} for exposed state
         imports: Dict of {trait_name: source} for consumed state
-        config: Optional Config object with model settings
+        config: Optional Config object with model settings (deprecated; call vw.config instead)
     
     Returns:
         VibeWidget instance
@@ -580,7 +607,7 @@ def create(
         >>> widget = create("show temperature trends", df)
         >>> widget = create("visualize sales data", "sales.csv")
     """
-    model = config.model if config and not model else get_global_config().model
+    model, _ = _resolve_model(config_override=config)
     df = load_data(data)
 
     widget = VibeWidget._create_with_dynamic_traits(
@@ -669,7 +696,7 @@ def revise(
         show_progress: Whether to show progress
         exports: Dict of {trait_name: description} for new/modified exports
         imports: Dict of {trait_name: source} for new/modified imports
-        config: Optional Config object with model settings
+        config: Optional Config object with model settings (deprecated; call vw.config instead)
     
     Returns:
         New VibeWidget instance with revised code
@@ -680,7 +707,7 @@ def revise(
     """
     store = WidgetStore()
     source_info = _resolve_source(source, store)
-    model = config.model if config and not model else get_global_config().model
+    model, _ = _resolve_model(config_override=config)
     df = source_info.df if data is None and source_info.df is not None else load_data(data)
     
     widget = VibeWidget._create_with_dynamic_traits(
