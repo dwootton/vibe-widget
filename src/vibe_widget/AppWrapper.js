@@ -39,6 +39,7 @@ function SandboxedRunner({ code, model }) {
   const [error, setError] = React.useState(null);
   const [GuestWidget, setGuestWidget] = React.useState(null);
   const [isRetrying, setIsRetrying] = React.useState(false);
+  const containerRef = React.useRef(null);
   React.useEffect(() => {
     if (!code) return;
     const executeCode = async () => {
@@ -74,6 +75,36 @@ Suggestion: ${suggestion}` : err.message);
     };
     executeCode();
   }, [code, model]);
+  React.useEffect(() => {
+    if (!GuestWidget) return;
+    let cancelled = false;
+    let triggered = false;
+    const start = performance.now();
+    const validateSize = () => {
+      if (cancelled || triggered) return;
+      const rect = containerRef.current?.getBoundingClientRect();
+      const hasSize = rect && rect.width > 0 && rect.height > 0;
+      if (hasSize) return;
+      if (performance.now() - start < 1200) {
+        requestAnimationFrame(validateSize);
+        return;
+      }
+      triggered = true;
+      const retryCount = model.get("retry_count") || 0;
+      const message = `Widget rendered with zero size (width=${rect?.width ?? 0}, height=${rect?.height ?? 0}). Treating as failure.`;
+      if (retryCount < 2) {
+        setIsRetrying(true);
+        model.set("error_message", message);
+        model.save_changes();
+      } else {
+        setError(message);
+      }
+    };
+    requestAnimationFrame(validateSize);
+    return () => {
+      cancelled = true;
+    };
+  }, [GuestWidget, code, model]);
   if (isRetrying) {
     return html`
       <div style=${{ padding: "20px", color: "#ffa07a", fontSize: "14px" }}>
@@ -105,7 +136,11 @@ Suggestion: ${suggestion}` : err.message);
       </div>
     `;
   }
-  return html`<${GuestWidget} model=${model} html=${html} React=${React} />`;
+  return html`
+    <div ref=${containerRef} style=${{ width: "100%", minHeight: "1px" }}>
+      <${GuestWidget} model=${model} html=${html} React=${React} />
+    </div>
+  `;
 }
 
 // src/vibe_widget/AppWrapper/components/FloatingMenu.js
