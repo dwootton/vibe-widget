@@ -9,7 +9,7 @@ import LoadingOverlay from "./components/LoadingOverlay";
 import SelectionOverlay from "./components/SelectionOverlay";
 import EditPromptPanel from "./components/EditPromptPanel";
 import AuditNotice from "./components/AuditNotice";
-import SourceViewer from "./components/SourceViewer";
+import EditorViewer from "./components/editor/EditorViewer";
 import useModelSync from "./hooks/useModelSync";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 
@@ -253,7 +253,7 @@ function AppWrapper({ model }) {
       `}
 
       ${showSource && html`
-        <${SourceViewer}
+        <${EditorViewer}
           code=${code}
           errorMessage=${sourceError}
           auditStatus=${auditStatus}

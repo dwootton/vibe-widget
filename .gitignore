@@ -78,6 +78,7 @@ node_modules/
 # Generated widget artifacts (Python package)
 src/vibe_widget/dist/
 src/vibe_widget/frontend/node_modules/.package-lock.json
+src/vibe_widget/AppWrapper.bundle.js
 
 
 /venv311/
