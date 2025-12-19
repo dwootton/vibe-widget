@@ -3,7 +3,14 @@ import htm from "https://esm.sh/htm@3";
 
 const html = htm.bind(React.createElement);
 
-export default function FloatingMenu({ isOpen, onToggle, onGrabModeStart, onViewSource, isEditMode }) {
+export default function FloatingMenu({
+  isOpen,
+  onToggle,
+  onGrabModeStart,
+  onViewSource,
+  highAuditCount,
+  isEditMode
+}) {
   return html`
     <div class="floating-menu-container">
       <style>
@@ -12,6 +19,11 @@ export default function FloatingMenu({ isOpen, onToggle, onGrabModeStart, onView
           top: 12px;
           right: 12px;
           z-index: 1000;
+        }
+        .menu-dot-wrapper {
+          position: relative;
+          width: 28px;
+          height: 28px;
         }
         .menu-dot {
           width: 28px;
@@ -24,6 +36,23 @@ export default function FloatingMenu({ isOpen, onToggle, onGrabModeStart, onView
           justify-content: center;
           box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
           transition: all 0.3s ease;
+        }
+        .menu-badge {
+          position: absolute;
+          top: -6px;
+          right: -6px;
+          min-width: 18px;
+          height: 18px;
+          border-radius: 999px;
+          background: #f87171;
+          color: #0b0b0b;
+          font-size: 10px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 4px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
         }
         .menu-dot:hover {
           transform: scale(1.1);
@@ -70,8 +99,15 @@ export default function FloatingMenu({ isOpen, onToggle, onGrabModeStart, onView
         }
       </style>
       
-      <div class="menu-dot ${isEditMode ? "spinning" : ""}" onClick=${onToggle}>
-        <div class="menu-dot-inner"></div>
+      <div class="menu-dot-wrapper">
+        <div class="menu-dot ${isEditMode ? "spinning" : ""}" onClick=${onToggle}>
+          <div class="menu-dot-inner"></div>
+        </div>
+        ${highAuditCount > 0 && html`
+          <div class="menu-badge" title="High impact audit items">
+            ${highAuditCount}
+          </div>
+        `}
       </div>
       
       ${isOpen && html`

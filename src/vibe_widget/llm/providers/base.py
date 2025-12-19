@@ -70,6 +70,18 @@ class LLMProvider(ABC):
             Fixed widget code as a string
         """
         pass
+
+    @abstractmethod
+    def generate_audit_report(
+        self,
+        code: str,
+        description: str,
+        data_info: dict[str, Any],
+        level: str,
+        changed_lines: list[int] | None = None,
+    ) -> str:
+        """Generate an audit report for widget code."""
+        pass
     
     def _build_prompt(
         self,
@@ -296,6 +308,127 @@ MANDATORY FIX RULES:
 6. Initialize exports and call model.save_changes()
 
 Return ONLY the corrected JavaScript code."""
+
+    def _build_audit_prompt(
+        self,
+        *,
+        code: str,
+        description: str,
+        data_info: dict[str, Any],
+        level: str,
+        changed_lines: list[int] | None = None,
+    ) -> str:
+        """Build prompt for audit generation."""
+        columns = data_info.get("columns", [])
+        dtypes = data_info.get("dtypes", {})
+        sample_data = data_info.get("sample", {})
+        exports = data_info.get("exports", {})
+        imports = data_info.get("imports", {})
+        changed_lines_section = ""
+        if changed_lines:
+            changed_lines_section = f"""
+CHANGED LINES (only report concerns tied to these lines, or global concerns if truly code-wide):
+{changed_lines}
+"""
+
+        if level == "fast":
+            schema = """Return JSON with root key "fast_audit":
+{
+  "fast_audit": {
+    "version": "1.0",
+    "widget_description": "...",
+    "concerns": [
+      {
+        "id": "data.selection.null_handling",
+        "location": "global" | [1,2,3],
+        "summary": "...",
+        "details": "...",
+        "technical_summary": "...",
+        "impact": "high" | "medium" | "low",
+        "default": true,
+        "alternatives": ["..."]
+      }
+    ],
+    "open_questions": ["..."]
+  }
+}"""
+        else:
+            schema = """Return JSON with root key "full_audit":
+{
+  "full_audit": {
+    "version": "1.0",
+    "widget_description": "...",
+    "concerns": [
+      {
+        "id": "computation.parameters.seed",
+        "location": "global" | [1,2,3],
+        "summary": "...",
+        "impact": "high" | "medium" | "low",
+        "default": true,
+        "rationale": "...",
+        "alternatives": [
+          {
+            "option": "...",
+            "when_better": "...",
+            "when_worse": "..."
+          }
+        ],
+        "lenses": {
+          "impact": "high" | "medium" | "low",
+          "uncertainty": "...",
+          "reproducibility": "...",
+          "edge_behavior": "...",
+          "default_vs_explicit": "...",
+          "appropriateness": "...",
+          "safety": "..."
+        }
+      }
+    ],
+    "open_questions": ["..."]
+  }
+}"""
+
+        return f"""You are an auditing assistant for VibeWidget code.
+
+Audit taxonomy:
+- DATA: selection, transformation, format, provenance
+- COMPUTATION: method, parameters, assumptions, execution
+- PRESENTATION: encoding, scale, compression, framing
+- INTERACTION: triggers, state, propagation, feedback
+
+Lenses:
+- Impact (high/medium/low): would a different choice change conclusions?
+- Uncertainty: confidence, sample size, stability
+- Reproducibility: can it be recreated exactly?
+- Edge Behavior: empty/extreme/boundary inputs
+- Default vs Explicit: user choice vs assumption
+- Appropriateness: method suitability
+- Safety: resource usage, side effects, failure modes
+
+Constraints:
+- Use line numbers from the provided code.
+- Location must be "global" or a list of integers.
+- IDs should be stable, descriptive, and scoped like "domain.type.short_name".
+- Be conservative: default to low impact unless there is clear evidence of medium/high.
+- High impact should be rare and reserved for likely conclusion-changing choices.
+- Summaries must be understandable to non-coders.
+- "details" should expand in plain language (1-2 sentences).
+- "technical_summary" should be brief and technical, and only included when helpful.
+- Return ONLY JSON, no markdown or commentary.
+
+Widget description: {description}
+Data schema:
+- Columns: {', '.join(columns) if columns else 'No data (widget uses imports only)'}
+- Types: {dtypes}
+- Sample data: {sample_data}
+- Exports: {exports}
+- Imports: {imports}
+
+{changed_lines_section}
+CODE WITH LINE NUMBERS:
+{code}
+
+{schema}"""
     
     def _build_exports_imports_section(self, exports: dict, imports: dict) -> str:
         """Build the exports/imports section of the prompt."""

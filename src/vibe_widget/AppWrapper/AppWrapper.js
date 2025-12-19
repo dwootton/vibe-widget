@@ -20,7 +20,18 @@ ensureGlobalStyles();
 const AUDIT_ACK_KEY = "vibe_widget_audit_ack";
 
 function AppWrapper({ model }) {
-  const { status, logs, code, errorMessage } = useModelSync(model);
+  const {
+    status,
+    logs,
+    code,
+    errorMessage,
+    auditStatus,
+    auditResponse,
+    auditError,
+    auditApplyStatus,
+    auditApplyResponse,
+    auditApplyError
+  } = useModelSync(model);
   const [isMenuOpen, setMenuOpen] = React.useState(false);
   const [grabMode, setGrabMode] = React.useState(null);
   const [promptCache, setPromptCache] = React.useState({});
@@ -136,7 +147,17 @@ function AppWrapper({ model }) {
     }
   }, [renderCode, lastGoodCode]);
 
-  const handleApplySource = (nextCode) => {
+  const handleApplySource = (payload) => {
+    if (payload && payload.type === "audit_apply") {
+      model.set("audit_apply_request", {
+        changes: payload.changes || [],
+        base_code: payload.baseCode || ""
+      });
+      model.save_changes();
+      setShowSource(false);
+      return;
+    }
+    const nextCode = payload;
     setApplyState({
       pending: true,
       previousCode: code,
@@ -147,6 +168,20 @@ function AppWrapper({ model }) {
     model.set("code", nextCode);
     model.save_changes();
   };
+
+  const handleAuditRequest = (level) => {
+    model.set("audit_request", {
+      level: level || "fast",
+      request_id: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    });
+    model.save_changes();
+  };
+
+  const auditReport = auditResponse?.report_yaml || "";
+  const auditMeta = auditResponse && !auditResponse.error ? auditResponse : null;
+  const auditData = auditResponse?.report || null;
+  const auditConcerns = auditData?.fast_audit?.concerns || [];
+  const highAuditCount = auditConcerns.filter((concern) => concern?.impact === "high").length;
 
   const handleAuditAccept = () => {
     try {
@@ -191,6 +226,7 @@ function AppWrapper({ model }) {
           onToggle=${() => setMenuOpen(!isMenuOpen)}
           onGrabModeStart=${handleGrabStart}
           onViewSource=${handleViewSource}
+          highAuditCount=${highAuditCount}
           isEditMode=${!!grabMode}
         />
       `}
@@ -220,6 +256,15 @@ function AppWrapper({ model }) {
         <${SourceViewer}
           code=${code}
           errorMessage=${sourceError}
+          auditStatus=${auditStatus}
+          auditReport=${auditReport}
+          auditError=${auditError || auditResponse?.error}
+          auditMeta=${auditMeta}
+          auditData=${auditData}
+          auditApplyStatus=${auditApplyStatus}
+          auditApplyResponse=${auditApplyResponse}
+          auditApplyError=${auditApplyError}
+          onAudit=${handleAuditRequest}
           onApply=${handleApplySource}
           onClose=${() => setShowSource(false)}
         />

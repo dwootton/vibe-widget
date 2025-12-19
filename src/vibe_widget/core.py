@@ -4,6 +4,7 @@ Clean, robust widget generation without legacy profile logic.
 """
 from pathlib import Path
 from typing import Any
+import json
 import warnings
 import inspect
 
@@ -26,6 +27,15 @@ from vibe_widget.config import (
 from vibe_widget.llm.providers.openrouter_provider import OpenRouterProvider
 
 from vibe_widget.utils.widget_store import WidgetStore
+from vibe_widget.utils.audit_store import (
+    AuditStore,
+    compute_code_hash,
+    compute_line_hashes,
+    render_numbered_code,
+    format_audit_yaml,
+    strip_internal_fields,
+    normalize_location,
+)
 from vibe_widget.utils.util import clean_for_json, initial_import_value, load_data
 
 
@@ -80,6 +90,14 @@ class VibeWidget(anywidget.AnyWidget):
     retry_count = traitlets.Int(0).tag(sync=True)
     grab_edit_request = traitlets.Dict({}).tag(sync=True)
     edit_in_progress = traitlets.Bool(False).tag(sync=True)
+    audit_request = traitlets.Dict({}).tag(sync=True)
+    audit_response = traitlets.Dict({}).tag(sync=True)
+    audit_status = traitlets.Unicode("idle").tag(sync=True)
+    audit_error = traitlets.Unicode("").tag(sync=True)
+    audit_apply_request = traitlets.Dict({}).tag(sync=True)
+    audit_apply_response = traitlets.Dict({}).tag(sync=True)
+    audit_apply_status = traitlets.Unicode("idle").tag(sync=True)
+    audit_apply_error = traitlets.Unicode("").tag(sync=True)
 
     @staticmethod
     def _trait_to_json(x, self):
@@ -195,11 +213,21 @@ class VibeWidget(anywidget.AnyWidget):
             code="",
             error_message="",
             retry_count=0,
+            audit_request={},
+            audit_response={},
+            audit_status="idle",
+            audit_error="",
+            audit_apply_request={},
+            audit_apply_response={},
+            audit_apply_status="idle",
+            audit_apply_error="",
             **kwargs
         )
         
         self.observe(self._on_error, names='error_message')
         self.observe(self._on_grab_edit, names='grab_edit_request')
+        self.observe(self._on_audit_request, names='audit_request')
+        self.observe(self._on_audit_apply_request, names='audit_apply_request')
         
         try:
             from IPython.display import display
@@ -492,6 +520,382 @@ class VibeWidget(anywidget.AnyWidget):
             imports=imports,
             config=config,
         )
+
+    def audit(
+        self,
+        level: str = "fast",
+        *,
+        reuse: bool = True,
+        display: bool = True,
+    ) -> dict[str, Any]:
+        """Run an audit on the current widget code."""
+        try:
+            return self._run_audit(level=level, reuse=reuse, display=display)
+        except Exception as exc:
+            self.audit_status = "error"
+            self.audit_error = str(exc)
+            raise
+
+    def _parse_audit_json(self, raw_text: str) -> dict[str, Any]:
+        """Parse JSON from LLM output with a best-effort fallback."""
+        try:
+            return json.loads(raw_text)
+        except json.JSONDecodeError:
+            start = raw_text.find("{")
+            end = raw_text.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                return json.loads(raw_text[start:end + 1])
+            raise
+
+    def _normalize_audit_report(
+        self,
+        report: dict[str, Any],
+        level: str,
+        widget_description: str,
+    ) -> dict[str, Any]:
+        root_key = "fast_audit" if level == "fast" else "full_audit"
+        alt_key = "full_audit" if root_key == "fast_audit" else "fast_audit"
+        if root_key in report:
+            payload = report.get(root_key)
+        elif alt_key in report:
+            payload = report.get(alt_key)
+        else:
+            payload = report
+        if not isinstance(payload, dict):
+            payload = {}
+        payload.setdefault("version", "1.0")
+        payload.setdefault("widget_description", widget_description)
+
+        raw_concerns = payload.get("concerns", [])
+        if not isinstance(raw_concerns, list):
+            raw_concerns = []
+
+        normalized_concerns: list[dict[str, Any]] = []
+        for concern in raw_concerns:
+            if not isinstance(concern, dict):
+                continue
+            location = normalize_location(concern.get("location", "global"))
+            impact = str(concern.get("impact", "low")).lower()
+            if level == "full" and impact not in {"high", "medium", "low"}:
+                impact = "medium"
+            if level == "fast" and impact not in {"high", "medium", "low"}:
+                impact = "low"
+
+            alternatives = concern.get("alternatives", [])
+            if not isinstance(alternatives, list):
+                alternatives = []
+            if level == "full":
+                normalized_alts = []
+                for item in alternatives:
+                    if isinstance(item, dict):
+                        normalized_alts.append({
+                            "option": str(item.get("option", "")).strip(),
+                            "when_better": str(item.get("when_better", "")).strip(),
+                            "when_worse": str(item.get("when_worse", "")).strip(),
+                        })
+                    else:
+                        normalized_alts.append({
+                            "option": str(item).strip(),
+                            "when_better": "",
+                            "when_worse": "",
+                        })
+                alternatives = normalized_alts
+
+            normalized = {
+                "id": str(concern.get("id", "")).strip() or "concern.unknown",
+                "location": location,
+                "summary": str(concern.get("summary", "")).strip(),
+                "details": str(concern.get("details", "")).strip(),
+                "technical_summary": str(concern.get("technical_summary", "")).strip(),
+                "impact": impact,
+                "default": bool(concern.get("default", False)),
+                "alternatives": alternatives,
+            }
+            if level == "full":
+                lenses = concern.get("lenses", {})
+                if not isinstance(lenses, dict):
+                    lenses = {}
+                normalized["rationale"] = str(concern.get("rationale", "")).strip()
+                normalized["lenses"] = {
+                    "impact": str(lenses.get("impact", "medium")).lower(),
+                    "uncertainty": str(lenses.get("uncertainty", "")).strip(),
+                    "reproducibility": str(lenses.get("reproducibility", "")).strip(),
+                    "edge_behavior": str(lenses.get("edge_behavior", "")).strip(),
+                    "default_vs_explicit": str(lenses.get("default_vs_explicit", "")).strip(),
+                    "appropriateness": str(lenses.get("appropriateness", "")).strip(),
+                    "safety": str(lenses.get("safety", "")).strip(),
+                }
+            normalized_concerns.append(normalized)
+
+        payload["concerns"] = normalized_concerns
+        open_questions = payload.get("open_questions", [])
+        if not isinstance(open_questions, list):
+            open_questions = []
+        payload["open_questions"] = [str(q).strip() for q in open_questions if str(q).strip()]
+        return {root_key: payload}
+
+    def _run_audit(
+        self,
+        *,
+        level: str,
+        reuse: bool,
+        display: bool,
+    ) -> dict[str, Any]:
+        if not self.code:
+            raise ValueError("No widget code available to audit.")
+        level = level.lower()
+        if level not in {"fast", "full"}:
+            raise ValueError("Audit level must be 'fast' or 'full'.")
+
+        self.audit_status = "running"
+        self.audit_error = ""
+
+        code = self.code
+        widget_metadata = self._widget_metadata or {}
+        widget_description = self.description or widget_metadata.get("description", "Widget")
+        store = AuditStore()
+        current_code_hash = compute_code_hash(code)
+        current_line_hashes = compute_line_hashes(code)
+
+        previous_audit = None
+        if reuse and widget_metadata.get("id"):
+            previous_audit = store.load_latest_audit(widget_metadata["id"], level)
+        if not previous_audit and reuse and widget_metadata.get("base_widget_id"):
+            previous_audit = store.load_latest_audit(widget_metadata["base_widget_id"], level)
+
+        reused_concerns: list[dict[str, Any]] = []
+        stale_concerns: list[dict[str, Any]] = []
+        previous_questions: list[str] = []
+        changed_lines: list[int] | None = None
+
+        if reuse and previous_audit:
+            prev_report = previous_audit.get("report", {})
+            root_key = "fast_audit" if level == "fast" else "full_audit"
+            prev_payload = prev_report.get(root_key, {})
+            prev_concerns = prev_payload.get("concerns", []) if isinstance(prev_payload, dict) else []
+            prev_line_hashes = previous_audit.get("line_hashes", {})
+            prev_code_hash = previous_audit.get("code_hash")
+            previous_questions = prev_payload.get("open_questions", []) if isinstance(prev_payload, dict) else []
+            if not isinstance(previous_questions, list):
+                previous_questions = []
+
+            for concern in prev_concerns:
+                if not isinstance(concern, dict):
+                    continue
+                location = normalize_location(concern.get("location", "global"))
+                if location == "global":
+                    if prev_code_hash == current_code_hash:
+                        reused_concerns.append(concern)
+                    else:
+                        stale_concerns.append(concern)
+                    continue
+                line_hashes = concern.get("line_hashes", [])
+                if not isinstance(line_hashes, list) or not line_hashes or len(line_hashes) != len(location):
+                    stale_concerns.append(concern)
+                    continue
+                current_matches = []
+                for line_num, expected_hash in zip(location, line_hashes):
+                    current_matches.append(current_line_hashes.get(int(line_num)) == expected_hash)
+                if all(current_matches):
+                    reused_concerns.append(concern)
+                else:
+                    stale_concerns.append(concern)
+
+            if not stale_concerns and prev_code_hash == current_code_hash:
+                report_public = strip_internal_fields(prev_report)
+                self.audit_status = "idle"
+                result = {
+                    "level": level,
+                    "report": report_public,
+                    "report_yaml": previous_audit.get("report_yaml", ""),
+                    "saved_path": str((store.audits_dir / previous_audit["entry"]["yaml_file_name"]).resolve()),
+                    "audit_id": previous_audit["entry"]["audit_id"],
+                    "reused_count": len(reused_concerns),
+                    "updated_count": 0,
+                }
+                self.audit_response = result
+                if display:
+                    try:
+                        from IPython.display import display, Markdown
+                        display(Markdown(f"```yaml\n{result['report_yaml']}\n```"))
+                    except Exception:
+                        print(result["report_yaml"])
+                return result
+
+            prev_line_hashes_int = {int(k): v for k, v in prev_line_hashes.items()} if isinstance(prev_line_hashes, dict) else {}
+            max_line = max(max(prev_line_hashes_int.keys(), default=0), max(current_line_hashes.keys(), default=0))
+            changed = []
+            for line_num in range(1, max_line + 1):
+                if prev_line_hashes_int.get(line_num) != current_line_hashes.get(line_num):
+                    changed.append(line_num)
+            changed_lines = changed or None
+
+        clean_data_info = clean_for_json(self.data_info)
+        numbered_code = render_numbered_code(code)
+
+        provider = getattr(self, "orchestrator", None).provider if getattr(self, "orchestrator", None) else None
+        if provider is None:
+            resolved_model, config = _resolve_model(widget_metadata.get("model"))
+            provider = OpenRouterProvider(resolved_model, config.api_key)
+
+        raw_report = provider.generate_audit_report(
+            code=numbered_code,
+            description=widget_description,
+            data_info=clean_data_info,
+            level=level,
+            changed_lines=changed_lines,
+        )
+        parsed = self._parse_audit_json(raw_report)
+        normalized_report = self._normalize_audit_report(parsed, level, widget_description)
+
+        root_key = "fast_audit" if level == "fast" else "full_audit"
+        payload = normalized_report[root_key]
+        new_concerns = payload.get("concerns", [])
+        filtered_concerns: list[dict[str, Any]] = []
+        for concern in new_concerns:
+            location = normalize_location(concern.get("location", "global"))
+            concern["location"] = location
+            if changed_lines and location != "global":
+                if not any(line in changed_lines for line in location):
+                    continue
+            if location != "global":
+                concern["line_hashes"] = [current_line_hashes.get(int(line)) for line in location]
+            filtered_concerns.append(concern)
+
+        merged_concerns = reused_concerns[:]
+        existing_ids = {c.get("id") for c in merged_concerns if isinstance(c, dict)}
+        for concern in filtered_concerns:
+            if concern.get("id") in existing_ids:
+                continue
+            merged_concerns.append(concern)
+
+        new_questions = payload.get("open_questions", [])
+        if not isinstance(new_questions, list):
+            new_questions = []
+        merged_questions = list(dict.fromkeys([*previous_questions, *new_questions]))
+        payload["concerns"] = merged_concerns
+        payload["open_questions"] = merged_questions
+        normalized_report[root_key] = payload
+
+        report_public = strip_internal_fields(normalized_report)
+        report_yaml = format_audit_yaml(report_public)
+
+        saved = store.save_audit(
+            level=level,
+            widget_metadata=widget_metadata,
+            report=normalized_report,
+            report_yaml=report_yaml,
+            code_hash=current_code_hash,
+            line_hashes=current_line_hashes,
+            reused_concerns=[c.get("id") for c in reused_concerns if isinstance(c, dict)],
+            updated_concerns=[c.get("id") for c in filtered_concerns if isinstance(c, dict)],
+            source_widget_id=widget_metadata.get("base_widget_id"),
+        )
+
+        result = {
+            "level": level,
+            "report": report_public,
+            "report_yaml": report_yaml,
+            "saved_path": str((store.audits_dir / saved["entry"]["yaml_file_name"]).resolve()),
+            "audit_id": saved["entry"]["audit_id"],
+            "reused_count": len(reused_concerns),
+            "updated_count": len(filtered_concerns),
+        }
+
+        self.audit_status = "idle"
+        self.audit_response = result
+        if display:
+            try:
+                from IPython.display import display, Markdown
+                display(Markdown(f"```yaml\n{report_yaml}\n```"))
+            except Exception:
+                print(report_yaml)
+        return result
+
+    def _on_audit_request(self, change):
+        """Handle audit requests from the frontend."""
+        request = change.get("new") or {}
+        if not request:
+            return
+        if self.audit_status == "running":
+            return
+        level = str(request.get("level", "fast")).lower()
+        reuse = bool(request.get("reuse", True))
+        try:
+            result = self._run_audit(level=level, reuse=reuse, display=False)
+            self.audit_response = result
+        except Exception as exc:
+            self.audit_status = "error"
+            self.audit_error = str(exc)
+            self.audit_response = {"error": str(exc), "level": level}
+        finally:
+            self.audit_request = {}
+
+    def _on_audit_apply_request(self, change):
+        """Apply audit-driven changes via the LLM."""
+        request = change.get("new") or {}
+        if not request:
+            return
+        if self.audit_apply_status == "running":
+            return
+
+        changes = request.get("changes", [])
+        base_code = request.get("base_code") or self.code
+        if not base_code:
+            self.audit_apply_error = "No source code available to apply changes."
+            self.audit_apply_status = "error"
+            self.audit_apply_request = {}
+            return
+
+        self.audit_apply_status = "running"
+        self.audit_apply_error = ""
+        self.status = "generating"
+
+        change_lines = []
+        for item in changes:
+            if not isinstance(item, dict):
+                continue
+            summary = str(item.get("summary") or item.get("label") or "").strip()
+            details = str(item.get("details") or "").strip()
+            technical = str(item.get("technical_summary") or "").strip()
+            user_note = str(item.get("user_note") or "").strip()
+            alternative = str(item.get("alternative") or "").strip()
+            location = item.get("location")
+            if isinstance(location, list) and location:
+                location_str = f"lines {', '.join(str(x) for x in location)}"
+            else:
+                location_str = "global"
+            parts = [f"- {summary or 'Change'} ({location_str})"]
+            if alternative:
+                parts.append(f"  alternative: {alternative}")
+            if user_note:
+                parts.append(f"  user_note: {user_note}")
+            if details:
+                parts.append(f"  details: {details}")
+            if technical:
+                parts.append(f"  technical: {technical}")
+            change_lines.append("\n".join(parts))
+
+        revision_request = "Apply these audit changes:\n" + "\n".join(change_lines)
+
+        try:
+            clean_data_info = clean_for_json(self.data_info)
+            revised_code = self.orchestrator.revise_code(
+                code=base_code,
+                revision_request=revision_request,
+                data_info=clean_data_info,
+            )
+            self.code = revised_code
+            self.status = "ready"
+            self.audit_apply_status = "idle"
+            self.audit_apply_response = {"success": True, "applied": len(changes)}
+        except Exception as exc:
+            self.audit_apply_status = "error"
+            self.audit_apply_error = str(exc)
+            self.audit_apply_response = {"success": False, "error": str(exc)}
+            self.status = "ready"
+        finally:
+            self.audit_apply_request = {}
     
     def _on_error(self, change):
         """Called when frontend reports a runtime error."""
@@ -592,6 +996,7 @@ class VibeWidget(anywidget.AnyWidget):
             return
         
         old_code = self.code
+        previous_metadata = self._widget_metadata
         self._pending_old_code = old_code
         self.edit_in_progress = True
         self.status = 'generating'
@@ -673,6 +1078,13 @@ class VibeWidget(anywidget.AnyWidget):
                 imports_serialized=imports_serialized,
                 notebook_path=store.get_notebook_path(),
             )
+            if previous_metadata and previous_metadata.get("id"):
+                widget_entry["base_widget_id"] = previous_metadata["id"]
+                for entry in store.index["widgets"]:
+                    if entry["id"] == widget_entry["id"]:
+                        entry["base_widget_id"] = previous_metadata["id"]
+                        break
+                store._save_index()
             self._widget_metadata = widget_entry
             self.logs = self.logs + [f"Saved: {widget_entry['slug']} v{widget_entry['version']}"]
             

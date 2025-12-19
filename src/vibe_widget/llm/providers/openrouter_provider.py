@@ -125,6 +125,30 @@ class OpenRouterProvider(LLMProvider):
         )
         return self.clean_code(response.choices[0].message.content)
 
+    def generate_audit_report(
+        self,
+        code: str,
+        description: str,
+        data_info: dict[str, Any],
+        level: str,
+        changed_lines: list[int] | None = None,
+    ) -> str:
+        """Generate an audit report for widget code."""
+        prompt = self._build_audit_prompt(
+            code=code,
+            description=description,
+            data_info=data_info,
+            level=level,
+            changed_lines=changed_lines,
+        )
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=MAX_TOKENS,
+            temperature=0.2,
+        )
+        return response.choices[0].message.content
+
     def _handle_stream(self, stream, progress_callback: Callable[[str], None]) -> str:
         """Handle streaming response."""
         code_chunks = []

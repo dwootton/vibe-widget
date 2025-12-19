@@ -113,7 +113,14 @@ Suggestion: ${suggestion}` : err.message);
 import * as React2 from "https://esm.sh/react@18";
 import htm2 from "https://esm.sh/htm@3";
 var html2 = htm2.bind(React2.createElement);
-function FloatingMenu({ isOpen, onToggle, onGrabModeStart, onViewSource, isEditMode }) {
+function FloatingMenu({
+  isOpen,
+  onToggle,
+  onGrabModeStart,
+  onViewSource,
+  highAuditCount,
+  isEditMode
+}) {
   return html2`
     <div class="floating-menu-container">
       <style>
@@ -122,6 +129,11 @@ function FloatingMenu({ isOpen, onToggle, onGrabModeStart, onViewSource, isEditM
           top: 12px;
           right: 12px;
           z-index: 1000;
+        }
+        .menu-dot-wrapper {
+          position: relative;
+          width: 28px;
+          height: 28px;
         }
         .menu-dot {
           width: 28px;
@@ -134,6 +146,23 @@ function FloatingMenu({ isOpen, onToggle, onGrabModeStart, onViewSource, isEditM
           justify-content: center;
           box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
           transition: all 0.3s ease;
+        }
+        .menu-badge {
+          position: absolute;
+          top: -6px;
+          right: -6px;
+          min-width: 18px;
+          height: 18px;
+          border-radius: 999px;
+          background: #f87171;
+          color: #0b0b0b;
+          font-size: 10px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 4px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
         }
         .menu-dot:hover {
           transform: scale(1.1);
@@ -180,8 +209,15 @@ function FloatingMenu({ isOpen, onToggle, onGrabModeStart, onViewSource, isEditM
         }
       </style>
       
-      <div class="menu-dot ${isEditMode ? "spinning" : ""}" onClick=${onToggle}>
-        <div class="menu-dot-inner"></div>
+      <div class="menu-dot-wrapper">
+        <div class="menu-dot ${isEditMode ? "spinning" : ""}" onClick=${onToggle}>
+          <div class="menu-dot-inner"></div>
+        </div>
+        ${highAuditCount > 0 && html2`
+          <div class="menu-badge" title="High impact audit items">
+            ${highAuditCount}
+          </div>
+        `}
       </div>
       
       ${isOpen && html2`
@@ -2420,8 +2456,8 @@ var EditorSelection = class _EditorSelection {
     return new _EditorSelection(ranges, mainIndex);
   }
 };
-function checkSelection(selection2, docLength) {
-  for (let range of selection2.ranges)
+function checkSelection(selection, docLength) {
+  for (let range of selection.ranges)
     if (range.to > docLength)
       throw new RangeError("Selection points outside of document");
 }
@@ -2979,25 +3015,25 @@ var StateEffect = class _StateEffect {
 StateEffect.reconfigure = /* @__PURE__ */ StateEffect.define();
 StateEffect.appendConfig = /* @__PURE__ */ StateEffect.define();
 var Transaction = class _Transaction {
-  constructor(startState, changes, selection2, effects, annotations, scrollIntoView3) {
+  constructor(startState, changes, selection, effects, annotations, scrollIntoView3) {
     this.startState = startState;
     this.changes = changes;
-    this.selection = selection2;
+    this.selection = selection;
     this.effects = effects;
     this.annotations = annotations;
     this.scrollIntoView = scrollIntoView3;
     this._doc = null;
     this._state = null;
-    if (selection2)
-      checkSelection(selection2, changes.newLength);
+    if (selection)
+      checkSelection(selection, changes.newLength);
     if (!annotations.some((a) => a.type == _Transaction.time))
       this.annotations = annotations.concat(_Transaction.time.of(Date.now()));
   }
   /**
   @internal
   */
-  static create(startState, changes, selection2, effects, annotations, scrollIntoView3) {
-    return new _Transaction(startState, changes, selection2, effects, annotations, scrollIntoView3);
+  static create(startState, changes, selection, effects, annotations, scrollIntoView3) {
+    return new _Transaction(startState, changes, selection, effects, annotations, scrollIntoView3);
   }
   /**
   The new document produced by the transaction. Contrary to
@@ -3217,10 +3253,10 @@ function makeCategorizer(wordChars) {
   };
 }
 var EditorState = class _EditorState {
-  constructor(config2, doc2, selection2, values, computeSlot, tr) {
+  constructor(config2, doc2, selection, values, computeSlot, tr) {
     this.config = config2;
     this.doc = doc2;
-    this.selection = selection2;
+    this.selection = selection;
     this.values = values;
     this.status = config2.statusTemplate.slice();
     this.computeSlot = computeSlot;
@@ -3287,8 +3323,8 @@ var EditorState = class _EditorState {
     } else {
       startValues = tr.startState.values.slice();
     }
-    let selection2 = tr.startState.facet(allowMultipleSelections) ? tr.newSelection : tr.newSelection.asSingle();
-    new _EditorState(conf, tr.newDoc, selection2, startValues, (state, slot) => slot.update(state, tr), tr);
+    let selection = tr.startState.facet(allowMultipleSelections) ? tr.newSelection : tr.newSelection.asSingle();
+    new _EditorState(conf, tr.newDoc, selection, startValues, (state, slot) => slot.update(state, tr), tr);
   }
   /**
   Create a [transaction spec](https://codemirror.net/6/docs/ref/#state.TransactionSpec) that
@@ -3418,11 +3454,11 @@ var EditorState = class _EditorState {
   static create(config2 = {}) {
     let configuration = Configuration.resolve(config2.extensions || [], /* @__PURE__ */ new Map());
     let doc2 = config2.doc instanceof Text ? config2.doc : Text.of((config2.doc || "").split(configuration.staticFacet(_EditorState.lineSeparator) || DefaultSplit));
-    let selection2 = !config2.selection ? EditorSelection.single(0) : config2.selection instanceof EditorSelection ? config2.selection : EditorSelection.single(config2.selection.anchor, config2.selection.head);
-    checkSelection(selection2, doc2.length);
+    let selection = !config2.selection ? EditorSelection.single(0) : config2.selection instanceof EditorSelection ? config2.selection : EditorSelection.single(config2.selection.anchor, config2.selection.head);
+    checkSelection(selection, doc2.length);
     if (!configuration.staticFacet(allowMultipleSelections))
-      selection2 = selection2.asSingle();
-    return new _EditorState(configuration, doc2, selection2, configuration.dynamicSlots.map(() => null), (state, slot) => slot.create(state), null);
+      selection = selection.asSingle();
+    return new _EditorState(configuration, doc2, selection, configuration.dynamicSlots.map(() => null), (state, slot) => slot.create(state), null);
   }
   /**
   The size (in columns) of a tab in the document, determined by
@@ -3854,23 +3890,23 @@ var RangeSet = class _RangeSet {
   of the iteration.
   */
   static spans(sets, from, to, iterator, minPointSize = -1) {
-    let cursor2 = new SpanCursor(sets, null, minPointSize).goto(from), pos = from;
-    let openRanges = cursor2.openStart;
+    let cursor = new SpanCursor(sets, null, minPointSize).goto(from), pos = from;
+    let openRanges = cursor.openStart;
     for (; ; ) {
-      let curTo = Math.min(cursor2.to, to);
-      if (cursor2.point) {
-        let active = cursor2.activeForPoint(cursor2.to);
-        let openCount = cursor2.pointFrom < from ? active.length + 1 : cursor2.point.startSide < 0 ? active.length : Math.min(active.length, openRanges);
-        iterator.point(pos, curTo, cursor2.point, active, openCount, cursor2.pointRank);
-        openRanges = Math.min(cursor2.openEnd(curTo), active.length);
+      let curTo = Math.min(cursor.to, to);
+      if (cursor.point) {
+        let active = cursor.activeForPoint(cursor.to);
+        let openCount = cursor.pointFrom < from ? active.length + 1 : cursor.point.startSide < 0 ? active.length : Math.min(active.length, openRanges);
+        iterator.point(pos, curTo, cursor.point, active, openCount, cursor.pointRank);
+        openRanges = Math.min(cursor.openEnd(curTo), active.length);
       } else if (curTo > pos) {
-        iterator.span(pos, curTo, cursor2.active, openRanges);
-        openRanges = cursor2.openEnd(curTo);
+        iterator.span(pos, curTo, cursor.active, openRanges);
+        openRanges = cursor.openEnd(curTo);
       }
-      if (cursor2.to > to)
-        return openRanges + (cursor2.point && cursor2.to > to ? 1 : 0);
-      pos = cursor2.to;
-      cursor2.next();
+      if (cursor.to > to)
+        return openRanges + (cursor.point && cursor.to > to ? 1 : 0);
+      pos = cursor.to;
+      cursor.next();
     }
   }
   /**
@@ -5008,11 +5044,11 @@ function getSelection(root) {
 function contains(dom, node) {
   return node ? dom == node || dom.contains(node.nodeType != 1 ? node.parentNode : node) : false;
 }
-function hasSelection(dom, selection2) {
-  if (!selection2.anchorNode)
+function hasSelection(dom, selection) {
+  if (!selection.anchorNode)
     return false;
   try {
-    return contains(dom, selection2.anchorNode);
+    return contains(dom, selection.anchorNode);
   } catch (_) {
     return false;
   }
@@ -5288,9 +5324,9 @@ function getRoot(node) {
   }
   return null;
 }
-function atElementStart(doc2, selection2) {
-  let node = selection2.focusNode, offset = selection2.focusOffset;
-  if (!node || selection2.anchorNode != node || selection2.anchorOffset != offset)
+function atElementStart(doc2, selection) {
+  let node = selection.focusNode, offset = selection.focusOffset;
+  if (!node || selection.anchorNode != node || selection.anchorOffset != offset)
     return false;
   offset = Math.min(offset, maxOffset(node));
   for (; ; ) {
@@ -7416,32 +7452,32 @@ var DocView = class {
   // If a zero-length widget is inserted next to the cursor during
   // composition, avoid moving it across it and disrupting the
   // composition.
-  suppressWidgetCursorChange(sel, cursor2) {
-    return this.hasComposition && cursor2.empty && isEquivalentPosition(sel.focusNode, sel.focusOffset, sel.anchorNode, sel.anchorOffset) && this.posFromDOM(sel.focusNode, sel.focusOffset) == cursor2.head;
+  suppressWidgetCursorChange(sel, cursor) {
+    return this.hasComposition && cursor.empty && isEquivalentPosition(sel.focusNode, sel.focusOffset, sel.anchorNode, sel.anchorOffset) && this.posFromDOM(sel.focusNode, sel.focusOffset) == cursor.head;
   }
   enforceCursorAssoc() {
     if (this.hasComposition)
       return;
-    let { view } = this, cursor2 = view.state.selection.main;
+    let { view } = this, cursor = view.state.selection.main;
     let sel = getSelection(view.root);
     let { anchorNode, anchorOffset } = view.observer.selectionRange;
-    if (!sel || !cursor2.empty || !cursor2.assoc || !sel.modify)
+    if (!sel || !cursor.empty || !cursor.assoc || !sel.modify)
       return;
-    let line = this.lineAt(cursor2.head, cursor2.assoc);
+    let line = this.lineAt(cursor.head, cursor.assoc);
     if (!line)
       return;
     let lineStart = line.posAtStart;
-    if (cursor2.head == lineStart || cursor2.head == lineStart + line.length)
+    if (cursor.head == lineStart || cursor.head == lineStart + line.length)
       return;
-    let before = this.coordsAt(cursor2.head, -1), after = this.coordsAt(cursor2.head, 1);
+    let before = this.coordsAt(cursor.head, -1), after = this.coordsAt(cursor.head, 1);
     if (!before || !after || before.bottom > after.top)
       return;
-    let dom = this.domAtPos(cursor2.head + cursor2.assoc, cursor2.assoc);
+    let dom = this.domAtPos(cursor.head + cursor.assoc, cursor.assoc);
     sel.collapse(dom.node, dom.offset);
-    sel.modify("move", cursor2.assoc < 0 ? "forward" : "backward", "lineboundary");
+    sel.modify("move", cursor.assoc < 0 ? "forward" : "backward", "lineboundary");
     view.observer.readSelectionRange();
     let newRange = view.observer.selectionRange;
-    if (view.docView.posFromDOM(newRange.anchorNode, newRange.anchorOffset) != cursor2.from)
+    if (view.docView.posFromDOM(newRange.anchorNode, newRange.anchorOffset) != cursor.from)
       sel.collapse(anchorNode, anchorOffset);
   }
   posFromDOM(node, offset) {
@@ -8819,10 +8855,10 @@ var MouseSelection = class {
       this.select(this.lastEvent);
   }
   select(event) {
-    let { view } = this, selection2 = skipAtomsForSelection(this.atoms, this.style.get(event, this.extend, this.multiple));
-    if (this.mustSelect || !selection2.eq(view.state.selection, this.dragging === false))
+    let { view } = this, selection = skipAtomsForSelection(this.atoms, this.style.get(event, this.extend, this.multiple));
+    if (this.mustSelect || !selection.eq(view.state.selection, this.dragging === false))
       this.view.dispatch({
-        selection: selection2,
+        selection,
         userEvent: "select.pointer"
       });
     this.mustSelect = false;
@@ -11057,10 +11093,10 @@ var DOMObserver = class {
   }
   readSelectionRange() {
     let { view } = this;
-    let selection2 = getSelection(view.root);
-    if (!selection2)
+    let selection = getSelection(view.root);
+    if (!selection)
       return false;
-    let range = browser.safari && view.root.nodeType == 11 && view.root.activeElement == this.dom && safariSelectionRangeHack(this.view, selection2) || selection2;
+    let range = browser.safari && view.root.nodeType == 11 && view.root.activeElement == this.dom && safariSelectionRangeHack(this.view, selection) || selection;
     if (!range || this.selectionRange.eq(range))
       return false;
     let local = hasSelection(this.dom, range);
@@ -11344,9 +11380,9 @@ function buildSelectionRangeFromRange(view, range) {
     [anchorNode, anchorOffset, focusNode, focusOffset] = [focusNode, focusOffset, anchorNode, anchorOffset];
   return { anchorNode, anchorOffset, focusNode, focusOffset };
 }
-function safariSelectionRangeHack(view, selection2) {
-  if (selection2.getComposedRanges) {
-    let range = selection2.getComposedRanges(view.root)[0];
+function safariSelectionRangeHack(view, selection) {
+  if (selection.getComposedRanges) {
+    let range = selection.getComposedRanges(view.root)[0];
     if (range)
       return buildSelectionRangeFromRange(view, range);
   }
@@ -12990,8 +13026,8 @@ var cursorLayer = /* @__PURE__ */ layer({
       let prim = r == state.selection.main;
       if (r.empty || conf.drawRangeCursor) {
         let className = prim ? "cm-cursor cm-cursor-primary" : "cm-cursor cm-cursor-secondary";
-        let cursor2 = r.empty ? r : EditorSelection.cursor(r.head, r.head > r.anchor ? -1 : 1);
-        for (let piece of RectangleMarker.forRange(view, className, cursor2))
+        let cursor = r.empty ? r : EditorSelection.cursor(r.head, r.head > r.anchor ? -1 : 1);
+        for (let piece of RectangleMarker.forRange(view, className, cursor))
           cursors.push(piece);
       }
     }
@@ -13131,9 +13167,9 @@ function dropCursor() {
 }
 function iterMatches(doc2, re, from, to, f) {
   re.lastIndex = 0;
-  for (let cursor2 = doc2.iterRange(from, to), pos = from, m; !cursor2.next().done; pos += cursor2.value.length) {
-    if (!cursor2.lineBreak)
-      while (m = re.exec(cursor2.value))
+  for (let cursor = doc2.iterRange(from, to), pos = from, m; !cursor.next().done; pos += cursor.value.length) {
+    if (!cursor.lineBreak)
+      while (m = re.exec(cursor.value))
         f(pos + m.index, m);
   }
 }
@@ -14537,11 +14573,11 @@ var gutterView = /* @__PURE__ */ ViewPlugin.fromClass(class {
 function asArray2(val) {
   return Array.isArray(val) ? val : [val];
 }
-function advanceCursor(cursor2, collect, pos) {
-  while (cursor2.value && cursor2.from <= pos) {
-    if (cursor2.from == pos)
-      collect.push(cursor2.value);
-    cursor2.next();
+function advanceCursor(cursor, collect, pos) {
+  while (cursor.value && cursor.from <= pos) {
+    if (cursor.from == pos)
+      collect.push(cursor.value);
+    cursor.next();
   }
 }
 var UpdateContext = class {
@@ -15071,10 +15107,10 @@ var Tree = class _Tree {
   */
   cursorAt(pos, side = 0, mode = 0) {
     let scope = CachedNode.get(this) || this.topNode;
-    let cursor2 = new TreeCursor(scope);
-    cursor2.moveTo(pos, side);
-    CachedNode.set(this, cursor2._tree);
-    return cursor2;
+    let cursor = new TreeCursor(scope);
+    cursor.moveTo(pos, side);
+    CachedNode.set(this, cursor._tree);
+    return cursor;
   }
   /**
   Get a [syntax node](#common.SyntaxNode) object for the top of the
@@ -16051,14 +16087,14 @@ function hasChild(tree) {
 function buildTree(data) {
   var _a2;
   let { buffer, nodeSet, maxBufferLength = DefaultBufferLength, reused = [], minRepeatType = nodeSet.types.length } = data;
-  let cursor2 = Array.isArray(buffer) ? new FlatBufferCursor(buffer, buffer.length) : buffer;
+  let cursor = Array.isArray(buffer) ? new FlatBufferCursor(buffer, buffer.length) : buffer;
   let types2 = nodeSet.types;
   let contextHash = 0, lookAhead = 0;
   function takeNode(parentStart, minPos, children2, positions2, inRepeat, depth) {
-    let { id: id2, start, end, size } = cursor2;
+    let { id: id2, start, end, size } = cursor;
     let lookAheadAtStart = lookAhead, contextAtStart = contextHash;
     if (size < 0) {
-      cursor2.next();
+      cursor.next();
       if (size == -1) {
         let node2 = reused[id2];
         children2.push(node2);
@@ -16076,27 +16112,27 @@ function buildTree(data) {
     }
     let type = types2[id2], node, buffer2;
     let startPos = start - parentStart;
-    if (end - start <= maxBufferLength && (buffer2 = findBufferSize(cursor2.pos - minPos, inRepeat))) {
+    if (end - start <= maxBufferLength && (buffer2 = findBufferSize(cursor.pos - minPos, inRepeat))) {
       let data2 = new Uint16Array(buffer2.size - buffer2.skip);
-      let endPos = cursor2.pos - buffer2.size, index = data2.length;
-      while (cursor2.pos > endPos)
+      let endPos = cursor.pos - buffer2.size, index = data2.length;
+      while (cursor.pos > endPos)
         index = copyToBuffer(buffer2.start, data2, index);
       node = new TreeBuffer(data2, end - buffer2.start, nodeSet);
       startPos = buffer2.start - parentStart;
     } else {
-      let endPos = cursor2.pos - size;
-      cursor2.next();
+      let endPos = cursor.pos - size;
+      cursor.next();
       let localChildren = [], localPositions = [];
       let localInRepeat = id2 >= minRepeatType ? id2 : -1;
       let lastGroup = 0, lastEnd = end;
-      while (cursor2.pos > endPos) {
-        if (localInRepeat >= 0 && cursor2.id == localInRepeat && cursor2.size >= 0) {
-          if (cursor2.end <= lastEnd - maxBufferLength) {
-            makeRepeatLeaf(localChildren, localPositions, start, lastGroup, cursor2.end, lastEnd, localInRepeat, lookAheadAtStart, contextAtStart);
+      while (cursor.pos > endPos) {
+        if (localInRepeat >= 0 && cursor.id == localInRepeat && cursor.size >= 0) {
+          if (cursor.end <= lastEnd - maxBufferLength) {
+            makeRepeatLeaf(localChildren, localPositions, start, lastGroup, cursor.end, lastEnd, localInRepeat, lookAheadAtStart, contextAtStart);
             lastGroup = localChildren.length;
-            lastEnd = cursor2.end;
+            lastEnd = cursor.end;
           }
-          cursor2.next();
+          cursor.next();
         } else if (depth > 2500) {
           takeFlatNode(start, endPos, localChildren, localPositions);
         } else {
@@ -16120,10 +16156,10 @@ function buildTree(data) {
   function takeFlatNode(parentStart, minPos, children2, positions2) {
     let nodes = [];
     let nodeCount = 0, stopAt = -1;
-    while (cursor2.pos > minPos) {
-      let { id: id2, start, end, size } = cursor2;
+    while (cursor.pos > minPos) {
+      let { id: id2, start, end, size } = cursor;
       if (size > 4) {
-        cursor2.next();
+        cursor.next();
       } else if (stopAt > -1 && start < stopAt) {
         break;
       } else {
@@ -16131,7 +16167,7 @@ function buildTree(data) {
           stopAt = end - maxBufferLength;
         nodes.push(id2, start, end);
         nodeCount++;
-        cursor2.next();
+        cursor.next();
       }
     }
     if (nodeCount) {
@@ -16180,7 +16216,7 @@ function buildTree(data) {
     return new Tree(type, children2, positions2, length2, props);
   }
   function findBufferSize(maxSize, inRepeat) {
-    let fork = cursor2.fork();
+    let fork = cursor.fork();
     let size = 0, start = 0, skip = 0, minStart = fork.end - maxBufferLength;
     let result = { size: 0, start: 0, skip: 0 };
     scan: for (let minPos = fork.pos - maxSize; fork.pos > minPos; ) {
@@ -16223,13 +16259,13 @@ function buildTree(data) {
     return result.size > 4 ? result : void 0;
   }
   function copyToBuffer(bufferStart, buffer2, index) {
-    let { id: id2, start, end, size } = cursor2;
-    cursor2.next();
+    let { id: id2, start, end, size } = cursor;
+    cursor.next();
     if (size >= 0 && id2 < minRepeatType) {
       let startIndex = index;
       if (size > 4) {
-        let endPos = cursor2.pos - (size - 4);
-        while (cursor2.pos > endPos)
+        let endPos = cursor.pos - (size - 4);
+        while (cursor.pos > endPos)
           index = copyToBuffer(bufferStart, buffer2, index);
       }
       buffer2[--index] = startIndex;
@@ -16244,7 +16280,7 @@ function buildTree(data) {
     return index;
   }
   let children = [], positions = [];
-  while (cursor2.pos > 0)
+  while (cursor.pos > 0)
     takeNode(data.start || 0, data.bufferStart || 0, children, positions, -1, 0);
   let length = (_a2 = data.length) !== null && _a2 !== void 0 ? _a2 : children.length ? positions[0] + children[0].length : 0;
   return new Tree(types2[data.topID], children.reverse(), positions.reverse(), length);
@@ -16335,18 +16371,18 @@ var NodeWeakMap = class {
   /**
   Set the value for the node that a cursor currently points to.
   */
-  cursorSet(cursor2, value) {
-    if (cursor2.buffer)
-      this.setBuffer(cursor2.buffer.buffer, cursor2.index, value);
+  cursorSet(cursor, value) {
+    if (cursor.buffer)
+      this.setBuffer(cursor.buffer.buffer, cursor.index, value);
     else
-      this.map.set(cursor2.tree, value);
+      this.map.set(cursor.tree, value);
   }
   /**
   Retrieve the value for the node that a cursor currently points
   to.
   */
-  cursorGet(cursor2) {
-    return cursor2.buffer ? this.getBuffer(cursor2.buffer.buffer, cursor2.index) : this.map.get(cursor2.tree);
+  cursorGet(cursor) {
+    return cursor.buffer ? this.getBuffer(cursor.buffer.buffer, cursor.index) : this.map.get(cursor.tree);
   }
 };
 var TreeFragment = class _TreeFragment {
@@ -16714,14 +16750,14 @@ var HighlightBuilder = class {
     if (to > this.at && this.class)
       this.span(this.at, to, this.class);
   }
-  highlightRange(cursor2, from, to, inheritedClass, highlighters) {
-    let { type, from: start, to: end } = cursor2;
+  highlightRange(cursor, from, to, inheritedClass, highlighters) {
+    let { type, from: start, to: end } = cursor;
     if (start >= to || end <= from)
       return;
     if (type.isTop)
       highlighters = this.highlighters.filter((h) => !h.scope || h.scope(type));
     let cls = inheritedClass;
-    let rule = getStyleTags(cursor2) || Rule.empty;
+    let rule = getStyleTags(cursor) || Rule.empty;
     let tagCls = highlightTags(highlighters, rule.tags);
     if (tagCls) {
       if (cls)
@@ -16733,20 +16769,20 @@ var HighlightBuilder = class {
     this.startSpan(Math.max(from, start), cls);
     if (rule.opaque)
       return;
-    let mounted = cursor2.tree && cursor2.tree.prop(NodeProp.mounted);
+    let mounted = cursor.tree && cursor.tree.prop(NodeProp.mounted);
     if (mounted && mounted.overlay) {
-      let inner = cursor2.node.enter(mounted.overlay[0].from + start, 1);
+      let inner = cursor.node.enter(mounted.overlay[0].from + start, 1);
       let innerHighlighters = this.highlighters.filter((h) => !h.scope || h.scope(mounted.tree.type));
-      let hasChild2 = cursor2.firstChild();
+      let hasChild2 = cursor.firstChild();
       for (let i = 0, pos = start; ; i++) {
         let next = i < mounted.overlay.length ? mounted.overlay[i] : null;
         let nextPos = next ? next.from + start : end;
         let rangeFrom2 = Math.max(from, pos), rangeTo2 = Math.min(to, nextPos);
         if (rangeFrom2 < rangeTo2 && hasChild2) {
-          while (cursor2.from < rangeTo2) {
-            this.highlightRange(cursor2, rangeFrom2, rangeTo2, inheritedClass, highlighters);
-            this.startSpan(Math.min(rangeTo2, cursor2.to), cls);
-            if (cursor2.to >= nextPos || !cursor2.nextSibling())
+          while (cursor.from < rangeTo2) {
+            this.highlightRange(cursor, rangeFrom2, rangeTo2, inheritedClass, highlighters);
+            this.startSpan(Math.min(rangeTo2, cursor.to), cls);
+            if (cursor.to >= nextPos || !cursor.nextSibling())
               break;
           }
         }
@@ -16759,19 +16795,19 @@ var HighlightBuilder = class {
         }
       }
       if (hasChild2)
-        cursor2.parent();
-    } else if (cursor2.firstChild()) {
+        cursor.parent();
+    } else if (cursor.firstChild()) {
       if (mounted)
         inheritedClass = "";
       do {
-        if (cursor2.to <= from)
+        if (cursor.to <= from)
           continue;
-        if (cursor2.from >= to)
+        if (cursor.from >= to)
           break;
-        this.highlightRange(cursor2, from, to, inheritedClass, highlighters);
-        this.startSpan(Math.min(to, cursor2.to), cls);
-      } while (cursor2.nextSibling());
-      cursor2.parent();
+        this.highlightRange(cursor, from, to, inheritedClass, highlighters);
+        this.startSpan(Math.min(to, cursor.to), cls);
+      } while (cursor.nextSibling());
+      cursor.parent();
     }
   }
 };
@@ -18628,18 +18664,18 @@ function matchBrackets(state, pos, dir, config2 = {}) {
 }
 function matchMarkedBrackets(_state, _pos, dir, token, handle, matching, brackets) {
   let parent = token.parent, firstToken = { from: handle.from, to: handle.to };
-  let depth = 0, cursor2 = parent === null || parent === void 0 ? void 0 : parent.cursor();
-  if (cursor2 && (dir < 0 ? cursor2.childBefore(token.from) : cursor2.childAfter(token.to)))
+  let depth = 0, cursor = parent === null || parent === void 0 ? void 0 : parent.cursor();
+  if (cursor && (dir < 0 ? cursor.childBefore(token.from) : cursor.childAfter(token.to)))
     do {
-      if (dir < 0 ? cursor2.to <= token.from : cursor2.from >= token.to) {
-        if (depth == 0 && matching.indexOf(cursor2.type.name) > -1 && cursor2.from < cursor2.to) {
-          let endHandle = findHandle(cursor2);
+      if (dir < 0 ? cursor.to <= token.from : cursor.from >= token.to) {
+        if (depth == 0 && matching.indexOf(cursor.type.name) > -1 && cursor.from < cursor.to) {
+          let endHandle = findHandle(cursor);
           return { start: firstToken, end: endHandle ? { from: endHandle.from, to: endHandle.to } : void 0, matched: true };
-        } else if (matchingNodes(cursor2.type, dir, brackets)) {
+        } else if (matchingNodes(cursor.type, dir, brackets)) {
           depth++;
-        } else if (matchingNodes(cursor2.type, -dir, brackets)) {
+        } else if (matchingNodes(cursor.type, -dir, brackets)) {
           if (depth == 0) {
-            let endHandle = findHandle(cursor2);
+            let endHandle = findHandle(cursor);
             return {
               start: firstToken,
               end: endHandle && endHandle.from < endHandle.to ? { from: endHandle.from, to: endHandle.to } : void 0,
@@ -18649,7 +18685,7 @@ function matchMarkedBrackets(_state, _pos, dir, token, handle, matching, bracket
           depth--;
         }
       }
-    } while (dir < 0 ? cursor2.prevSibling() : cursor2.nextSibling());
+    } while (dir < 0 ? cursor.prevSibling() : cursor.nextSibling());
   return { start: firstToken, matched: false };
 }
 function matchPlainBrackets(state, pos, dir, tree, tokenType, maxScanDistance, brackets) {
@@ -18975,14 +19011,14 @@ function history(config2 = {}) {
     })
   ];
 }
-function cmd(side, selection2) {
+function cmd(side, selection) {
   return function({ state, dispatch }) {
-    if (!selection2 && state.readOnly)
+    if (!selection && state.readOnly)
       return false;
     let historyState = state.field(historyField_, false);
     if (!historyState)
       return false;
-    let tr = historyState.pop(side, state, selection2);
+    let tr = historyState.pop(side, state, selection);
     if (!tr)
       return false;
     dispatch(tr);
@@ -19019,7 +19055,7 @@ var HistEvent = class _HistEvent {
   // This does not check `addToHistory` and such, it assumes the
   // transaction needs to be converted to an item. Returns null when
   // there are no changes or effects in the transaction.
-  static fromTransaction(tr, selection2) {
+  static fromTransaction(tr, selection) {
     let effects = none2;
     for (let invert of tr.startState.facet(invertedEffects)) {
       let result = invert(tr);
@@ -19028,7 +19064,7 @@ var HistEvent = class _HistEvent {
     }
     if (!effects.length && tr.changes.empty)
       return null;
-    return new _HistEvent(tr.changes.invert(tr.startState.doc), effects, void 0, selection2 || tr.startState.selection, none2);
+    return new _HistEvent(tr.changes.invert(tr.startState.doc), effects, void 0, selection || tr.startState.selection, none2);
   }
   static selection(selections) {
     return new _HistEvent(void 0, none2, void 0, void 0, selections);
@@ -19060,15 +19096,15 @@ function conc(a, b) {
 }
 var none2 = [];
 var MaxSelectionsPerEvent = 200;
-function addSelection(branch, selection2) {
+function addSelection(branch, selection) {
   if (!branch.length) {
-    return [HistEvent.selection([selection2])];
+    return [HistEvent.selection([selection])];
   } else {
     let lastEvent = branch[branch.length - 1];
     let sels = lastEvent.selectionsAfter.slice(Math.max(0, lastEvent.selectionsAfter.length - MaxSelectionsPerEvent));
-    if (sels.length && sels[sels.length - 1].eq(selection2))
+    if (sels.length && sels[sels.length - 1].eq(selection))
       return branch;
-    sels.push(selection2);
+    sels.push(selection);
     return updateBranch(branch, branch.length - 1, 1e9, lastEvent.setSelAfter(sels));
   }
 }
@@ -19125,11 +19161,11 @@ var HistoryState = class _HistoryState {
     }
     return new _HistoryState(done, none2, time, userEvent);
   }
-  addSelection(selection2, time, userEvent, newGroupDelay) {
+  addSelection(selection, time, userEvent, newGroupDelay) {
     let last = this.done.length ? this.done[this.done.length - 1].selectionsAfter : none2;
-    if (last.length > 0 && time - this.prevTime < newGroupDelay && userEvent == this.prevUserEvent && userEvent && /^select($|\.)/.test(userEvent) && eqSelectionShape(last[last.length - 1], selection2))
+    if (last.length > 0 && time - this.prevTime < newGroupDelay && userEvent == this.prevUserEvent && userEvent && /^select($|\.)/.test(userEvent) && eqSelectionShape(last[last.length - 1], selection))
       return this;
-    return new _HistoryState(addSelection(this.done, selection2), this.undone, time, userEvent);
+    return new _HistoryState(addSelection(this.done, selection), this.undone, time, userEvent);
   }
   addMapping(mapping) {
     return new _HistoryState(addMappingToBranch(this.done, mapping), addMappingToBranch(this.undone, mapping), this.prevTime, this.prevUserEvent);
@@ -19138,11 +19174,11 @@ var HistoryState = class _HistoryState {
     let branch = side == 0 ? this.done : this.undone;
     if (branch.length == 0)
       return null;
-    let event = branch[branch.length - 1], selection2 = event.selectionsAfter[0] || state.selection;
+    let event = branch[branch.length - 1], selection = event.selectionsAfter[0] || state.selection;
     if (onlySelection && event.selectionsAfter.length) {
       return state.update({
         selection: event.selectionsAfter[event.selectionsAfter.length - 1],
-        annotations: fromHistory.of({ side, rest: popSelection(branch), selection: selection2 }),
+        annotations: fromHistory.of({ side, rest: popSelection(branch), selection }),
         userEvent: side == 0 ? "select.undo" : "select.redo",
         scrollIntoView: true
       });
@@ -19156,7 +19192,7 @@ var HistoryState = class _HistoryState {
         changes: event.changes,
         selection: event.startSelection,
         effects: event.effects,
-        annotations: fromHistory.of({ side, rest, selection: selection2 }),
+        annotations: fromHistory.of({ side, rest, selection }),
         filter: false,
         userEvent: side == 0 ? "undo" : "redo",
         scrollIntoView: true
@@ -19175,14 +19211,14 @@ var historyKeymap = [
 function updateSel(sel, by) {
   return EditorSelection.create(sel.ranges.map(by), sel.mainIndex);
 }
-function setSel(state, selection2) {
-  return state.update({ selection: selection2, scrollIntoView: true, userEvent: "select" });
+function setSel(state, selection) {
+  return state.update({ selection, scrollIntoView: true, userEvent: "select" });
 }
 function moveSel({ state, dispatch }, how) {
-  let selection2 = updateSel(state.selection, how);
-  if (selection2.eq(state.selection, true))
+  let selection = updateSel(state.selection, how);
+  if (selection.eq(state.selection, true))
     return false;
-  dispatch(setSel(state, selection2));
+  dispatch(setSel(state, selection));
   return true;
 }
 function rangeEnd(range, forward) {
@@ -19263,10 +19299,10 @@ function pageInfo(view) {
 }
 function cursorByPage(view, forward) {
   let page = pageInfo(view);
-  let { state } = view, selection2 = updateSel(state.selection, (range) => {
+  let { state } = view, selection = updateSel(state.selection, (range) => {
     return range.empty ? view.moveVertically(range, forward, page.height) : rangeEnd(range, forward);
   });
-  if (selection2.eq(state.selection))
+  if (selection.eq(state.selection))
     return false;
   let effect;
   if (page.selfScroll) {
@@ -19274,9 +19310,9 @@ function cursorByPage(view, forward) {
     let scrollRect = view.scrollDOM.getBoundingClientRect();
     let scrollTop = scrollRect.top + page.marginTop, scrollBottom = scrollRect.bottom - page.marginBottom;
     if (startPos && startPos.top > scrollTop && startPos.bottom < scrollBottom)
-      effect = EditorView.scrollIntoView(selection2.main.head, { y: "start", yMargin: startPos.top - scrollTop });
+      effect = EditorView.scrollIntoView(selection.main.head, { y: "start", yMargin: startPos.top - scrollTop });
   }
-  view.dispatch(setSel(state, selection2), { effects: effect });
+  view.dispatch(setSel(state, selection), { effects: effect });
   return true;
 }
 var cursorPageUp = (view) => cursorByPage(view, false);
@@ -19299,7 +19335,7 @@ var cursorLineBoundaryRight = (view) => moveSel(view, (range) => moveByLineBound
 var cursorLineStart = (view) => moveSel(view, (range) => EditorSelection.cursor(view.lineBlockAt(range.head).from, 1));
 var cursorLineEnd = (view) => moveSel(view, (range) => EditorSelection.cursor(view.lineBlockAt(range.head).to, -1));
 function toMatchingBracket(state, dispatch, extend) {
-  let found = false, selection2 = updateSel(state.selection, (range) => {
+  let found = false, selection = updateSel(state.selection, (range) => {
     let matching = matchBrackets(state, range.head, -1) || matchBrackets(state, range.head, 1) || range.head > 0 && matchBrackets(state, range.head - 1, 1) || range.head < state.doc.length && matchBrackets(state, range.head + 1, -1);
     if (!matching || !matching.end)
       return range;
@@ -19309,18 +19345,18 @@ function toMatchingBracket(state, dispatch, extend) {
   });
   if (!found)
     return false;
-  dispatch(setSel(state, selection2));
+  dispatch(setSel(state, selection));
   return true;
 }
 var cursorMatchingBracket = ({ state, dispatch }) => toMatchingBracket(state, dispatch, false);
 function extendSel(target, how) {
-  let selection2 = updateSel(target.state.selection, (range) => {
+  let selection = updateSel(target.state.selection, (range) => {
     let head = how(range);
     return EditorSelection.range(range.anchor, head.head, head.goalColumn, head.bidiLevel || void 0);
   });
-  if (selection2.eq(target.state.selection))
+  if (selection.eq(target.state.selection))
     return false;
-  target.dispatch(setSel(target.state, selection2));
+  target.dispatch(setSel(target.state, selection));
   return true;
 }
 function selectByChar(view, forward) {
@@ -19377,7 +19413,7 @@ var selectLine = ({ state, dispatch }) => {
   return true;
 };
 var selectParentSyntax = ({ state, dispatch }) => {
-  let selection2 = updateSel(state.selection, (range) => {
+  let selection = updateSel(state.selection, (range) => {
     let tree = syntaxTree(state), stack = tree.resolveStack(range.from, 1);
     if (range.empty) {
       let stackBefore = tree.resolveStack(range.from, -1);
@@ -19391,9 +19427,9 @@ var selectParentSyntax = ({ state, dispatch }) => {
     }
     return range;
   });
-  if (selection2.eq(state.selection))
+  if (selection.eq(state.selection))
     return false;
-  dispatch(setSel(state, selection2));
+  dispatch(setSel(state, selection));
   return true;
 };
 function addCursorVertically(view, forward) {
@@ -19422,14 +19458,14 @@ function addCursorVertically(view, forward) {
 var addCursorAbove = (view) => addCursorVertically(view, false);
 var addCursorBelow = (view) => addCursorVertically(view, true);
 var simplifySelection = ({ state, dispatch }) => {
-  let cur2 = state.selection, selection2 = null;
+  let cur2 = state.selection, selection = null;
   if (cur2.ranges.length > 1)
-    selection2 = EditorSelection.create([cur2.main]);
+    selection = EditorSelection.create([cur2.main]);
   else if (!cur2.main.empty)
-    selection2 = EditorSelection.create([EditorSelection.cursor(cur2.main.head)]);
-  if (!selection2)
+    selection = EditorSelection.create([EditorSelection.cursor(cur2.main.head)]);
+  if (!selection)
     return false;
-  dispatch(setSel(state, selection2));
+  dispatch(setSel(state, selection));
   return true;
 };
 function deleteBy(target, by) {
@@ -19637,7 +19673,7 @@ var deleteLine = (view) => {
       to++;
     return { from, to };
   }));
-  let selection2 = updateSel(state.selection, (range) => {
+  let selection = updateSel(state.selection, (range) => {
     let dist2 = void 0;
     if (view.lineWrapping) {
       let block = view.lineBlockAt(range.head), pos = view.coordsAtPos(range.head, range.assoc || 1);
@@ -19646,7 +19682,7 @@ var deleteLine = (view) => {
     }
     return view.moveVertically(range, true, dist2);
   }).map(changes);
-  view.dispatch({ changes, selection: selection2, scrollIntoView: true, userEvent: "delete.line" });
+  view.dispatch({ changes, selection, scrollIntoView: true, userEvent: "delete.line" });
   return true;
 };
 function isBetweenBrackets(state, pos) {
@@ -20146,10 +20182,10 @@ function createLineDialog(view) {
       line2 = line2 * (sign == "-" ? -1 : 1) + startLine.number;
     }
     let docLine = state.doc.line(Math.max(1, Math.min(state.doc.lines, line2)));
-    let selection2 = EditorSelection.cursor(docLine.from + Math.max(0, Math.min(col, docLine.length)));
+    let selection = EditorSelection.cursor(docLine.from + Math.max(0, Math.min(col, docLine.length)));
     view.dispatch({
-      effects: [dialogEffect.of(false), EditorView.scrollIntoView(selection2.from, { y: "center" })],
-      selection: selection2
+      effects: [dialogEffect.of(false), EditorView.scrollIntoView(selection.from, { y: "center" })],
+      selection
     });
     view.focus();
   }
@@ -20266,9 +20302,9 @@ var matchHighlighter = /* @__PURE__ */ ViewPlugin.fromClass(class {
     }
     let deco = [];
     for (let part of view.visibleRanges) {
-      let cursor2 = new SearchCursor(state.doc, query, part.from, part.to);
-      while (!cursor2.next().done) {
-        let { from, to } = cursor2.value;
+      let cursor = new SearchCursor(state.doc, query, part.from, part.to);
+      while (!cursor.next().done) {
+        let { from, to } = cursor.value;
         if (!check || insideWordBoundaries(check, state, from, to)) {
           if (range.empty && from <= range.from && to >= range.to)
             deco.push(mainMatchDeco.range(from, to));
@@ -20289,9 +20325,9 @@ var defaultTheme = /* @__PURE__ */ EditorView.baseTheme({
   ".cm-searchMatch .cm-selectionMatch": { backgroundColor: "transparent" }
 });
 var selectWord = ({ state, dispatch }) => {
-  let { selection: selection2 } = state;
-  let newSel = EditorSelection.create(selection2.ranges.map((range) => state.wordAt(range.head) || EditorSelection.cursor(range.head)), selection2.mainIndex);
-  if (newSel.eq(selection2))
+  let { selection } = state;
+  let newSel = EditorSelection.create(selection.ranges.map((range) => state.wordAt(range.head) || EditorSelection.cursor(range.head)), selection.mainIndex);
+  if (newSel.eq(selection))
     return false;
   dispatch(state.update({ selection: newSel }));
   return true;
@@ -20299,22 +20335,22 @@ var selectWord = ({ state, dispatch }) => {
 function findNextOccurrence(state, query) {
   let { main, ranges } = state.selection;
   let word = state.wordAt(main.head), fullWord = word && word.from == main.from && word.to == main.to;
-  for (let cycled = false, cursor2 = new SearchCursor(state.doc, query, ranges[ranges.length - 1].to); ; ) {
-    cursor2.next();
-    if (cursor2.done) {
+  for (let cycled = false, cursor = new SearchCursor(state.doc, query, ranges[ranges.length - 1].to); ; ) {
+    cursor.next();
+    if (cursor.done) {
       if (cycled)
         return null;
-      cursor2 = new SearchCursor(state.doc, query, 0, Math.max(0, ranges[ranges.length - 1].from - 1));
+      cursor = new SearchCursor(state.doc, query, 0, Math.max(0, ranges[ranges.length - 1].from - 1));
       cycled = true;
     } else {
-      if (cycled && ranges.some((r) => r.from == cursor2.value.from))
+      if (cycled && ranges.some((r) => r.from == cursor.value.from))
         continue;
       if (fullWord) {
-        let word2 = state.wordAt(cursor2.value.from);
-        if (!word2 || word2.from != cursor2.value.from || word2.to != cursor2.value.to)
+        let word2 = state.wordAt(cursor.value.from);
+        if (!word2 || word2.from != cursor.value.from || word2.to != cursor.value.to)
           continue;
       }
-      return cursor2.value;
+      return cursor.value;
     }
   }
 }
@@ -20412,21 +20448,21 @@ var StringQuery = class extends QueryType2 {
     super(spec);
   }
   nextMatch(state, curFrom, curTo) {
-    let cursor2 = stringCursor(this.spec, state, curTo, state.doc.length).nextOverlapping();
-    if (cursor2.done) {
+    let cursor = stringCursor(this.spec, state, curTo, state.doc.length).nextOverlapping();
+    if (cursor.done) {
       let end = Math.min(state.doc.length, curFrom + this.spec.unquoted.length);
-      cursor2 = stringCursor(this.spec, state, 0, end).nextOverlapping();
+      cursor = stringCursor(this.spec, state, 0, end).nextOverlapping();
     }
-    return cursor2.done || cursor2.value.from == curFrom && cursor2.value.to == curTo ? null : cursor2.value;
+    return cursor.done || cursor.value.from == curFrom && cursor.value.to == curTo ? null : cursor.value;
   }
   // Searching in reverse is, rather than implementing an inverted search
   // cursor, done by scanning chunk after chunk forward.
   prevMatchInRange(state, from, to) {
     for (let pos = to; ; ) {
       let start = Math.max(from, pos - 1e4 - this.spec.unquoted.length);
-      let cursor2 = stringCursor(this.spec, state, start, pos), range = null;
-      while (!cursor2.nextOverlapping().done)
-        range = cursor2.value;
+      let cursor = stringCursor(this.spec, state, start, pos), range = null;
+      while (!cursor.nextOverlapping().done)
+        range = cursor.value;
       if (range)
         return range;
       if (start == from)
@@ -20444,18 +20480,18 @@ var StringQuery = class extends QueryType2 {
     return this.spec.unquote(this.spec.replace);
   }
   matchAll(state, limit) {
-    let cursor2 = stringCursor(this.spec, state, 0, state.doc.length), ranges = [];
-    while (!cursor2.next().done) {
+    let cursor = stringCursor(this.spec, state, 0, state.doc.length), ranges = [];
+    while (!cursor.next().done) {
       if (ranges.length >= limit)
         return null;
-      ranges.push(cursor2.value);
+      ranges.push(cursor.value);
     }
     return ranges;
   }
   highlight(state, from, to, add2) {
-    let cursor2 = stringCursor(this.spec, state, Math.max(0, from - this.spec.unquoted.length), Math.min(to + this.spec.unquoted.length, state.doc.length));
-    while (!cursor2.next().done)
-      add2(cursor2.value.from, cursor2.value.to);
+    let cursor = stringCursor(this.spec, state, Math.max(0, from - this.spec.unquoted.length), Math.min(to + this.spec.unquoted.length, state.doc.length));
+    while (!cursor.next().done)
+      add2(cursor.value.from, cursor.value.to);
   }
 };
 function regexpCursor(spec, state, from, to) {
@@ -20475,10 +20511,10 @@ function regexpWordTest(categorizer) {
 }
 var RegExpQuery = class extends QueryType2 {
   nextMatch(state, curFrom, curTo) {
-    let cursor2 = regexpCursor(this.spec, state, curTo, state.doc.length).next();
-    if (cursor2.done)
-      cursor2 = regexpCursor(this.spec, state, 0, curFrom).next();
-    return cursor2.done ? null : cursor2.value;
+    let cursor = regexpCursor(this.spec, state, curTo, state.doc.length).next();
+    if (cursor.done)
+      cursor = regexpCursor(this.spec, state, 0, curFrom).next();
+    return cursor.done ? null : cursor.value;
   }
   prevMatchInRange(state, from, to) {
     for (let size = 1; ; size++) {
@@ -20487,9 +20523,9 @@ var RegExpQuery = class extends QueryType2 {
         to - size * 1e4
         /* FindPrev.ChunkSize */
       );
-      let cursor2 = regexpCursor(this.spec, state, start, to), range = null;
-      while (!cursor2.next().done)
-        range = cursor2.value;
+      let cursor = regexpCursor(this.spec, state, start, to), range = null;
+      while (!cursor.next().done)
+        range = cursor.value;
       if (range && (start == from || range.from > start + 10))
         return range;
       if (start == from)
@@ -20514,22 +20550,22 @@ var RegExpQuery = class extends QueryType2 {
     });
   }
   matchAll(state, limit) {
-    let cursor2 = regexpCursor(this.spec, state, 0, state.doc.length), ranges = [];
-    while (!cursor2.next().done) {
+    let cursor = regexpCursor(this.spec, state, 0, state.doc.length), ranges = [];
+    while (!cursor.next().done) {
       if (ranges.length >= limit)
         return null;
-      ranges.push(cursor2.value);
+      ranges.push(cursor.value);
     }
     return ranges;
   }
   highlight(state, from, to, add2) {
-    let cursor2 = regexpCursor(this.spec, state, Math.max(
+    let cursor = regexpCursor(this.spec, state, Math.max(
       0,
       from - 250
       /* RegExp.HighlightMargin */
     ), Math.min(to + 250, state.doc.length));
-    while (!cursor2.next().done)
-      add2(cursor2.value.from, cursor2.value.to);
+    while (!cursor.next().done)
+      add2(cursor.value.from, cursor.value.to);
   }
 };
 var setSearchQuery = /* @__PURE__ */ StateEffect.define();
@@ -20597,11 +20633,11 @@ var findNext = /* @__PURE__ */ searchCommand((view, { query }) => {
   let next = query.nextMatch(view.state, to, to);
   if (!next)
     return false;
-  let selection2 = EditorSelection.single(next.from, next.to);
+  let selection = EditorSelection.single(next.from, next.to);
   let config2 = view.state.facet(searchConfigFacet);
   view.dispatch({
-    selection: selection2,
-    effects: [announceMatch(view, next), config2.scrollToMatch(selection2.main, view)],
+    selection,
+    effects: [announceMatch(view, next), config2.scrollToMatch(selection.main, view)],
     userEvent: "select.search"
   });
   selectSearchInput(view);
@@ -20612,11 +20648,11 @@ var findPrevious = /* @__PURE__ */ searchCommand((view, { query }) => {
   let prev = query.prevMatch(state, from, from);
   if (!prev)
     return false;
-  let selection2 = EditorSelection.single(prev.from, prev.to);
+  let selection = EditorSelection.single(prev.from, prev.to);
   let config2 = view.state.facet(searchConfigFacet);
   view.dispatch({
-    selection: selection2,
-    effects: [announceMatch(view, prev), config2.scrollToMatch(selection2.main, view)],
+    selection,
+    effects: [announceMatch(view, prev), config2.scrollToMatch(selection.main, view)],
     userEvent: "select.search"
   });
   selectSearchInput(view);
@@ -20659,7 +20695,7 @@ var replaceNext = /* @__PURE__ */ searchCommand((view, { query }) => {
   if (!match)
     return false;
   let next = match;
-  let changes = [], selection2, replacement;
+  let changes = [], selection, replacement;
   let effects = [];
   if (next.from == from && next.to == to) {
     replacement = state.toText(query.getReplacement(next));
@@ -20669,13 +20705,13 @@ var replaceNext = /* @__PURE__ */ searchCommand((view, { query }) => {
   }
   let changeSet = view.state.changes(changes);
   if (next) {
-    selection2 = EditorSelection.single(next.from, next.to).map(changeSet);
+    selection = EditorSelection.single(next.from, next.to).map(changeSet);
     effects.push(announceMatch(view, next));
-    effects.push(state.facet(searchConfigFacet).scrollToMatch(selection2.main, view));
+    effects.push(state.facet(searchConfigFacet).scrollToMatch(selection.main, view));
   }
   view.dispatch({
     changes: changeSet,
-    selection: selection2,
+    selection,
     effects,
     userEvent: "input.replace"
   });
@@ -23212,13 +23248,13 @@ var LintPanel = class _LintPanel {
     if (this.selectedIndex < 0)
       return;
     let field = this.view.state.field(lintState);
-    let selection2 = findDiagnostic(field.diagnostics, this.items[selectedIndex].diagnostic);
-    if (!selection2)
+    let selection = findDiagnostic(field.diagnostics, this.items[selectedIndex].diagnostic);
+    if (!selection)
       return;
     this.view.dispatch({
-      selection: { anchor: selection2.from, head: selection2.to },
+      selection: { anchor: selection.from, head: selection.to },
       scrollIntoView: true,
-      effects: movePanelSelection.of(selection2)
+      effects: movePanelSelection.of(selection)
     });
   }
   static open(view) {
@@ -24283,24 +24319,24 @@ function overrides(token, prev, tableData, tableOffset) {
 var verbose = typeof process != "undefined" && process.env && /\bparse\b/.test(process.env.LOG);
 var stackIDs = null;
 function cutAt(tree, pos, side) {
-  let cursor2 = tree.cursor(IterMode.IncludeAnonymous);
-  cursor2.moveTo(pos);
+  let cursor = tree.cursor(IterMode.IncludeAnonymous);
+  cursor.moveTo(pos);
   for (; ; ) {
-    if (!(side < 0 ? cursor2.childBefore(pos) : cursor2.childAfter(pos)))
+    if (!(side < 0 ? cursor.childBefore(pos) : cursor.childAfter(pos)))
       for (; ; ) {
-        if ((side < 0 ? cursor2.to < pos : cursor2.from > pos) && !cursor2.type.isError)
+        if ((side < 0 ? cursor.to < pos : cursor.from > pos) && !cursor.type.isError)
           return side < 0 ? Math.max(0, Math.min(
-            cursor2.to - 1,
+            cursor.to - 1,
             pos - 25
             /* Lookahead.Margin */
           )) : Math.min(tree.length, Math.max(
-            cursor2.from + 1,
+            cursor.from + 1,
             pos + 25
             /* Lookahead.Margin */
           ));
-        if (side < 0 ? cursor2.prevSibling() : cursor2.nextSibling())
+        if (side < 0 ? cursor.prevSibling() : cursor.nextSibling())
           break;
-        if (!cursor2.parent())
+        if (!cursor.parent())
           return side < 0 ? 0 : tree.length;
       }
   }
@@ -25648,162 +25684,133 @@ var autoCloseTags = /* @__PURE__ */ EditorView.inputHandler.of((view, from, to, 
   return true;
 });
 
-// node_modules/@codemirror/theme-one-dark/dist/index.js
-var chalky = "#e5c07b";
-var coral = "#e06c75";
-var cyan = "#56b6c2";
-var invalid = "#ffffff";
-var ivory = "#abb2bf";
-var stone = "#7d8799";
-var malibu = "#61afef";
-var sage = "#98c379";
-var whiskey = "#d19a66";
-var violet = "#c678dd";
-var darkBackground = "#21252b";
-var highlightBackground = "#2c313a";
-var background = "#282c34";
-var tooltipBackground = "#353a42";
-var selection = "#3E4451";
-var cursor = "#528bff";
-var oneDarkTheme = /* @__PURE__ */ EditorView.theme({
+// src/vibe_widget/AppWrapper/components/SourceViewer.js
+var html8 = htm8.bind(React8.createElement);
+var synthesizedTheme = EditorView.theme({
   "&": {
-    color: ivory,
-    backgroundColor: background
+    backgroundColor: "#161618",
+    color: "#E5E7EB",
+    fontSize: "12px",
+    fontFamily: "JetBrains Mono, Space Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
   },
   ".cm-content": {
-    caretColor: cursor
+    caretColor: "#EF7D45",
+    lineHeight: "1.6"
   },
-  ".cm-cursor, .cm-dropCursor": { borderLeftColor: cursor },
-  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": { backgroundColor: selection },
-  ".cm-panels": { backgroundColor: darkBackground, color: ivory },
-  ".cm-panels.cm-panels-top": { borderBottom: "2px solid black" },
-  ".cm-panels.cm-panels-bottom": { borderTop: "2px solid black" },
-  ".cm-searchMatch": {
-    backgroundColor: "#72a1ff59",
-    outline: "1px solid #457dff"
+  ".cm-cursor, .cm-dropCursor": {
+    borderLeftColor: "#EF7D45",
+    borderLeftWidth: "2px"
   },
-  ".cm-searchMatch.cm-searchMatch-selected": {
-    backgroundColor: "#6199ff2f"
+  "&.cm-focused .cm-cursor": {
+    borderLeftColor: "#EF7D45"
   },
-  ".cm-activeLine": { backgroundColor: "#6699ff0b" },
-  ".cm-selectionMatch": { backgroundColor: "#aafe661a" },
-  "&.cm-focused .cm-matchingBracket, &.cm-focused .cm-nonmatchingBracket": {
-    backgroundColor: "#bad0f847"
+  "&.cm-focused .cm-selectionBackground, ::selection": {
+    backgroundColor: "rgba(239, 125, 69, 0.2)"
+  },
+  ".cm-selectionBackground": {
+    backgroundColor: "rgba(239, 125, 69, 0.15)"
+  },
+  ".cm-activeLine": {
+    backgroundColor: "rgba(239, 125, 69, 0.03)",
+    boxShadow: "inset 2px 0 0 #EF7D45"
   },
   ".cm-gutters": {
-    backgroundColor: background,
-    color: stone,
-    border: "none"
+    backgroundColor: "#161618",
+    color: "#6B7280",
+    border: "none",
+    borderRight: "1px solid #2d3139"
   },
   ".cm-activeLineGutter": {
-    backgroundColor: highlightBackground
+    backgroundColor: "rgba(239, 125, 69, 0.08)",
+    color: "#EF7D45"
+  },
+  ".cm-lineNumbers .cm-gutterElement": {
+    color: "#6B7280",
+    minWidth: "3ch"
   },
   ".cm-foldPlaceholder": {
-    backgroundColor: "transparent",
-    border: "none",
-    color: "#ddd"
+    backgroundColor: "rgba(239, 125, 69, 0.1)",
+    border: "1px solid rgba(239, 125, 69, 0.3)",
+    color: "#FDBA74"
   },
   ".cm-tooltip": {
-    border: "none",
-    backgroundColor: tooltipBackground
+    backgroundColor: "#0f141a",
+    border: "1px solid rgba(71, 85, 105, 0.6)",
+    borderRadius: "6px"
   },
-  ".cm-tooltip .cm-tooltip-arrow:before": {
-    borderTopColor: "transparent",
-    borderBottomColor: "transparent"
-  },
-  ".cm-tooltip .cm-tooltip-arrow:after": {
-    borderTopColor: tooltipBackground,
-    borderBottomColor: tooltipBackground
-  },
-  ".cm-tooltip-autocomplete": {
+  ".cm-tooltip.cm-tooltip-autocomplete": {
     "& > ul > li[aria-selected]": {
-      backgroundColor: highlightBackground,
-      color: ivory
+      backgroundColor: "rgba(239, 125, 69, 0.2)",
+      color: "#EF7D45"
     }
   }
 }, { dark: true });
-var oneDarkHighlightStyle = /* @__PURE__ */ HighlightStyle.define([
-  {
-    tag: tags.keyword,
-    color: violet
-  },
-  {
-    tag: [tags.name, tags.deleted, tags.character, tags.propertyName, tags.macroName],
-    color: coral
-  },
-  {
-    tag: [/* @__PURE__ */ tags.function(tags.variableName), tags.labelName],
-    color: malibu
-  },
-  {
-    tag: [tags.color, /* @__PURE__ */ tags.constant(tags.name), /* @__PURE__ */ tags.standard(tags.name)],
-    color: whiskey
-  },
-  {
-    tag: [/* @__PURE__ */ tags.definition(tags.name), tags.separator],
-    color: ivory
-  },
-  {
-    tag: [tags.typeName, tags.className, tags.number, tags.changed, tags.annotation, tags.modifier, tags.self, tags.namespace],
-    color: chalky
-  },
-  {
-    tag: [tags.operator, tags.operatorKeyword, tags.url, tags.escape, tags.regexp, tags.link, /* @__PURE__ */ tags.special(tags.string)],
-    color: cyan
-  },
-  {
-    tag: [tags.meta, tags.comment],
-    color: stone
-  },
-  {
-    tag: tags.strong,
-    fontWeight: "bold"
-  },
-  {
-    tag: tags.emphasis,
-    fontStyle: "italic"
-  },
-  {
-    tag: tags.strikethrough,
-    textDecoration: "line-through"
-  },
-  {
-    tag: tags.link,
-    color: stone,
-    textDecoration: "underline"
-  },
-  {
-    tag: tags.heading,
-    fontWeight: "bold",
-    color: coral
-  },
-  {
-    tag: [tags.atom, tags.bool, /* @__PURE__ */ tags.special(tags.variableName)],
-    color: whiskey
-  },
-  {
-    tag: [tags.processingInstruction, tags.string, tags.inserted],
-    color: sage
-  },
-  {
-    tag: tags.invalid,
-    color: invalid
-  }
+var synthesizedHighlighting = HighlightStyle.define([
+  // Structural keywords: Desaturated orange
+  { tag: [tags.keyword, tags.controlKeyword, tags.moduleKeyword], color: "#E89560", fontWeight: "600" },
+  // Library namespaces (React, d3, model): Warm Amber - THE "power players"
+  { tag: [tags.namespace], color: "#FDBA74", fontWeight: "500" },
+  // Function names: Sunlight Gold
+  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: "#FDBA74", fontWeight: "500" },
+  // Class names: Warm amber
+  { tag: [tags.className, tags.typeName, tags.definition(tags.typeName)], color: "#FCD34D" },
+  // Strings: Sage Green
+  { tag: [tags.string, tags.special(tags.string)], color: "#A3B18A" },
+  // Numbers: Brighter warm clay
+  { tag: [tags.number, tags.bool, tags.null, tags.atom], color: "#E5B887", fontWeight: "500" },
+  // Comments: Muted Clay (italic)
+  { tag: tags.comment, color: "#6B7280", fontStyle: "italic" },
+  // Operators: Subtle warm gray
+  { tag: [tags.operator, tags.punctuation], color: "#9CA3AF" },
+  // Object properties (.current, .top, .bottom): Off-white
+  { tag: [tags.propertyName], color: "#D1D5DB" },
+  // Variables: Bright enough to pop
+  { tag: [tags.variableName], color: "#E5E7EB" },
+  // Variables being DEFINED: Vibe Orange
+  { tag: [tags.definition(tags.variableName)], color: "#EF7D45", fontWeight: "500" },
+  // Tags (JSX): Warm orange
+  { tag: [tags.tagName, tags.angleBracket], color: "#FB923C" },
+  // Attributes: Muted amber
+  { tag: tags.attributeName, color: "#FCD34D" },
+  // Invalid/errors: Warm red
+  { tag: tags.invalid, color: "#F87171", textDecoration: "underline wavy" },
+  // Meta/preprocessor: Muted orange
+  { tag: tags.meta, color: "#FB923C" }
 ]);
-var oneDark = [oneDarkTheme, /* @__PURE__ */ syntaxHighlighting(oneDarkHighlightStyle)];
-
-// src/vibe_widget/AppWrapper/components/SourceViewer.js
-var html8 = htm8.bind(React8.createElement);
-function SourceViewer({ code, errorMessage, onApply, onClose }) {
+function SourceViewer({
+  code,
+  errorMessage,
+  auditStatus,
+  auditReport,
+  auditError,
+  auditMeta,
+  auditData,
+  auditApplyStatus,
+  auditApplyResponse,
+  auditApplyError,
+  onAudit,
+  onApply,
+  onClose
+}) {
   const containerRef = React8.useRef(null);
   const viewRef = React8.useRef(null);
-  const editableCompartmentRef = React8.useRef(null);
   const [draftCode, setDraftCode] = React8.useState(code || "");
-  const [isReadOnly, setReadOnly] = React8.useState(false);
   const [isLoading, setLoading] = React8.useState(true);
   const [loadError, setLoadError] = React8.useState("");
   const isDirtyRef = React8.useRef(false);
   const autoScrollRef = React8.useRef(false);
+  const [showAuditPanel, setShowAuditPanel] = React8.useState(false);
+  const [pendingChanges, setPendingChanges] = React8.useState([]);
+  const [dismissedConcerns, setDismissedConcerns] = React8.useState({});
+  const [showDismissed, setShowDismissed] = React8.useState(false);
+  const [hoveredCardId, setHoveredCardId] = React8.useState(null);
+  const [editingBubbleId, setEditingBubbleId] = React8.useState(null);
+  const [editingText, setEditingText] = React8.useState("");
+  const [manualNote, setManualNote] = React8.useState("");
+  const [codeChangeRanges, setCodeChangeRanges] = React8.useState([]);
+  const [lastClearSnapshot, setLastClearSnapshot] = React8.useState(null);
+  const bubbleEditorRef = React8.useRef(null);
+  const manualNoteRef = React8.useRef(null);
   React8.useEffect(() => {
     isDirtyRef.current = draftCode !== (code || "");
   }, [draftCode, code]);
@@ -25861,12 +25868,11 @@ function SourceViewer({ code, errorMessage, onApply, onClose }) {
     if (viewRef.current) return;
     try {
       setLoading(true);
-      const editableCompartment = new Compartment();
-      editableCompartmentRef.current = editableCompartment;
       const extensions = [
         basicSetup,
         javascript({ jsx: true, typescript: false }),
-        oneDark,
+        synthesizedTheme,
+        syntaxHighlighting(synthesizedHighlighting),
         EditorView.lineWrapping,
         EditorView.domEventHandlers({
           keydown: (event) => {
@@ -25878,7 +25884,7 @@ function SourceViewer({ code, errorMessage, onApply, onClose }) {
             setDraftCode(update.state.doc.toString());
           }
         }),
-        editableCompartment.of(EditorView.editable.of(!isReadOnly))
+        EditorView.editable.of(true)
       ];
       const startState = EditorState.create({
         doc: draftCode || "",
@@ -25902,13 +25908,9 @@ function SourceViewer({ code, errorMessage, onApply, onClose }) {
     };
   }, []);
   React8.useEffect(() => {
-    if (!viewRef.current || !editableCompartmentRef.current) return;
-    viewRef.current.dispatch({
-      effects: editableCompartmentRef.current.reconfigure(
-        EditorView.editable.of(!isReadOnly)
-      )
-    });
-  }, [isReadOnly]);
+    if (!auditReport && !auditData) return;
+    setShowAuditPanel(true);
+  }, [auditReport, auditData]);
   React8.useEffect(() => {
     if (!viewRef.current) return;
     if (typeof viewRef.current.hasFocus === "function" && viewRef.current.hasFocus()) return;
@@ -25939,8 +25941,224 @@ function SourceViewer({ code, errorMessage, onApply, onClose }) {
     onApply(draftCode);
   };
   const isDirty = draftCode !== (code || "");
+  const isAuditing = auditStatus === "running";
+  const hasAuditReport = auditReport && auditReport.length > 0;
+  const auditPayload = auditData?.fast_audit || auditData?.full_audit || null;
+  const concerns = auditPayload?.concerns || [];
+  const [expandedCards, setExpandedCards] = React8.useState({});
+  const [technicalCards, setTechnicalCards] = React8.useState({});
+  const auditSavedPath = auditMeta?.saved_path || "";
+  const auditIndicator = auditSavedPath ? `Saved to ${auditSavedPath}` : hasAuditReport ? "Audit saved" : "";
+  const getCardId = (concern, index) => {
+    const base2 = concern?.id || `concern-${index}`;
+    const location = Array.isArray(concern?.location) ? concern.location.join("-") : "global";
+    return `${base2}-${location}-${index}`;
+  };
+  const hasAuditPayload = !!auditPayload;
+  const pendingCount = pendingChanges.length;
+  const applyTooltip = [
+    pendingCount > 0 ? `${pendingCount} audit${pendingCount === 1 ? "" : "s"}` : null,
+    isDirty ? "source code changes" : null,
+    manualNote.trim().length > 0 ? "note" : null
+  ].filter(Boolean).join(" and ") || "No pending changes";
+  const visibleConcerns = concerns.map((concern, index) => ({
+    concern,
+    cardId: getCardId(concern, index),
+    index
+  })).filter((item) => !dismissedConcerns[item.cardId]);
+  const toggleExpanded = (cardId) => {
+    setExpandedCards((prev) => ({ ...prev, [cardId]: !prev[cardId] }));
+  };
+  const toggleTechnical = (cardId) => {
+    setTechnicalCards((prev) => ({ ...prev, [cardId]: !prev[cardId] }));
+  };
+  const addPendingChange = (concern, cardId, options = {}) => {
+    if (!concern || !cardId) return;
+    const itemId = options.itemId || cardId;
+    setPendingChanges((prev) => {
+      if (prev.some((item) => item.itemId === itemId)) {
+        return prev;
+      }
+      const label = options.label || concern.summary || concern.id || "Audit change";
+      return [
+        ...prev,
+        {
+          itemId,
+          cardId,
+          label,
+          summary: concern.summary || "",
+          technical_summary: concern.technical_summary || "",
+          details: concern.details || "",
+          location: concern.location,
+          id: concern.id || "",
+          impact: concern.impact || "low",
+          alternative: options.alternative || "",
+          user_note: options.user_note || ""
+        }
+      ];
+    });
+  };
+  const removePendingChange = (itemId) => {
+    setPendingChanges((prev) => prev.filter((item) => item.itemId !== itemId));
+  };
+  const dismissConcern = (cardId, label) => {
+    setDismissedConcerns((prev) => ({ ...prev, [cardId]: label || cardId }));
+  };
+  const startEditingBubble = (item) => {
+    if (!item) return;
+    setEditingBubbleId(item.itemId);
+    setEditingText(item.user_note || item.label || "");
+  };
+  const saveBubbleEdit = () => {
+    if (!editingBubbleId) return;
+    setPendingChanges(
+      (prev) => prev.map(
+        (item) => item.itemId === editingBubbleId ? { ...item, user_note: editingText.trim() } : item
+      )
+    );
+    setEditingBubbleId(null);
+    setEditingText("");
+  };
+  React8.useEffect(() => {
+    if (!editingBubbleId) return;
+    const handleClick = (event) => {
+      if (!bubbleEditorRef.current) return;
+      if (!bubbleEditorRef.current.contains(event.target)) {
+        saveBubbleEdit();
+      }
+    };
+    document.addEventListener("mousedown", handleClick, true);
+    return () => document.removeEventListener("mousedown", handleClick, true);
+  }, [editingBubbleId, editingText]);
+  React8.useEffect(() => {
+    if (auditApplyResponse?.success) {
+      setPendingChanges([]);
+      setManualNote("");
+    }
+  }, [auditApplyResponse]);
+  const autoResizeManualNote = () => {
+    const el = manualNoteRef.current;
+    if (!el) return;
+    const maxHeight = 72;
+    el.style.height = "auto";
+    const nextHeight = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = `${nextHeight}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  };
+  React8.useEffect(() => {
+    autoResizeManualNote();
+  }, [manualNote]);
+  const computeChangedRanges = (nextCode, prevCode) => {
+    const nextLines = (nextCode || "").split("\n");
+    const prevLines = (prevCode || "").split("\n");
+    const maxLen = Math.max(nextLines.length, prevLines.length);
+    const changed = [];
+    for (let i = 0; i < maxLen; i += 1) {
+      if (nextLines[i] !== prevLines[i]) {
+        changed.push(i + 1);
+      }
+    }
+    if (changed.length === 0) return [];
+    const ranges = [];
+    let start = changed[0];
+    let end = changed[0];
+    for (let i = 1; i < changed.length; i += 1) {
+      const line = changed[i];
+      if (line === end + 1) {
+        end = line;
+      } else {
+        ranges.push([start, end]);
+        start = line;
+        end = line;
+      }
+    }
+    ranges.push([start, end]);
+    return ranges;
+  };
+  React8.useEffect(() => {
+    setCodeChangeRanges(computeChangedRanges(draftCode, code || ""));
+  }, [draftCode, code]);
+  const scrollToLines = (lines) => {
+    if (!viewRef.current) return;
+    if (!lines || lines.length === 0) return;
+    const doc2 = viewRef.current.state.doc;
+    const maxLine = doc2.lines;
+    const valid = lines.map((line) => parseInt(line, 10)).filter((line) => Number.isFinite(line) && line > 0 && line <= maxLine);
+    if (valid.length === 0) return;
+    const startLine = Math.min(...valid);
+    const endLine = Math.max(...valid);
+    const start = doc2.line(startLine).from;
+    const end = doc2.line(endLine).to;
+    viewRef.current.dispatch({
+      selection: { anchor: start, head: end },
+      effects: EditorView.scrollIntoView(start, { y: "center" })
+    });
+  };
+  const setEditorValue = (nextCode) => {
+    setDraftCode(nextCode);
+    if (!viewRef.current) return;
+    const current = viewRef.current.state.doc.toString();
+    if (current === nextCode) return;
+    viewRef.current.dispatch({
+      changes: { from: 0, to: current.length, insert: nextCode }
+    });
+  };
+  const handleClearStaging = () => {
+    setLastClearSnapshot({
+      pendingChanges,
+      manualNote,
+      draftCode
+    });
+    setPendingChanges([]);
+    setManualNote("");
+    setEditorValue(code || "");
+  };
+  React8.useEffect(() => {
+    const handleUndo = (event) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
+      if (viewRef.current?.hasFocus && viewRef.current.hasFocus()) return;
+      if (!lastClearSnapshot) return;
+      event.preventDefault();
+      setPendingChanges(lastClearSnapshot.pendingChanges || []);
+      setManualNote(lastClearSnapshot.manualNote || "");
+      setEditorValue(lastClearSnapshot.draftCode || "");
+      setLastClearSnapshot(null);
+    };
+    document.addEventListener("keydown", handleUndo, true);
+    return () => document.removeEventListener("keydown", handleUndo, true);
+  }, [lastClearSnapshot]);
+  const handleCloseRequest = () => {
+    const hasPending = pendingCount > 0 || manualNote.trim().length > 0;
+    if (hasPending) {
+      onApply({
+        type: "audit_apply",
+        baseCode: draftCode,
+        changes: [
+          ...pendingChanges,
+          ...manualNote.trim().length > 0 ? [{
+            itemId: `manual-${Date.now()}`,
+            cardId: "manual",
+            label: manualNote.trim(),
+            summary: manualNote.trim(),
+            user_note: manualNote.trim(),
+            location: "global"
+          }] : []
+        ]
+      });
+    } else if (isDirty) {
+      handleApply();
+    }
+    onClose();
+  };
   return html8`
-    <div class="source-viewer-overlay">
+    <div
+      class="source-viewer-overlay"
+      onMouseDown=${(event) => {
+    if (event.target === event.currentTarget) {
+      handleCloseRequest();
+    }
+  }}
+    >
       <style>
         .source-viewer-overlay {
           position: absolute;
@@ -25949,16 +26167,16 @@ function SourceViewer({ code, errorMessage, onApply, onClose }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: rgba(5, 5, 5, 0.78);
+          background: rgba(6, 8, 15, 0.82);
           backdrop-filter: blur(4px);
         }
         .source-viewer-card {
-          width: min(980px, 96%);
+          width: min(1020px, 96%);
           height: 96%;
-          background: #0b1220;
-          border: 1px solid rgba(148, 163, 184, 0.35);
-          border-radius: 12px;
-          box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+          background: #0d1117;
+          border: 1px solid rgba(71, 85, 105, 0.5);
+          border-radius: 10px;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
           display: flex;
           flex-direction: column;
         }
@@ -25966,8 +26184,8 @@ function SourceViewer({ code, errorMessage, onApply, onClose }) {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 12px 14px;
-          border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+          padding: 14px 16px;
+          border-bottom: 1px solid rgba(71, 85, 105, 0.45);
           color: #e2e8f0;
           font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
             Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -25981,38 +26199,435 @@ function SourceViewer({ code, errorMessage, onApply, onClose }) {
           align-items: center;
         }
         .source-viewer-button {
-          background: transparent;
-          color: #94a3b8;
-          border: 1px solid rgba(148, 163, 184, 0.4);
-          border-radius: 6px;
-          padding: 4px 8px;
+          background: rgba(17, 24, 39, 0.6);
+          color: #cbd5f5;
+          border: 1px solid rgba(71, 85, 105, 0.55);
+          border-radius: 8px;
+          padding: 5px 10px;
           font-size: 11px;
           cursor: pointer;
           text-transform: uppercase;
           letter-spacing: 0.04em;
         }
         .source-viewer-button.primary {
-          background: #f97316;
+          background: #ef7d45;
           color: #0b0b0b;
           border-color: transparent;
           font-weight: 600;
+        }
+        .source-viewer-button.subtle {
+          background: transparent;
+          border-color: rgba(71, 85, 105, 0.4);
+          color: #94a3b8;
         }
         .source-viewer-button:disabled {
           opacity: 0.4;
           cursor: not-allowed;
         }
+        .audit-indicator {
+          color: #6b7280;
+          font-size: 10px;
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+          max-width: 240px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
         .source-viewer-body {
-          padding: 12px 14px 16px;
+          padding: 14px 16px 18px;
           overflow: hidden;
           flex: 1;
           display: flex;
           flex-direction: column;
           gap: 10px;
         }
-        .source-viewer-editor {
-          border: 1px solid rgba(148, 163, 184, 0.2);
+        .source-viewer-main {
+          flex: 1;
+          display: grid;
+          grid-template-columns: ${showAuditPanel ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)"};
+          gap: 12px;
+          overflow: hidden;
+        }
+        .audit-panel {
+          border: 1px solid rgba(71, 85, 105, 0.45);
+          border-radius: 10px;
+          background: #121820;
+          padding: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          overflow: hidden;
+        }
+        .audit-panel-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          color: #fef3c7;
+          font-size: 11px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        .audit-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 10px;
+          overflow: auto;
+          padding-right: 2px;
+          overflow-x: hidden;
+          scrollbar-width: none;
+        }
+        .audit-grid::-webkit-scrollbar {
+          width: 0;
+          height: 0;
+        }
+        .audit-card {
+          padding: 12px 2px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          min-width: 0;
+          position: relative;
+          border-bottom: 1px solid rgba(71, 85, 105, 0.4);
+          transition: opacity 0.5s ease, filter 0.5s ease, border-color 0.5s ease;
+        }
+        .audit-card:last-child {
+          border-bottom: none;
+        }
+        .audit-card.dimmed {
+          opacity: 0.35;
+          filter: saturate(0.6);
+        }
+        .audit-card.highlight {
+          border-color: rgba(239, 125, 69, 0.6);
+        }
+        .audit-card-title {
+          font-size: 10px;
+          color: #fef3c7;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding-right: 40px;
+        }
+        .audit-card-actions {
+          position: absolute;
+          top: 8px;
+          right: 0;
+          display: flex;
+          gap: 6px;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s ease;
+          backdrop-filter: blur(6px);
+          background: rgba(13, 17, 23, 0.8);
+          padding: 2px 6px;
           border-radius: 8px;
-          background: #0a0f1a;
+        }
+        .audit-card:hover .audit-card-actions {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .audit-card-meta {
+          font-size: 10px;
+          color: #6b7280;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .audit-card-summary {
+          font-size: 12px;
+          color: #e2e8f0;
+        }
+        .audit-card-list {
+          font-size: 11px;
+          color: #cbd5f5;
+          display: block;
+          line-height: 1.5;
+          word-break: break-word;
+          white-space: normal;
+        }
+        .impact-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          display: inline-block;
+          flex-shrink: 0;
+        }
+        .audit-add-button {
+          width: 18px;
+          height: 18px;
+          border-radius: 6px;
+          border: 1px solid rgba(71, 85, 105, 0.6);
+          background: rgba(15, 23, 42, 0.6);
+          color: #fcd34d;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 12px;
+          line-height: 1;
+        }
+        .audit-dismiss-button {
+          width: 18px;
+          height: 18px;
+          border-radius: 6px;
+          border: 1px solid rgba(71, 85, 105, 0.6);
+          background: rgba(15, 23, 42, 0.6);
+          color: #9aa4b2;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 12px;
+          line-height: 1;
+        }
+        .audit-dismiss-button:hover {
+          color: #f87171;
+          border-color: rgba(248, 113, 113, 0.6);
+        }
+        .audit-add-button:hover {
+          color: #ef7d45;
+          border-color: rgba(239, 125, 69, 0.6);
+        }
+        .audit-line-link {
+          background: transparent;
+          border: 1px solid rgba(71, 85, 105, 0.4);
+          color: #6b7280;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          cursor: pointer;
+          padding: 2px 8px;
+          border-radius: 999px;
+        }
+        .audit-line-link:hover {
+          color: #f59e0b;
+        }
+        .audit-card-summary {
+          cursor: pointer;
+          word-break: break-word;
+        }
+        .audit-card-summary:hover {
+          color: #f8fafc;
+        }
+        .audit-card-detail {
+          font-size: 11px;
+          color: #cbd5f5;
+          word-break: break-word;
+        }
+        .audit-alternative {
+          display: inline;
+          margin-top: 4px;
+          padding: 0;
+          border: none;
+          background: transparent;
+          color: #f59e0b;
+          font-size: 10px;
+          cursor: pointer;
+          text-decoration: underline;
+        }
+        .audit-alternative:hover {
+          color: #fcd34d;
+        }
+        .audit-changes-strip {
+          border: 1px dashed rgba(71, 85, 105, 0.6);
+          border-radius: 10px;
+          padding: 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          background: rgba(13, 17, 23, 0.6);
+          position: relative;
+        }
+        .audit-changes-strip.compact {
+          padding: 6px 10px;
+          gap: 6px;
+        }
+        .audit-changes-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        .audit-changes-items {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          padding-bottom: 2px;
+          scrollbar-width: none;
+        }
+        .audit-changes-items::-webkit-scrollbar {
+          width: 0;
+          height: 0;
+        }
+        .audit-changes-input {
+          flex: 1;
+          min-width: 0;
+          background: #12141d;
+          color: #e5e7eb;
+          border: none;
+          border-radius: 10px;
+          padding: 10px 12px;
+          font-size: 12px;
+          min-height: 32px;
+          max-height: 72px;
+          resize: none;
+          line-height: 1.4;
+          outline: none;
+          scrollbar-width: none;
+        }
+        .audit-changes-input::-webkit-scrollbar {
+          width: 0;
+          height: 0;
+        }
+        .audit-changes-input:focus,
+        .audit-changes-input:focus-visible {
+          outline: none;
+          box-shadow: none;
+        }
+        .audit-send-button {
+          width: 30px;
+          height: 30px;
+          border-radius: 8px;
+          border: none;
+          background: #ef7d45;
+          color: #fff;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          position: absolute;
+          right: 10px;
+          bottom: 10px;
+        }
+        .audit-send-button:focus,
+        .audit-send-button:focus-visible {
+          outline: none;
+          box-shadow: none;
+        }
+        .audit-send-button:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        .audit-change-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(17, 24, 39, 0.8);
+          border: 1px solid rgba(71, 85, 105, 0.5);
+          border-radius: 8px;
+          padding: 6px 10px;
+          color: #e5e7eb;
+          font-size: 11px;
+          max-width: 220px;
+          position: relative;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .audit-change-pill span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .audit-change-remove {
+          border: none;
+          background: transparent;
+          color: #9aa4b2;
+          cursor: pointer;
+          font-size: 12px;
+          line-height: 1;
+        }
+        .audit-change-remove:hover {
+          color: #f87171;
+        }
+        .audit-bubble-editor {
+          position: absolute;
+          bottom: 130%;
+          left: 0;
+          width: 240px;
+          background: #0f141a;
+          border: 1px solid rgba(71, 85, 105, 0.6);
+          border-radius: 10px;
+          padding: 8px;
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+          z-index: 10;
+        }
+        .audit-bubble-editor textarea {
+          width: 100%;
+          min-height: 80px;
+          background: #12141d;
+          color: #e5e7eb;
+          border: 1px solid rgba(71, 85, 105, 0.6);
+          border-radius: 8px;
+          padding: 6px;
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 11px;
+          resize: vertical;
+        }
+        .audit-bubble-editor-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 6px;
+          margin-top: 6px;
+        }
+        .audit-bubble-editor button {
+          background: rgba(239, 125, 69, 0.9);
+          color: #0b0b0b;
+          border: none;
+          border-radius: 6px;
+          padding: 4px 8px;
+          font-size: 10px;
+          cursor: pointer;
+        }
+        .audit-empty {
+          font-size: 12px;
+          color: #94a3b8;
+          padding: 12px;
+          border: 1px dashed rgba(71, 85, 105, 0.6);
+          border-radius: 8px;
+        }
+        .audit-empty button {
+          background: none;
+          border: none;
+          color: #f59e0b;
+          font-size: 11px;
+          cursor: pointer;
+          padding: 0;
+          text-decoration: underline;
+        }
+        .audit-dismissed-list {
+          margin-top: 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .audit-dismissed-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 11px;
+          color: #cbd5f5;
+        }
+        .audit-dismissed-item button {
+          background: transparent;
+          border: 1px solid rgba(71, 85, 105, 0.5);
+          color: #94a3b8;
+          border-radius: 999px;
+          padding: 2px 8px;
+          font-size: 10px;
+          cursor: pointer;
+        }
+        .source-viewer-editor {
+          border: 1px solid rgba(71, 85, 105, 0.45);
+          border-radius: 10px;
+          background: #0f141a;
           flex: 1;
           min-height: 0;
           overflow: hidden;
@@ -26028,18 +26643,6 @@ function SourceViewer({ code, errorMessage, onApply, onClose }) {
         }
         .source-viewer-editor .cm-editor {
           height: 100%;
-        }
-        .source-viewer-editor .cm-scroller {
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 12px;
-        }
-        .source-viewer-editor .cm-gutters {
-          background: #0a0f1a;
-          border-right: 1px solid rgba(148, 163, 184, 0.2);
-        }
-        .source-viewer-editor .cm-lineNumbers .cm-gutterElement {
-          color: rgba(148, 163, 184, 0.7);
         }
         .source-viewer-loading {
           padding: 16px;
@@ -26061,13 +26664,21 @@ function SourceViewer({ code, errorMessage, onApply, onClose }) {
         <div class="source-viewer-header">
           <span>Widget Source</span>
           <div class="source-viewer-actions">
-            <button class="source-viewer-button" onClick=${() => setReadOnly(!isReadOnly)}>
-              ${isReadOnly ? "Editable" : "Read-Only"}
-            </button>
-            <button class="source-viewer-button primary" disabled=${!isDirty} onClick=${handleApply}>
-              Apply Changes
-            </button>
-            <button class="source-viewer-button" onClick=${onClose}>Close</button>
+            ${auditIndicator && html8`<span class="audit-indicator">${auditIndicator}</span>`}
+            ${!hasAuditPayload && html8`
+              <button class="source-viewer-button" disabled=${isAuditing} onClick=${() => {
+    setShowAuditPanel(true);
+    onAudit("fast");
+  }}>
+                ${isAuditing ? "Auditing..." : "Audit"}
+              </button>
+            `}
+            ${hasAuditPayload && html8`
+              <button class="source-viewer-button subtle" onClick=${() => setShowAuditPanel(!showAuditPanel)}>
+                ${showAuditPanel ? "Hide Audit" : "Show Audit"}
+              </button>
+            `}
+            <button class="source-viewer-button" onClick=${handleCloseRequest}>Close</button>
           </div>
         </div>
         <div class="source-viewer-body">
@@ -26076,11 +26687,288 @@ function SourceViewer({ code, errorMessage, onApply, onClose }) {
               ${errorMessage}
             </div>
           `}
-          <div class="source-viewer-editor">
-            ${isLoading && html8`<div class="source-viewer-loading">Loading editor...</div>`}
-            ${loadError && html8`<div class="source-viewer-error">${loadError}</div>`}
-            <div ref=${containerRef} style=${{ height: "100%" }}></div>
+          ${auditError && html8`
+            <div class="source-viewer-error-banner">
+              Audit failed: ${auditError}
+            </div>
+          `}
+          ${auditApplyError && html8`
+            <div class="source-viewer-error-banner">
+              Apply failed: ${auditApplyError}
+            </div>
+          `}
+          <div class="source-viewer-main">
+            <div class="source-viewer-editor">
+              ${isLoading && html8`<div class="source-viewer-loading">Loading editor...</div>`}
+              ${loadError && html8`<div class="source-viewer-error">${loadError}</div>`}
+              <div ref=${containerRef} style=${{ height: "100%" }}></div>
+            </div>
+            ${showAuditPanel && html8`
+              <div class="audit-panel">
+                <div class="audit-panel-header">
+                  <span>Audit Overview</span>
+                  <span>${visibleConcerns.length} concerns</span>
+                </div>
+                ${visibleConcerns.length > 0 ? html8`
+                  <div class="audit-grid">
+                    ${visibleConcerns.map(({ concern, cardId, index }) => {
+    const isExpanded = !!expandedCards[cardId];
+    const showTechnical = !!technicalCards[cardId];
+    const impact = (concern.impact || "low").toLowerCase();
+    const impactColor = impact === "high" ? "#f87171" : impact === "medium" ? "#f59e0b" : "#34d399";
+    const location = Array.isArray(concern.location) ? concern.location : [];
+    const lineLabel = location.length > 0 ? `LINES ${Math.min(...location)}-${Math.max(...location)}` : "GLOBAL";
+    const plainSummary = concern.summary || "";
+    const technicalSummary = concern.technical_summary || "";
+    const detailText = concern.details || "";
+    const canToggleTechnical = technicalSummary && technicalSummary !== plainSummary;
+    const descriptionText = showTechnical && canToggleTechnical ? technicalSummary : plainSummary;
+    const isDimmed = hoveredCardId && hoveredCardId !== cardId;
+    const isHighlighted = hoveredCardId === cardId;
+    return html8`
+                        <div class="audit-card ${isDimmed ? "dimmed" : ""} ${isHighlighted ? "highlight" : ""}" onClick=${() => toggleExpanded(cardId)}>
+                          <div class="audit-card-title" title=${`Impact: ${impact}`}>
+                            <span class="impact-dot" style=${{ background: impactColor }}></span>
+                            <span>${concern.id || "concern"}</span>
+                          </div>
+                          <div class="audit-card-actions">
+                            <button
+                              class="audit-add-button"
+                              title="Add to Changes"
+                              onClick=${(event) => {
+      event.stopPropagation();
+      addPendingChange(concern, cardId, { itemId: `${cardId}-base` });
+    }}
+                            >
+                              +
+                            </button>
+                            <button
+                              class="audit-dismiss-button"
+                              title="Dismiss"
+                              onClick=${(event) => {
+      event.stopPropagation();
+      dismissConcern(cardId, concern.id || "concern");
+    }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div class="audit-card-meta">
+                            <button
+                              class="audit-line-link"
+                              onClick=${(event) => {
+      event.stopPropagation();
+      if (location.length > 0) {
+        scrollToLines(location);
+      }
+    }}
+                            >
+                              ${lineLabel}
+                            </button>
+                          </div>
+                          <div
+                            class="audit-card-summary"
+                            onClick=${(event) => {
+      if (!canToggleTechnical) return;
+      event.stopPropagation();
+      toggleTechnical(cardId);
+    }}
+                            title=${canToggleTechnical ? "Click to toggle technical note" : ""}
+                          >
+                            ${descriptionText}
+                          </div>
+                          ${isExpanded && detailText && html8`
+                            <div class="audit-card-detail">${detailText}</div>
+                          `}
+                          ${isExpanded && concern.alternatives && concern.alternatives.length > 0 && html8`
+                            <div class="audit-card-list">
+                              Recommendations: ${Array.isArray(concern.alternatives) ? concern.alternatives.map((alt, altIndex) => {
+      const altText = alt.option || alt;
+      const isLast = altIndex === concern.alternatives.length - 1;
+      return html8`
+                                  <button
+                                    class="audit-alternative"
+                                    onClick=${(event) => {
+        event.stopPropagation();
+        addPendingChange(concern, cardId, {
+          itemId: `${cardId}-alt-${altIndex}`,
+          label: `Recommendation: ${altText}`,
+          alternative: altText
+        });
+      }}
+                                  >
+                                    ${altText}
+                                  </button>${!isLast ? ", " : ""}
+                                `;
+    }) : ""}
+                            </div>
+                          `}
+                        </div>
+                      `;
+  })}
+                  </div>
+                ` : html8`
+                  <div class="audit-empty">
+                    All audits resolved.
+                    ${Object.keys(dismissedConcerns).length > 0 && html8`
+                      <div>
+                        <button onClick=${() => setShowDismissed(!showDismissed)}>
+                          ${showDismissed ? "Hide dismissed" : "Show dismissed"}
+                        </button>
+                      </div>
+                      ${showDismissed && html8`
+                        <div class="audit-dismissed-list">
+                          ${Object.entries(dismissedConcerns).map(([cardId, label]) => html8`
+                            <div class="audit-dismissed-item">
+                              <span>${label}</span>
+                              <button onClick=${() => setDismissedConcerns((prev) => {
+    const next = { ...prev };
+    delete next[cardId];
+    return next;
+  })}>
+                                Restore
+                              </button>
+                            </div>
+                          `)}
+                        </div>
+                      `}
+                    `}
+                  </div>
+                `}
+              </div>
+            `}
           </div>
+          ${(pendingCount > 0 || isDirty || manualNote.trim().length > 0 || codeChangeRanges.length > 0) && html8`
+            <div class="audit-changes-strip ${pendingCount === 0 ? "compact" : ""}">
+                    <div class="audit-changes-row">
+                      <div class="audit-changes-items">
+                        ${pendingChanges.map((item) => {
+    const isEditing = editingBubbleId === item.itemId;
+    return html8`
+                            <div
+                              class="audit-change-pill"
+                              onMouseEnter=${() => setHoveredCardId(item.cardId)}
+                              onMouseLeave=${() => setHoveredCardId(null)}
+                              onClick=${() => startEditingBubble(item)}
+                            >
+                              <span title=${item.label}>${item.label}</span>
+                              <button
+                                class="audit-change-remove"
+                                title="Remove"
+                                onClick=${(event) => {
+      event.stopPropagation();
+      removePendingChange(item.itemId);
+    }}
+                              >
+                                ×
+                              </button>
+                              ${isEditing && html8`
+                                <div class="audit-bubble-editor" ref=${bubbleEditorRef}>
+                                  <textarea
+                                    value=${editingText}
+                                    onInput=${(event) => setEditingText(event.target.value)}
+                                    placeholder="Edit what will be sent..."
+                                  ></textarea>
+                                  <div class="audit-bubble-editor-actions">
+                                    <button onClick=${(event) => {
+      event.stopPropagation();
+      saveBubbleEdit();
+    }}>
+                                      Save
+                                    </button>
+                                  </div>
+                                </div>
+                              `}
+                            </div>
+                          `;
+  })}
+                        ${codeChangeRanges.length >= 3 ? html8`
+                          <div
+                            class="audit-change-pill"
+                            title=${`Changed: ${codeChangeRanges.map((range) => range[0] === range[1] ? `Line ${range[0]}` : `Lines ${range[0]}-${range[1]}`).join(", ")}`}
+                          >
+                            <span>Code changes (${codeChangeRanges.length})</span>
+                          </div>
+                        ` : codeChangeRanges.map((range) => {
+    const label = range[0] === range[1] ? `Line ${range[0]}` : `Lines ${range[0]}-${range[1]}`;
+    return html8`
+                            <div class="audit-change-pill" title="Source code edits">
+                              <span>${label}</span>
+                            </div>
+                          `;
+  })}
+                      </div>
+                    </div>
+                    <div class="audit-changes-row">
+                      <textarea
+                        ref=${manualNoteRef}
+                        class="audit-changes-input"
+                        placeholder="Add a note for the changes..."
+                        value=${manualNote}
+                        onInput=${(event) => {
+    setManualNote(event.target.value);
+    autoResizeManualNote();
+  }}
+                        onKeyDown=${(event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      const hasPending = pendingCount > 0 || manualNote.trim().length > 0;
+      if (hasPending) {
+        onApply({
+          type: "audit_apply",
+          baseCode: draftCode,
+          changes: [
+            ...pendingChanges,
+            ...manualNote.trim().length > 0 ? [{
+              itemId: `manual-${Date.now()}`,
+              cardId: "manual",
+              label: manualNote.trim(),
+              summary: manualNote.trim(),
+              user_note: manualNote.trim(),
+              location: "global"
+            }] : []
+          ]
+        });
+      } else if (isDirty) {
+        handleApply();
+      }
+    }
+  }}
+                      ></textarea>
+                    </div>
+                    <button
+                      class="audit-send-button"
+                      title=${applyTooltip}
+                      disabled=${pendingCount === 0 && !isDirty && manualNote.trim().length === 0}
+                      onClick=${() => {
+    const hasPending = pendingCount > 0 || manualNote.trim().length > 0;
+    if (hasPending) {
+      onApply({
+        type: "audit_apply",
+        baseCode: draftCode,
+        changes: [
+          ...pendingChanges,
+          ...manualNote.trim().length > 0 ? [{
+            itemId: `manual-${Date.now()}`,
+            cardId: "manual",
+            label: manualNote.trim(),
+            summary: manualNote.trim(),
+            user_note: manualNote.trim(),
+            location: "global"
+          }] : []
+        ]
+      });
+    } else if (isDirty) {
+      handleApply();
+    }
+  }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M6 14L12 8L18 14" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </button>
+                  </div>
+                `}
         </div>
       </div>
     </div>
@@ -26094,23 +26982,58 @@ function useModelSync(model) {
   const [logs, setLogs] = React9.useState(model.get("logs"));
   const [code, setCode] = React9.useState(model.get("code"));
   const [errorMessage, setErrorMessage] = React9.useState(model.get("error_message"));
+  const [auditStatus, setAuditStatus] = React9.useState(model.get("audit_status"));
+  const [auditResponse, setAuditResponse] = React9.useState(model.get("audit_response"));
+  const [auditError, setAuditError] = React9.useState(model.get("audit_error"));
+  const [auditApplyStatus, setAuditApplyStatus] = React9.useState(model.get("audit_apply_status"));
+  const [auditApplyResponse, setAuditApplyResponse] = React9.useState(model.get("audit_apply_response"));
+  const [auditApplyError, setAuditApplyError] = React9.useState(model.get("audit_apply_error"));
   React9.useEffect(() => {
     const onStatusChange = () => setStatus(model.get("status"));
     const onLogsChange = () => setLogs(model.get("logs"));
     const onCodeChange = () => setCode(model.get("code"));
     const onErrorChange = () => setErrorMessage(model.get("error_message"));
+    const onAuditStatusChange = () => setAuditStatus(model.get("audit_status"));
+    const onAuditResponseChange = () => setAuditResponse(model.get("audit_response"));
+    const onAuditErrorChange = () => setAuditError(model.get("audit_error"));
+    const onAuditApplyStatusChange = () => setAuditApplyStatus(model.get("audit_apply_status"));
+    const onAuditApplyResponseChange = () => setAuditApplyResponse(model.get("audit_apply_response"));
+    const onAuditApplyErrorChange = () => setAuditApplyError(model.get("audit_apply_error"));
     model.on("change:status", onStatusChange);
     model.on("change:logs", onLogsChange);
     model.on("change:code", onCodeChange);
     model.on("change:error_message", onErrorChange);
+    model.on("change:audit_status", onAuditStatusChange);
+    model.on("change:audit_response", onAuditResponseChange);
+    model.on("change:audit_error", onAuditErrorChange);
+    model.on("change:audit_apply_status", onAuditApplyStatusChange);
+    model.on("change:audit_apply_response", onAuditApplyResponseChange);
+    model.on("change:audit_apply_error", onAuditApplyErrorChange);
     return () => {
       model.off("change:status", onStatusChange);
       model.off("change:logs", onLogsChange);
       model.off("change:code", onCodeChange);
       model.off("change:error_message", onErrorChange);
+      model.off("change:audit_status", onAuditStatusChange);
+      model.off("change:audit_response", onAuditResponseChange);
+      model.off("change:audit_error", onAuditErrorChange);
+      model.off("change:audit_apply_status", onAuditApplyStatusChange);
+      model.off("change:audit_apply_response", onAuditApplyResponseChange);
+      model.off("change:audit_apply_error", onAuditApplyErrorChange);
     };
   }, [model]);
-  return { status, logs, code, errorMessage };
+  return {
+    status,
+    logs,
+    code,
+    errorMessage,
+    auditStatus,
+    auditResponse,
+    auditError,
+    auditApplyStatus,
+    auditApplyResponse,
+    auditApplyError
+  };
 }
 
 // src/vibe_widget/AppWrapper/hooks/useKeyboardShortcuts.js
@@ -26135,7 +27058,18 @@ var html9 = htm9.bind(React11.createElement);
 ensureGlobalStyles();
 var AUDIT_ACK_KEY = "vibe_widget_audit_ack";
 function AppWrapper({ model }) {
-  const { status, logs, code, errorMessage } = useModelSync(model);
+  const {
+    status,
+    logs,
+    code,
+    errorMessage,
+    auditStatus,
+    auditResponse,
+    auditError,
+    auditApplyStatus,
+    auditApplyResponse,
+    auditApplyError
+  } = useModelSync(model);
   const [isMenuOpen, setMenuOpen] = React11.useState(false);
   const [grabMode, setGrabMode] = React11.useState(null);
   const [promptCache, setPromptCache] = React11.useState({});
@@ -26239,7 +27173,17 @@ function AppWrapper({ model }) {
       setRenderCode(lastGoodCode);
     }
   }, [renderCode, lastGoodCode]);
-  const handleApplySource = (nextCode) => {
+  const handleApplySource = (payload) => {
+    if (payload && payload.type === "audit_apply") {
+      model.set("audit_apply_request", {
+        changes: payload.changes || [],
+        base_code: payload.baseCode || ""
+      });
+      model.save_changes();
+      setShowSource(false);
+      return;
+    }
+    const nextCode = payload;
     setApplyState({
       pending: true,
       previousCode: code,
@@ -26250,6 +27194,18 @@ function AppWrapper({ model }) {
     model.set("code", nextCode);
     model.save_changes();
   };
+  const handleAuditRequest = (level) => {
+    model.set("audit_request", {
+      level: level || "fast",
+      request_id: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    });
+    model.save_changes();
+  };
+  const auditReport = auditResponse?.report_yaml || "";
+  const auditMeta = auditResponse && !auditResponse.error ? auditResponse : null;
+  const auditData = auditResponse?.report || null;
+  const auditConcerns = auditData?.fast_audit?.concerns || [];
+  const highAuditCount = auditConcerns.filter((concern) => concern?.impact === "high").length;
   const handleAuditAccept = () => {
     try {
       sessionStorage.setItem(AUDIT_ACK_KEY, "true");
@@ -26291,6 +27247,7 @@ function AppWrapper({ model }) {
           onToggle=${() => setMenuOpen(!isMenuOpen)}
           onGrabModeStart=${handleGrabStart}
           onViewSource=${handleViewSource}
+          highAuditCount=${highAuditCount}
           isEditMode=${!!grabMode}
         />
       `}
@@ -26320,6 +27277,15 @@ function AppWrapper({ model }) {
         <${SourceViewer}
           code=${code}
           errorMessage=${sourceError}
+          auditStatus=${auditStatus}
+          auditReport=${auditReport}
+          auditError=${auditError || auditResponse?.error}
+          auditMeta=${auditMeta}
+          auditData=${auditData}
+          auditApplyStatus=${auditApplyStatus}
+          auditApplyResponse=${auditApplyResponse}
+          auditApplyError=${auditApplyError}
+          onAudit=${handleAuditRequest}
           onApply=${handleApplySource}
           onClose=${() => setShowSource(false)}
         />
