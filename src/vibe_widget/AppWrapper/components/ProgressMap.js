@@ -1,5 +1,5 @@
-import * as React from "https://esm.sh/react@18";
-import htm from "https://esm.sh/htm@3";
+import * as React from "react";
+import htm from "htm";
 
 const html = htm.bind(React.createElement);
 const SPINNER_FRAMES = ["/", "-", "\\", "|"];

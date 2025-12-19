@@ -1,4 +1,4 @@
-import * as React from "https://esm.sh/react@18";
+import * as React from "react";
 
 // Syncs status/logs/code from the traitlets model with cleanup.
 export default function useModelSync(model) {

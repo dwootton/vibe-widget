@@ -1,6 +1,6 @@
-import * as React from "https://esm.sh/react@18";
-import { createRoot } from "https://esm.sh/react-dom@18/client";
-import htm from "https://esm.sh/htm@3";
+import * as React from "react";
+import { createRoot } from "react-dom/client";
+import htm from "htm";
 
 import { ensureGlobalStyles } from "./utils/styles";
 import SandboxedRunner from "./components/SandboxedRunner";

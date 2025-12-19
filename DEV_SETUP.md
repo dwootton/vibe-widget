@@ -30,42 +30,23 @@ This bundles `src/vibe_widget/AppWrapper/AppWrapper.js` → `AppWrapper.bundle.j
 3. **Size optimization** - Minification and tree-shaking
 4. **Self-contained widgets** - No runtime dependency resolution needed
 
-### React: ESM vs npm (Current Debate)
+### React: Bundled with npm
 
-**Current approach:** React is imported via ESM CDN and marked as external:
+**Current approach:** React is bundled from npm packages:
 
 ```javascript
-import * as React from "https://esm.sh/react@18";
-// esbuild flag: --external:https://esm.sh/react@18
-```
-
-**Why ESM was chosen:**
-- ✅ Smaller bundle size (~130KB saved)
-- ✅ Browser caching across widgets
-- ✅ Common pattern in anywidget examples
-
-**Why this might be wrong:**
-- ❌ Requires internet connection
-- ❌ Version unpredictability (esm.sh could change)
-- ❌ Inconsistent with CodeMirror (which IS bundled)
-- ❌ We already have a build process!
-
-**Recommended fix:**
-
-```bash
-# Install React as npm dependencies
-npm install react react-dom htm
-
-# Update package.json build script to remove externals:
-"build-app-wrapper": "esbuild src/vibe_widget/AppWrapper/AppWrapper.js --bundle --format=esm --platform=browser --target=es2020 --outfile=src/vibe_widget/AppWrapper.bundle.js"
-
-# Update imports in AppWrapper.js:
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import htm from "htm";
 ```
 
-This makes the widget fully self-contained with no external runtime dependencies.
+**Why we bundle React:**
+- ✅ Self-contained widgets (no internet required)
+- ✅ Version pinning and predictability
+- ✅ Consistent with CodeMirror bundling
+- ✅ ~2MB bundle size is acceptable for modern use
+
+The bundle includes React 19, ReactDOM, and htm. Other libraries (if needed) can still use ESM.sh, but core dependencies are bundled for reliability.
 
 ## Why anywidget?
 
@@ -121,12 +102,14 @@ CodeMirror is bundled (not external) because:
 
 ## Architecture Decision Summary
 
-| Dependency | Current | Recommended | Reason |
-|------------|---------|-------------|--------|
-| React/ReactDOM | ESM CDN | npm bundled | Consistency, reliability |
-| htm | ESM CDN | npm bundled | Small size, bundle it |
-| CodeMirror | npm bundled | npm bundled | ✅ Correct |
-| esbuild | dev dependency | dev dependency | ✅ Correct |
+| Dependency | Approach | Reason |
+|------------|----------|--------|
+| React/ReactDOM | npm bundled | Self-contained, version pinned, reliable |
+| htm | npm bundled | Small size, bundled with React |
+| CodeMirror | npm bundled | Specific extensions needed |
+| esbuild | dev dependency | Build tool only |
+
+**Bundle size:** ~2.0MB (includes React 19, ReactDOM, htm, CodeMirror)
 
 ## Build Troubleshooting
 
@@ -139,13 +122,13 @@ CodeMirror is bundled (not external) because:
 - Check esbuild output for warnings
 
 **Size concerns?**
-- Bundling React adds ~130KB
-- This is negligible for most use cases
-- If size matters, consider splitting into multiple widgets
+- Current bundle is ~2MB (includes React, CodeMirror)
+- For production, add `--minify` flag to reduce size
+- This is acceptable for most Jupyter notebook use cases
 
 ## Future Improvements
 
-1. **Bundle React locally** - Remove ESM.sh dependency
-2. **Add TypeScript** - Type safety for complex components
-3. **Hot reload** - Faster development cycle
-4. **Source maps** - Better debugging experience
+1. **Add TypeScript** - Type safety for complex components
+2. **Hot reload** - Faster development cycle
+3. **Source maps** - Better debugging experience
+4. **Minification** - Add `--minify` flag for production builds

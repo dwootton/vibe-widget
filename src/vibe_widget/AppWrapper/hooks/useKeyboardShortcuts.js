@@ -1,4 +1,4 @@
-import * as React from "https://esm.sh/react@18";
+import * as React from "react";
 
 // Handles Ctrl/Cmd+E to start grab mode when allowed.
 export default function useKeyboardShortcuts({ isLoading, hasCode, grabMode, onGrabStart }) {
