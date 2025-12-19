@@ -230,12 +230,6 @@ class VibeWidget(anywidget.AnyWidget):
         self.observe(self._on_audit_apply_request, names='audit_apply_request')
         
         try:
-            from IPython.display import display
-            display(self)
-        except ImportError:
-            pass
-        
-        try:
             self.logs = [f"Analyzing data: {df.shape[0]} rows × {df.shape[1]} columns"]
             
             resolved_model, config = _resolve_model(model)
