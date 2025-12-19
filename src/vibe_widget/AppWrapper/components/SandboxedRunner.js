@@ -37,6 +37,7 @@ export default function SandboxedRunner({ code, model }) {
           setGuestWidget(() => module.default);
           setError(null);
           model.set("error_message", "");
+          model.set("retry_count", 0);
           model.save_changes();
         } else {
           throw new Error("Generated code must export a default function");

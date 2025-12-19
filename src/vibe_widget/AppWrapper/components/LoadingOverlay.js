@@ -13,20 +13,25 @@ export default function LoadingOverlay({ logs, hasExistingWidget }) {
         background: "rgba(0, 0, 0, 0.6)",
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
+        alignItems: "stretch",
+        justifyContent: "stretch",
         zIndex: 1000,
         backdropFilter: "blur(3px)",
       }}>
         <div style=${{
-          width: "90%",
-          maxWidth: "500px",
+          width: "100%",
+          height: "100%",
+          padding: "12px",
         }}>
-          <${ProgressMap} logs=${logs} />
+          <${ProgressMap} logs=${logs} fullHeight=${true} />
         </div>
       </div>
     `;
   }
 
-  return html`<${ProgressMap} logs=${logs} />`;
+  return html`
+    <div style=${{ width: "100%", height: "100%" }}>
+      <${ProgressMap} logs=${logs} fullHeight=${true} />
+    </div>
+  `;
 }

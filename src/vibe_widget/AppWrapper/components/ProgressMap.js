@@ -5,7 +5,7 @@ const html = htm.bind(React.createElement);
 const SPINNER_FRAMES = ["/", "-", "\\", "|"];
 const SPINNER_INTERVAL_MS = 120;
 
-export default function ProgressMap({ logs }) {
+export default function ProgressMap({ logs, fullHeight = false }) {
   const containerRef = React.useRef(null);
   const [spinnerFrame, setSpinnerFrame] = React.useState(0);
 
@@ -29,12 +29,17 @@ export default function ProgressMap({ logs }) {
   };
 
   return html`
-    <div class="progress-wrapper">
+    <div class=${`progress-wrapper ${fullHeight ? "progress-wrapper--full" : ""}`}>
       <style>
         .progress-wrapper {
           position: relative;
           padding: 12px;
           background: transparent;
+        }
+        .progress-wrapper--full {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
         }
         
         .progress-bezel {
@@ -42,6 +47,11 @@ export default function ProgressMap({ logs }) {
           background: #1A1A1A;
           border: 3px solid #F2F0E9;
           box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .progress-wrapper--full .progress-bezel {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
         }
         
         .progress-heading {
@@ -64,6 +74,10 @@ export default function ProgressMap({ logs }) {
           font-size: 12px;
           line-height: 1.4;
           overflow-y: auto;
+        }
+        .progress-wrapper--full .progress-container {
+          flex: 1;
+          max-height: none;
         }
         
         .progress-container::-webkit-scrollbar {

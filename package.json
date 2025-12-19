@@ -2,8 +2,15 @@
   "name": "vibe-widgets-sundai",
   "private": true,
   "scripts": {
-    "build-app-wrapper": "esbuild src/vibe_widget/AppWrapper/AppWrapper.js --bundle --format=esm --platform=browser --target=es2020 --outfile=src/vibe_widget/AppWrapper.js --external:https://esm.sh/react@18 --external:https://esm.sh/react-dom@18/client --external:https://esm.sh/htm@3",
+    "build-app-wrapper": "esbuild src/vibe_widget/AppWrapper/AppWrapper.js --bundle --format=esm --platform=browser --target=es2020 --outfile=src/vibe_widget/AppWrapper.bundle.js --external:https://esm.sh/react@18 --external:https://esm.sh/react-dom@18/client --external:https://esm.sh/htm@3",
     "watch-app-wrapper": "npm run build-app-wrapper -- --watch"
+  },
+  "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/state": "^6.2.1",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.26.3",
+    "codemirror": "^6.0.1"
   },
   "devDependencies": {
     "esbuild": "^0.23.0"

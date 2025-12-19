@@ -3,7 +3,7 @@ import htm from "https://esm.sh/htm@3";
 
 const html = htm.bind(React.createElement);
 
-export default function FloatingMenu({ isOpen, onToggle, onGrabModeStart, isEditMode }) {
+export default function FloatingMenu({ isOpen, onToggle, onGrabModeStart, onViewSource, isEditMode }) {
   return html`
     <div class="floating-menu-container">
       <style>
@@ -77,8 +77,8 @@ export default function FloatingMenu({ isOpen, onToggle, onGrabModeStart, isEdit
       ${isOpen && html`
         <div class="menu-options">
           <div class="menu-option" onClick=${onGrabModeStart}>Edit Element</div>
+          <div class="menu-option" onClick=${onViewSource}>View Source</div>
           <div class="menu-option disabled">Export (Coming Soon)</div>
-          <div class="menu-option disabled">View Source</div>
         </div>
       `}
     </div>

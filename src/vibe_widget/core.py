@@ -178,7 +178,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._base_widget_id = base_widget_id
         
         app_wrapper_dir = Path(__file__).parent
-        app_wrapper_path = app_wrapper_dir / "AppWrapper.js"
+        app_wrapper_path = app_wrapper_dir / "AppWrapper.bundle.js"
         if not app_wrapper_path.exists():
             # Fallback for older builds
             app_wrapper_path = app_wrapper_dir / "app_wrapper.js"
@@ -504,7 +504,7 @@ class VibeWidget(anywidget.AnyWidget):
         self.status = 'generating'
         
         error_preview = error_msg.split('\n')[0][:100]
-        self.logs = self.logs + [f"Error detected (attempt {self.retry_count}): {error_preview}"]
+        self.logs = self.logs + [f"Error detected: {error_preview}"]
         self.logs = self.logs + ["Asking LLM to fix the error"]
         
         try:
@@ -520,6 +520,7 @@ class VibeWidget(anywidget.AnyWidget):
             self.code = fixed_code
             self.status = 'ready'
             self.error_message = ""
+            self.retry_count = 0
         except Exception as e:
             self.status = "error"
             self.logs = self.logs + [f"Fix attempt failed: {str(e)}"]

@@ -269,6 +269,8 @@ Return only the full revised JavaScript code. No markdown fences or explanations
         exports_imports_section = self._build_exports_imports_section(exports, imports)
         
         return f"""Fix the AnyWidget React bundle code below. Keep the interaction model identical while eliminating the runtime error.
+Preserve all user-intended changes and visual styling; make the smallest possible fix.
+Do NOT remove, rename, or rewrite unrelated parts of the code.
 
 ERROR MESSAGE:
 {error_message}
@@ -396,4 +398,3 @@ Focus on modifying only what's necessary for the requested changes.
             "is_geospatial": is_geospatial,
             "temporal_columns": [str(col) for col in temporal_cols],
         }
-
