@@ -133,7 +133,10 @@ That's it. The AI analyzes your data, generates React code, validates it, and re
 ### Configuration
 
 ```python
-vw.config(model="gemini")  # or "openai", "anthropic", "openrouter"
+vw.config(mode="premium", model="openrouter")
+# or
+vw.config(model="openai/gpt-5.1-codex")
+vw.config(model="anthropic/claude-opus-4.5")
 
 # View available models
 vw.models()

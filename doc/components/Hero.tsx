@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, Terminal, Copy, ChevronDown, Check, Sparkles, Search } from 'lucide-react';
+import { ArrowRight, Terminal, Copy, ChevronDown, Check, Sparkles } from 'lucide-react';
 import { EXAMPLES } from '../data/examples';
 import DynamicWidget from './DynamicWidget';
 
@@ -28,17 +28,15 @@ const RetroCat = () => (
             strokeLinecap="round"
             initial={{ d: "M 160 80 Q 180 80 180 60 Q 180 50 160 60" }}
             animate={{ d: "M 160 80 Q 200 90 195 40 Q 180 20 160 40" }}
-            transition={{ repeat: Infinity, repeatType: "mirror", duration: 2 }}
+            transition={{ repeat: Infinity, repeatType: "mirror", duration: 2, ease: "easeInOut" }}
         />
         {/* Body */}
         <path d="M 40 80 L 160 80 A 10 10 0 0 0 170 70 L 170 50 A 20 20 0 0 0 150 30 L 60 30 A 10 10 0 0 0 50 40 L 50 70 A 10 10 0 0 0 40 80" fill="#1A1A1A" filter="url(#shadow)" />
         {/* Head */}
         <g transform="translate(30, 20)">
             <rect x="0" y="20" width="50" height="40" rx="12" fill="#1A1A1A" />
-            {/* Ears */}
             <path d="M 5 20 L 0 5 L 15 20" fill="#1A1A1A" />
             <path d="M 45 20 L 50 5 L 35 20" fill="#1A1A1A" />
-            {/* Eyes */}
             <motion.rect 
                 x="12" y="35" width="8" height="8" rx="2" fill="#f97316"
                 animate={{ scaleY: [1, 0.1, 1] }}
@@ -50,7 +48,6 @@ const RetroCat = () => (
                 transition={{ repeat: Infinity, duration: 4, delay: 0.6 }}
             />
         </g>
-        {/* Paws */}
         <rect x="50" y="80" width="20" height="8" rx="4" fill="#F2F0E9" />
         <rect x="140" y="80" width="20" height="8" rx="4" fill="#F2F0E9" />
     </svg>
@@ -65,10 +62,9 @@ const Hero = () => {
 
   const { scrollY } = useScroll();
   
-  // Parallax Transforms
-  const textY = useTransform(scrollY, [0, 600], [0, 100]);
-  const simulatorY = useTransform(scrollY, [0, 600], [0, -50]);
-  const opacity = useTransform(scrollY, [0, 400], [1, 0.5]);
+  const textY = useTransform(scrollY, [0, 800], [0, 250]);
+  const simulatorY = useTransform(scrollY, [0, 800], [0, -100]);
+  const opacity = useTransform(scrollY, [0, 600], [1, 0]);
 
   useEffect(() => {
     if (inputText) {
@@ -77,9 +73,6 @@ const Hero = () => {
             ex.label.toLowerCase().includes(inputText.toLowerCase())
         );
         setFilteredExamples(filtered);
-        if (filtered.length > 0) {
-            setIsMenuOpen(true);
-        }
     } else {
         setFilteredExamples(EXAMPLES);
     }
@@ -100,64 +93,82 @@ const Hero = () => {
       }, 1500);
   };
 
+  const titleWords = "Data Viz, Synthesized.".split(" ");
+
   return (
-    // Sticky Hero wrapper for scrollytelling effect
     <div className="sticky top-0 h-screen w-full overflow-hidden z-0 flex flex-col pt-32 px-4 md:px-12 max-w-7xl mx-auto pointer-events-none pb-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pointer-events-auto h-full">
         
-        {/* Left Column: Typography */}
+        {/* Left Column */}
         <motion.div style={{ y: textY, opacity }} className="lg:col-span-6 space-y-8 z-10 flex flex-col justify-center h-full pb-32">
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-slate/20 bg-bone/80 backdrop-blur-sm w-fit"
           >
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs font-mono font-medium tracking-wide uppercase">v1.0.4 Online</span>
+            <span className="text-xs font-mono font-medium tracking-wide uppercase">v1.0.4 Live</span>
           </motion.div>
 
-          <h1 className="text-6xl md:text-8xl font-display font-bold leading-[0.9] tracking-tighter mix-blend-multiply">
-            Data Viz, <br/>
-            <span className="text-orange">Synthesized.</span>
+          <h1 className="text-6xl md:text-8xl font-display font-bold leading-[0.9] tracking-tighter mix-blend-multiply flex flex-wrap gap-x-4">
+            {titleWords.map((word, i) => (
+                <motion.span 
+                    key={i}
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 * i, type: "spring", stiffness: 100 }}
+                    className={word.includes('Synthesized') ? 'text-orange' : ''}
+                >
+                    {word}
+                </motion.span>
+            ))}
           </h1>
 
-          <p className="text-xl md:text-2xl text-slate/70 max-w-xl font-sans leading-relaxed">
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-xl md:text-2xl text-slate/70 max-w-xl font-sans leading-relaxed"
+          >
             Turn language into living data. Vibe Widget builds interactive React components from plain English.
-          </p>
+          </motion.p>
 
-          <div className="flex flex-wrap gap-4 pt-4">
-             <div className="flex items-center gap-3 px-6 py-4 border-2 border-slate/10 rounded-md font-mono text-sm bg-white/50 shadow-hard-sm hover:shadow-hard hover:-translate-y-1 transition-all cursor-pointer">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="flex flex-wrap gap-4 pt-4"
+          >
+             <div className="flex items-center gap-3 px-6 py-4 border-2 border-slate/10 rounded-md font-mono text-sm bg-white/50 shadow-hard-sm hover:shadow-hard hover:-translate-y-1 transition-all cursor-pointer group">
                 <span className="text-orange">$</span>
                 <span>pip install vibe-widget</span>
-                <Copy className="w-4 h-4 text-slate/40 cursor-pointer hover:text-orange transition-colors" />
+                <Copy className="w-4 h-4 text-slate/40 group-hover:text-orange transition-colors" />
              </div>
-          </div>
+          </motion.div>
         </motion.div>
 
-        {/* Right Column: Interactive Widget Simulator */}
+        {/* Right Column */}
         <motion.div style={{ y: simulatorY }} className="lg:col-span-6 relative mt-10 lg:mt-0 pb-32">
-            {/* The Cat */}
             <RetroCat />
 
             <motion.div
-                initial={{ opacity: 0, scale: 0.9, rotate: -1 }}
-                animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                transition={{ duration: 0.8, type: "spring" }}
-                className="relative z-10 bg-bone border-4 border-slate rounded-2xl shadow-hard-lg p-2 flex flex-col gap-0 min-h-[450px]"
+                initial={{ opacity: 0, scale: 0.9, rotateY: 20 }}
+                animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+                transition={{ duration: 1, type: "spring", stiffness: 50 }}
+                className="relative z-10 bg-bone border-4 border-slate rounded-2xl shadow-hard-lg p-2 flex flex-col gap-0 min-h-[450px] perspective-1000"
             >
-                {/* Device Bezel / Header */}
+                {/* Header */}
                 <div className="bg-slate text-bone p-3 rounded-t-lg flex justify-between items-center">
                     <div className="flex gap-2">
-                        <div className="w-3 h-3 rounded-full bg-orange/80" />
+                        <div className="w-3 h-3 rounded-full bg-orange/80 shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
                         <div className="w-3 h-3 rounded-full bg-bone/20" />
                     </div>
-                    <div className="font-mono text-xs tracking-widest uppercase">Vibe-Sim 2000</div>
+                    <div className="font-mono text-[10px] tracking-widest uppercase opacity-60">Neural Synthesis Engine // V.2.0</div>
                     <div className="flex gap-1">
                         {[1,2,3].map(i => <div key={i} className="w-1 h-3 bg-bone/20" />)}
                     </div>
                 </div>
 
-                {/* Simulated Command Palette with Autocomplete */}
                 <div className="bg-white border-b-2 border-slate/10 p-4 relative z-50">
                     <form onSubmit={handleRun} className="relative">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-orange">
@@ -173,28 +184,24 @@ const Hero = () => {
                                     setIsMenuOpen(true);
                                 }}
                                 onFocus={() => setIsMenuOpen(true)}
-                                // onBlur={() => setTimeout(() => setIsMenuOpen(false), 200)}
-                                placeholder="Describe a widget..."
-                                className="w-full bg-bone/50 border-2 border-slate/10 rounded py-3 pl-10 pr-10 font-mono text-sm focus:outline-none focus:border-orange focus:ring-0 transition-all"
+                                placeholder="Describe your visualization..."
+                                className="w-full bg-bone/50 border-2 border-slate/10 rounded py-3 pl-10 pr-10 font-mono text-sm focus:outline-none focus:border-orange focus:ring-0 transition-all placeholder:opacity-30"
                             />
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate/40 hover:text-orange" onClick={() => setIsMenuOpen(!isMenuOpen)}>
                                 <ChevronDown className="w-4 h-4" />
                             </div>
                         </div>
 
-                        {/* Autocomplete Dropdown Menu */}
                         <AnimatePresence>
                             {isMenuOpen && (
                                 <motion.div 
-                                    initial={{ opacity: 0, y: -10, height: 0 }}
-                                    animate={{ opacity: 1, y: 0, height: 'auto' }}
-                                    exit={{ opacity: 0, y: -10, height: 0 }}
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
                                     className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-slate rounded shadow-hard z-50 overflow-hidden max-h-60 overflow-y-auto"
                                 >
                                     {filteredExamples.length === 0 ? (
-                                        <div className="px-4 py-3 font-mono text-xs text-slate/50">
-                                            No examples matching query...
-                                        </div>
+                                        <div className="px-4 py-3 font-mono text-xs text-slate/50">No matches...</div>
                                     ) : (
                                         filteredExamples.map((ex) => (
                                             <div 
@@ -203,8 +210,8 @@ const Hero = () => {
                                                 className="px-4 py-3 hover:bg-orange/10 cursor-pointer font-mono text-xs flex justify-between items-center group border-b border-slate/5 last:border-0"
                                             >
                                                 <div className="flex flex-col">
-                                                    <span className="font-bold">{ex.label}</span>
-                                                    <span className="text-slate/50 truncate max-w-[250px]">{ex.prompt}</span>
+                                                    <span className="font-bold group-hover:text-orange transition-colors">{ex.label}</span>
+                                                    <span className="text-slate/50 truncate max-w-[250px] italic">{ex.prompt}</span>
                                                 </div>
                                                 {selectedExample.id === ex.id && <Check className="w-3 h-3 text-orange" />}
                                             </div>
@@ -218,25 +225,29 @@ const Hero = () => {
 
                 {/* Screen Area */}
                 <div className="flex-1 bg-[#F2F0E9] relative overflow-hidden rounded-b-lg p-1">
-                     {/* Inner Bezel Shadow */}
                      <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,0,0,0.05)] pointer-events-none z-20" />
-                     
-                     {/* Background Grid for Screen */}
                      <div className="absolute inset-0 z-0 bg-[linear-gradient(rgba(26,26,26,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(26,26,26,0.05)_1px,transparent_1px)] bg-[size:20px_20px]" />
 
                      <div className="relative z-10 w-full h-full flex items-center justify-center">
                         <AnimatePresence mode="wait">
                             {generationState === 'idle' && (
                                 <motion.div 
+                                    key="idle"
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
                                     className="text-center text-slate/40 font-mono text-sm"
                                 >
-                                    <div className="mb-2 flex justify-center"><Sparkles className="w-8 h-8 opacity-50" /></div>
-                                    WAITING FOR INPUT...
+                                    <motion.div 
+                                        animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+                                        transition={{ repeat: Infinity, duration: 2 }}
+                                        className="mb-2 flex justify-center"
+                                    >
+                                        <Sparkles className="w-8 h-8" />
+                                    </motion.div>
+                                    READY_TO_SYNTHESIZE
                                     <br/>
-                                    <button onClick={handleRun} className="mt-4 px-4 py-2 bg-orange text-white rounded text-xs hover:bg-orange-dim">GENERATE WIDGET</button>
+                                    <button onClick={handleRun} className="mt-4 px-6 py-2 bg-orange text-white rounded font-bold text-xs shadow-hard-sm hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all uppercase tracking-widest">Generate</button>
                                 </motion.div>
                             )}
 
@@ -248,19 +259,19 @@ const Hero = () => {
                                     exit={{ opacity: 0 }}
                                     className="w-full px-8 space-y-4"
                                 >
-                                    <div className="font-mono text-xs text-orange mb-2">SYNTHESIZING_REACT_COMPONENTS...</div>
-                                    <div className="h-2 bg-slate/10 rounded overflow-hidden">
+                                    <div className="font-mono text-xs text-orange mb-2 animate-pulse tracking-widest uppercase">Synthesizing...</div>
+                                    <div className="h-1.5 bg-slate/10 rounded-full overflow-hidden">
                                         <motion.div 
                                             className="h-full bg-orange"
                                             initial={{ width: "0%" }}
                                             animate={{ width: "100%" }}
-                                            transition={{ duration: 1.5, ease: "easeInOut" }}
+                                            transition={{ duration: 1.5, ease: "circInOut" }}
                                         />
                                     </div>
-                                    <div className="font-mono text-[10px] text-slate/40">
-                                        &gt; Analyzing prompt tokens<br/>
-                                        &gt; Constructing state machine<br/>
-                                        &gt; Validating hooks
+                                    <div className="font-mono text-[9px] text-slate/40 flex flex-col gap-1">
+                                        <span> Fetching architectural patterns</span>
+                                        <span> Mapping data dimensions</span>
+                                        <span> Injecting reactive state</span>
                                     </div>
                                 </motion.div>
                             )}
@@ -268,16 +279,15 @@ const Hero = () => {
                             {generationState === 'complete' && (
                                 <motion.div 
                                     key="complete"
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
+                                    initial={{ opacity: 0, filter: 'blur(10px)' }}
+                                    animate={{ opacity: 1, filter: 'blur(0px)' }}
                                     className="w-full h-full bg-white border border-slate/10 shadow-sm rounded overflow-hidden flex flex-col"
                                 >
-                                    {/* Fake Browser Bar inside the simulator */}
                                     <div className="h-6 bg-slate/5 border-b border-slate/10 flex items-center px-2 gap-1">
-                                        <div className="w-2 h-2 rounded-full bg-slate/20"/>
-                                        <div className="w-2 h-2 rounded-full bg-slate/20"/>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate/20"/>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate/20"/>
                                     </div>
-                                    <div className="flex-1 p-2 overflow-auto">
+                                    <div className="flex-1 p-2 overflow-auto scrollbar-hide">
                                         <DynamicWidget code={selectedExample.code} />
                                     </div>
                                 </motion.div>
@@ -287,8 +297,7 @@ const Hero = () => {
                 </div>
             </motion.div>
 
-            {/* Backglow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-orange/20 blur-3xl rounded-full -z-10" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[130%] h-[130%] bg-orange/10 blur-[100px] rounded-full -z-10" />
         </motion.div>
       </div>
     </div>

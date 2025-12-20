@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import * as d3 from 'd3';
 // @ts-ignore
-import { html } from 'htm/react';
+import { html } from 'htm/react/index.js';
 
 interface DynamicWidgetProps {
   code: string;

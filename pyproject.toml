@@ -57,11 +57,9 @@ Issues = "https://github.com/dwootton/vibe-widget/issues"
 packages = ["src/vibe_widget"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/vibe_widget/app_wrapper.js" = "vibe_widget/app_wrapper.js"
 "src/vibe_widget/AppWrapper.bundle.js" = "vibe_widget/AppWrapper.bundle.js"
 
 [tool.hatch.build.targets.sdist.force-include]
-"src/vibe_widget/app_wrapper.js" = "vibe_widget/app_wrapper.js"
 "src/vibe_widget/AppWrapper.bundle.js" = "vibe_widget/AppWrapper.bundle.js"
 
 [tool.ruff]
