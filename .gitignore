@@ -58,6 +58,7 @@ pip-wheel-metadata/
 
 # Generated widgets
 *.html
+!doc/index.html
 output/
 
 # Doc build output
