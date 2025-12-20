@@ -49,6 +49,7 @@ class AgenticOrchestrator:
         imports: dict[str, str] | None = None,
         base_code: str | None = None,
         base_components: list[str] | None = None,
+        theme_description: str | None = None,
         progress_callback: Callable[[str, str], None] | None = None,
     ) -> Tuple[str, pd.DataFrame]:
         """
@@ -73,7 +74,12 @@ class AgenticOrchestrator:
         self._emit(progress_callback, "step", "Analyzing data")
         
         # Build data context for LLM using base class method
-        data_info = LLMProvider.build_data_info(df, exports, imports)
+        data_info = LLMProvider.build_data_info(
+            df,
+            exports,
+            imports,
+            theme_description=theme_description,
+        )
         
         self._emit(progress_callback, "step", f"Data: {df.shape[0]} rows × {df.shape[1]} columns")
         

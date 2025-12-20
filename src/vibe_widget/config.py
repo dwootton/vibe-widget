@@ -139,6 +139,7 @@ class Config:
     temperature: float = 0.7
     streaming: bool = True
     mode: str = "standard"  # "standard" (fast/cheap models) or "premium" (powerful/expensive models)
+    theme: Any = None
     
     def __post_init__(self):
         """Resolve model name and load API key from environment."""
@@ -170,12 +171,21 @@ class Config:
     
     def to_dict(self) -> dict:
         """Convert configuration to dictionary."""
+        theme_value = self.theme
+        if theme_value is not None and not isinstance(theme_value, (str, int, float, bool)):
+            if hasattr(theme_value, "name") and getattr(theme_value, "name"):
+                theme_value = getattr(theme_value, "name")
+            elif hasattr(theme_value, "description") and getattr(theme_value, "description"):
+                theme_value = getattr(theme_value, "description")
+            else:
+                theme_value = str(theme_value)
         return {
             "model": self.model,
             "api_key": self.api_key,
             "temperature": self.temperature,
             "streaming": self.streaming,
             "mode": self.mode,
+            "theme": theme_value,
         }
     
     @classmethod
@@ -235,6 +245,7 @@ def config(
     api_key: str = None,
     temperature: float = None,
     mode: str = None,
+    theme: Any = None,
     **kwargs
 ) -> Config:
     """
@@ -245,6 +256,7 @@ def config(
         api_key: API key for the model provider
         temperature: Temperature setting for generation
         mode: "standard" (fast/cheap models) or "premium" (powerful/expensive models)
+        theme: Theme name/prompt or Theme object to use by default
         **kwargs: Additional configuration options
     
     Returns:
@@ -260,6 +272,7 @@ def config(
         >>> # Use specific model IDs
         >>> vw.config(model="openai/gpt-5.1-codex")
         >>> vw.config(model="anthropic/claude-opus-4.5")
+        >>> vw.config(theme="financial times")
     """
     global _global_config
     
@@ -270,6 +283,7 @@ def config(
             api_key=api_key,
             temperature=temperature or 0.7,
             mode=mode or "standard",
+            theme=theme,
             **kwargs
         )
     else:
@@ -294,6 +308,9 @@ def config(
             model_map = PREMIUM_MODELS if mode == "premium" else STANDARD_MODELS
             if _global_config.model == PREMIUM_MODELS.get("openrouter") or _global_config.model == STANDARD_MODELS.get("openrouter"):
                 _global_config.model = model_map.get("openrouter", _global_config.model)
+
+        if theme is not None:
+            _global_config.theme = theme
         
         for key, value in kwargs.items():
             if hasattr(_global_config, key):

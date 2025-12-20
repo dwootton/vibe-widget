@@ -37,6 +37,7 @@ from vibe_widget.utils.audit_store import (
     normalize_location,
 )
 from vibe_widget.utils.util import clean_for_json, initial_import_value, load_data
+from vibe_widget.themes import Theme, resolve_theme_for_request
 
 
 def _export_to_json_value(value: Any, widget: Any) -> Any:
@@ -117,6 +118,7 @@ class VibeWidget(anywidget.AnyWidget):
         model: str = DEFAULT_MODEL,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
+        theme: Theme | None = None,
         data_var_name: str | None = None,
         existing_code: str | None = None,
         existing_metadata: dict[str, Any] | None = None,
@@ -149,6 +151,7 @@ class VibeWidget(anywidget.AnyWidget):
             model=model,
             exports=exports,
             imports=imports,
+            theme=theme,
             data_var_name=data_var_name,
             existing_code=existing_code,
             existing_metadata=existing_metadata,
@@ -163,6 +166,7 @@ class VibeWidget(anywidget.AnyWidget):
         model: str = DEFAULT_MODEL,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
+        theme: Theme | None = None,
         data_var_name: str | None = None,
         base_code: str | None = None,
         base_components: list[str] | None = None,
@@ -191,6 +195,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._imports = imports or {}
         self._export_accessors: dict[str, ExportHandle] = {}
         self._widget_metadata = None
+        self._theme = theme
         self._base_code = base_code
         self._base_components = base_components or []
         self._base_widget_id = base_widget_id
@@ -241,11 +246,19 @@ class VibeWidget(anywidget.AnyWidget):
                 self.status = "ready"
                 self.description = description
                 self._widget_metadata = existing_metadata or {}
+                if self._theme and "theme_description" not in self._widget_metadata:
+                    self._widget_metadata["theme_description"] = self._theme.description
+                    self._widget_metadata["theme_name"] = self._theme.name
                 imports_serialized = {}
                 if self._imports:
                     for import_name in self._imports.keys():
                         imports_serialized[import_name] = f"<imported_trait:{import_name}>"
-                self.data_info = LLMProvider.build_data_info(df, self._exports, imports_serialized)
+                self.data_info = LLMProvider.build_data_info(
+                    df,
+                    self._exports,
+                    imports_serialized,
+                    theme_description=self._theme.description if self._theme else None,
+                )
                 return
             
             # Serialize imports for cache lookup
@@ -261,6 +274,7 @@ class VibeWidget(anywidget.AnyWidget):
                 data_shape=df.shape,
                 exports=self._exports,
                 imports_serialized=imports_serialized,
+                theme_description=self._theme.description if self._theme else None,
             )
             
             self.orchestrator = AgenticOrchestrator(provider=provider)
@@ -274,9 +288,19 @@ class VibeWidget(anywidget.AnyWidget):
                 self.status = "ready"
                 self.description = description
                 self._widget_metadata = cached_widget
+                if self._theme is None and cached_widget.get("theme_description"):
+                    self._theme = Theme(
+                        description=cached_widget.get("theme_description"),
+                        name=cached_widget.get("theme_name"),
+                    )
                 
                 # Store data_info for error recovery
-                self.data_info = LLMProvider.build_data_info(df, self._exports, imports_serialized)
+                self.data_info = LLMProvider.build_data_info(
+                    df,
+                    self._exports,
+                    imports_serialized,
+                    theme_description=self._theme.description if self._theme else None,
+                )
                 return
             
             self.logs = self.logs + ["Generating widget code"]
@@ -340,6 +364,7 @@ class VibeWidget(anywidget.AnyWidget):
                 imports=imports_serialized,
                 base_code=self._base_code,
                 base_components=self._base_components,
+                theme_description=self._theme.description if self._theme else None,
                 progress_callback=stream_callback,
             )
             
@@ -357,6 +382,8 @@ class VibeWidget(anywidget.AnyWidget):
                 model=resolved_model,
                 exports=self._exports,
                 imports_serialized=imports_serialized,
+                theme_name=self._theme.name if self._theme else None,
+                theme_description=self._theme.description if self._theme else None,
                 notebook_path=notebook_path,
             )
             
@@ -378,7 +405,12 @@ class VibeWidget(anywidget.AnyWidget):
             self._widget_metadata = widget_entry
             
             # Store data_info for error recovery  (build from LLMProvider method)
-            self.data_info = LLMProvider.build_data_info(df, self._exports, imports_serialized)
+            self.data_info = LLMProvider.build_data_info(
+                df,
+                self._exports,
+                imports_serialized,
+                theme_description=self._theme.description if self._theme else None,
+            )
             
         except Exception as e:
             self.status = "error"
@@ -415,6 +447,7 @@ class VibeWidget(anywidget.AnyWidget):
         exports: dict[str, str] | None,
         imports: dict[str, Any] | None,
         model: str,
+        theme: Theme | None,
     ) -> None:
         self._recipe_description = description
         self._recipe_data_source = data_source
@@ -424,6 +457,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._recipe_imports = imports
         self._recipe_model = model
         self._recipe_model_resolved = model
+        self._recipe_theme = theme
 
     def __call__(self, *args, **kwargs):
         """Create a new widget instance, swapping data/imports heuristically."""
@@ -484,6 +518,7 @@ class VibeWidget(anywidget.AnyWidget):
             model=self._recipe_model_resolved,
             exports=self._recipe_exports,
             imports=imports,
+            theme=self._recipe_theme,
             data_var_name=None,
             existing_code=existing_code,
             existing_metadata=existing_metadata,
@@ -495,6 +530,7 @@ class VibeWidget(anywidget.AnyWidget):
         data: pd.DataFrame | str | Path | None = None,
         exports: dict[str, str] | ExportBundle | None = None,
         imports: dict[str, Any] | ImportsBundle | None = None,
+        theme: Theme | str | None = None,
         config: Config | None = None,
     ) -> "VibeWidget":
         """
@@ -512,6 +548,7 @@ class VibeWidget(anywidget.AnyWidget):
             data=data,
             exports=exports,
             imports=imports,
+            theme=theme,
             config=config,
         )
 
@@ -1070,6 +1107,8 @@ class VibeWidget(anywidget.AnyWidget):
                 model=self._widget_metadata.get('model', 'unknown') if self._widget_metadata else 'unknown',
                 exports=self._exports,
                 imports_serialized=imports_serialized,
+                theme_name=self._theme.name if self._theme else None,
+                theme_description=self._theme.description if self._theme else None,
                 notebook_path=store.get_notebook_path(),
             )
             if previous_metadata and previous_metadata.get("id"):
@@ -1230,6 +1269,7 @@ def create(
     data: pd.DataFrame | str | Path | None = None,
     exports: dict[str, str] | None = None,
     imports: dict[str, Any] | None = None,
+    theme: Theme | str | None = None,
     config: Config | None = None,
 ) -> VibeWidget:
     """Create a VibeWidget visualization with automatic data processing.
@@ -1239,6 +1279,7 @@ def create(
         data: DataFrame, file path, or URL to visualize
         exports: Dict of {trait_name: description} for exposed state
         imports: Dict of {trait_name: source} for consumed state
+        theme: Theme object, theme name, or prompt string
         config: Optional Config object with model settings (deprecated; call vw.config instead)
     
     Returns:
@@ -1253,8 +1294,13 @@ def create(
         exports=exports,
         imports=imports,
     )
-    model, _ = _resolve_model(config_override=config)
+    model, resolved_config = _resolve_model(config_override=config)
     df = load_data(data)
+    resolved_theme = resolve_theme_for_request(
+        theme,
+        model=model,
+        api_key=resolved_config.api_key if resolved_config else None,
+    )
 
     widget = VibeWidget._create_with_dynamic_traits(
         description=description,
@@ -1262,6 +1308,7 @@ def create(
         model=model,
         exports=exports,
         imports=imports,
+        theme=resolved_theme,
         data_var_name=None,
     )
     
@@ -1275,6 +1322,7 @@ def create(
         exports=exports,
         imports=imports,
         model=model,
+        theme=resolved_theme,
     )
     
     return widget
@@ -1282,11 +1330,12 @@ def create(
 
 class _SourceInfo:
     """Container for resolved source information."""
-    def __init__(self, code: str, metadata: dict[str, Any] | None, components: list[str], df: pd.DataFrame | None):
+    def __init__(self, code: str, metadata: dict[str, Any] | None, components: list[str], df: pd.DataFrame | None, theme: Theme | None):
         self.code = code
         self.metadata = metadata
         self.components = components
         self.df = df
+        self.theme = theme
 
 
 def _resolve_source(
@@ -1299,7 +1348,8 @@ def _resolve_source(
             code=source.code,
             metadata=source._widget_metadata,
             components=source._widget_metadata.get("components", []) if source._widget_metadata else [],
-            df=pd.DataFrame(source.data) if source.data else None
+            df=pd.DataFrame(source.data) if source.data else None,
+            theme=source._theme,
         )
     
     if isinstance(source, ComponentReference):
@@ -1307,7 +1357,8 @@ def _resolve_source(
             code=source.code,
             metadata=source.metadata,
             components=[source.component_name],
-            df=pd.DataFrame(source.widget.data) if source.widget.data else None
+            df=pd.DataFrame(source.widget.data) if source.widget.data else None,
+            theme=source.widget._theme,
         )
     
     if isinstance(source, (str, Path)):
@@ -1319,11 +1370,18 @@ def _resolve_source(
         
         if result:
             metadata, code = result
+            theme = None
+            if metadata:
+                theme_description = metadata.get("theme_description")
+                theme_name = metadata.get("theme_name")
+                if theme_description:
+                    theme = Theme(description=theme_description, name=theme_name)
             return _SourceInfo(
                 code=code,
                 metadata=metadata,
                 components=metadata.get("components", []),
-                df=None
+                df=None,
+                theme=theme,
             )
         
         error_msg = f"Could not find widget with ID '{source}'" if isinstance(source, str) else f"Widget file not found: {source}"
@@ -1338,6 +1396,7 @@ def revise(
     data: pd.DataFrame | str | Path | None = None,
     exports: dict[str, str] | None = None,
     imports: dict[str, Any] | None = None,
+    theme: Theme | str | None = None,
     config: Config | None = None,
 ) -> "VibeWidget":
     """Revise a widget by building upon existing code.
@@ -1348,6 +1407,7 @@ def revise(
         data: DataFrame to visualize (uses source data if None)
         exports: Dict of {trait_name: description} for new/modified exports
         imports: Dict of {trait_name: source} for new/modified imports
+        theme: Theme object, theme name, or prompt string
         config: Optional Config object with model settings (deprecated; call vw.config instead)
     
     Returns:
@@ -1364,7 +1424,15 @@ def revise(
     )
     store = WidgetStore()
     source_info = _resolve_source(source, store)
-    model, _ = _resolve_model(config_override=config)
+    model, resolved_config = _resolve_model(config_override=config)
+    if theme is None and source_info.theme is not None:
+        resolved_theme = source_info.theme
+    else:
+        resolved_theme = resolve_theme_for_request(
+            theme,
+            model=model,
+            api_key=resolved_config.api_key if resolved_config else None,
+        )
     df = source_info.df if data is None and source_info.df is not None else load_data(data)
     
     widget = VibeWidget._create_with_dynamic_traits(
@@ -1373,6 +1441,7 @@ def revise(
         model=model,
         exports=exports,
         imports=imports,
+        theme=resolved_theme,
         data_var_name=None,
     )
     
@@ -1389,6 +1458,7 @@ def revise(
         exports=exports,
         imports=imports,
         model=model,
+        theme=resolved_theme,
     )
     
     return widget

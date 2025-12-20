@@ -144,6 +144,12 @@ vw.models()
 
 ---
 
+## Theming
+
+See the theming API and the built-in theme library in `THEMING.md`.
+
+---
+
 ## Examples
 
 ### Basic Visualizations

@@ -149,6 +149,27 @@ class OpenRouterProvider(LLMProvider):
         )
         return response.choices[0].message.content
 
+    def generate_text(
+        self,
+        prompt: str,
+        progress_callback: Callable[[str], None] | None = None,
+    ) -> str:
+        """Generate plain text from a prompt."""
+        completion_params = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": MAX_TOKENS,
+            "temperature": 0.4,
+        }
+
+        if progress_callback:
+            completion_params["stream"] = True
+            stream = self.client.chat.completions.create(**completion_params)
+            return self._handle_stream(stream, progress_callback).strip()
+
+        response = self.client.chat.completions.create(**completion_params)
+        return (response.choices[0].message.content or "").strip()
+
     def _handle_stream(self, stream, progress_callback: Callable[[str], None]) -> str:
         """Handle streaming response."""
         code_chunks = []

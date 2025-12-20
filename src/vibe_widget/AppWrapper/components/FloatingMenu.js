@@ -39,19 +39,18 @@ export default function FloatingMenu({
         }
         .menu-badge {
           position: absolute;
-          top: -6px;
-          right: -6px;
-          min-width: 18px;
-          height: 18px;
+          top: 6px;
+          right: 6px;
+          width: 16px;
+          height: 16px;
           border-radius: 999px;
           background: #f87171;
           color: #0b0b0b;
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 700;
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 0 4px;
           box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
         }
         .menu-dot:hover {

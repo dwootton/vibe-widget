@@ -82,6 +82,15 @@ class LLMProvider(ABC):
     ) -> str:
         """Generate an audit report for widget code."""
         pass
+
+    @abstractmethod
+    def generate_text(
+        self,
+        prompt: str,
+        progress_callback: Callable[[str], None] | None = None,
+    ) -> str:
+        """Generate plain text from a prompt."""
+        pass
     
     def _build_prompt(
         self,
@@ -103,6 +112,7 @@ class LLMProvider(ABC):
         sample_data = data_info.get("sample", {})
         exports = data_info.get("exports", {})
         imports = data_info.get("imports", {})
+        theme_description = data_info.get("theme_description")
         
         exports_imports_section = self._build_exports_imports_section(exports, imports)
         
@@ -114,6 +124,10 @@ class LLMProvider(ABC):
         # Convert columns to strings to handle integer or other non-string column names
         columns_str = ', '.join(str(col) for col in columns) if columns else 'No data (widget uses imports only)'
         
+        theme_section = ""
+        if theme_description:
+            theme_section = f"THEME:\n{theme_description}\n\n"
+
         return f"""You are an expert JavaScript + React developer building a high-quality interactive visualization that runs inside an AnyWidget React bundle.
 
 TASK: {description}
@@ -123,7 +137,7 @@ Data schema:
 - Types: {dtypes}
 - Sample data: {sample_data}
 
-{composition_section}{exports_imports_section}
+{theme_section}{composition_section}{exports_imports_section}
 
 CRITICAL REACT + HTM SPECIFICATION:
 
@@ -137,7 +151,8 @@ MUST FOLLOW EXACTLY:
 7. Subscribe to imported traits with model.on("change:trait", handler) and unsubscribe in cleanup
 8. Every React.useEffect MUST return a cleanup that tears down listeners, observers, intervals, animation frames, WebGL resources, etc.
 9. Avoid 100vh/100vw—use fixed heights (360–640px) or flex layouts that respect notebook constraints
-10. Never wrap the output in markdown code fences
+10. Ensure high contrast for text and data marks (WCAG AA minimum) in all visual states
+11. Never wrap the output in markdown code fences
 
 CORRECT Template:
 ```javascript
@@ -230,6 +245,7 @@ Begin the response with code immediately."""
         sample_data = data_info.get("sample", {})
         exports = data_info.get("exports", {})
         imports = data_info.get("imports", {})
+        theme_description = data_info.get("theme_description")
         
         exports_imports_section = self._build_exports_imports_section(exports, imports)
         
@@ -238,6 +254,10 @@ Begin the response with code immediately."""
         if base_code:
             composition_section = self._build_composition_section(base_code, base_components or [])
         
+        theme_section = ""
+        if theme_description:
+            theme_section = f"THEME:\n{theme_description}\n\n"
+
         return f"""Revise the following AnyWidget React bundle code according to the request.
 
 REVISION REQUEST: {revision_description}
@@ -247,7 +267,7 @@ CURRENT CODE:
 {current_code}
 ```
 
-{composition_section}Data schema:
+{theme_section}{composition_section}Data schema:
 - Columns: {', '.join(columns) if columns else 'No data (widget uses imports only)'}
 - Types: {dtypes}
 - Sample data: {sample_data}
@@ -277,9 +297,14 @@ Return only the full revised JavaScript code. No markdown fences or explanations
         sample_data = data_info.get("sample", {})
         exports = data_info.get("exports", {})
         imports = data_info.get("imports", {})
+        theme_description = data_info.get("theme_description")
         
         exports_imports_section = self._build_exports_imports_section(exports, imports)
         
+        theme_section = ""
+        if theme_description:
+            theme_section = f"THEME:\n{theme_description}\n\n"
+
         return f"""Fix the AnyWidget React bundle code below. Keep the interaction model identical while eliminating the runtime error.
 Preserve all user-intended changes and visual styling; make the smallest possible fix.
 Do NOT remove, rename, or rewrite unrelated parts of the code.
@@ -297,7 +322,7 @@ Data schema:
 - Types: {dtypes}
 - Sample data: {sample_data}
 
-{exports_imports_section}
+{theme_section}{exports_imports_section}
 
 MANDATORY FIX RULES:
 1. Export default function Widget({{ model, html, React }})
@@ -500,6 +525,7 @@ Focus on modifying only what's necessary for the requested changes.
         df,
         exports: dict[str, str] | None = None,
         imports: dict[str, str] | None = None,
+        theme_description: str | None = None,
     ) -> dict[str, Any]:
         """Build data info dictionary from DataFrame."""
         import pandas as pd
@@ -528,6 +554,7 @@ Focus on modifying only what's necessary for the requested changes.
             "sample": sample,
             "exports": exports,
             "imports": imports,
+            "theme_description": theme_description,
             "is_geospatial": is_geospatial,
             "temporal_columns": [str(col) for col in temporal_cols],
         }

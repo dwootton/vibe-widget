@@ -58,10 +58,11 @@ class WidgetStore:
         data_shape: tuple[int, int],
         exports_signature: str,
         imports_signature: str,
+        theme_signature: str,
     ) -> tuple[str, str]:
         """
         Compute cache key from inputs.
-        Only hashes: stripped description, var name, data shape, exports, and imports.
+        Only hashes: stripped description, var name, data shape, exports, imports, and theme.
         Does NOT include model or notebook path to avoid unnecessary regeneration.
         
         Returns:
@@ -76,6 +77,7 @@ class WidgetStore:
             "data_shape": list(data_shape),
             "exports_signature": exports_signature,
             "imports_signature": imports_signature,
+            "theme_signature": theme_signature,
         }
         
         cache_str = json.dumps(cache_input, sort_keys=True)
@@ -120,6 +122,13 @@ class WidgetStore:
             return ""
         items = sorted(imports_serialized.items())
         return hashlib.md5(json.dumps(items).encode()).hexdigest()[:8]
+
+    def _compute_theme_signature(self, theme_description: str | None) -> str:
+        """Compute stable signature for theme description."""
+        if not theme_description:
+            return ""
+        normalized = " ".join(theme_description.split())
+        return hashlib.md5(normalized.encode()).hexdigest()[:8]
     
     def lookup(
         self,
@@ -128,6 +137,7 @@ class WidgetStore:
         data_shape: tuple[int, int],
         exports: dict[str, str] | None,
         imports_serialized: dict[str, str] | None,
+        theme_description: str | None,
     ) -> dict[str, Any] | None:
         """
         Look up a cached widget by cache key.
@@ -144,6 +154,7 @@ class WidgetStore:
         """
         exports_signature = self._compute_exports_signature(exports)
         imports_signature = self._compute_imports_signature(imports_serialized)
+        theme_signature = self._compute_theme_signature(theme_description)
         
         full_hash, short_hash = self._compute_cache_key(
             description=description,
@@ -151,6 +162,7 @@ class WidgetStore:
             data_shape=data_shape,
             exports_signature=exports_signature,
             imports_signature=imports_signature,
+            theme_signature=theme_signature,
         )
         
         matching_entries = [
@@ -182,6 +194,8 @@ class WidgetStore:
         model: str,
         exports: dict[str, str] | None,
         imports_serialized: dict[str, str] | None,
+        theme_name: str | None = None,
+        theme_description: str | None = None,
         notebook_path: str | None = None,
     ) -> dict[str, Any]:
         """
@@ -202,6 +216,7 @@ class WidgetStore:
         """
         exports_signature = self._compute_exports_signature(exports)
         imports_signature = self._compute_imports_signature(imports_serialized)
+        theme_signature = self._compute_theme_signature(theme_description)
         
         full_hash, short_hash = self._compute_cache_key(
             description=description,
@@ -209,6 +224,7 @@ class WidgetStore:
             data_shape=data_shape,
             exports_signature=exports_signature,
             imports_signature=imports_signature,
+            theme_signature=theme_signature,
         )
         
         slug = self._generate_slug(description, data_var_name)
@@ -243,6 +259,9 @@ class WidgetStore:
             "model": model,
             "exports_signature": exports_signature,
             "imports_signature": imports_signature,
+            "theme_signature": theme_signature,
+            "theme_name": theme_name,
+            "theme_description": theme_description,
             "created_at": now,
             "last_used_at": now,
             "notebook_path": notebook_path,
