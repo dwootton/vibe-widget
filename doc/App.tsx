@@ -25,7 +25,7 @@ const Cursor = () => {
     <motion.div
       className="fixed top-0 left-0 w-8 h-8 border-2 border-orange rounded-full pointer-events-none z-[9999] mix-blend-difference"
       animate={{ x: mousePosition.x - 16, y: mousePosition.y - 16 }}
-      transition={{ type: "spring", stiffness: 500, damping: 28 }}
+      transition={{ type: "spring", stiffness: 600, damping: 28 }}
     >
       <div className="absolute top-1/2 left-1/2 w-1 h-1 bg-orange rounded-full transform -translate-x-1/2 -translate-y-1/2" />
     </motion.div>

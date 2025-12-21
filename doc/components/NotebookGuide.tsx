@@ -88,20 +88,20 @@ const NotebookGuide = () => {
         { id: 4, label: "Exportation", icon: <Download className="w-4 h-4" /> }
     ];
 
-    // Map scroll progress to active step
+    // Map scroll progress to active step (2 cells per step)
     const [activeStep, setActiveStep] = useState(1);
     scrollYProgress.on("change", (latest) => {
-        const step = Math.min(Math.floor(latest * steps.length) + 1, steps.length);
+        const step = Math.min(Math.floor(latest * (steps.length / 1.2)) + 1, steps.length);
         setActiveStep(step);
     });
 
     return (
-        <div ref={containerRef} className="bg-bone min-h-[400vh] relative pt-32 pb-60">
+        <div ref={containerRef} className="bg-bone min-h-[200vh] relative pt-32">
             <div className="container mx-auto px-6 md:px-24">
-                <div className="flex flex-col lg:flex-row gap-20">
+                <div className="flex flex-col lg:flex-row gap-16">
                     {/* Left Column: Sticky Nav */}
-                    <div className="lg:w-[400px]">
-                        <div className="sticky top-40 space-y-10">
+                    <div className="lg:w-[400px] lg:flex-shrink-0">
+                        <div className="sticky top-10 space-y-10">
                              <div className="space-y-4">
                                 <motion.div 
                                     initial={{ scale: 0 }}
@@ -116,7 +116,7 @@ const NotebookGuide = () => {
                                 </p>
                              </div>
 
-                             <div className="relative space-y-6 pt-10 border-l-2 border-slate/5 ml-4">
+                             <div className="relative space-y-6 border-l-2 border-slate/5 ml-4">
                                 {/* Moving Indicator */}
                                 <motion.div 
                                     className="absolute -left-[3px] w-1.5 h-12 bg-orange rounded-full z-10 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
@@ -142,7 +142,7 @@ const NotebookGuide = () => {
                     </div>
 
                     {/* Right Column: Cells */}
-                    <div className="flex-1 space-y-60">
+                    <div className="flex-1 space-y-40 pb-20">
                         <NotebookCell 
                             index={1}
                             icon={<Package />}

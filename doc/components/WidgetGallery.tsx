@@ -80,12 +80,6 @@ const WidgetGallery = ({ mode }: WidgetGalleryProps) => {
                         </div>
                     </motion.div>
                 </div>
-                
-                {/* Visual Scroll Hint */}
-                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
-                    <span className="text-[10px] font-mono uppercase tracking-[0.3em]">Scroll to Navigate</span>
-                    <div className="w-px h-12 bg-gradient-to-b from-slate to-transparent" />
-                </div>
             </div>
         );
     }
