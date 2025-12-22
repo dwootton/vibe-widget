@@ -7,6 +7,7 @@ from typing import Any
 import json
 import warnings
 import inspect
+import sys
 
 import anywidget
 import pandas as pd
@@ -115,7 +116,7 @@ class VibeWidget(anywidget.AnyWidget):
             pass
 
     def _repr_mimebundle_(self, **kwargs) -> tuple[dict[str, Any], dict[str, Any]] | None:
-        """Always return a widget mimebundle for notebook display hooks."""
+        """Return a widget mimebundle compatible with Jupyter display hooks."""
         try:
             from anywidget.widget import repr_mimebundle, _PLAIN_TEXT_MAX_LEN
         except Exception:
@@ -494,12 +495,9 @@ class VibeWidget(anywidget.AnyWidget):
     def __call__(self, *args, **kwargs):
         """Create a new widget instance, swapping data/imports heuristically."""
         if not args and not kwargs:
-            _display_widget(self)
-            return self
+            return self._rerun_with()
         if not args and set(kwargs.keys()) == {"display"}:
-            if kwargs.get("display", True):
-                _display_widget(self)
-            return self
+            return self._rerun_with(**kwargs)
         return self._rerun_with(*args, **kwargs)
 
     def _rerun_with(self, *args, **kwargs) -> "VibeWidget":
@@ -973,7 +971,10 @@ class VibeWidget(anywidget.AnyWidget):
     def _on_error(self, change):
         """Called when frontend reports a runtime error."""
         error_msg = change['new']
-        
+
+        if error_msg:
+            print(f"[vibe_widget] Frontend runtime error:\n{error_msg}", file=sys.stderr)
+
         if not error_msg or self.retry_count >= 2:
             return
         
@@ -1258,6 +1259,8 @@ def _display_widget(widget: VibeWidget) -> None:
         display(widget)
     except ImportError:
         pass
+    except Exception as exc:
+        print(f"[vibe_widget] Display error: {exc}", file=sys.stderr)
 
 
 def _resolve_model(
