@@ -198,7 +198,13 @@ class ThemeRegistry:
     def get(self, name: str) -> Theme | None:
         return self._themes.get(_normalize_name(name))
 
-    def resolve(self, value: str | Theme, provider: OpenRouterProvider | None = None) -> Theme:
+    def resolve(
+        self,
+        value: str | Theme,
+        provider: OpenRouterProvider | None = None,
+        *,
+        cache: bool = True,
+    ) -> Theme:
         if isinstance(value, Theme):
             return value
         if not isinstance(value, str) or not value.strip():
@@ -206,7 +212,7 @@ class ThemeRegistry:
 
         prompt = value.strip()
         prompt_key = _prompt_hash(prompt)
-        if prompt_key in _SESSION_CACHE:
+        if cache and prompt_key in _SESSION_CACHE:
             return _SESSION_CACHE[prompt_key]
 
         direct = self._resolve_direct(prompt)
@@ -269,14 +275,14 @@ class ThemeRegistry:
         return None
 
 
-def theme(*args: Any) -> Theme:
+def theme(*args: Any, cache: bool = True) -> Theme:
     """Resolve or compose themes."""
     if not args:
         raise ValueError("vw.theme requires at least one argument.")
     registry = ThemeRegistry()
     if len(args) == 1:
-        return registry.resolve(args[0])
-    resolved = [registry.resolve(arg) for arg in args]
+        return registry.resolve(args[0], cache=cache)
+    resolved = [registry.resolve(arg, cache=cache) for arg in args]
     return registry.compose(resolved)
 
 
@@ -288,6 +294,8 @@ def resolve_theme_for_request(
     value: str | Theme | None,
     model: str | None = None,
     api_key: str | None = None,
+    *,
+    cache: bool = True,
 ) -> Theme | None:
     if value is None:
         config = get_global_config()
@@ -295,7 +303,14 @@ def resolve_theme_for_request(
     if value is None:
         return None
     provider = _get_provider(model=model, api_key=api_key) if (model or api_key) else None
-    return ThemeRegistry().resolve(value, provider=provider)
+    return ThemeRegistry().resolve(value, provider=provider, cache=cache)
+
+
+def clear_theme_cache() -> int:
+    """Clear the in-memory theme cache and return the number of entries removed."""
+    cleared = len(_SESSION_CACHE)
+    _SESSION_CACHE.clear()
+    return cleared
 
 
 def _prompt_hash(prompt: str) -> str:

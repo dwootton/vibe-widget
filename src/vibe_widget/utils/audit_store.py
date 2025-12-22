@@ -141,6 +141,56 @@ class AuditStore:
         with open(self.index_file, "w", encoding="utf-8") as handle:
             json.dump(self.index, handle, indent=2, ensure_ascii=True)
 
+    def clear(self) -> int:
+        """Remove all cached audits and reset the index."""
+        removed = 0
+        for entry in list(self.index.get("audits", [])):
+            file_name = entry.get("file_name")
+            yaml_name = entry.get("yaml_file_name")
+            if file_name:
+                audit_file = self.audits_dir / file_name
+                if audit_file.exists():
+                    audit_file.unlink()
+                    removed += 1
+            if yaml_name:
+                yaml_file = self.audits_dir / yaml_name
+                if yaml_file.exists():
+                    yaml_file.unlink()
+        self.index = {"schema_version": 1, "audits": []}
+        self._save_index()
+        return removed
+
+    def clear_for_widget(self, *, widget_id: str | None = None, widget_slug: str | None = None) -> int:
+        """Remove cached audits that match the given widget id or slug."""
+        if not widget_id and not widget_slug:
+            return 0
+        removed = 0
+        remaining = []
+        for entry in self.index.get("audits", []):
+            matches = False
+            if widget_id and entry.get("widget_id") == widget_id:
+                matches = True
+            if widget_slug and entry.get("widget_slug") == widget_slug:
+                matches = True
+            if matches:
+                file_name = entry.get("file_name")
+                yaml_name = entry.get("yaml_file_name")
+                if file_name:
+                    audit_file = self.audits_dir / file_name
+                    if audit_file.exists():
+                        audit_file.unlink()
+                        removed += 1
+                if yaml_name:
+                    yaml_file = self.audits_dir / yaml_name
+                    if yaml_file.exists():
+                        yaml_file.unlink()
+            else:
+                remaining.append(entry)
+        if removed:
+            self.index["audits"] = remaining
+            self._save_index()
+        return removed
+
     def load_latest_audit(self, widget_id: str, level: str) -> dict[str, Any] | None:
         entries = [
             entry for entry in self.index["audits"]
