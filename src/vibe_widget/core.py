@@ -3,7 +3,7 @@ Core VibeWidget implementation.
 Clean, robust widget generation without legacy profile logic.
 """
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 import json
 import warnings
 import inspect
@@ -38,7 +38,7 @@ from vibe_widget.utils.audit_store import (
     normalize_location,
 )
 from vibe_widget.utils.util import clean_for_json, initial_import_value, load_data
-from vibe_widget.themes import Theme, resolve_theme_for_request
+from vibe_widget.themes import Theme, resolve_theme_for_request, clear_theme_cache
 
 
 def _export_to_json_value(value: Any, widget: Any) -> Any:
@@ -150,6 +150,7 @@ class VibeWidget(anywidget.AnyWidget):
         existing_code: str | None = None,
         existing_metadata: dict[str, Any] | None = None,
         display_widget: bool = False,
+        cache: bool = True,
         **kwargs,
     ) -> "VibeWidget":
         """Return a widget instance that includes traitlets for declared exports/imports."""
@@ -184,6 +185,7 @@ class VibeWidget(anywidget.AnyWidget):
             existing_code=existing_code,
             existing_metadata=existing_metadata,
             display_widget=display_widget,
+            cache=cache,
             **init_values,
             **kwargs,
         )
@@ -203,6 +205,7 @@ class VibeWidget(anywidget.AnyWidget):
         existing_code: str | None = None,
         existing_metadata: dict[str, Any] | None = None,
         display_widget: bool = False,
+        cache: bool = True,
         **kwargs
     ):
         """
@@ -218,6 +221,7 @@ class VibeWidget(anywidget.AnyWidget):
             base_code: Optional base widget code for revision/composition
             base_components: Optional list of component names from base widget
             base_widget_id: Optional ID of base widget for provenance tracking
+            cache: If False, bypass widget cache and regenerate
             **kwargs: Additional widget parameters
         """
         parser = CodeStreamParser()
@@ -301,14 +305,18 @@ class VibeWidget(anywidget.AnyWidget):
                     imports_serialized[import_name] = f"<imported_trait:{import_name}>"
             
             store = WidgetStore()
-            cached_widget = store.lookup(
-                description=description,
-                data_var_name=data_var_name,
-                data_shape=df.shape,
-                exports=self._exports,
-                imports_serialized=imports_serialized,
-                theme_description=self._theme.description if self._theme else None,
-            )
+            cached_widget = None
+            if cache:
+                cached_widget = store.lookup(
+                    description=description,
+                    data_var_name=data_var_name,
+                    data_shape=df.shape,
+                    exports=self._exports,
+                    imports_serialized=imports_serialized,
+                    theme_description=self._theme.description if self._theme else None,
+                )
+            else:
+                self.logs = self.logs + ["Skipping cache (cache=False)"]
             
             self.orchestrator = AgenticOrchestrator(provider=provider)
             
@@ -572,6 +580,7 @@ class VibeWidget(anywidget.AnyWidget):
         imports: dict[str, Any] | ImportsBundle | None = None,
         theme: Theme | str | None = None,
         config: Config | None = None,
+        cache: bool = True,
     ) -> "VibeWidget":
         """
         Instance helper that mirrors vw.revise but defaults the source to self.
@@ -590,6 +599,7 @@ class VibeWidget(anywidget.AnyWidget):
             imports=imports,
             theme=theme,
             config=config,
+            cache=cache,
         )
 
     def audit(
@@ -598,9 +608,12 @@ class VibeWidget(anywidget.AnyWidget):
         *,
         reuse: bool = True,
         display: bool = True,
+        cache: bool = True,
     ) -> dict[str, Any]:
         """Run an audit on the current widget code."""
         try:
+            if not cache:
+                reuse = False
             return self._run_audit(level=level, reuse=reuse, display=display)
         except Exception as exc:
             self.audit_status = "error"
@@ -1317,6 +1330,7 @@ def create(
     theme: Theme | str | None = None,
     config: Config | None = None,
     display: bool = True,
+    cache: bool = True,
 ) -> VibeWidget:
     """Create a VibeWidget visualization with automatic data processing.
     
@@ -1328,6 +1342,7 @@ def create(
         theme: Theme object, theme name, or prompt string
         config: Optional Config object with model settings (deprecated; call vw.config instead)
         display: Whether to display the widget immediately (IPython environments only)
+        cache: If False, bypass cache and regenerate widget/theme
     
     Returns:
         VibeWidget instance
@@ -1347,6 +1362,7 @@ def create(
         theme,
         model=model,
         api_key=resolved_config.api_key if resolved_config else None,
+        cache=cache,
     )
 
     widget = VibeWidget._create_with_dynamic_traits(
@@ -1358,6 +1374,7 @@ def create(
         theme=resolved_theme,
         data_var_name=None,
         display_widget=display,
+        cache=cache,
     )
     
     _link_imports(widget, imports)
@@ -1446,6 +1463,7 @@ def revise(
     imports: dict[str, Any] | None = None,
     theme: Theme | str | None = None,
     config: Config | None = None,
+    cache: bool = True,
 ) -> "VibeWidget":
     """Revise a widget by building upon existing code.
     
@@ -1457,6 +1475,7 @@ def revise(
         imports: Dict of {trait_name: source} for new/modified imports
         theme: Theme object, theme name, or prompt string
         config: Optional Config object with model settings (deprecated; call vw.config instead)
+        cache: If False, bypass cache and regenerate widget/theme
     
     Returns:
         New VibeWidget instance with revised code
@@ -1480,6 +1499,7 @@ def revise(
             theme,
             model=model,
             api_key=resolved_config.api_key if resolved_config else None,
+            cache=cache,
         )
     df = source_info.df if data is None and source_info.df is not None else load_data(data)
     
@@ -1491,6 +1511,7 @@ def revise(
         imports=imports,
         theme=resolved_theme,
         data_var_name=None,
+        cache=cache,
     )
     
     widget._base_code = source_info.code
@@ -1510,3 +1531,39 @@ def revise(
     )
     
     return widget
+
+
+def clear(target: Union["VibeWidget", str] = "all") -> dict[str, int]:
+    """Clear cached widgets, themes, audits, or a specific widget's cache."""
+    results = {"widgets": 0, "themes": 0, "audits": 0}
+
+    if isinstance(target, VibeWidget):
+        metadata = getattr(target, "_widget_metadata", {}) or {}
+        widget_id = metadata.get("id")
+        widget_slug = metadata.get("slug")
+        results["widgets"] = WidgetStore().clear_for_widget(widget_id=widget_id, slug=widget_slug)
+        results["audits"] = AuditStore().clear_for_widget(widget_id=widget_id, widget_slug=widget_slug)
+        return results
+
+    if isinstance(target, str):
+        normalized = target.strip().lower()
+        if normalized in {"all"}:
+            results["widgets"] = WidgetStore().clear()
+            results["audits"] = AuditStore().clear()
+            results["themes"] = clear_theme_cache()
+            return results
+        if normalized in {"widget", "widgets"}:
+            results["widgets"] = WidgetStore().clear()
+            return results
+        if normalized in {"audit", "audits"}:
+            results["audits"] = AuditStore().clear()
+            return results
+        if normalized in {"theme", "themes"}:
+            results["themes"] = clear_theme_cache()
+            return results
+
+        results["widgets"] = WidgetStore().clear_for_widget(widget_id=target, slug=target)
+        results["audits"] = AuditStore().clear_for_widget(widget_id=target, widget_slug=target)
+        return results
+
+    raise TypeError("vw.clear expects a cache type string or a VibeWidget instance.")
