@@ -50,6 +50,47 @@ class WidgetStore:
         """Save the widget index to disk."""
         with open(self.index_file, 'w', encoding='utf-8') as f:
             json.dump(self.index, f, indent=2, ensure_ascii=False)
+
+    def clear(self) -> int:
+        """Remove all cached widgets and reset the index."""
+        removed = 0
+        for entry in list(self.index.get("widgets", [])):
+            file_name = entry.get("file_name")
+            if not file_name:
+                continue
+            widget_file = self.widgets_dir / file_name
+            if widget_file.exists():
+                widget_file.unlink()
+                removed += 1
+        self.index = {"schema_version": 1, "widgets": []}
+        self._save_index()
+        return removed
+
+    def clear_for_widget(self, *, widget_id: str | None = None, slug: str | None = None) -> int:
+        """Remove cached widgets that match the given widget id or slug."""
+        if not widget_id and not slug:
+            return 0
+        removed = 0
+        remaining = []
+        for entry in self.index.get("widgets", []):
+            matches = False
+            if widget_id and entry.get("id") == widget_id:
+                matches = True
+            if slug and entry.get("slug") == slug:
+                matches = True
+            if matches:
+                file_name = entry.get("file_name")
+                if file_name:
+                    widget_file = self.widgets_dir / file_name
+                    if widget_file.exists():
+                        widget_file.unlink()
+                        removed += 1
+            else:
+                remaining.append(entry)
+        if removed:
+            self.index["widgets"] = remaining
+            self._save_index()
+        return removed
     
     def _compute_cache_key(
         self,
