@@ -275,19 +275,25 @@ class ThemeRegistry:
         return None
 
 
-def theme(*args: Any, cache: bool = True) -> Theme:
-    """Resolve or compose themes."""
-    if not args:
-        raise ValueError("vw.theme requires at least one argument.")
-    registry = ThemeRegistry()
-    if len(args) == 1:
-        return registry.resolve(args[0], cache=cache)
-    resolved = [registry.resolve(arg, cache=cache) for arg in args]
-    return registry.compose(resolved)
+class ThemeAPI:
+    """Callable theme API with a catalog accessor."""
+
+    def __call__(self, *args: Any, cache: bool = True) -> Theme:
+        """Resolve or compose themes."""
+        if not args:
+            raise ValueError("vw.theme requires at least one argument.")
+        registry = ThemeRegistry()
+        if len(args) == 1:
+            return registry.resolve(args[0], cache=cache)
+        resolved = [registry.resolve(arg, cache=cache) for arg in args]
+        return registry.compose(resolved)
+
+    @property
+    def catalog(self) -> ThemesCatalog:
+        return ThemeRegistry().list()
 
 
-def themes() -> ThemesCatalog:
-    return ThemeRegistry().list()
+theme = ThemeAPI()
 
 
 def resolve_theme_for_request(

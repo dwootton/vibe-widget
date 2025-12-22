@@ -1,7 +1,7 @@
 from vibe_widget.core import VibeWidget, create, clear, ComponentReference
 from vibe_widget.api import export, exports, imports, ExportHandle
-from vibe_widget.config import config, Config, models
-from vibe_widget.themes import Theme, theme, themes
+from vibe_widget.config import config, Config
+from vibe_widget.themes import Theme, theme
 
 __version__ = "0.1.0"
 __all__ = [
@@ -11,10 +11,8 @@ __all__ = [
     "ComponentReference",
     "config",
     "Config",
-    "models",
     "Theme",
     "theme",
-    "themes",
     "export",
     "exports",
     "imports",
