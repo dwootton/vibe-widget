@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 @layer base {
+
   html,
   body,
   #root {
@@ -53,9 +54,17 @@
 }
 
 @keyframes glitch-shift {
-  0% { transform: translate(-1px, 0); }
-  50% { transform: translate(1px, 0); }
-  100% { transform: translate(-1px, 0); }
+  0% {
+    transform: translate(-1px, 0);
+  }
+
+  50% {
+    transform: translate(1px, 0);
+  }
+
+  100% {
+    transform: translate(-1px, 0);
+  }
 }
 
 @layer utilities {
@@ -124,6 +133,7 @@
 }
 
 @media (max-width: 768px) {
+
   .bg-noise,
   .perspective-grid {
     display: none;
@@ -131,5 +141,27 @@
 
   .shadow-hard-lg {
     box-shadow: 3px 3px 0 0 #1a1a1a;
+  }
+
+  .shadow-hard-lg {
+    box-shadow: 8px 8px 0 0 #1a1a1a;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(26, 26, 26, 0.1);
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #f97316;
   }
 }

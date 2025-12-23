@@ -1,6 +1,9 @@
 const TICTACTOE_URL = new URL('../widgets/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js', import.meta.url).href;
 const SCATTER_URL = new URL('../widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js', import.meta.url).href;
 const BARS_URL = new URL('../widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js', import.meta.url).href;
+const SOLAR_SYSTEM_URL = new URL('../widgets/3d_solar_system_using_three_js_showing_p__0ef429f27d__v1.js', import.meta.url).href;
+const HN_CLONE_URL = new URL('../widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js', import.meta.url).href;
+const REVISE_URL = new URL('../widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js', import.meta.url).href;
 
 // Sample weather data for scatter and bar charts (Seattle 2012, first 100 days)
 const WEATHER_DATA = [
@@ -56,6 +59,8 @@ const WEATHER_DATA = [
   { date: '2012-06-15', precipitation: 0.0, temp_max: 26.7, temp_min: 14.4, wind: 3.6, weather: 'sun' },
 ];
 
+export type Category = 'Featured' | 'Data Visualization' | 'Reactive' | '3D Simulation';
+
 export const EXAMPLES = [
   {
     id: 'tic-tac-toe',
@@ -64,6 +69,8 @@ export const EXAMPLES = [
     moduleUrl: TICTACTOE_URL,
     description: 'Play tic-tac-toe against an AI trained on game patterns. The widget exports board state and imports AI moves, demonstrating bidirectional widget communication.',
     initialData: [],
+    categories: ['Featured', 'Reactive'] as Category[],
+    size: 'large' as const,
   },
   {
     id: 'weather-scatter',
@@ -72,6 +79,8 @@ export const EXAMPLES = [
     moduleUrl: SCATTER_URL,
     description: 'Interactive scatter plot showing Seattle weather data. Brush-select points to see selected weather patterns exported to linked widgets.',
     initialData: WEATHER_DATA,
+    categories: ['Data Visualization', 'Reactive'] as Category[],
+    size: 'medium' as const,
   },
   {
     id: 'weather-bars',
@@ -80,5 +89,37 @@ export const EXAMPLES = [
     moduleUrl: BARS_URL,
     description: 'Bar chart showing weather condition counts. Automatically updates based on scatter plot selections, demonstrating reactive data flow.',
     initialData: WEATHER_DATA,
+    categories: ['Data Visualization', 'Reactive'] as Category[],
+    size: 'medium' as const,
+  },
+  {
+    id: 'solar-system',
+    label: '3D Solar System',
+    prompt: "3D solar system using Three.js showing planets orbiting the sun",
+    moduleUrl: SOLAR_SYSTEM_URL,
+    description: 'Extract planet data from a PDF and visualize it as an interactive 3D solar system. Click on planets to select them!',
+    initialData: [],
+    categories: ['Featured', '3D Simulation'] as Category[],
+    size: 'large' as const,
+  },
+  {
+    id: 'hn-clone',
+    label: 'Hacker News Clone',
+    prompt: "Create an interactive Hacker News clone widget",
+    moduleUrl: HN_CLONE_URL,
+    description: 'Scrape Hacker News stories and display them in an interactive interface. Filter by score, search by keywords, and sort by different criteria!',
+    initialData: [],
+    categories: ['Data Visualization'] as Category[],
+    size: 'medium' as const,
+  },
+  {
+    id: 'revise-demo',
+    label: 'Iterative Widget Revision',
+    prompt: "Add vertical dashed line when user hovering, highlight crossed data points",
+    moduleUrl: REVISE_URL,
+    description: 'Start with a basic chart, then refine it iteratively using vw.revise(). Watch how we add interactive features step by step!',
+    initialData: [],
+    categories: ['Featured', 'Reactive'] as Category[],
+    size: 'medium' as const,
   },
 ];

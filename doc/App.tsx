@@ -8,6 +8,7 @@ import ModuleGrid from './components/ModuleGrid';
 import WidgetGallery from './components/WidgetGallery';
 import Footer from './components/Footer';
 import DocsPage from './pages/DocsPage';
+import GalleryPage from './pages/GalleryPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // const Cursor = () => {
@@ -36,37 +37,25 @@ const LandingPage = () => {
   return (
     <main className="relative">
       <Hero />
-      
+
       {/* CONTENT LAYERS - Higher Z-Index and Background Color to cover Hero */}
       <div className="relative z-20 bg-bone border-t-2 border-slate/10 shadow-[0_-20px_50px_rgba(0,0,0,0.1)]">
-          <section id="gallery-preview" className="relative pt-20">
-             {/* Horizontal Scroll Gallery */}
-              <div className="container mx-auto px-4 mb-8">
-                <h2 className="text-4xl font-display font-bold">Featured Widgets</h2>
-              </div>
-              <WidgetGallery mode="horizontal" />
-          </section>
+        <section id="gallery-preview" className="relative pt-20">
+          {/* Horizontal Scroll Gallery */}
+          <div className="container mx-auto px-4 mb-8">
+            <h2 className="text-4xl font-display font-bold">Featured Widgets</h2>
+          </div>
+          <WidgetGallery mode="horizontal" />
+        </section>
 
-          <section id="guide" className="relative pt-20">
-              <NotebookGuide />
-          </section>
+        <section id="guide" className="relative pt-20">
+          <NotebookGuide />
+        </section>
 
-          <section id="modules" className="relative mt-20 pb-20">
-              <ModuleGrid />
-          </section>
+        <section id="modules" className="relative mt-20 pb-20">
+          <ModuleGrid />
+        </section>
       </div>
-    </main>
-  );
-};
-
-const GalleryPage = () => {
-  return (
-    <main className="relative pt-32 min-h-screen bg-bone z-20">
-       <div className="container mx-auto px-4 mb-12">
-          <h1 className="text-6xl font-display font-bold mb-4">Widget Gallery</h1>
-          <p className="text-xl text-slate/60 font-mono">Community creations and examples.</p>
-       </div>
-       <WidgetGallery mode="grid" />
     </main>
   );
 };
@@ -89,11 +78,11 @@ const AppContent = () => {
   return (
     <div className="bg-bone min-h-screen text-slate selection:bg-orange selection:text-white overflow-clip font-sans">
       {/* <Cursor /> */}
-      
+
       {/* GLOBAL BACKGROUND LAYERS (PARALLAX) */}
       <div className="bg-noise" />
       <div className="perspective-grid" />
-      
+
       {/* Scroll Progress Bar */}
       <motion.div
         className="fixed top-0 left-0 right-0 h-1.5 bg-orange origin-left z-[100]"
@@ -101,7 +90,7 @@ const AppContent = () => {
       />
 
       <Navbar />
-      
+
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/docs/*" element={<DocsPage />} />
