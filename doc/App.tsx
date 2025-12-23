@@ -8,6 +8,7 @@ import ModuleGrid from './components/ModuleGrid';
 import WidgetGallery from './components/WidgetGallery';
 import Footer from './components/Footer';
 import DocsPage from './pages/DocsPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 // const Cursor = () => {
 //   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -105,6 +106,8 @@ const AppContent = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/docs/*" element={<DocsPage />} />
         <Route path="/gallery" element={<GalleryPage />} />
+        <Route path="/gallery/*" element={<NotFoundPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
       <Footer />

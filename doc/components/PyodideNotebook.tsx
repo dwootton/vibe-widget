@@ -3,9 +3,10 @@ import React, { useState, useEffect, useRef, useCallback, ReactNode, Key, useMem
 import { html } from 'htm/react/index.js';
 import { pyodideRuntime, PyodideState, WidgetModel } from '../utils/PyodideRuntime';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-// import { funky } from 'react-syntax-highlighter/dist/cjs/styles/prism';
-// import { gruvboxDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { materialLight } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import DynamicWidget from './DynamicWidget';
+import { EXAMPLES } from '../data/examples';
+import { useIsMobile } from '../utils/useIsMobile';
 
 
 /**
@@ -180,14 +181,27 @@ export default function PyodideNotebook({ cells, title, dataFiles = [], notebook
   const [widgets, setWidgets] = useState<Map<string, { moduleUrl: string; model: WidgetModel }>>(new Map());
   const loadedDataFilesRef = useRef<Set<string>>(new Set());
   const currentNotebookKeyRef = useRef<string | undefined>(undefined);
+  const isMobile = useIsMobile();
+
+  type ExamplePreview = typeof EXAMPLES[number];
+  const notebookPreviewMap = useMemo<Record<string, ExamplePreview | undefined>>(() => ({
+    'cross-widget': EXAMPLES.find(ex => ex.id === 'weather-scatter'),
+    'tictactoe': EXAMPLES.find(ex => ex.id === 'tic-tac-toe'),
+    'pdf-web': EXAMPLES.find(ex => ex.id === 'weather-bars'),
+    'revise': EXAMPLES.find(ex => ex.id === 'weather-scatter'),
+  }), []);
+
+  const mobilePreview = (notebookKey && notebookPreviewMap[notebookKey]) || EXAMPLES[0];
 
   // Subscribe to Pyodide state changes
   useEffect(() => {
+    if (isMobile) return;
     return pyodideRuntime.onStateChange(setPyodideState);
-  }, []);
+  }, [isMobile]);
 
   // Set up widget display handler
   useEffect(() => {
+    if (isMobile) return;
     pyodideRuntime.setWidgetHandler((widgetId, moduleUrl, model) => {
       setWidgets(prev => {
         const next = new Map(prev);
@@ -195,16 +209,17 @@ export default function PyodideNotebook({ cells, title, dataFiles = [], notebook
         return next;
       });
     });
-  }, []);
+  }, [isMobile]);
 
   // Load Pyodide on mount
   useEffect(() => {
+    if (isMobile) return;
     pyodideRuntime.load().catch(console.error);
-  }, []);
+  }, [isMobile]);
 
   // Load data files when Pyodide is ready or when notebook changes
   useEffect(() => {
-    if (!pyodideState.ready || dataFiles.length === 0) return;
+    if (isMobile || !pyodideState.ready || dataFiles.length === 0) return;
 
     // Check if we need to load new data files
     const notebookChanged = currentNotebookKeyRef.current !== notebookKey;
@@ -226,10 +241,10 @@ export default function PyodideNotebook({ cells, title, dataFiles = [], notebook
         return pyodideRuntime.loadDataFile(file.url, file.varName, file.type);
       })
     ).catch(console.error);
-  }, [pyodideState.ready, dataFiles, notebookKey]);
+  }, [dataFiles, isMobile, notebookKey, pyodideState.ready]);
 
   const runCell = useCallback(async (index: number) => {
-    if (!pyodideState.ready) return;
+    if (isMobile || !pyodideState.ready) return;
 
     const cell = cells[index];
     if (cell.type !== 'code') return;
@@ -281,15 +296,16 @@ export default function PyodideNotebook({ cells, title, dataFiles = [], notebook
       };
       return next;
     });
-  }, [cells, pyodideState.ready]);
+  }, [cells, isMobile, pyodideState.ready]);
 
   const runAllCells = useCallback(async () => {
+    if (isMobile) return;
     for (let i = 0; i < cells.length; i++) {
       if (cells[i].type === 'code' && !cells[i].readOnly) {
         await runCell(i);
       }
     }
-  }, [cells, runCell]);
+  }, [cells, isMobile, runCell]);
 
   const toggleCodeCollapse = useCallback((index: number) => {
     setCellStates(prev => {
@@ -314,6 +330,29 @@ export default function PyodideNotebook({ cells, title, dataFiles = [], notebook
   const expandAllCode = useCallback(() => {
     setCellStates(prev => prev.map(s => ({ ...s, codeCollapsed: false })));
   }, []);
+
+  if (isMobile) {
+    return (
+      <div className="bg-white border-2 border-slate rounded-2xl p-6 shadow-hard-sm">
+        {title && (
+          <div className="mb-4">
+            <h1 className="text-3xl font-display font-bold mb-2">{title}</h1>
+            <p className="text-sm text-slate/70 font-mono">
+              Full notebook playback lives on desktop. Enjoy a lightweight widget preview while on mobile.
+            </p>
+          </div>
+        )}
+        {mobilePreview && (
+          <div className="mt-6 bg-[#F2F0E9] border-2 border-slate/10 rounded-xl p-3">
+            <DynamicWidget moduleUrl={mobilePreview.moduleUrl} initialData={mobilePreview.initialData} />
+          </div>
+        )}
+        <p className="mt-4 text-xs font-mono text-slate/60">
+          Tip: open this doc on a larger screen to run Python in-browser with Pyodide.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto">
