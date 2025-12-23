@@ -2,16 +2,21 @@ import React, { useState, useEffect, useRef, useCallback, ReactNode, Key, useMem
 // @ts-ignore
 import { html } from 'htm/react/index.js';
 import { pyodideRuntime, PyodideState, WidgetModel } from '../utils/PyodideRuntime';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+// import { funky } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+// import { gruvboxDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { materialLight } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+
 
 /**
  * Chevron icon for collapsible sections
  */
 function ChevronIcon({ expanded, className = '' }: { expanded: boolean; className?: string }) {
   return (
-    <svg 
+    <svg
       className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-90' : ''} ${className}`}
-      fill="none" 
-      viewBox="0 0 24 24" 
+      fill="none"
+      viewBox="0 0 24 24"
       stroke="currentColor"
     >
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -75,10 +80,10 @@ function PythonHighlighter({ code }: { code: string }) {
 
     // Sort by position and filter overlapping (earlier patterns take priority)
     allMatches.sort((a, b) => a.start - b.start);
-    
+
     const filteredMatches: typeof allMatches = [];
     let lastEnd = 0;
-    
+
     for (const match of allMatches) {
       if (match.start >= lastEnd) {
         filteredMatches.push(match);
@@ -163,9 +168,9 @@ export default function PyodideNotebook({ cells, title, dataFiles = [] }: Pyodid
     loadProgress: 0,
   });
   const [cellStates, setCellStates] = useState<CellState[]>(
-    cells.map((cell) => ({ 
-      running: false, 
-      executed: false, 
+    cells.map((cell) => ({
+      running: false,
+      executed: false,
       outputs: [],
       codeCollapsed: cell.defaultCollapsed ?? false,
       outputCollapsed: false,
@@ -198,9 +203,9 @@ export default function PyodideNotebook({ cells, title, dataFiles = [] }: Pyodid
   // Load data files when Pyodide is ready
   useEffect(() => {
     if (!pyodideState.ready || dataLoadedRef.current || dataFiles.length === 0) return;
-    
+
     dataLoadedRef.current = true;
-    
+
     Promise.all(
       dataFiles.map((file: any) => pyodideRuntime.loadDataFile(file.url, file.varName, file.type))
     ).catch(console.error);
@@ -222,7 +227,19 @@ export default function PyodideNotebook({ cells, title, dataFiles = [] }: Pyodid
     const outputs: CellOutput[] = [];
 
     try {
-      const result = await pyodideRuntime.runPython(cell.content, (text, type) => {
+      // Extract Python code from HTML if wrapped in <pre><code> tags
+      let pythonCode = cell.content;
+      const codeMatch = cell.content.match(/<code[^>]*>([\s\S]*?)<\/code>/);
+      if (codeMatch) {
+        pythonCode = codeMatch[1]
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'");
+      }
+
+      const result = await pyodideRuntime.runPython(pythonCode, (text, type) => {
         if (text.trim()) {
           outputs.push({ type, content: text });
         }
@@ -239,10 +256,10 @@ export default function PyodideNotebook({ cells, title, dataFiles = [] }: Pyodid
 
     setCellStates(prev => {
       const next = [...prev];
-      next[index] = { 
+      next[index] = {
         ...next[index],
-        running: false, 
-        executed: true, 
+        running: false,
+        executed: true,
         outputs,
       };
       return next;
@@ -299,13 +316,13 @@ export default function PyodideNotebook({ cells, title, dataFiles = [] }: Pyodid
                 <span className="font-mono text-sm">Loading Python runtime...</span>
               </div>
               <div className="w-full bg-slate/10 rounded-full h-2">
-                <div 
+                <div
                   className="bg-orange h-2 rounded-full transition-all duration-300"
                   style={{ width: `${pyodideState.loadProgress}%` }}
                 />
               </div>
               <p className="text-xs text-slate/50 mt-2 font-mono">
-                Loading pandas, numpy, scikit-learn ({pyodideState.loadProgress}%)
+                Loading vibe-widget, pandas, numpy ({pyodideState.loadProgress}%)
               </p>
             </div>
           ) : pyodideState.error ? (
@@ -388,6 +405,7 @@ interface NotebookCellComponentProps extends WithKey {
 function NotebookCellComponent(props: NotebookCellComponentProps) {
   const { cell, index, state, widgets, pyodideReady, onRun, onToggleCode, onToggleOutput } = props;
   const [markdownCollapsed, setMarkdownCollapsed] = useState(cell.defaultCollapsed ?? false);
+  // const codeRef = useRef<HTMLDivElement>(null);
 
   if (cell.type === 'markdown') {
     // Extract title from HTML for collapsed preview
@@ -408,7 +426,7 @@ function NotebookCellComponent(props: NotebookCellComponentProps) {
         </button>
         {!markdownCollapsed && (
           <div className="px-6 pb-6">
-            <div 
+            <div
               className="prose prose-slate max-w-none"
               dangerouslySetInnerHTML={{ __html: cell.content }}
             />
@@ -428,7 +446,7 @@ function NotebookCellComponent(props: NotebookCellComponentProps) {
       {/* Code Input Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-slate/5 border-b border-slate/10">
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={onToggleCode}
             className="flex items-center gap-2 hover:bg-slate/10 rounded px-1 py-0.5 transition-colors"
           >
@@ -459,13 +477,22 @@ function NotebookCellComponent(props: NotebookCellComponentProps) {
           )}
         </div>
       </div>
-      
+
       {/* Code Content */}
       {!state.codeCollapsed && (
-        <pre className="px-4 py-3 overflow-x-auto bg-slate/5">
-          <PythonHighlighter code={cell.content} />
-        </pre>
+        // <div 
+        //   ref={codeRef}
+        //   className="px-4 py-3 overflow-x-auto bg-slate/5"
+        // />
+        <SyntaxHighlighter
+          language="python"
+          style={materialLight}
+          showLineNumbers
+        >
+          {cell.content}
+        </SyntaxHighlighter>
       )}
+
 
       {/* Cell Output */}
       {hasOutput && (
@@ -569,7 +596,7 @@ function WidgetRenderer({ moduleUrl, model }: { moduleUrl: string; model: Widget
       try {
         const mod = await import(/* @vite-ignore */ moduleUrl);
         const fn = mod?.default ?? mod;
-        
+
         if (typeof fn !== 'function') {
           throw new Error('Widget module must export a default function');
         }

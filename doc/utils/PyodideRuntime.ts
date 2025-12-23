@@ -162,18 +162,13 @@ for _wid, _widget in vw._widgets.items():
       this.updateState({ loadProgress: 50 });
 
       // Load micropip for package installation
-      await this.pyodide.loadPackage('micropip');
-
-      this.updateState({ loadProgress: 60 });
+      // await this.pyodide.loadPackage('micropip');
 
       // Load required packages
       await this.pyodide.loadPackage(['pandas', 'numpy']);
-      
       this.updateState({ loadProgress: 80 });
-
-      // Load scikit-learn (takes a bit longer)
+      
       await this.pyodide.loadPackage('scikit-learn');
-
       this.updateState({ loadProgress: 95 });
 
       // Set up the vibe_widget mock module
@@ -318,8 +313,8 @@ def config(model=None, api_key=None):
 
 # Widget URL mapping (pre-generated widgets)
 _WIDGET_URLS = {
-    'scatter': '/examples/temperature_across_days_seattle_colored__1e5a77bc87__v1.js',
-    'bars': '/examples/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js',
+    'scatter': '../widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js',
+    'bars': '../widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js',
     'tictactoe': '../widgets/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js',
 }
 

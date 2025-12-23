@@ -9,28 +9,27 @@ import WidgetGallery from './components/WidgetGallery';
 import Footer from './components/Footer';
 import DocsPage from './pages/DocsPage';
 
-// Custom Cursor Component
-const Cursor = () => {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+// const Cursor = () => {
+//   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
-  useEffect(() => {
-    const updateMousePosition = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-    window.addEventListener('mousemove', updateMousePosition);
-    return () => window.removeEventListener('mousemove', updateMousePosition);
-  }, []);
+//   useEffect(() => {
+//     const updateMousePosition = (e: MouseEvent) => {
+//       setMousePosition({ x: e.clientX, y: e.clientY });
+//     };
+//     window.addEventListener('mousemove', updateMousePosition);
+//     return () => window.removeEventListener('mousemove', updateMousePosition);
+//   }, []);
 
-  return (
-    <motion.div
-      className="fixed top-0 left-0 w-8 h-8 border-2 border-orange rounded-full pointer-events-none z-[9999] mix-blend-difference"
-      animate={{ x: mousePosition.x - 16, y: mousePosition.y - 16 }}
-      transition={{ type: "spring", stiffness: 1900, damping: 88 }}
-    >
-      <div className="absolute top-1/2 left-1/2 w-1 h-1 bg-orange rounded-full transform -translate-x-1/2 -translate-y-1/2" />
-    </motion.div>
-  );
-};
+//   return (
+//     <motion.div
+//       className="fixed top-0 left-0 w-8 h-8 border-2 border-orange rounded-full pointer-events-none z-[9999] mix-blend-difference"
+//       animate={{ x: mousePosition.x - 16, y: mousePosition.y - 16 }}
+//       transition={{ type: "spring", stiffness: 1900, damping: 88 }}
+//     >
+//       <div className="absolute top-1/2 left-1/2 w-1 h-1 bg-orange rounded-full transform -translate-x-1/2 -translate-y-1/2" />
+//     </motion.div>
+//   );
+// };
 
 const LandingPage = () => {
   return (
@@ -88,7 +87,7 @@ const AppContent = () => {
 
   return (
     <div className="bg-bone min-h-screen text-slate selection:bg-orange selection:text-white overflow-clip font-sans">
-      <Cursor />
+      {/* <Cursor /> */}
       
       {/* GLOBAL BACKGROUND LAYERS (PARALLAX) */}
       <div className="bg-noise" />

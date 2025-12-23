@@ -113,7 +113,7 @@ bars = vw.create(
         df,
         selected_indices=scatter.selected_indices
     )
-)</code></pre>
+)
       <p class="mt-4">
         Vibe Widget automatically creates bidirectional links using traitlets,
         so changes flow between widgets in real-time!
@@ -141,10 +141,12 @@ export const TICTACTOE_NOTEBOOK: NotebookCell[] = [
   {
     type: 'code',
     content: `import vibe_widget as vw
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import AdaBoostClassifier, GradientBoostingClassifier, RandomForestClassifier
 from sklearn.model_selection import train_test_split
+import numpy as np
+import pandas as pd
+
+
 
 vw.config(model="google/gemini-3-flash-preview", api_key="demo")`,
     defaultCollapsed: true,
@@ -174,77 +176,185 @@ feature_cols = ['00-1', '00-2', '01-1', '01-2', '02-1', '02-2',
                 '10-1', '10-2', '11-1', '11-2', '12-1', '12-2', 
                 '20-1', '20-2', '21-1', '21-2', '22-1', '22-2']
 
-print("Training AI models...")
 
-# Train on O moves (AI plays O)
-O_features = o_moves_df[feature_cols]
-O_move_I = o_moves_df['move_I']
-O_move_J = o_moves_df['move_J']
+# Prepare X training data (all winning games for X)
+X_features = x_moves_df[feature_cols]
+X_move_I = x_moves_df['move_I']
+X_move_J = x_moves_df['move_J']
+
+# Split for evaluation
+X_train_feat, X_test_feat, X_train_I, X_test_I, X_train_J, X_test_J = train_test_split(
+    X_features, X_move_I, X_move_J, test_size=0.15, random_state=42
+)
+
+
+# Train X player models with improved parameters
+print("Training X row predictor (GradientBoosting with depth 5)...")
+lr_I_X = GradientBoostingClassifier(
+    n_estimators=100, 
+    max_depth=5, 
+    learning_rate=0.1,
+    random_state=42
+)
+lr_I_X.fit(X_train_feat, X_train_I)
+
+print("Training X column predictor (GradientBoosting with depth 5)...")
+lr_J_X = GradientBoostingClassifier(
+    n_estimators=100, 
+    max_depth=5, 
+    learning_rate=0.1,
+    random_state=42
+)
+lr_J_X.fit(X_train_feat, X_train_J)
+
+# Evaluate X models
+X_I_acc = lr_I_X.score(X_test_feat, X_test_I)
+X_J_acc = lr_J_X.score(X_test_feat, X_test_J)
+
+# Prepare O training data (only winning games for O)
+o_winning = o_moves_df[(o_moves_df['winner'] == 1) & (o_moves_df['move_I'] != -1)]
+
+O_features = o_winning[feature_cols]
+O_move_I = o_winning['move_I']
+O_move_J = o_winning['move_J']
 
 # Split for evaluation
 O_train_feat, O_test_feat, O_train_I, O_test_I, O_train_J, O_test_J = train_test_split(
     O_features, O_move_I, O_move_J, test_size=0.15, random_state=42
 )
 
-print(f"Training samples: {len(O_train_feat)}")
-
-# Train row predictor
-lr_I_O = GradientBoostingClassifier(n_estimators=50, max_depth=3, random_state=42)
+# Train O player models with improved parameters
+print("Training O row predictor (GradientBoosting with depth 5)...")
+lr_I_O = GradientBoostingClassifier(
+    n_estimators=100, 
+    max_depth=5, 
+    learning_rate=0.1,
+    random_state=42
+)
 lr_I_O.fit(O_train_feat, O_train_I)
 
-# Train column predictor
-lr_J_O = GradientBoostingClassifier(n_estimators=50, max_depth=3, random_state=42)
+print("Training O column predictor (GradientBoosting with depth 5)...")
+lr_J_O = GradientBoostingClassifier(
+    n_estimators=100, 
+    max_depth=5, 
+    learning_rate=0.1,
+    random_state=42
+)
 lr_J_O.fit(O_train_feat, O_train_J)
 
-print(f"Row accuracy: {lr_I_O.score(O_test_feat, O_test_I):.2%}")
-print(f"Column accuracy: {lr_J_O.score(O_test_feat, O_test_J):.2%}")
-print("AI ready!")`,
+# Evaluate O models
+O_I_acc = lr_I_O.score(O_test_feat, O_test_I)
+O_J_acc = lr_J_O.score(O_test_feat, O_test_J)
+`,
     defaultCollapsed: true,
     label: 'Train AI',
   },
   {
     type: 'code',
     content: `# Helper functions for AI
+# Helper functions for board conversion
 def board_to_features(board_list):
-    """Convert board to feature vector"""
+    """
+    Convert board state ['x','o','b',...] to feature vector for model.
+    board_list: 9-element list in order [00, 01, 02, 10, 11, 12, 20, 21, 22]
+    Returns: 18-element list with one-hot encoding
+    """
     features = []
     for cell in board_list:
         if cell == 'o':
             features.extend([1.0, 0.0])
         elif cell == 'x':
             features.extend([0.0, 1.0])
-        else:
+        else:  # 'b' for blank
             features.extend([0.0, 0.0])
     return features
 
 def get_empty_positions(board_list):
-    """Get empty positions"""
-    return [(i // 3, i % 3) for i, cell in enumerate(board_list) if cell == 'b']
+    """Get list of empty (row, col) positions"""
+    empty = []
+    for idx, cell in enumerate(board_list):
+        if cell == 'b':
+            row = idx // 3
+            col = idx % 3
+            empty.append((row, col))
+    return empty
 
-def predict_best_move(board_state):
-    """Predict best move for AI (O player)"""
-    empty = get_empty_positions(board_state)
-    if not empty:
+def check_winning_move(board_state, player):
+    """Check if there's a winning move for the player"""
+    empty_positions = get_empty_positions(board_state)
+    for row, col in empty_positions:
+        idx = row * 3 + col
+        test_board = board_state.copy()
+        test_board[idx] = player
+        if check_winner(test_board) == player:
+            return (row, col)
+    return None
+
+def check_winner(board):
+    """Check if there's a winner on the board"""
+    # Check rows
+    for i in range(3):
+        if board[i*3] == board[i*3+1] == board[i*3+2] != 'b':
+            return board[i*3]
+    # Check columns
+    for i in range(3):
+        if board[i] == board[i+3] == board[i+6] != 'b':
+            return board[i]
+    # Check diagonals
+    if board[0] == board[4] == board[8] != 'b':
+        return board[0]
+    if board[2] == board[4] == board[6] != 'b':
+        return board[2]
+    return None
+
+def predict_best_move(board_state, player='o'):
+    """
+    Predict best move for given player using trained models.
+    board_state: 9-element list ['x','o','b',...] in order [00,01,02,10,11,12,20,21,22]
+    player: 'x' or 'o'
+    Returns: (row, col) tuple or None if no valid moves
+    """
+    empty_positions = get_empty_positions(board_state)
+    if not empty_positions:
         return None
     
+    # First priority: Check if we can win
+    winning_move = check_winning_move(board_state, player)
+    if winning_move:
+        return winning_move
+    
+    # Second priority: Block opponent's winning move
+    opponent = 'x' if player == 'o' else 'o'
+    blocking_move = check_winning_move(board_state, opponent)
+    if blocking_move:
+        return blocking_move
+    
+    # Convert board to features
     features = board_to_features(board_state)
     X_input = pd.DataFrame([features], columns=feature_cols)
     
-    I_probs = lr_I_O.predict_proba(X_input)
-    J_probs = lr_J_O.predict_proba(X_input)
+    # Get model predictions
+    if player == 'x':
+        I_probs = lr_I_X.predict_proba(X_input)
+        J_probs = lr_J_X.predict_proba(X_input)
+    else:  # 'o'
+        I_probs = lr_I_O.predict_proba(X_input)
+        J_probs = lr_J_O.predict_proba(X_input)
     
-    prob_matrix = np.dot(I_probs.T, J_probs)
+    # Compute joint probability matrix (outer product)
+    prob_matrix = np.dot(I_probs.T, J_probs)  # 3x3 matrix
     
+    # Find best valid move
     best_score = -1
     best_move = None
-    for row, col in empty:
-        if prob_matrix[row, col] > best_score:
-            best_score = prob_matrix[row, col]
+    
+    for row, col in empty_positions:
+        score = prob_matrix[row, col]
+        if score > best_score:
+            best_score = score
             best_move = (row, col)
     
-    return best_move
-
-print("AI functions ready!")`,
+    return best_move`,
     defaultCollapsed: true,
     label: 'AI Functions',
   },
@@ -269,7 +379,10 @@ game_board = vw.create(
         "board_state": "9-element array of 'x', 'o', or 'b'",
         "game_over": "boolean",
         "current_turn": "'x' or 'o'"
-    }
+    },
+    imports={
+        "ai_move": "object {row: number, col: number} for AI move placement"
+    },
 )
 
 game_board`,
@@ -324,8 +437,7 @@ def make_ai_move(change):
         traceback.print_exc()
 
 # Observe changes to trigger AI moves
-game_board.observe(make_ai_move, names=['current_turn'])
-    `,
+game_board.observe(make_ai_move, names=['current_turn'])`,
     label: 'AI Controller',
   },
 ];
@@ -527,7 +639,7 @@ chart_v2 = vw.revise(
 chart_v3 = vw.revise(
     "add zoom and pan controls",
     chart_v2
-)</code></pre>
+)
     `,
     defaultCollapsed: true,
   },
@@ -552,4 +664,11 @@ export const PDF_WEB_DATA_FILES = [
 
 export const REVISE_DATA_FILES = [
   { url: '/testdata/day_wise.csv', varName: 'covid_df' },
+];
+
+export const ALL_DATA_FILES = [
+  ...WEATHER_DATA_FILES,
+  ...TICTACTOE_DATA_FILES,
+  ...PDF_WEB_DATA_FILES,
+  ...REVISE_DATA_FILES,
 ];
