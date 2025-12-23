@@ -2,8 +2,8 @@ import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import NotebookGuide from '../components/NotebookGuide';
 import PyodideNotebook from '../components/PyodideNotebook';
-import { 
-    CROSS_WIDGET_NOTEBOOK, 
+import {
+    CROSS_WIDGET_NOTEBOOK,
     TICTACTOE_NOTEBOOK,
     PDF_WEB_NOTEBOOK,
     REVISE_NOTEBOOK,
@@ -11,32 +11,43 @@ import {
     TICTACTOE_DATA_FILES,
     PDF_WEB_DATA_FILES,
     REVISE_DATA_FILES,
-    ALL_DATA_FILES
 } from '../data/pyodideNotebooks';
 
 const Sidebar = () => {
     const location = useLocation();
-    
+
     const sections = [
-        { title: "Getting Started", links: [
-            { label: "Installation", href: "/docs" },
-            { label: "Configuration", href: "/docs/config" },
-        ]},
-        { title: "Core Concepts", links: [
-            { label: "Create", href: "/docs/create" },
-            { label: "Revise", href: "/docs/revise" },
-            { label: "Iterations", href: "/docs/iterations" },
-            { label: "Reactivity", href: "/docs/reactivity" },
-        ]},
-        { title: "Live Examples", links: [
-            { label: "Cross-Widget Demo", href: "/docs/examples/cross-widget" },
-            { label: "Tic-Tac-Toe AI", href: "/docs/examples/tictactoe" },
-            { label: "PDF & Web Data", href: "/docs/examples/pdf-web" },
-            { label: "Revise Example", href: "/docs/examples/revise" },
-        ]},
-        { title: "Ecosystem", links: [
-            { label: "Widgetarium", href: "/docs/widgetarium" },
-        ]}
+        {
+            title: "Getting Started", links: [
+                { label: "Installation", href: "/docs" },
+                { label: "Configuration", href: "/docs/config" },
+            ]
+        },
+        {
+            title: "Core Concepts", links: [
+                { label: "Create", href: "/docs/create" },
+                { label: "Revise", href: "/docs/revise" },
+                { label: "Iterations", href: "/docs/iterations" },
+                { label: "Reactivity", href: "/docs/reactivity" },          // how widgets update based on traitlets (imports, exports)
+                { label: "Data Sources", href: "/docs/data-sources" },      // supported data types including csv, xml, nc, json, pdf, web scraping, etc.
+                { label: "Composability", href: "/docs/composability" },    // talking about the widget.components (for revise and for composing widgets together)
+
+
+            ]
+        },
+        {
+            title: "Live Examples", links: [
+                { label: "Cross-Widget Demo", href: "/docs/examples/cross-widget" },
+                { label: "Tic-Tac-Toe AI", href: "/docs/examples/tictactoe" },
+                { label: "PDF & Web Data", href: "/docs/examples/pdf-web" },
+                { label: "Revise Example", href: "/docs/examples/revise" },
+            ]
+        },
+        {
+            title: "Ecosystem", links: [
+                { label: "Widgetarium", href: "/docs/widgetarium" },
+            ]
+        }
     ];
 
     return (
@@ -46,8 +57,8 @@ const Sidebar = () => {
                     <h3 className="font-display font-bold text-lg mb-4">{section.title}</h3>
                     <div className="flex flex-col gap-2 font-mono text-sm">
                         {section.links.map(link => (
-                            <Link 
-                                key={link.href} 
+                            <Link
+                                key={link.href}
                                 to={link.href}
                                 className={`
                                     py-1 px-2 rounded transition-colors
@@ -88,13 +99,13 @@ const DocsPage = () => {
                             <p className="mb-4">Vibe Widget requires Python 3.8+.</p>
                         </DocContent>
                     } />
-                     <Route path="/config" element={
+                    <Route path="/config" element={
                         <DocContent title="Configuration">
                             <p>Configure your LLM provider keys.</p>
                         </DocContent>
                     } />
                     <Route path="/examples/cross-widget" element={
-                        <PyodideNotebook 
+                        <PyodideNotebook
                             cells={CROSS_WIDGET_NOTEBOOK}
                             title="Cross-Widget Interactions"
                             dataFiles={WEATHER_DATA_FILES}
@@ -102,7 +113,7 @@ const DocsPage = () => {
                         />
                     } />
                     <Route path="/examples/tictactoe" element={
-                        <PyodideNotebook 
+                        <PyodideNotebook
                             cells={TICTACTOE_NOTEBOOK}
                             title="Tic-Tac-Toe AI"
                             dataFiles={TICTACTOE_DATA_FILES}
@@ -110,7 +121,7 @@ const DocsPage = () => {
                         />
                     } />
                     <Route path="/examples/pdf-web" element={
-                        <PyodideNotebook 
+                        <PyodideNotebook
                             cells={PDF_WEB_NOTEBOOK}
                             title="PDF & Web Data Extraction"
                             dataFiles={PDF_WEB_DATA_FILES}
@@ -118,14 +129,14 @@ const DocsPage = () => {
                         />
                     } />
                     <Route path="/examples/revise" element={
-                        <PyodideNotebook 
+                        <PyodideNotebook
                             cells={REVISE_NOTEBOOK}
                             title="Widget Revision"
                             dataFiles={REVISE_DATA_FILES}
                             notebookKey="revise"
                         />
                     } />
-                     <Route path="*" element={
+                    <Route path="*" element={
                         <DocContent title="Coming Soon">
                             <p>This documentation section is under construction.</p>
                         </DocContent>

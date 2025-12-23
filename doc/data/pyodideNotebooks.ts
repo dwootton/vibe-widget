@@ -721,14 +721,6 @@ export const PDF_WEB_DATA_FILES = [
 export const REVISE_DATA_FILES = [
   { url: '/testdata/day_wise.csv', varName: 'covid_df' },
 ];
-
-export const ALL_DATA_FILES = [
-  ...WEATHER_DATA_FILES,
-  ...TICTACTOE_DATA_FILES,
-  ...PDF_WEB_DATA_FILES,
-  ...REVISE_DATA_FILES,
-];
-
 /**
  * Map notebook name to its required data files
  */
