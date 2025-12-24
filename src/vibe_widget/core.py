@@ -201,6 +201,9 @@ class VibeWidget(anywidget.AnyWidget):
         imports: dict[str, Any] | None = None,
         theme: Theme | None = None,
         data_var_name: str | None = None,
+        base_code: str | None = None,
+        base_components: list[str] | None = None,
+        base_widget_id: str | None = None,
         existing_code: str | None = None,
         existing_metadata: dict[str, Any] | None = None,
         display_widget: bool = False,
@@ -239,6 +242,9 @@ class VibeWidget(anywidget.AnyWidget):
             imports=imports,
             theme=theme,
             data_var_name=data_var_name,
+            base_code=base_code,
+            base_components=base_components,
+            base_widget_id=base_widget_id,
             existing_code=existing_code,
             existing_metadata=existing_metadata,
             display_widget=display_widget,
@@ -566,6 +572,9 @@ class VibeWidget(anywidget.AnyWidget):
         imports: dict[str, Any] | None,
         model: str,
         theme: Theme | None,
+        base_code: str | None = None,
+        base_components: list[str] | None = None,
+        base_widget_id: str | None = None,
     ) -> None:
         self._recipe_description = description
         self._recipe_data_source = data_source
@@ -576,6 +585,9 @@ class VibeWidget(anywidget.AnyWidget):
         self._recipe_model = model
         self._recipe_model_resolved = model
         self._recipe_theme = theme
+        self._recipe_base_code = base_code
+        self._recipe_base_components = base_components
+        self._recipe_base_widget_id = base_widget_id
 
     def __call__(self, *args, **kwargs):
         """Create a new widget instance, swapping data/inputs heuristically."""
@@ -697,6 +709,9 @@ class VibeWidget(anywidget.AnyWidget):
             imports=imports,
             theme=self._recipe_theme,
             data_var_name=None,
+            base_code=getattr(self, '_recipe_base_code', None),
+            base_components=getattr(self, '_recipe_base_components', None),
+            base_widget_id=getattr(self, '_recipe_base_widget_id', None),
             existing_code=existing_code,
             existing_metadata=existing_metadata,
             display_widget=display,
@@ -1753,7 +1768,13 @@ def edit(
         imports=inputs,
         theme=resolved_theme,
         data_var_name=None,
+<<<<<<< HEAD
+        base_code=source_info.code,
+        base_components=source_info.components,
+        base_widget_id=source_info.metadata.get("id") if source_info.metadata else None,
+=======
         cache=cache,
+<<<<<<< HEAD
         execution_mode=resolved_config.execution if resolved_config else "auto",
         execution_approved=None,
         base_code=source_info.code,
@@ -1762,6 +1783,12 @@ def edit(
     )
 
     _link_imports(widget, inputs)
+=======
+>>>>>>> dff17eeba4394c09d4f639255c2040cb034390e5
+    )
+    
+    _link_imports(widget, imports)
+>>>>>>> a3c52de9d4f7187289160bd31d8e26cdef2a9251
     widget._set_recipe(
         description=description,
         data_source=data if data is not None else source_info.df,
@@ -1771,6 +1798,9 @@ def edit(
         imports=inputs,
         model=model,
         theme=resolved_theme,
+        base_code=source_info.code,
+        base_components=source_info.components,
+        base_widget_id=source_info.metadata.get("id") if source_info.metadata else None,
     )
     
     return widget

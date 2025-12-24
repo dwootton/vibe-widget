@@ -82,7 +82,7 @@ src/vibe_widget/AppWrapper.bundle.js
 
 
 /venv311/
-**/widgets/**
+# **/widgets/**
 /testdata/**
 
 /tests/

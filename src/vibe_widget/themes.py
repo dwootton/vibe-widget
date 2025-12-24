@@ -387,6 +387,36 @@ _BUILTIN_THEMES = {
         ),
         prompt="minimal",
     ),
+    "vibe-widgets": Theme(
+        name="vibe-widgets",
+        description=_t(
+            """
+            A tactile retro-future workshop aesthetic: warm bone paper, bold orange accents, and crisp slate ink.
+
+            ## Environment & Ground
+            The primary background is a soft bone or parchment (#f7f0e6). Secondary surfaces lift with off-white panels and subtle hard shadows,
+            creating a physical, screen-printed feel. Borders are visible and intentional, often 2px in deep slate.
+
+            ## Typography
+            Headlines are expressive and geometric (a display serif or bold grotesk), while labels, axes, and data annotations use a precise monospace.
+            Text is high-contrast slate or near-black on bone.
+
+            ## Color System
+            - **Accent**: Vivid orange (#f97316) for key highlights, active states, and selection.
+            - **Data Encoding**: A curated palette that balances warmth and clarity: slate blue, deep teal, warm yellow, and muted brick.
+            - **Sequential**: Bone to orange to deep slate ramps; avoid muddy midtones.
+
+            ## Chart Elements
+            Axes and ticks are crisp and dark; gridlines are thin, soft slate with occasional dotted lines for texture.
+            Marks are slightly chunky with confident strokes. Corners can be gently rounded to match the tactile UI.
+
+            ## Component Styling
+            Tooltips and legends look like small cards: bone background, slate border, hard drop shadow, and monospace details.
+            Interaction states use orange outlines, subtle glow, and fast snap-in motion.
+            """
+        ),
+        prompt="vibe-widgets",
+    ),
     "financial_times": Theme(
         name="financial_times",
         description=_t(
