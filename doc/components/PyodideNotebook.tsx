@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback, ReactNode, Key, useMem
 import { html } from 'htm/react/index.js';
 import { pyodideRuntime, PyodideState, WidgetModel } from '../utils/PyodideRuntime';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { materialLight } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { materialLight, materialDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import DynamicWidget from './DynamicWidget';
 import { EXAMPLES } from '../data/examples';
 import { useIsMobile } from '../utils/useIsMobile';

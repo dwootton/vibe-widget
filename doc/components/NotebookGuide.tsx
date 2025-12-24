@@ -1,14 +1,16 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion';
 import { Package, Play, ArrowDown, Database, Upload, Download, CheckCircle, Terminal } from 'lucide-react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const NotebookCell = ({ index, title, code, output, isActive, icon }: any) => {
     const ref = useRef(null);
     const isInView = useInView(ref, { margin: "-40% 0px -40% 0px" });
-    
+
     // Simulated typing effect for code
     const [typedCode, setTypedCode] = useState("");
-    
+
     useEffect(() => {
         if (isInView) {
             let i = 0;
@@ -21,8 +23,19 @@ const NotebookCell = ({ index, title, code, output, isActive, icon }: any) => {
         }
     }, [isInView, code]);
 
+    // Custom style for syntax highlighter that matches the design
+    const customStyle = {
+        background: '#1A1A1A',
+        padding: '1.25rem',
+        borderRadius: '0.75rem',
+        margin: 0,
+        fontSize: '13px',
+        lineHeight: '1.5',
+        fontFamily: 'Space Mono, JetBrains Mono, monospace',
+    };
+
     return (
-        <motion.div 
+        <motion.div
             ref={ref}
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -36,25 +49,47 @@ const NotebookCell = ({ index, title, code, output, isActive, icon }: any) => {
                         <span className="text-[10px] uppercase tracking-widest font-bold">Cell: {index}</span>
                     </div>
                     {isInView && (
-                        <motion.div 
-                            initial={{ scale: 0 }} 
-                            animate={{ scale: 1 }} 
+                        <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
                             className="px-2 py-0.5 bg-green-500/10 text-green-600 rounded text-[9px] font-bold uppercase tracking-tighter"
                         >
                             Executing...
                         </motion.div>
                     )}
                 </div>
-                
-                <div className="bg-slate text-bone p-5 rounded-xl border-l-4 border-orange relative overflow-hidden shadow-inner">
-                    <pre className="text-[13px] leading-relaxed whitespace-pre-wrap">{typedCode}<span className="inline-block w-1.5 h-4 bg-orange ml-1 animate-pulse" /></pre>
+
+                <div className="bg-slate text-bone rounded-xl border-l-4 border-orange relative overflow-hidden shadow-inner">
+                    {/* Syntax highlighted code with typing animation */}
+                    {typedCode.length > 0 ? (
+                        <div className="relative">
+                            <SyntaxHighlighter
+                                language="python"
+                                style={vscDarkPlus}
+                                customStyle={customStyle}
+                                PreTag="div"
+                                CodeTag="code"
+                                showLineNumbers={false}
+                            >
+                                {typedCode}
+                            </SyntaxHighlighter>
+                            {/* Typing cursor */}
+                            {typedCode.length < code.length && (
+                                <span className="absolute bottom-5 right-5 inline-block w-1.5 h-4 bg-orange animate-pulse" />
+                            )}
+                        </div>
+                    ) : (
+                        <div style={customStyle}>
+                            <span className="inline-block w-1.5 h-4 bg-orange animate-pulse" />
+                        </div>
+                    )}
                 </div>
             </div>
-            
+
             {/* Fixed: AnimatePresence was not imported */}
             <AnimatePresence>
                 {isInView && output && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 10, filter: 'blur(5px)' }}
                         animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                         transition={{ delay: 0.4 }}
@@ -102,30 +137,30 @@ const NotebookGuide = () => {
                     {/* Left Column: Sticky Nav */}
                     <div className="lg:w-[400px] lg:flex-shrink-0">
                         <div className="sticky top-10 space-y-10">
-                             <div className="space-y-4">
-                                <motion.div 
+                            <div className="space-y-4">
+                                <motion.div
                                     initial={{ scale: 0 }}
                                     whileInView={{ scale: 1 }}
                                     className="w-14 h-14 bg-orange text-white rounded-2xl shadow-hard flex items-center justify-center"
                                 >
                                     <Database className="w-7 h-7" />
                                 </motion.div>
-                                <h2 className="text-6xl font-display font-bold leading-none tracking-tighter">The Lab <br/><span className="text-orange">Log.</span></h2>
+                                <h2 className="text-6xl font-display font-bold leading-none tracking-tighter">The Lab <br /><span className="text-orange">Log.</span></h2>
                                 <p className="text-lg text-slate/50 font-sans leading-relaxed max-w-[320px]">
-                                   VibeWidget treats your data exploration as a continuous, reproducible conversation.
+                                    VibeWidget treats your data exploration as a continuous, reproducible conversation.
                                 </p>
-                             </div>
+                            </div>
 
-                             <div className="relative space-y-6 border-l-2 border-slate/5 ml-4">
+                            <div className="relative space-y-6 border-l-2 border-slate/5 ml-4">
                                 {/* Moving Indicator */}
-                                <motion.div 
+                                <motion.div
                                     className="absolute -left-[3px] w-1.5 h-12 bg-orange rounded-full z-10 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
                                     animate={{ top: (activeStep - 1) * 64 }}
                                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                                 />
                                 {steps.map((step) => (
-                                    <div 
-                                        key={step.id} 
+                                    <div
+                                        key={step.id}
                                         className={`pl-8 flex items-center gap-4 transition-all duration-500 ${activeStep === step.id ? 'text-orange scale-105 opacity-100' : 'text-slate/30 opacity-40 grayscale'}`}
                                     >
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center border-2 transition-colors ${activeStep === step.id ? 'border-orange bg-orange/5' : 'border-slate/10'}`}>
@@ -137,26 +172,26 @@ const NotebookGuide = () => {
                                         </div>
                                     </div>
                                 ))}
-                             </div>
+                            </div>
                         </div>
                     </div>
 
                     {/* Right Column: Cells */}
                     <div className="flex-1 space-y-40 pb-20">
-                        <NotebookCell 
+                        <NotebookCell
                             index={1}
                             icon={<Package />}
                             code="import vibe_widget as vw\n\n# Configure runtime environment\nvw.setup(provider='gemini', theme='retro')"
                             output={
                                 <div className="text-slate/60 text-xs font-mono leading-relaxed">
-                                    [SYSTEM] Initializing Vibe-Engine v.1.0.4...<br/>
-                                    [AUTH] Provider: Google Gemini-3-Pro<br/>
+                                    [SYSTEM] Initializing Vibe-Engine v.1.0.4...<br />
+                                    [AUTH] Provider: Google Gemini-3-Pro<br />
                                     <span className="text-green-600 font-bold">[READY] Core components loaded successfully.</span>
                                 </div>
                             }
                         />
 
-                        <NotebookCell 
+                        <NotebookCell
                             index={2}
                             icon={<Play />}
                             code={`# Synthesize visualization\ndashboard = vw.create(\n  "heatmap of global carbon emissions",\n  data=emissions_df\n)`}
@@ -165,10 +200,10 @@ const NotebookGuide = () => {
                                     <div className="absolute inset-0 bg-orange/5 animate-pulse" />
                                     <div className="grid grid-cols-10 gap-0.5 w-full h-full p-2">
                                         {[...Array(50)].map((_, i) => (
-                                            <div 
-                                                key={i} 
+                                            <div
+                                                key={i}
                                                 className="w-full h-full rounded-[1px] transition-all duration-1000"
-                                                style={{ 
+                                                style={{
                                                     backgroundColor: i % 3 === 0 ? '#f97316' : i % 5 === 0 ? '#1A1A1A' : '#e5e7eb',
                                                     opacity: Math.random() * 0.8 + 0.2
                                                 }}
@@ -182,18 +217,18 @@ const NotebookGuide = () => {
                             }
                         />
 
-                        <NotebookCell 
+                        <NotebookCell
                             index={3}
                             icon={<Upload />}
                             code={`# Interactive refinement\ndashboard.revise(\n  "zoom into Europe and use a toxic color scale",\n)`}
                             output={
                                 <div className="bg-slate border-2 border-black p-1 rounded-xl shadow-lg h-40 flex items-center justify-center overflow-hidden">
-                                     <div className="grid grid-cols-10 gap-0.5 w-full h-full p-2">
+                                    <div className="grid grid-cols-10 gap-0.5 w-full h-full p-2">
                                         {[...Array(50)].map((_, i) => (
-                                            <div 
-                                                key={i} 
+                                            <div
+                                                key={i}
                                                 className="w-full h-full rounded-[1px]"
-                                                style={{ 
+                                                style={{
                                                     backgroundColor: i % 2 === 0 ? '#fbbf24' : '#ef4444',
                                                     opacity: Math.random() * 0.9 + 0.1
                                                 }}
@@ -203,8 +238,8 @@ const NotebookGuide = () => {
                                 </div>
                             }
                         />
-                        
-                         <NotebookCell 
+
+                        <NotebookCell
                             index={4}
                             icon={<Download />}
                             code={`# Persistence\ndashboard.save("climate_report.vw")`}
