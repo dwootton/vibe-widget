@@ -570,10 +570,19 @@ function WidgetRenderer({ moduleUrl, model }: { moduleUrl: string; model: Widget
 
   useEffect(() => {
     let cancelled = false;
+    let blobUrl: string | null = null;
 
     async function loadWidget() {
       try {
-        const mod = await import(/* @vite-ignore */ moduleUrl);
+        // Fetch the module code and create a blob URL to avoid Vite's public folder import restriction
+        const response = await fetch(moduleUrl);
+        if (!response.ok) throw new Error(`Failed to fetch module: ${response.statusText}`);
+
+        const code = await response.text();
+        const blob = new Blob([code], { type: 'application/javascript' });
+        blobUrl = URL.createObjectURL(blob);
+
+        const mod = await import(/* @vite-ignore */ blobUrl);
         const fn = mod?.default ?? mod;
 
         if (typeof fn !== 'function') {
@@ -594,7 +603,10 @@ function WidgetRenderer({ moduleUrl, model }: { moduleUrl: string; model: Widget
 
     loadWidget();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
   }, [moduleUrl]);
 
   if (error) {
