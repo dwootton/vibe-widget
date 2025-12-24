@@ -102,7 +102,7 @@ const ModuleGrid = () => {
                     System Architecture
                 </motion.div>
                 <h2 className="text-6xl font-display font-bold mb-4 tracking-tighter">Tools of <span className="text-orange">Synthesis.</span></h2>
-                <p className="text-xl text-slate/40 font-sans max-w-2xl">A modular library built for high-performance data engineering and real-time visualization.</p>
+                <p className="text-xl text-slate/40 font-sans max-w-2xl">A library for interactive visualization.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
