@@ -1756,12 +1756,11 @@ def edit(
         cache=cache,
         execution_mode=resolved_config.execution if resolved_config else "auto",
         execution_approved=None,
+        base_code=source_info.code,
+        base_components=source_info.components,
+        base_widget_id=source_info.metadata.get("id") if source_info.metadata else None,
     )
-    
-    widget._base_code = source_info.code
-    widget._base_components = source_info.components
-    widget._base_widget_id = source_info.metadata.get("id") if source_info.metadata else None
-    
+
     _link_imports(widget, inputs)
     widget._set_recipe(
         description=description,
