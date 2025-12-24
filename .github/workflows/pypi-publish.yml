@@ -42,7 +42,9 @@ jobs:
           pip install build hatchling
 
       - name: Build package
-        run: python -m build
+        run: |
+          python -m build --wheel --no-isolation
+          python -m build --sdist --no-isolation
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

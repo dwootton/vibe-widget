@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2024-12-24
+
+### Fixed
+- Build command in CI/CD to use --no-isolation flag
+- Prevents build-from-sdist failure when AppWrapper.bundle.js is not in git
+
 ## [0.2.2] - 2024-12-24
 
 ### Fixed
