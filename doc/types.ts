@@ -15,4 +15,5 @@ export interface FeatureCardProps {
   description: string;
   icon: React.ReactNode;
   codeSnippet?: string;
+  href?: string;
 }
