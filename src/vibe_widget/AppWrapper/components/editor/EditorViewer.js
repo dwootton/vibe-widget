@@ -20,7 +20,10 @@ export default function EditorViewer({
   auditApplyError,
   onAudit,
   onApply,
-  onClose
+  onClose,
+  approvalMode,
+  isApproved,
+  onApprove
 }) {
   const editorRef = React.useRef(null);
   const [draftCode, setDraftCode] = React.useState(code || "");
@@ -57,6 +60,7 @@ export default function EditorViewer({
     isDirtyRef.current ? "source code changes" : null,
     manualNote.trim().length > 0 ? "note" : null
   ].filter(Boolean).join(" and ") || "No pending changes";
+  const showApprove = approvalMode && !isApproved;
 
   const getCardId = (concern, index) => {
     const base = concern?.id || `concern-${index}`;
@@ -75,6 +79,12 @@ export default function EditorViewer({
   React.useEffect(() => {
     isDirtyRef.current = draftCode !== (code || "");
   }, [draftCode, code]);
+
+  React.useEffect(() => {
+    if (approvalMode) {
+      setShowAuditPanel(true);
+    }
+  }, [approvalMode]);
 
   React.useEffect(() => {
     if (!isDirtyRef.current) {
@@ -340,6 +350,9 @@ export default function EditorViewer({
   };
 
   const handleCloseRequest = () => {
+    if (showApprove) {
+      return;
+    }
     if (pendingChanges.length > 0 || manualNote.trim().length > 0 || isDirtyRef.current) {
       handleSend();
     }
@@ -889,7 +902,7 @@ export default function EditorViewer({
       </style>
       <div class="source-viewer-card" role="dialog" aria-live="polite">
         <div class="source-viewer-header">
-          <span>Code Editor</span>
+          <span>${showApprove ? "Review & Approve" : "Code Editor"}</span>
           <div class="source-viewer-actions">
             ${auditIndicator && html`<span class="audit-indicator">${auditIndicator}</span>`}
             ${!hasAuditPayload && html`
@@ -905,7 +918,12 @@ export default function EditorViewer({
                 ${showAuditPanel ? "Hide Audit" : "Show Audit"}
               </button>
             `}
-            <button class="source-viewer-button" onClick=${handleCloseRequest}>Close</button>
+            ${showApprove && html`
+              <button class="source-viewer-button" onClick=${onApprove}>Approve & Run</button>
+            `}
+            ${!showApprove && html`
+              <button class="source-viewer-button" onClick=${handleCloseRequest}>Close</button>
+            `}
           </div>
         </div>
         <div class="source-viewer-body">

@@ -137,6 +137,7 @@ vw.config(mode="premium", model="openrouter")
 # or
 vw.config(model="openai/gpt-5.1-codex")
 vw.config(model="anthropic/claude-opus-4.5")
+vw.config(execution="approve")
 
 # View available models
 vw.models()
@@ -244,6 +245,9 @@ widget = vw.create(
     data=None,                  # DataFrame, file path, URL, or None
     outputs=None,               # Dict of {trait_name: description}
     inputs=None,                # Dict of {trait_name: source_widget}
+    theme=None,                 # Theme object, name, or prompt
+    display=True,               # Auto-display in notebooks
+    cache=True,                 # Reuse cached widget/code/theme
     config=None                 # Config object (optional)
 )
 ```
@@ -269,6 +273,16 @@ widget = vw.create(
 - `inputs`: State this widget receives from others
   - Use `vw.inputs(df, selected_indices=scatter.outputs.selected_indices)` to bundle data with inputs
   - Positional arguments are allowed in `vw.inputs(...)` and will infer names when possible
+  - Example: `vw.inputs(df, df2, bin_size=50, filtered_items=other_widget.outputs.filter)`
+
+- `theme`: Styling preset or prompt
+  - Use a built-in theme name: `vw.create("...", df, theme="paper")`
+  - Use a prompt string: `vw.create("...", df, theme="dusty cyan with warm gridlines")`
+  - Or pass a `Theme` object from `vw.theme(...)`
+
+- `display`: If `True`, auto-render the widget in notebook environments
+
+- `cache`: If `True`, reuse prior widget code, theme resolutions, and audits when possible
 
 ### `widget.edit()`
 
@@ -280,9 +294,22 @@ widget = existing_widget.edit(
     data=None,                  # Optional new data
     outputs=None,
     inputs=None,
+    theme=None,
+    cache=True,
     config=None
 )
 ```
+
+### `widget.audit()`
+
+Run an audit on a widget’s generated code:
+
+```python
+report = widget.audit(level="fast", reuse=True, display=True)
+```
+
+Use `level="full"` for deeper analysis. Set `reuse=False` to force a fresh audit, and `display=False` to suppress rich output.
+When `vw.config(execution="approve")`, audits run automatically during the review step.
 
 ### `config()`
 
@@ -292,7 +319,8 @@ Configure global settings.
 vw.config(
     model="anthropic",          # Default model
     mode="standard",            # "standard" or "premium"
-    api_key=None               # Optional API key override
+    api_key=None,              # Optional API key override
+    execution="auto"           # "auto" or "approve"
 )
 ```
 

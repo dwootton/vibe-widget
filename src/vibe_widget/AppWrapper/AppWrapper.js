@@ -31,12 +31,14 @@ function AppWrapper({ model }) {
     auditError,
     auditApplyStatus,
     auditApplyResponse,
-    auditApplyError
+    auditApplyError,
+    executionMode,
+    executionApproved
   } = useModelSync(model);
   const [isMenuOpen, setMenuOpen] = React.useState(false);
   const [grabMode, setGrabMode] = React.useState(null);
   const [promptCache, setPromptCache] = React.useState({});
-  const [showSource, setShowSource] = React.useState(false);
+  const [showSource, setShowSource] = React.useState(() => model.get("execution_mode") === "approve" && !model.get("execution_approved"));
   const [sourceError, setSourceError] = React.useState("");
   const [renderCode, setRenderCode] = React.useState(code || "");
   const [lastGoodCode, setLastGoodCode] = React.useState(code || "");
@@ -97,6 +99,9 @@ function AppWrapper({ model }) {
 
   const isLoading = status === "generating";
   const hasCode = renderCode && renderCode.length > 0;
+  const approvalMode = executionMode === "approve";
+  const isApproved = executionApproved || !approvalMode;
+  const shouldRenderWidget = hasCode && isApproved;
 
   useKeyboardShortcuts({ isLoading, hasCode, grabMode, onGrabStart: handleGrabStart });
   React.useEffect(() => {
@@ -113,13 +118,18 @@ function AppWrapper({ model }) {
     return () => observer.disconnect();
   }, []);
   React.useEffect(() => {
+    if (approvalMode) {
+      setShowAudit(false);
+      return;
+    }
     if (!hasAuditAck && !isLoading && hasCode) {
       setShowAudit(true);
     }
-  }, [hasAuditAck, isLoading, hasCode]);
+  }, [approvalMode, hasAuditAck, isLoading, hasCode]);
 
   React.useEffect(() => {
     if (hasAutoRunAudit) return;
+    if (!approvalMode) return;
     if (status !== "ready") return;
     if (!code) return;
     if (auditStatus === "running") return;
@@ -130,7 +140,7 @@ function AppWrapper({ model }) {
       // Ignore storage failures and only track in memory.
     }
     setHasAutoRunAudit(true);
-  }, [hasAutoRunAudit, status, code, auditStatus]);
+  }, [approvalMode, hasAutoRunAudit, status, code, auditStatus]);
 
   React.useEffect(() => {
     if (!applyState.pending) return;
@@ -154,6 +164,15 @@ function AppWrapper({ model }) {
       setShowSource(true);
     }
   }, [sourceError, status, showSource, renderCode, code]);
+
+  React.useEffect(() => {
+    if (approvalMode && !executionApproved) {
+      setShowSource(true);
+    }
+    if (approvalMode && executionApproved) {
+      setShowSource(false);
+    }
+  }, [approvalMode, executionApproved]);
 
   React.useEffect(() => {
     if (applyState.pending) return;
@@ -199,6 +218,13 @@ function AppWrapper({ model }) {
     model.save_changes();
   };
 
+  const handleApproveRun = () => {
+    model.set("execution_approved", true);
+    model.save_changes();
+    setShowSource(false);
+    setShowAudit(false);
+  };
+
   const auditReport = auditResponse?.report_yaml || "";
   const auditMeta = auditResponse && !auditResponse.error ? auditResponse : null;
   const auditData = auditResponse?.report || null;
@@ -225,7 +251,7 @@ function AppWrapper({ model }) {
         minHeight: minHeight ? `${minHeight}px` : "220px"
       }}
     >
-      ${hasCode && html`
+      ${shouldRenderWidget && html`
         <div style=${{
           opacity: isLoading ? 0.4 : 1,
           pointerEvents: isLoading ? "none" : "auto",
@@ -242,7 +268,7 @@ function AppWrapper({ model }) {
         />
       `}
       
-      ${!isLoading && hasCode && html`
+      ${!isLoading && shouldRenderWidget && html`
         <${FloatingMenu} 
           isOpen=${isMenuOpen} 
           onToggle=${() => setMenuOpen(!isMenuOpen)}
@@ -289,6 +315,9 @@ function AppWrapper({ model }) {
           onAudit=${handleAuditRequest}
           onApply=${handleApplySource}
           onClose=${() => setShowSource(false)}
+          approvalMode=${approvalMode}
+          isApproved=${isApproved}
+          onApprove=${handleApproveRun}
         />
       `}
     </div>

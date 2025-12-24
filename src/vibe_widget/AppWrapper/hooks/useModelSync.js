@@ -12,6 +12,8 @@ export default function useModelSync(model) {
   const [auditApplyStatus, setAuditApplyStatus] = React.useState(model.get("audit_apply_status"));
   const [auditApplyResponse, setAuditApplyResponse] = React.useState(model.get("audit_apply_response"));
   const [auditApplyError, setAuditApplyError] = React.useState(model.get("audit_apply_error"));
+  const [executionMode, setExecutionMode] = React.useState(model.get("execution_mode"));
+  const [executionApproved, setExecutionApproved] = React.useState(model.get("execution_approved"));
 
   React.useEffect(() => {
     const onStatusChange = () => setStatus(model.get("status"));
@@ -24,6 +26,8 @@ export default function useModelSync(model) {
     const onAuditApplyStatusChange = () => setAuditApplyStatus(model.get("audit_apply_status"));
     const onAuditApplyResponseChange = () => setAuditApplyResponse(model.get("audit_apply_response"));
     const onAuditApplyErrorChange = () => setAuditApplyError(model.get("audit_apply_error"));
+    const onExecutionModeChange = () => setExecutionMode(model.get("execution_mode"));
+    const onExecutionApprovedChange = () => setExecutionApproved(model.get("execution_approved"));
 
     model.on("change:status", onStatusChange);
     model.on("change:logs", onLogsChange);
@@ -35,6 +39,8 @@ export default function useModelSync(model) {
     model.on("change:audit_apply_status", onAuditApplyStatusChange);
     model.on("change:audit_apply_response", onAuditApplyResponseChange);
     model.on("change:audit_apply_error", onAuditApplyErrorChange);
+    model.on("change:execution_mode", onExecutionModeChange);
+    model.on("change:execution_approved", onExecutionApprovedChange);
 
     return () => {
       model.off("change:status", onStatusChange);
@@ -47,6 +53,8 @@ export default function useModelSync(model) {
       model.off("change:audit_apply_status", onAuditApplyStatusChange);
       model.off("change:audit_apply_response", onAuditApplyResponseChange);
       model.off("change:audit_apply_error", onAuditApplyErrorChange);
+      model.off("change:execution_mode", onExecutionModeChange);
+      model.off("change:execution_approved", onExecutionApprovedChange);
     };
   }, [model]);
 
@@ -60,6 +68,8 @@ export default function useModelSync(model) {
     auditError,
     auditApplyStatus,
     auditApplyResponse,
-    auditApplyError
+    auditApplyError,
+    executionMode,
+    executionApproved
   };
 }

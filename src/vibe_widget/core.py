@@ -151,6 +151,8 @@ class VibeWidget(anywidget.AnyWidget):
     audit_apply_response = traitlets.Dict({}).tag(sync=True)
     audit_apply_status = traitlets.Unicode("idle").tag(sync=True)
     audit_apply_error = traitlets.Unicode("").tag(sync=True)
+    execution_mode = traitlets.Unicode("auto").tag(sync=True)
+    execution_approved = traitlets.Bool(True).tag(sync=True)
 
     def _ipython_display_(self) -> None:
         """Ensure rich display works in environments that skip mimebundle reprs."""
@@ -202,6 +204,8 @@ class VibeWidget(anywidget.AnyWidget):
         existing_metadata: dict[str, Any] | None = None,
         display_widget: bool = False,
         cache: bool = True,
+        execution_mode: str | None = None,
+        execution_approved: bool | None = None,
         **kwargs,
     ) -> "VibeWidget":
         """Return a widget instance that includes traitlets for declared exports/imports."""
@@ -237,6 +241,8 @@ class VibeWidget(anywidget.AnyWidget):
             existing_metadata=existing_metadata,
             display_widget=display_widget,
             cache=cache,
+            execution_mode=execution_mode,
+            execution_approved=execution_approved,
             **init_values,
             **kwargs,
         )
@@ -257,6 +263,8 @@ class VibeWidget(anywidget.AnyWidget):
         existing_metadata: dict[str, Any] | None = None,
         display_widget: bool = False,
         cache: bool = True,
+        execution_mode: str | None = None,
+        execution_approved: bool | None = None,
         **kwargs
     ):
         """
@@ -297,6 +305,11 @@ class VibeWidget(anywidget.AnyWidget):
         data_json = df.to_dict(orient="records")
         data_json = clean_for_json(data_json)
         
+        if execution_mode is None:
+            execution_mode = "auto"
+        if execution_approved is None:
+            execution_approved = execution_mode != "approve"
+
         super().__init__(
             data=data_json,
             description=description,
@@ -313,6 +326,8 @@ class VibeWidget(anywidget.AnyWidget):
             audit_apply_response={},
             audit_apply_status="idle",
             audit_apply_error="",
+            execution_mode=execution_mode,
+            execution_approved=execution_approved,
             **kwargs
         )
 
@@ -631,6 +646,8 @@ class VibeWidget(anywidget.AnyWidget):
             existing_code=existing_code,
             existing_metadata=existing_metadata,
             display_widget=display,
+            execution_mode=get_global_config().execution,
+            execution_approved=None,
         )
         return widget
 
@@ -1465,6 +1482,8 @@ def create(
         data_var_name=data_var_name,
         display_widget=display,
         cache=cache,
+        execution_mode=resolved_config.execution if resolved_config else "auto",
+        execution_approved=None,
     )
     
     _link_imports(widget, inputs)
@@ -1602,6 +1621,8 @@ def edit(
         theme=resolved_theme,
         data_var_name=None,
         cache=cache,
+        execution_mode=resolved_config.execution if resolved_config else "auto",
+        execution_approved=None,
     )
     
     widget._base_code = source_info.code
