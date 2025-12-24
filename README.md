@@ -2,7 +2,16 @@
 
 **Make analysis interactive.**
 
+![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Provider](https://img.shields.io/badge/LLM-OpenRouter-blueviolet)
+![PyPI - Version](https://img.shields.io/pypi/v/vibe-widget)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/vibe-widget)
+
+
 Vibe Widget generates *interactive notebook interfaces* from plain English. Explore data with sliders, linked views, filters, and custom controls without building a front end.
+
+[Checkout the docs!](https://vibewidget.dev)
 
 ## What you can do
 
