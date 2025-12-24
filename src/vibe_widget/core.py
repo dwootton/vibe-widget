@@ -715,7 +715,7 @@ class VibeWidget(anywidget.AnyWidget):
             existing_code=existing_code,
             existing_metadata=existing_metadata,
             display_widget=display,
-            execution_mode=get_global_config().execution,
+            execution_mode=self.execution_mode,
             execution_approved=None,
             execution_approved_hash=self.execution_approved_hash,
         )
@@ -1768,27 +1768,15 @@ def edit(
         imports=inputs,
         theme=resolved_theme,
         data_var_name=None,
-<<<<<<< HEAD
         base_code=source_info.code,
         base_components=source_info.components,
         base_widget_id=source_info.metadata.get("id") if source_info.metadata else None,
-=======
         cache=cache,
-<<<<<<< HEAD
         execution_mode=resolved_config.execution if resolved_config else "auto",
         execution_approved=None,
-        base_code=source_info.code,
-        base_components=source_info.components,
-        base_widget_id=source_info.metadata.get("id") if source_info.metadata else None,
-    )
-
-    _link_imports(widget, inputs)
-=======
->>>>>>> dff17eeba4394c09d4f639255c2040cb034390e5
     )
     
-    _link_imports(widget, imports)
->>>>>>> a3c52de9d4f7187289160bd31d8e26cdef2a9251
+    _link_imports(widget, inputs)
     widget._set_recipe(
         description=description,
         data_source=data if data is not None else source_info.df,
@@ -1895,6 +1883,17 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
                 setattr(widget, name, value)
             except Exception:
                 pass
+
+    widget._set_recipe(
+        description=description,
+        data_source=data_rows if embedded else None,
+        data_type=type(data_rows) if embedded else None,
+        data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
+        exports=outputs,
+        imports=imports,
+        model=payload.get("model") or DEFAULT_MODEL,
+        theme=theme,
+    )
 
     return widget
 

@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="logo.svg" alt="Vibe Widget" width="400">
+</div>
+
 # Vibe Widget
 
 **Make analysis interactive.**

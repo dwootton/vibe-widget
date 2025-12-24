@@ -7,25 +7,10 @@ import Logo from './Logo';
 const Navbar = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [githubStars, setGithubStars] = useState<number | null>(null);
-
-  useEffect(() => {
-    getGithubStars().then(stars => setGithubStars(stars));
-  }, []);
 
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
-
-  async function getGithubStars(repo = 'dwootton/vibe-widgets') {
-    const response = await fetch(`https://api.github.com/repos/${repo}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch repo info');
-    }
-    const data = await response.json();
-    console.log(data);
-    return data.stargazers_count;
-  }
 
   const navLinks = [
     { label: 'Docs', href: '/docs', prefix: '01.' },
@@ -72,12 +57,8 @@ const Navbar = () => {
           rel="noopener noreferrer"
           className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate text-bone font-bold rounded-sm shadow-hard-sm hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all"
         >
-          <Github className="w-4 h-4" />
-          <span className="hidden sm:inline">GitHub</span>
-          <span className="flex items-center gap-1 font-mono">
-            <Star className="w-4 h-4 text-yellow-400" />
-          </span>
-          {githubStars ?? ''}
+          <Star className="w-4 h-4 text-yellow-400" />
+          <span>Star us on Github</span>
         </a>
 
         <button
