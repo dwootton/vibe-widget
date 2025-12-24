@@ -13,7 +13,14 @@ import anywidget
 import pandas as pd
 import traitlets
 
-from vibe_widget.api import ExportBundle, ExportHandle, ImportsBundle
+from vibe_widget.api import (
+    ExportBundle,
+    ExportHandle,
+    ImportsBundle,
+    OutputBundle,
+    InputsBundle,
+    _build_inputs_bundle,
+)
 from vibe_widget.utils.code_parser import CodeStreamParser, RevisionStreamParser
 from vibe_widget.llm.agentic import AgenticOrchestrator
 from vibe_widget.llm.providers.base import LLMProvider
@@ -80,6 +87,52 @@ class ComponentReference:
     def metadata(self) -> dict[str, Any]:
         """Get the widget metadata."""
         return self.widget._widget_metadata or {}
+
+
+class _ComponentNamespace:
+    """Namespace for accessing components on a widget."""
+
+    def __init__(self, widget: "VibeWidget"):
+        self._widget = widget
+
+    def __getattr__(self, name: str) -> ComponentReference:
+        reference = self._widget._resolve_component_reference(name)
+        if reference is None:
+            raise AttributeError(f"'{type(self._widget).__name__}.component' has no attribute '{name}'")
+        return reference
+
+    def __dir__(self) -> list[str]:
+        return self._widget._component_attr_names()
+
+
+class _OutputsNamespace:
+    """Namespace for accessing outputs on a widget."""
+
+    def __init__(self, widget: "VibeWidget"):
+        object.__setattr__(self, "_widget", widget)
+
+    def __getattr__(self, name: str) -> ExportHandle:
+        exports = getattr(self._widget, "_exports", {}) or {}
+        if name in exports:
+            accessors = getattr(self._widget, "_export_accessors", {})
+            if name not in accessors:
+                accessors[name] = ExportHandle(self._widget, name)
+            return accessors[name]
+        raise AttributeError(f"'{type(self._widget).__name__}.outputs' has no attribute '{name}'")
+
+    def __dir__(self) -> list[str]:
+        exports = getattr(self._widget, "_exports", {}) or {}
+        return list(exports.keys())
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name.startswith("_"):
+            object.__setattr__(self, name, value)
+            return
+        exports = getattr(self._widget, "_exports", {}) or {}
+        if name in exports:
+            setattr(self._widget, name, value)
+            return
+        raise AttributeError(f"'{type(self._widget).__name__}.outputs' has no attribute '{name}'")
 
 
 class VibeWidget(anywidget.AnyWidget):
@@ -228,6 +281,8 @@ class VibeWidget(anywidget.AnyWidget):
         self._exports = exports or {}
         self._imports = imports or {}
         self._export_accessors: dict[str, ExportHandle] = {}
+        self._outputs_namespace: _OutputsNamespace | None = None
+        self._component_namespace: _ComponentNamespace | None = None
         self._widget_metadata = None
         self._theme = theme
         self._base_code = base_code
@@ -460,7 +515,7 @@ class VibeWidget(anywidget.AnyWidget):
 
     def __getattribute__(self, name: str):
         """Return callable handles for exports to support import chaining."""
-        if not name.startswith("_"):
+        if not name.startswith("_") and name not in {"outputs", "component"}:
             try:
                 exports = object.__getattribute__(self, "_exports")
                 if name in exports:
@@ -501,7 +556,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._recipe_theme = theme
 
     def __call__(self, *args, **kwargs):
-        """Create a new widget instance, swapping data/imports heuristically."""
+        """Create a new widget instance, swapping data/inputs heuristically."""
         if not args and not kwargs:
             return self._rerun_with()
         if not args and set(kwargs.keys()) == {"display"}:
@@ -514,17 +569,30 @@ class VibeWidget(anywidget.AnyWidget):
 
         display = kwargs.pop("display", True)
         candidate_data = kwargs.pop("data", None)
+        candidate_inputs = kwargs.pop("inputs", None)
         candidate_imports = kwargs.pop("imports", None)
+        if candidate_imports is None and candidate_inputs is not None:
+            candidate_imports = candidate_inputs
+        if isinstance(candidate_imports, InputsBundle):
+            if candidate_data is None:
+                candidate_data = candidate_imports.data
+            candidate_imports = candidate_imports.inputs
+        elif isinstance(candidate_imports, ImportsBundle):
+            if candidate_data is None:
+                candidate_data = candidate_imports.data
+            candidate_imports = candidate_imports.imports
 
         if len(args) > 1:
-            raise TypeError("Pass at most one positional argument to override data/imports.")
+            raise TypeError("Pass at most one positional argument to override data/inputs.")
 
         if len(args) == 1 and candidate_data is None and candidate_imports is None:
             arg = args[0]
-            if isinstance(arg, ImportsBundle):
-                candidate_data = arg.data if arg.data is not None else candidate_data
+            if isinstance(arg, (InputsBundle, ImportsBundle)):
+                bundle_data = arg.data if arg.data is not None else candidate_data
+                bundle_inputs = arg.inputs if isinstance(arg, InputsBundle) else arg.imports
+                candidate_data = bundle_data
                 merged = dict(self._recipe_imports or {})
-                merged.update(arg.imports or {})
+                merged.update(bundle_inputs or {})
                 candidate_imports = merged
             else:
                 matched = False
@@ -576,27 +644,36 @@ class VibeWidget(anywidget.AnyWidget):
         self,
         description: str,
         data: pd.DataFrame | str | Path | None = None,
-        exports: dict[str, str] | ExportBundle | None = None,
-        imports: dict[str, Any] | ImportsBundle | None = None,
+        outputs: dict[str, str] | OutputBundle | ExportBundle | None = None,
+        inputs: dict[str, Any] | InputsBundle | ImportsBundle | None = None,
         theme: Theme | str | None = None,
         config: Config | None = None,
         cache: bool = True,
+        exports: dict[str, str] | ExportBundle | None = None,
+        imports: dict[str, Any] | ImportsBundle | None = None,
     ) -> "VibeWidget":
         """
         Instance helper that mirrors vw.revise but defaults the source to self.
-        Supports the same imports/exports/data wrappers as vw.revise.
+        Supports the same inputs/outputs/data wrappers as vw.revise.
         """
-        data, exports, imports = _normalize_api_inputs(
+        if outputs is None and exports is not None:
+            warnings.warn("`exports` is deprecated; use `outputs` instead.", DeprecationWarning, stacklevel=2)
+            outputs = exports
+        if inputs is None and imports is not None:
+            warnings.warn("`imports` is deprecated; use `inputs` instead.", DeprecationWarning, stacklevel=2)
+            inputs = imports
+
+        data, outputs, inputs, _ = _normalize_api_inputs(
             data=data,
-            exports=exports,
-            imports=imports,
+            outputs=outputs,
+            inputs=inputs,
         )
         return revise(
             description=description,
             source=self,
             data=data,
-            exports=exports,
-            imports=imports,
+            outputs=outputs,
+            inputs=inputs,
             theme=theme,
             config=config,
             cache=cache,
@@ -1017,44 +1094,60 @@ class VibeWidget(anywidget.AnyWidget):
             self.logs = self.logs + [f"Fix attempt failed: {str(e)}"]
             self.error_message = ""
     
+    @property
+    def outputs(self) -> _OutputsNamespace:
+        """Namespace accessor for widget outputs."""
+        if self._outputs_namespace is None:
+            self._outputs_namespace = _OutputsNamespace(self)
+        return self._outputs_namespace
+
+    @property
+    def component(self) -> _ComponentNamespace:
+        """Namespace accessor for widget components."""
+        if self._component_namespace is None:
+            self._component_namespace = _ComponentNamespace(self)
+        return self._component_namespace
+
+    def _component_attr_names(self) -> list[str]:
+        components = []
+        if hasattr(self, "_widget_metadata") and self._widget_metadata and "components" in self._widget_metadata:
+            components = self._widget_metadata["components"] or []
+        return [self._to_python_attr(comp) for comp in components]
+
+    def _resolve_component_reference(self, name: str) -> ComponentReference | None:
+        if not hasattr(self, "_widget_metadata") or not self._widget_metadata or "components" not in self._widget_metadata:
+            return None
+        components = self._widget_metadata["components"]
+        for comp in components:
+            if self._to_python_attr(comp) == name or comp.lower() == name.lower():
+                return ComponentReference(self, comp)
+        return None
+
     def __dir__(self):
-        """Return list of attributes including component names for autocomplete."""
+        """Return list of attributes including outputs/component helpers for autocomplete."""
         # Get default attributes
         default_attrs = object.__dir__(self)
         export_attrs: list[str] = []
         
         if hasattr(self, "_exports") and self._exports:
             export_attrs = list(self._exports.keys())
-        
-        # Add component names if widget has been generated
-        if hasattr(self, '_widget_metadata') and self._widget_metadata and "components" in self._widget_metadata:
-            components = self._widget_metadata["components"]
-            # Convert to lowercase for pythonic access (e.g., ColorLegend -> color_legend)
-            component_attrs = [self._to_python_attr(comp) for comp in components]
-            return list(set(default_attrs + component_attrs + export_attrs))
-        
-        return list(set(default_attrs + export_attrs))
+        return list(set(default_attrs + export_attrs + ["outputs", "component"]))
     
     def __getattr__(self, name: str):
         """
-        Enable access to components via dot notation.
+        Enable access to components via dot notation (legacy).
         
         Examples:
-            scatter.slider -> ComponentReference
-            scatter.color_legend -> ComponentReference
+            scatter.component.slider -> ComponentReference
+            scatter.component.color_legend -> ComponentReference
         """
         # Avoid infinite recursion for special attributes
         if name.startswith('_'):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
         
-        # Check if this is a component access
-        if hasattr(self, '_widget_metadata') and self._widget_metadata and "components" in self._widget_metadata:
-            components = self._widget_metadata["components"]
-            
-            # Try to find matching component (handle both PascalCase and snake_case)
-            for comp in components:
-                if self._to_python_attr(comp) == name or comp.lower() == name.lower():
-                    return ComponentReference(self, comp)
+        reference = self._resolve_component_reference(name)
+        if reference is not None:
+            return reference
         
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
@@ -1298,47 +1391,73 @@ def _resolve_model(
 
 def _normalize_api_inputs(
     data: Any,
-    exports: dict[str, str] | ExportBundle | None,
-    imports: dict[str, Any] | ImportsBundle | None,
-) -> tuple[Any, dict[str, str] | None, dict[str, Any] | None]:
-    """Allow flexible ordering/wrapping for exports/imports/data."""
+    outputs: dict[str, str] | OutputBundle | ExportBundle | None,
+    inputs: dict[str, Any] | InputsBundle | ImportsBundle | None,
+) -> tuple[Any, dict[str, str] | None, dict[str, Any] | None, str | None]:
+    """Allow flexible ordering/wrapping for outputs/inputs/data."""
     normalized_data = data
-    normalized_imports = imports
-    normalized_exports = exports
+    normalized_inputs = inputs
+    normalized_outputs = outputs
+    data_var_name: str | None = None
 
-    # Data can be passed as an ImportsBundle to keep everything together
-    if isinstance(normalized_data, ImportsBundle):
-        normalized_imports = {**(normalized_data.imports or {}), **(normalized_imports or {})}
+    # Data can be passed as an InputsBundle to keep everything together
+    if isinstance(normalized_data, InputsBundle):
+        data_var_name = normalized_data.data_name
+        bundle_inputs = normalized_data.inputs or {}
+        if isinstance(normalized_inputs, InputsBundle):
+            normalized_inputs = {**bundle_inputs, **(normalized_inputs.inputs or {})}
+        elif isinstance(normalized_inputs, ImportsBundle):
+            normalized_inputs = {**bundle_inputs, **(normalized_inputs.imports or {})}
+        else:
+            normalized_inputs = {**bundle_inputs, **(normalized_inputs or {})}
+        normalized_data = normalized_data.data
+    elif isinstance(normalized_data, ImportsBundle):
+        bundle_inputs = normalized_data.imports or {}
+        if isinstance(normalized_inputs, InputsBundle):
+            normalized_inputs = {**bundle_inputs, **(normalized_inputs.inputs or {})}
+        elif isinstance(normalized_inputs, ImportsBundle):
+            normalized_inputs = {**bundle_inputs, **(normalized_inputs.imports or {})}
+        else:
+            normalized_inputs = {**bundle_inputs, **(normalized_inputs or {})}
         normalized_data = normalized_data.data
 
-    if isinstance(normalized_exports, ExportBundle):
-        normalized_exports = normalized_exports.exports
+    if isinstance(normalized_outputs, OutputBundle):
+        normalized_outputs = normalized_outputs.outputs
+    elif isinstance(normalized_outputs, ExportBundle):
+        normalized_outputs = normalized_outputs.exports
 
-    if isinstance(normalized_imports, ImportsBundle):
+    if isinstance(normalized_inputs, InputsBundle):
         if normalized_data is None:
-            normalized_data = normalized_imports.data
-        normalized_imports = normalized_imports.imports
+            normalized_data = normalized_inputs.data
+            data_var_name = normalized_inputs.data_name or data_var_name
+        normalized_inputs = normalized_inputs.inputs
+    elif isinstance(normalized_inputs, ImportsBundle):
+        if normalized_data is None:
+            normalized_data = normalized_inputs.data
+        normalized_inputs = normalized_inputs.imports
 
-    return normalized_data, normalized_exports, normalized_imports
+    return normalized_data, normalized_outputs, normalized_inputs, data_var_name
 
 
 def create(
     description: str,
     data: pd.DataFrame | str | Path | None = None,
-    exports: dict[str, str] | None = None,
-    imports: dict[str, Any] | None = None,
+    outputs: dict[str, str] | None = None,
+    inputs: dict[str, Any] | None = None,
     theme: Theme | str | None = None,
     config: Config | None = None,
     display: bool = True,
     cache: bool = True,
+    exports: dict[str, str] | None = None,
+    imports: dict[str, Any] | None = None,
 ) -> VibeWidget:
     """Create a VibeWidget visualization with automatic data processing.
     
     Args:
         description: Natural language description of the visualization
         data: DataFrame, file path, or URL to visualize
-        exports: Dict of {trait_name: description} for exposed state
-        imports: Dict of {trait_name: source} for consumed state
+        outputs: Dict of {trait_name: description} for exposed state
+        inputs: Dict of {trait_name: source} for consumed state
         theme: Theme object, theme name, or prompt string
         config: Optional Config object with model settings (deprecated; call vw.config instead)
         display: Whether to display the widget immediately (IPython environments only)
@@ -1351,10 +1470,22 @@ def create(
         >>> widget = create("show temperature trends", df)
         >>> widget = create("visualize sales data", "sales.csv")
     """
-    data, exports, imports = _normalize_api_inputs(
+    if outputs is None and exports is not None:
+        warnings.warn("`exports` is deprecated; use `outputs` instead.", DeprecationWarning, stacklevel=2)
+        outputs = exports
+    if inputs is None and imports is not None:
+        warnings.warn("`imports` is deprecated; use `inputs` instead.", DeprecationWarning, stacklevel=2)
+        inputs = imports
+
+    if inputs is None and data is not None and not isinstance(data, (InputsBundle, ImportsBundle)):
+        frame = inspect.currentframe()
+        caller_frame = frame.f_back if frame else None
+        data = _build_inputs_bundle((data,), {}, caller_frame=caller_frame)
+
+    data, outputs, inputs, data_var_name = _normalize_api_inputs(
         data=data,
-        exports=exports,
-        imports=imports,
+        outputs=outputs,
+        inputs=inputs,
     )
     model, resolved_config = _resolve_model(config_override=config)
     df = load_data(data)
@@ -1369,23 +1500,23 @@ def create(
         description=description,
         df=df,
         model=model,
-        exports=exports,
-        imports=imports,
+        exports=outputs,
+        imports=inputs,
         theme=resolved_theme,
-        data_var_name=None,
+        data_var_name=data_var_name,
         display_widget=display,
         cache=cache,
     )
     
-    _link_imports(widget, imports)
+    _link_imports(widget, inputs)
     # Store recipe for convenient reruns/clones
     widget._set_recipe(
         description=description,
         data_source=data,
         data_type=type(data) if data is not None else None,
         data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
-        exports=exports,
-        imports=imports,
+        exports=outputs,
+        imports=inputs,
         model=model,
         theme=resolved_theme,
     )
@@ -1459,11 +1590,13 @@ def revise(
     description: str,
     source: "VibeWidget | ComponentReference | str | Path",
     data: pd.DataFrame | str | Path | None = None,
-    exports: dict[str, str] | None = None,
-    imports: dict[str, Any] | None = None,
+    outputs: dict[str, str] | OutputBundle | ExportBundle | None = None,
+    inputs: dict[str, Any] | InputsBundle | ImportsBundle | None = None,
     theme: Theme | str | None = None,
     config: Config | None = None,
     cache: bool = True,
+    exports: dict[str, str] | None = None,
+    imports: dict[str, Any] | None = None,
 ) -> "VibeWidget":
     """Revise a widget by building upon existing code.
     
@@ -1471,8 +1604,8 @@ def revise(
         description: Natural language description of changes
         source: Widget, ComponentReference, widget ID, or file path
         data: DataFrame to visualize (uses source data if None)
-        exports: Dict of {trait_name: description} for new/modified exports
-        imports: Dict of {trait_name: source} for new/modified imports
+        outputs: Dict of {trait_name: description} for new/modified outputs
+        inputs: Dict of {trait_name: source} for new/modified inputs
         theme: Theme object, theme name, or prompt string
         config: Optional Config object with model settings (deprecated; call vw.config instead)
         cache: If False, bypass cache and regenerate widget/theme
@@ -1484,10 +1617,17 @@ def revise(
         >>> scatter2 = revise("add hover tooltips", scatter)
         >>> hist = revise("histogram with slider", scatter.slider, data=df)
     """
-    data, exports, imports = _normalize_api_inputs(
+    if outputs is None and exports is not None:
+        warnings.warn("`exports` is deprecated; use `outputs` instead.", DeprecationWarning, stacklevel=2)
+        outputs = exports
+    if inputs is None and imports is not None:
+        warnings.warn("`imports` is deprecated; use `inputs` instead.", DeprecationWarning, stacklevel=2)
+        inputs = imports
+
+    data, outputs, inputs, _ = _normalize_api_inputs(
         data=data,
-        exports=exports,
-        imports=imports,
+        outputs=outputs,
+        inputs=inputs,
     )
     store = WidgetStore()
     source_info = _resolve_source(source, store)
@@ -1507,8 +1647,8 @@ def revise(
         description=description,
         df=df,
         model=model,
-        exports=exports,
-        imports=imports,
+        exports=outputs,
+        imports=inputs,
         theme=resolved_theme,
         data_var_name=None,
         cache=cache,
@@ -1518,14 +1658,14 @@ def revise(
     widget._base_components = source_info.components
     widget._base_widget_id = source_info.metadata.get("id") if source_info.metadata else None
     
-    _link_imports(widget, imports)
+    _link_imports(widget, inputs)
     widget._set_recipe(
         description=description,
         data_source=data if data is not None else source_info.df,
         data_type=type(data) if data is not None else (type(source_info.df) if source_info.df is not None else None),
         data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
-        exports=exports,
-        imports=imports,
+        exports=outputs,
+        imports=inputs,
         model=model,
         theme=resolved_theme,
     )

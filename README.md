@@ -85,7 +85,7 @@ Select points in one chart → instantly updates another. Paint terrain → watc
 Works with DataFrames, CSV, JSON, NetCDF, XML, PDF tables, ISF seismic data, web pages, and more. Intelligent data loading handles format detection and preprocessing automatically.
 
 **Widget Composition**  
-Create interactive dashboards where widgets communicate through a simple export/import system. Select data in one chart and watch others update instantly.
+Create interactive dashboards where widgets communicate through a simple output/input system. Select data in one chart and watch others update instantly.
 
 **Highly Customizable**  
 Not limited to standard charts. Generate 3D visualizations, interactive games, custom UI components, or anything React can render.
@@ -203,17 +203,17 @@ Create dashboards where widgets communicate:
 scatter = vw.create(
     "scatter plot with brush selection tool",
     df,
-    vw.exports(selected_indices=vw.export("indices of selected points"))
+    vw.outputs(selected_indices="indices of selected points")
 )
 
 # Widget 2: Histogram that reacts to selection
 histogram = vw.create(
     "histogram with highlighted bars for selected data",
-    vw.imports(df, selected_indices=scatter.selected_indices),
+    vw.inputs(df, selected_indices=scatter.outputs.selected_indices),
 )
 ```
 
-Each export is exposed as a callable handle (e.g., `scatter.selected_indices()`) that can be passed into `vw.imports` for other widgets. When you select points in the scatter plot, the histogram automatically highlights corresponding data.
+Each output is exposed as a callable handle (e.g., `scatter.outputs.selected_indices()`) that can be passed into `vw.inputs` for other widgets. When you select points in the scatter plot, the histogram automatically highlights corresponding data.
 
 ### Iterative Refinement
 
@@ -242,8 +242,8 @@ Create a new widget from scratch.
 widget = vw.create(
     description: str,           # Natural language description
     data=None,                  # DataFrame, file path, URL, or None
-    exports=None,               # Dict of {trait_name: description}
-    imports=None,               # Dict of {trait_name: source_widget}
+    outputs=None,               # Dict of {trait_name: description}
+    inputs=None,                # Dict of {trait_name: source_widget}
     config=None                 # Config object (optional)
 )
 ```
@@ -259,15 +259,16 @@ widget = vw.create(
   - `pd.DataFrame`: Direct DataFrame
   - `str` or `Path`: File path (CSV, JSON, NetCDF, XML, PDF, etc.)
   - `str` (URL): Web page to scrape
-  - `None`: For widgets driven purely by imports
+  - `None`: For widgets driven purely by inputs
 
-- `exports`: State this widget shares with others
-  - Use `vw.exports(selected_indices=vw.export("indices of selected data points"))`
-  - Positional shorthand works too: `vw.create("...", df, vw.exports(...))`
+- `outputs`: State this widget shares with others
+  - Use `vw.outputs(selected_indices="indices of selected data points")`
+  - Positional shorthand works too: `vw.create("...", df, vw.outputs(...))`
+  - Output definitions require named parameters
 
-- `imports`: State this widget receives from others
-  - Use `vw.imports(df, selected_indices=scatter.selected_indices)` to bundle data with imports
-  - You can still pass a plain dict for legacy `imports={"selected": scatter_widget}` usage
+- `inputs`: State this widget receives from others
+  - Use `vw.inputs(df, selected_indices=scatter.outputs.selected_indices)` to bundle data with inputs
+  - Positional arguments are allowed in `vw.inputs(...)` and will infer names when possible
 
 ### `widget.revise()`
 
@@ -277,8 +278,8 @@ Build upon an existing widget instance.
 widget = existing_widget.revise(
     description: str,           # Description of changes
     data=None,                  # Optional new data
-    exports=None,
-    imports=None,
+    outputs=None,
+    inputs=None,
     config=None
 )
 ```
@@ -327,7 +328,7 @@ Natural Language → Data Processing → AI Code Generation → Validation → C
 
 - **Smart Data Handling**: Auto-detects formats, handles large datasets via sampling
 - **Code Generation**: LLM generates React components with validation and auto-repair
-- **Widget Communication**: Export/import system for reactive dashboards
+- **Widget Communication**: Output/input system for reactive dashboards
 - **Caching**: Hash-based caching prevents redundant generation
 - **Error Recovery**: Automatic error detection and fixing for runtime issues
 
