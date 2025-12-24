@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Github, Play, Menu, X } from 'lucide-react';
+import { Github,  Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import Logo from './Logo';
 
 const Navbar = () => {
   const location = useLocation();
@@ -25,7 +26,7 @@ const Navbar = () => {
     >
       <Link to="/" className="flex items-center gap-2 group cursor-pointer">
         <div className="w-8 h-8 bg-orange rounded-sm shadow-hard-sm flex items-center justify-center group-hover:translate-x-[1px] group-hover:translate-y-[1px] group-hover:shadow-none transition-all">
-          <Play className="w-4 h-4 text-white fill-white" />
+          <Logo className="w-5 h-5 text-white" />
         </div>
         <span className="font-display font-bold text-xl tracking-tight">
           Vibe<span className="text-orange">Widget</span>

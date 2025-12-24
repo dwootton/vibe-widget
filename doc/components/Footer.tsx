@@ -32,7 +32,7 @@ const Footer = () => {
             © {new Date().getFullYear()} Vibe Widget. MIT License.
          </div>
          <div className="flex items-center gap-2">
-            Made with Vibes by dwootton & Ryan <Gamepad2 className="w-4 h-4 text-orange" />
+            Made with Vibes by <a href="https://x.com/WoottonDylan" target="_blank" rel="noopener noreferrer" className="hover:text-orange underline">Dylan</a> & <a href="https://x.com/ryanyen22" target="_blank" rel="noopener noreferrer" className="hover:text-orange underline">Ryan</a> <Gamepad2 className="w-4 h-4 text-orange" />
          </div>
       </div>
     </footer>

@@ -198,7 +198,13 @@ class ThemeRegistry:
     def get(self, name: str) -> Theme | None:
         return self._themes.get(_normalize_name(name))
 
-    def resolve(self, value: str | Theme, provider: OpenRouterProvider | None = None) -> Theme:
+    def resolve(
+        self,
+        value: str | Theme,
+        provider: OpenRouterProvider | None = None,
+        *,
+        cache: bool = True,
+    ) -> Theme:
         if isinstance(value, Theme):
             return value
         if not isinstance(value, str) or not value.strip():
@@ -206,7 +212,7 @@ class ThemeRegistry:
 
         prompt = value.strip()
         prompt_key = _prompt_hash(prompt)
-        if prompt_key in _SESSION_CACHE:
+        if cache and prompt_key in _SESSION_CACHE:
             return _SESSION_CACHE[prompt_key]
 
         direct = self._resolve_direct(prompt)
@@ -269,14 +275,14 @@ class ThemeRegistry:
         return None
 
 
-def theme(*args: Any) -> Theme:
+def theme(*args: Any, cache: bool = True) -> Theme:
     """Resolve or compose themes."""
     if not args:
         raise ValueError("vw.theme requires at least one argument.")
     registry = ThemeRegistry()
     if len(args) == 1:
-        return registry.resolve(args[0])
-    resolved = [registry.resolve(arg) for arg in args]
+        return registry.resolve(args[0], cache=cache)
+    resolved = [registry.resolve(arg, cache=cache) for arg in args]
     return registry.compose(resolved)
 
 
@@ -288,6 +294,8 @@ def resolve_theme_for_request(
     value: str | Theme | None,
     model: str | None = None,
     api_key: str | None = None,
+    *,
+    cache: bool = True,
 ) -> Theme | None:
     if value is None:
         config = get_global_config()
@@ -295,7 +303,14 @@ def resolve_theme_for_request(
     if value is None:
         return None
     provider = _get_provider(model=model, api_key=api_key) if (model or api_key) else None
-    return ThemeRegistry().resolve(value, provider=provider)
+    return ThemeRegistry().resolve(value, provider=provider, cache=cache)
+
+
+def clear_theme_cache() -> int:
+    """Clear the in-memory theme cache and return the number of entries removed."""
+    cleared = len(_SESSION_CACHE)
+    _SESSION_CACHE.clear()
+    return cleared
 
 
 def _prompt_hash(prompt: str) -> str:
@@ -371,6 +386,36 @@ _BUILTIN_THEMES = {
             """
         ),
         prompt="minimal",
+    ),
+    "vibe-widgets": Theme(
+        name="vibe-widgets",
+        description=_t(
+            """
+            A tactile retro-future workshop aesthetic: warm bone paper, bold orange accents, and crisp slate ink.
+
+            ## Environment & Ground
+            The primary background is a soft bone or parchment (#f7f0e6). Secondary surfaces lift with off-white panels and subtle hard shadows,
+            creating a physical, screen-printed feel. Borders are visible and intentional, often 2px in deep slate.
+
+            ## Typography
+            Headlines are expressive and geometric (a display serif or bold grotesk), while labels, axes, and data annotations use a precise monospace.
+            Text is high-contrast slate or near-black on bone.
+
+            ## Color System
+            - **Accent**: Vivid orange (#f97316) for key highlights, active states, and selection.
+            - **Data Encoding**: A curated palette that balances warmth and clarity: slate blue, deep teal, warm yellow, and muted brick.
+            - **Sequential**: Bone to orange to deep slate ramps; avoid muddy midtones.
+
+            ## Chart Elements
+            Axes and ticks are crisp and dark; gridlines are thin, soft slate with occasional dotted lines for texture.
+            Marks are slightly chunky with confident strokes. Corners can be gently rounded to match the tactile UI.
+
+            ## Component Styling
+            Tooltips and legends look like small cards: bone background, slate border, hard drop shadow, and monospace details.
+            Interaction states use orange outlines, subtle glow, and fast snap-in motion.
+            """
+        ),
+        prompt="vibe-widgets",
     ),
     "financial_times": Theme(
         name="financial_times",

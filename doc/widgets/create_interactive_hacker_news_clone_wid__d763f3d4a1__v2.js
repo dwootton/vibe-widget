@@ -110,7 +110,7 @@ export default function HackerNewsWidget({ model, html, React }) {
     } else {
         // Fallback Mock Data for visualization if model data is empty/malformed
         setStories([
-            { id: 1, title: "Show HN: A high-performance React widget for Jupyter", by: "jovyan", score: 156, time: Date.now()/1000 - 3600, descendants: 42, url: "https://github.com" },
+            { id: 1, title: "Show HN: A React widget for Jupyter", by: "jovyan", score: 156, time: Date.now()/1000 - 3600, descendants: 42, url: "https://github.com" },
             { id: 2, title: "Why SQLite is all you need", by: "db_fan", score: 480, time: Date.now()/1000 - 7200, descendants: 128, url: "https://sqlite.org" },
             { id: 3, title: "The future of ESM in Browser", by: "modern_web", score: 89, time: Date.now()/1000 - 500, descendants: 12, url: "https://web.dev" },
             { id: 4, title: "New Rust-based JavaScript bundler claims 10x speed", by: "ferris", score: 210, time: Date.now()/1000 - 15000, descendants: 56, url: "https://rust-lang.org" },

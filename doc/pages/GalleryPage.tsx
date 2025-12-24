@@ -85,7 +85,7 @@ const GalleryPage = () => {
                             WIDGET <span className="text-orange">GALLERY</span>
                         </h1>
                         <p className="text-xl text-slate/60 font-mono max-w-2xl">
-                            Interactive modules synthesized from natural language.
+                            A collection of interactive widgets synthesized from natural language.
                         </p>
                     </div>
 
