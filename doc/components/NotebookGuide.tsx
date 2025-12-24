@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion';
-import { Package, Play, ArrowDown, Database, Upload, Download, CheckCircle, Terminal, ListCheck } from 'lucide-react';
+import { Package, Play, ArrowDown, Database, Upload, Download, CheckCircle, Terminal, ListCheck, SquarePen } from 'lucide-react';
 
 const NotebookCell = ({ index, title, code, output, isActive, icon }: any) => {
     const ref = useRef(null);
@@ -109,7 +109,7 @@ const NotebookGuide = () => {
 
     const steps = [
         { id: 1, label: "Initialization", icon: <Package className="w-4 h-4" /> },
-        { id: 2, label: "Synthesis", icon: <Play className="w-4 h-4" /> },
+        { id: 2, label: "Synthesis", icon: <SquarePen className="w-4 h-4" /> },
         { id: 3, label: "Audit", icon: <ListCheck className="w-4 h-4" /> },
         { id: 4, label: "Refinement", icon: <Upload className="w-4 h-4" /> },
         { id: 5, label: "Exportation", icon: <Download className="w-4 h-4" /> }
@@ -128,7 +128,7 @@ const NotebookGuide = () => {
                 <div className="flex flex-col lg:flex-row gap-16">
                     {/* Left Column: Sticky Nav */}
                     <div className="lg:w-[400px] lg:flex-shrink-0">
-                        <div className="sticky top-10 space-y-10">
+                        <div className="sticky top-20 space-y-10 pt-6">
                              <div className="space-y-4">
                                 <motion.div 
                                     initial={{ scale: 0 }}
@@ -146,8 +146,8 @@ const NotebookGuide = () => {
                              <div className="relative space-y-6 border-l-2 border-slate/5 ml-4">
                                 {/* Moving Indicator */}
                                 <motion.div 
-                                    className="absolute -left-[3px] w-1.5 h-12 bg-orange rounded-full z-10 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
-                                    animate={{ top: (activeStep - 1) * 64 }}
+                                    className="absolute -left-[3px] -top-[30px] w-1.5 h-12 bg-orange rounded-full z-10 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
+                                    animate={{ top: (activeStep - 1) * 64 - 12}}
                                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                                 />
                                 {steps.map((step) => (
