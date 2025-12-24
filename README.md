@@ -137,9 +137,6 @@ vw.config(mode="premium", model="openrouter")
 # or
 vw.config(model="openai/gpt-5.1-codex")
 vw.config(model="anthropic/claude-opus-4.5")
-
-# View available models
-vw.models()
 ```
 
 ---
@@ -294,18 +291,6 @@ vw.config(
     api_key=None               # Optional API key override
 )
 ```
-
-### `models()`
-
-View available models.
-
-```python
-vw.models()                    # Show defaults and pinned models
-vw.models(show="all")          # Show all available models
-vw.models(verbose=False)       # Quiet mode
-```
-
----
 
 ## How It Works
 
