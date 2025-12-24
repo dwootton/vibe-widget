@@ -19,6 +19,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build JavaScript bundle
+        run: npm run build-app-wrapper
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -30,7 +42,9 @@ jobs:
           pip install build hatchling
 
       - name: Build package
-        run: python -m build
+        run: |
+          python -m build --wheel --no-isolation
+          python -m build --sdist --no-isolation
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
