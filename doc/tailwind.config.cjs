@@ -11,7 +11,8 @@ module.exports = {
       colors: {
         bone: "#F2F0E9",
         slate: "#1A1A1A",
-        orange: "#F97316"
+        orange: "#F97316",
+        "material-bg": "#2F2F2F"
       },
       fontFamily: {
         display: ["Space Grotesk", "ui-sans-serif", "system-ui", "sans-serif"],

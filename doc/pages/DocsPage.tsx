@@ -12,6 +12,8 @@ import {
     PDF_WEB_DATA_FILES,
     REVISE_DATA_FILES,
 } from '../data/pyodideNotebooks';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { materialDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -85,9 +87,20 @@ const DocContent = ({ title, children }: any) => (
 );
 
 const CodeBlock = ({ code, language = "python" }: { code: string; language?: string }) => (
-    <pre className="bg-slate text-bone p-5 rounded-xl border-l-4 border-orange shadow-inner">
-        <code className={`language-${language}`}>{code}</code>
-    </pre>
+    <div className="bg-material-bg text-bone rounded-lg border-l-2 border-orange relative overflow-hidden">
+        <div className="relative">
+            <SyntaxHighlighter
+                language={language}
+                style={materialDark}
+
+                PreTag="pre"
+                CodeTag="code"
+                showLineNumbers={false}
+            >
+                {code.trim().replace(/^`+|`+$/g, '')}
+            </SyntaxHighlighter>
+        </div>
+    </div>
 );
 
 const DocsPage = () => {
