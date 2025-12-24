@@ -189,7 +189,7 @@ const Hero = () => {
             .catch(err => console.error(err));
     }, []);
 
-    const titleWords = "Vibe Widgeting? Yep.".split(" ");
+    const titleWords = "Build Interfaces for Interactive Exploration.".split(" ");
 
     const wrapperClasses = `w-full z-0 flex flex-col px-4 md:px-12 max-w-7xl mx-auto ${isMobile ? 'relative pt-24 pb-12 h-auto' : 'sticky top-0 h-screen pt-32 pb-20'} pointer-events-none`;
     const gridClasses = `grid grid-cols-1 lg:grid-cols-12 gap-10 items-center pointer-events-auto ${isMobile ? 'py-8' : 'h-full'}`;
@@ -209,7 +209,7 @@ const Hero = () => {
                         <span className="text-xs font-mono font-medium tracking-wide uppercase">{`${packageVersion} Live`}</span>
                     </motion.div>
 
-                    <h1 className="text-6xl md:text-8xl font-display font-bold leading-[0.9] tracking-tighter mix-blend-multiply flex flex-wrap gap-x-4">
+                    <h1 className="text-4xl md:text-6xl font-display font-bold leading-[0.9] tracking-tighter mix-blend-multiply flex flex-wrap gap-x-4">
                         {titleWords.map((word, i) => (
                             <motion.span
                                 key={i}
@@ -231,8 +231,8 @@ const Hero = () => {
                         transition={{ delay: 0.5 }}
                         className="text-xl md:text-2xl text-slate/70 max-w-xl font-sans leading-relaxed"
                     >
-                        Create Jupyter widgets from plain English. 
-                        Interactive, reactive, and fully customizable widgets in seconds.
+                        Create, revise, audit, and wire widgets together via plain English.
+                        Run your widgets in JupyterLab · VS Code · Colab. Powered by AnyWidget.
                     </motion.p>
 
                     <motion.div

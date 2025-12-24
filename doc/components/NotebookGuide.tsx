@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion';
-import { Package, Play, ArrowDown, Database, Upload, Download, CheckCircle, Terminal } from 'lucide-react';
+import { Package, Play, ArrowDown, Database, Upload, Download, CheckCircle, Terminal, ListCheck } from 'lucide-react';
 
 const NotebookCell = ({ index, title, code, output, isActive, icon }: any) => {
     const ref = useRef(null);
@@ -81,11 +81,17 @@ const NotebookGuide = () => {
         offset: ["start start", "end end"]
     });
 
+    const bamako = [
+        "#002b51", "#114a5b", "#27675f", "#48825f", "#6a9c5d",
+        "#8fb55d", "#b4cb61", "#d8de6c", "#f3eb7a", "#fff595", "#ffffb3"
+    ];
+
     const steps = [
         { id: 1, label: "Initialization", icon: <Package className="w-4 h-4" /> },
         { id: 2, label: "Synthesis", icon: <Play className="w-4 h-4" /> },
-        { id: 3, label: "Refinement", icon: <Upload className="w-4 h-4" /> },
-        { id: 4, label: "Exportation", icon: <Download className="w-4 h-4" /> }
+        { id: 3, label: "Audit", icon: <ListCheck className="w-4 h-4" /> },
+        { id: 4, label: "Refinement", icon: <Upload className="w-4 h-4" /> },
+        { id: 5, label: "Exportation", icon: <Download className="w-4 h-4" /> }
     ];
 
     // Map scroll progress to active step (2 cells per step)
@@ -112,7 +118,7 @@ const NotebookGuide = () => {
                                 </motion.div>
                                 <h2 className="text-6xl font-display font-bold leading-none tracking-tighter">The Lab <br/><span className="text-orange">Log.</span></h2>
                                 <p className="text-lg text-slate/50 font-sans leading-relaxed max-w-[320px]">
-                                   VibeWidget treats your data exploration as a continuous, reproducible conversation.
+                                   VibeWidgets offers methods to create, revise, audit, and theme widgets via plain English.
                                 </p>
                              </div>
 
@@ -185,27 +191,57 @@ const NotebookGuide = () => {
                         <NotebookCell 
                             index={3}
                             icon={<Upload />}
-                            code={`# Interactive refinement\ndashboard.revise(\n  "zoom into Europe and use a toxic color scale",\n)`}
+                            code={`# Audit the heatmap\ndashboard.audit(level="fast")`}
                             output={
-                                <div className="bg-slate border-2 border-black p-1 rounded-xl shadow-lg h-40 flex items-center justify-center overflow-hidden">
-                                     <div className="grid grid-cols-10 gap-0.5 w-full h-full p-2">
+                                <div className="bg-white border-2 border-slate p-4 rounded-xl shadow-sm text-xs font-mono text-slate/70 leading-relaxed">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[10px] uppercase tracking-widest text-orange font-bold">Audit • Fast</span>
+                                        <span className="text-[10px] uppercase tracking-widest text-slate/40">Heatmap</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div>
+                                            <span className="text-orange font-bold">Issue 1:</span> Color scale is not perceptually uniform; small value differences are hard to read.
+                                        </div>
+                                        <div>
+                                            <span className="text-orange font-bold">Issue 2:</span> Missing legend makes it unclear how colors map to emissions values.
+                                        </div>
+                                        <div className="text-slate/50">
+                                            Suggested fix: switch to a colorblind-safe palette and add a labeled color legend.
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        />
+
+                        <NotebookCell 
+                            index={4}
+                            icon={<Upload />}
+                            code={`# Apply audit fix\ndashboard.edit(\n  "use a perceptually uniform palette and filter to just europe",\n)`}
+                            output={
+                                <div className="bg-white border-2 border-slate p-2 rounded-xl shadow-sm h-40 flex flex-col overflow-hidden">
+                                    <div className="grid grid-cols-10 gap-0.5 w-full h-full p-2">
                                         {[...Array(50)].map((_, i) => (
                                             <div 
                                                 key={i} 
                                                 className="w-full h-full rounded-[1px]"
                                                 style={{ 
-                                                    backgroundColor: i % 2 === 0 ? '#fbbf24' : '#ef4444',
-                                                    opacity: Math.random() * 0.9 + 0.1
+                                                    backgroundColor: bamako[i % bamako.length],
+                                                    opacity: Math.random() * 0.8 + 0.2
                                                 }}
                                             />
                                         ))}
+                                    </div>
+                                    <div className="mt-1 px-2 pb-1 flex items-center gap-2 text-[9px] font-mono text-slate/60">
+                                        <span>Low</span>
+                                        <div className="flex-1 h-1.5 rounded-full" style={{ background: "linear-gradient(90deg, #002b51, #27675f, #6a9c5d, #b4cb61, #f3eb7a, #ffffb3)" }} />
+                                        <span>High</span>
                                     </div>
                                 </div>
                             }
                         />
                         
                          <NotebookCell 
-                            index={4}
+                            index={5}
                             icon={<Download />}
                             code={`# Persistence\ndashboard.save("climate_report.vw")`}
                             output={
