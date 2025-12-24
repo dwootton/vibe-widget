@@ -162,18 +162,13 @@ for _wid, _widget in vw._widgets.items():
       this.updateState({ loadProgress: 50 });
 
       // Load micropip for package installation
-      await this.pyodide.loadPackage('micropip');
-
-      this.updateState({ loadProgress: 60 });
+      // await this.pyodide.loadPackage('micropip');
 
       // Load required packages
       await this.pyodide.loadPackage(['pandas', 'numpy']);
-      
       this.updateState({ loadProgress: 80 });
-
-      // Load scikit-learn (takes a bit longer)
+      
       await this.pyodide.loadPackage('scikit-learn');
-
       this.updateState({ loadProgress: 95 });
 
       // Set up the vibe_widget mock module
@@ -318,9 +313,13 @@ def config(model=None, api_key=None):
 
 # Widget URL mapping (pre-generated widgets)
 _WIDGET_URLS = {
-    'scatter': '/examples/temperature_across_days_seattle_colored__1e5a77bc87__v1.js',
-    'bars': '/examples/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js',
-    'tictactoe': '/examples/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js',
+    'scatter': '../widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js',
+    'bars': '../widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js',
+    'tictactoe': '../widgets/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js',
+    'solar_system': '../widgets/3d_solar_system_using_three_js_showing_p__0ef429f27d__v1.js',
+    'hacker_news': '../widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js',
+    'line_chart': '../widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js',
+    'line_chart_hover': '../widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js',
 }
 
 def _match_widget(description):
@@ -332,6 +331,15 @@ def _match_widget(description):
         return 'bars', _WIDGET_URLS['bars']
     elif 'tic' in desc_lower or 'tac' in desc_lower:
         return 'tictactoe', _WIDGET_URLS['tictactoe']
+    elif 'solar' in desc_lower or '3d' in desc_lower and 'planet' in desc_lower:
+        return 'solar_system', _WIDGET_URLS['solar_system']
+    elif 'hacker' in desc_lower or 'news' in desc_lower and 'clone' in desc_lower:
+        return 'hacker_news', _WIDGET_URLS['hacker_news']
+    elif 'line' in desc_lower and 'chart' in desc_lower:
+        # Check if it's the hover version
+        if 'hover' in desc_lower or 'dashed' in desc_lower or 'vertical' in desc_lower:
+            return 'line_chart_hover', _WIDGET_URLS['line_chart_hover']
+        return 'line_chart', _WIDGET_URLS['line_chart']
     return None, None
 
 def create(description, data=None, exports=None, imports=None):
@@ -389,6 +397,71 @@ def create(description, data=None, exports=None, imports=None):
     print(f"[Demo] Created widget: {widget_id}")
     return widget
 
+def revise(description, base_widget, data=None, exports=None, imports=None):
+    """
+    Revise an existing widget with new features.
+    In demo mode, this returns the revised widget module URL.
+    """
+    global _widget_counter
+    _widget_counter += 1
+    
+    # Handle imports dict format
+    if isinstance(data, dict) and '_data' in data:
+        actual_data = data.get('_data')
+        imports = data.get('_imports', {})
+        data = actual_data
+    
+    # Match revision description to appropriate widget
+    # For demo, check what kind of revision is requested
+    desc_lower = description.lower()
+    
+    # Start with base widget type
+    base_type = base_widget._widget_id.split('_')[0]
+    widget_type = base_type
+    module_url = base_widget._module_url
+    
+    # Check if this is a specific revision we support
+    if 'hover' in desc_lower or 'dashed' in desc_lower or 'vertical' in desc_lower:
+        if 'line' in base_type or 'chart' in base_type:
+            widget_type = 'line_chart_hover'
+            module_url = _WIDGET_URLS.get('line_chart_hover', module_url)
+    
+    widget_id = f"{widget_type}_v{_widget_counter}"
+    widget = WidgetProxy(widget_id, module_url, exports or base_widget._exports, imports)
+    
+    # Copy data from base widget if not provided
+    if data is None and 'data' in base_widget._traits:
+        widget._traits['data'] = base_widget._traits['data']
+    elif data is not None:
+        if hasattr(data, 'to_dict'):  # DataFrame
+            widget._traits['data'] = data.to_dict('records')
+        elif hasattr(data, 'tolist'):  # numpy array
+            widget._traits['data'] = data.tolist()
+        else:
+            widget._traits['data'] = data
+    
+    # Initialize export traits
+    if exports:
+        for key in exports:
+            if key not in widget._traits:
+                widget._traits[key] = None
+    
+    # Initialize import traits from source widgets
+    if imports:
+        for trait_name, source_widget_id in imports.items():
+            if source_widget_id in _widgets:
+                source_widget = _widgets[source_widget_id]
+                if trait_name in source_widget._traits:
+                    widget._traits[trait_name] = source_widget._traits[trait_name]
+                else:
+                    widget._traits[trait_name] = None
+                widget._imports[trait_name] = source_widget_id
+                import js
+                js.window._pyodideLinkWidgets(source_widget_id, widget_id, trait_name)
+    
+    print(f"[Demo] Revised widget: {widget_id} (from {base_widget._widget_id})")
+    return widget
+
 # Attach to module
 vw.export = export
 vw.exports = exports
@@ -396,6 +469,7 @@ vw.imports = imports
 vw.models = models
 vw.config = config
 vw.create = create
+vw.revise = revise
 vw.WidgetProxy = WidgetProxy
 vw._widgets = _widgets
 `);

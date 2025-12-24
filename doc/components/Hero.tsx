@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, Terminal, Copy, ChevronDown, Check, Sparkles } from 'lucide-react';
+import { Terminal, Copy, ChevronDown, Check, Sparkles } from 'lucide-react';
 import { EXAMPLES } from '../data/examples';
 import DynamicWidget from './DynamicWidget';
+import { useIsMobile } from '../utils/useIsMobile';
 
 const RetroCat = () => (
     <svg viewBox="0 0 200 100" className="w-48 h-24 absolute -top-20 left-10 z-20 overflow-visible">
@@ -53,6 +54,83 @@ const RetroCat = () => (
     </svg>
 );
 
+const GLITCH_PHRASES = [
+    'LANGUAGE TO WIDGETS',
+    'CONTROLLED ITERATION',
+    'PDF & WEB DATA SUPPORT',
+    'REACTIVE WIDGET',
+];
+
+const GLITCH_CHARS = '!<>-_\\/[]{}-=+*^?#________';
+
+const GlitchSubtitle = () => {
+    const [displayText, setDisplayText] = useState(GLITCH_PHRASES[0]);
+    const [isGlitching, setIsGlitching] = useState(false);
+    const phraseIndexRef = useRef(0);
+    const scrambleTimeout = useRef<number | null>(null);
+    const cycleTimeout = useRef<number | null>(null);
+
+    useEffect(() => {
+        const TOTAL_FRAMES = 12;
+        const FRAME_DURATION = 60;
+        const cycleDelay = 3200;
+
+        const startCycle = () => {
+            cycleTimeout.current = window.setTimeout(() => {
+                setIsGlitching(true);
+                let frame = 0;
+                const nextIndex = (phraseIndexRef.current + 1) % GLITCH_PHRASES.length;
+                const target = GLITCH_PHRASES[nextIndex];
+
+                const glitchFrame = () => {
+                    frame += 1;
+                    const revealCount = Math.floor((frame / TOTAL_FRAMES) * target.length);
+                    const scrambled = target
+                        .split('')
+                        .map((char, idx) => (idx < revealCount ? char : GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)]))
+                        .join('');
+                    setDisplayText(scrambled || target);
+
+                    if (frame >= TOTAL_FRAMES) {
+                        phraseIndexRef.current = nextIndex;
+                        setDisplayText(target);
+                        setIsGlitching(false);
+                        startCycle();
+                        return;
+                    }
+
+                    scrambleTimeout.current = window.setTimeout(glitchFrame, FRAME_DURATION);
+                };
+
+                glitchFrame();
+            }, cycleDelay);
+        };
+
+        startCycle();
+
+        return () => {
+            if (scrambleTimeout.current) {
+                clearTimeout(scrambleTimeout.current);
+            }
+            if (cycleTimeout.current) {
+                clearTimeout(cycleTimeout.current);
+            }
+        };
+    }, []);
+
+    return (
+        <div className="flex items-center gap-3 font-mono text-sm tracking-[0.3em] uppercase text-slate/60">
+            <span className="inline-flex h-2 w-2 rounded-full bg-orange animate-pulse" aria-hidden="true" />
+            <span
+                className={`glitch-text ${isGlitching ? 'glitch-active' : ''}`}
+                data-text={displayText}
+            >
+                {displayText}
+            </span>
+        </div>
+    );
+};
+
 const Hero = () => {
     const [selectedExample, setSelectedExample] = useState(EXAMPLES[0]);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -60,6 +138,7 @@ const Hero = () => {
     const [inputText, setInputText] = useState("");
     const [filteredExamples, setFilteredExamples] = useState(EXAMPLES);
     const [packageVersion, setPackageVersion] = useState<string | null>(null);
+    const isMobile = useIsMobile();
 
     const { scrollY } = useScroll();
 
@@ -110,14 +189,17 @@ const Hero = () => {
             .catch(err => console.error(err));
     }, []);
 
-    const titleWords = "Data Viz, Synthesized.".split(" ");
+    const titleWords = "Vibe Widgeting? Yep.".split(" ");
+
+    const wrapperClasses = `w-full z-0 flex flex-col px-4 md:px-12 max-w-7xl mx-auto ${isMobile ? 'relative pt-24 pb-12 h-auto' : 'sticky top-0 h-screen pt-32 pb-20'} pointer-events-none`;
+    const gridClasses = `grid grid-cols-1 lg:grid-cols-12 gap-10 items-center pointer-events-auto ${isMobile ? 'py-8' : 'h-full'}`;
 
     return (
-        <div className="sticky top-0 h-screen w-full overflow-hidden z-0 flex flex-col pt-32 px-4 md:px-12 max-w-7xl mx-auto pointer-events-none pb-20">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pointer-events-auto h-full">
+        <div className={wrapperClasses}>
+            <div className={gridClasses}>
 
                 {/* Left Column */}
-                <motion.div style={{ y: textY, opacity }} className="lg:col-span-6 space-y-8 z-10 flex flex-col justify-center h-full pb-32">
+                <motion.div style={isMobile ? undefined : { y: textY, opacity }} className={`lg:col-span-6 space-y-8 z-10 flex flex-col justify-center ${isMobile ? '' : 'h-full pb-32'}`}>
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -134,12 +216,14 @@ const Hero = () => {
                                 initial={{ opacity: 0, y: 40 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.1 * i, type: "spring", stiffness: 100 }}
-                                className={word.includes('Synthesized') ? 'text-orange' : ''}
+                                className={word.includes('.') ? 'text-orange' : ''}
                             >
                                 {word}
                             </motion.span>
                         ))}
                     </h1>
+
+                    <GlitchSubtitle />
 
                     <motion.p
                         initial={{ opacity: 0 }}
@@ -147,7 +231,8 @@ const Hero = () => {
                         transition={{ delay: 0.5 }}
                         className="text-xl md:text-2xl text-slate/70 max-w-xl font-sans leading-relaxed"
                     >
-                        Turn language into living data. Vibe Widget builds interactive React components from plain English.
+                        Create Jupyter widgets from plain English. 
+                        Interactive, reactive, and fully customizable widgets in seconds.
                     </motion.p>
 
                     <motion.div
@@ -165,11 +250,11 @@ const Hero = () => {
                 </motion.div>
 
                 {/* Right Column */}
-                <motion.div style={{ y: simulatorY }} className="lg:col-span-6 relative mt-10 lg:mt-0 pb-32">
-                    <RetroCat />
+                <motion.div style={isMobile ? undefined : { y: simulatorY }} className={`lg:col-span-6 relative mt-10 lg:mt-0 ${isMobile ? '' : 'pb-32'}`}>
+                    {!isMobile && <RetroCat />}
 
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, rotateY: 20 }}
+                        initial={{ opacity: 0, scale: isMobile ? 1 : 0.95, rotateY: isMobile ? 0 : 18 }}
                         animate={{ opacity: 1, scale: 1, rotateY: 0 }}
                         transition={{ duration: 1, type: "spring", stiffness: 50 }}
                         className="relative z-10 bg-bone border-4 border-slate rounded-2xl shadow-hard-lg p-2 flex flex-col gap-0 min-h-[450px] perspective-1000"
@@ -305,7 +390,7 @@ const Hero = () => {
                                                 <div className="w-1.5 h-1.5 rounded-full bg-slate/20" />
                                             </div>
                                             <div className="flex-1 p-2 overflow-auto scrollbar-hide">
-                                                <DynamicWidget module={selectedExample.module} moduleUrl={selectedExample.moduleUrl} />
+                                                <DynamicWidget moduleUrl={selectedExample.moduleUrl} initialData={selectedExample.initialData} />
                                             </div>
                                         </motion.div>
                                     )}

@@ -1,4 +1,4 @@
-import * as d3 from "https://esm.sh/d3@7";
+import * as d3 from 'd3';
 
 export const Legend = ({ html, colorScale, weatherTypes }) => {
   return html`
@@ -137,14 +137,18 @@ export default function WeatherVisualization({ model, html, React }) {
     return () => {
       svg.remove();
     };
-  }, [data]);
+  }, [data, d3]);
+
+  if (!d3 || !weatherColors) {
+    return html`<div style=${{ padding: '20px', textAlign: 'center', color: '#666' }}>Loading D3...</div>`;
+  }
 
   return html`
     <div style=${{ 
       background: '#ffffff', 
       padding: '20px', 
       borderRadius: '8px', 
-      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', 
       border: '1px solid #e5e7eb'
     }}>
       <header style=${{ marginBottom: '16px' }}>

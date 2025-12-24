@@ -1,5 +1,3 @@
-import React from "https://esm.sh/react@18";
-
 /**
  * Tic-Tac-Toe Game Widget
  * Features: 3x3 Grid, AI Integration via ai_move trait, Win/Draw detection.

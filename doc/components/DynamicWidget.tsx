@@ -5,14 +5,19 @@ import { html } from 'htm/react/index.js';
 interface DynamicWidgetProps {
   moduleUrl?: string; // runtime-loaded ESM from public
   model?: any;
+  initialData?: any[]; // Initial data to populate the widget
 }
 
-export default function DynamicWidget({ moduleUrl, model }: DynamicWidgetProps) {
+export default function DynamicWidget({ moduleUrl, model, initialData }: DynamicWidgetProps) {
   // Use provided model or a basic shared stub
   const sharedModel = useMemo(() => {
     if (model) return model;
     const listeners = new Map<string, Set<Function>>();
-    const state: Record<string, any> = {};
+    const state: Record<string, any> = {
+      // Initialize with data if provided
+      data: initialData || [],
+      selected_indices: [],
+    };
     return {
       get: (k: string) => state[k],
       set: (k: string, v: any) => { state[k] = v; },
@@ -45,7 +50,7 @@ export default function DynamicWidget({ moduleUrl, model }: DynamicWidgetProps) 
         });
       },
     };
-  }, [model]);
+  }, [model, initialData]);
 
   const [Loaded, setLoaded] = React.useState<any>(null);
 
@@ -56,6 +61,7 @@ export default function DynamicWidget({ moduleUrl, model }: DynamicWidgetProps) 
         if (moduleUrl) {
           const mod = await import(/* @vite-ignore */ moduleUrl);
           const fn = mod?.default ?? mod;
+          console.log('Loaded widget module:', moduleUrl, mod);
           if (typeof fn !== 'function') throw new Error('Invalid widget module from URL');
           if (!cancelled) setLoaded(() => fn);
         }

@@ -1,4 +1,4 @@
-import * as d3 from "https://esm.sh/d3@7";
+import * as d3 from 'd3';
 
 export const ChartHeader = ({ html, count, total }) => html`
   <div style=${{ marginBottom: '12px', fontFamily: 'sans-serif' }}>
