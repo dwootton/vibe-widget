@@ -207,6 +207,7 @@ class VibeWidget(anywidget.AnyWidget):
         cache: bool = True,
         execution_mode: str | None = None,
         execution_approved: bool | None = None,
+        execution_approved_hash: str | None = None,
         **kwargs,
     ) -> "VibeWidget":
         """Return a widget instance that includes traitlets for declared exports/imports."""
@@ -244,6 +245,7 @@ class VibeWidget(anywidget.AnyWidget):
             cache=cache,
             execution_mode=execution_mode,
             execution_approved=execution_approved,
+            execution_approved_hash=execution_approved_hash,
             **init_values,
             **kwargs,
         )
@@ -266,6 +268,7 @@ class VibeWidget(anywidget.AnyWidget):
         cache: bool = True,
         execution_mode: str | None = None,
         execution_approved: bool | None = None,
+        execution_approved_hash: str | None = None,
         **kwargs
     ):
         """
@@ -310,6 +313,8 @@ class VibeWidget(anywidget.AnyWidget):
             execution_mode = "auto"
         if execution_approved is None:
             execution_approved = execution_mode != "approve"
+        if execution_approved_hash is None:
+            execution_approved_hash = ""
 
         super().__init__(
             data=data_json,
@@ -329,6 +334,7 @@ class VibeWidget(anywidget.AnyWidget):
             audit_apply_error="",
             execution_mode=execution_mode,
             execution_approved=execution_approved,
+            execution_approved_hash=execution_approved_hash,
             **kwargs
         )
 
@@ -651,6 +657,7 @@ class VibeWidget(anywidget.AnyWidget):
             display_widget=display,
             execution_mode=get_global_config().execution,
             execution_approved=None,
+            execution_approved_hash=self.execution_approved_hash,
         )
         return widget
 
