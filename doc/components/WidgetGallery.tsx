@@ -43,7 +43,7 @@ print(f"Loaded {len(weather_df)} days of data")`
       content: `# Create linked bar chart for selected weather
 bars = vw.create(
     "bar chart of weather conditions for selection",
-    vw.imports(data, selected_indices=scatter.selected_indices)
+    vw.inputs(data, selected_indices=scatter.outputs.selected_indices)
 )`
     }
   },
@@ -57,9 +57,9 @@ print(planets_df[['name', 'distance', 'radius']].head())`
     },
     lowerCell: {
       type: 'code',
-      label: 'Export State',
+      label: 'Output State',
       content: `# Access selected planet from widget
-selected = solar_system.selected_planet
+selected = solar_system.outputs.selected_planet.value
 print(f"Currently viewing: {selected}")`
     }
   },

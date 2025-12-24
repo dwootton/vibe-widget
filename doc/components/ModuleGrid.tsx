@@ -8,21 +8,21 @@ import { FeatureCardProps } from '../types';
 const features: FeatureCardProps[] = [
     {
         title: "Create",
-        description: "Generate widgets from prompts, data sources, and import/export contracts.",
+        description: "Generate widgets from prompts, data sources, and input/output contracts.",
         icon: <Wand2 className="w-6 h-6" />,
         href: "/docs/create",
     },
     {
         title: "Reactivity",
-        description: "Wire exports into imports for live, cross-widget state syncing.",
+        description: "Wire outputs into inputs for live, cross-widget state syncing.",
         icon: <Network className="w-6 h-6" />,
         href: "/docs/reactivity",
     },
     {
-        title: "Revisions",
+        title: "Edits",
         description: "Iterate on existing widgets and refine outputs with targeted prompts.",
         icon: <RefreshCw className="w-6 h-6" />,
-        href: "/docs/revise",
+        href: "/docs/edit",
     },
     {
         title: "Iterations",

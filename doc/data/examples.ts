@@ -1,10 +1,10 @@
-const TICTACTOE_URL = new URL('../widgets/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js', import.meta.url).href;
-const SCATTER_URL = new URL('../widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js', import.meta.url).href;
-const BARS_URL = new URL('../widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js', import.meta.url).href;
-const SOLAR_SYSTEM_URL = new URL('../widgets/3d_solar_system_using_three_js_showing_p__0ef429f27d__v1.js', import.meta.url).href;
-const HN_CLONE_URL = new URL('../widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js', import.meta.url).href;
-const COVID_TRENDS_URL = new URL('../widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js', import.meta.url).href;
-const COVID_TRENDS_2_URL = new URL('../widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js', import.meta.url).href;
+const TICTACTOE_URL = '/widgets/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js';
+const SCATTER_URL = '/widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js';
+const BARS_URL = '/widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js';
+const SOLAR_SYSTEM_URL = '/widgets/3d_solar_system_using_three_js_showing_p__0ef429f27d__v1.js';
+const HN_CLONE_URL = '/widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js';
+const COVID_TRENDS_URL = '/widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js';
+const COVID_TRENDS_2_URL = '/widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js';
 
 export type Category = 'Featured' | 'Data Visualization' | 'Reactive' | '3D Simulation';
 
@@ -14,7 +14,7 @@ export const EXAMPLES = [
     label: 'Interactive Tic-Tac-Toe Game',
     prompt: "Interactive game board with AI opponent using ML model",
     moduleUrl: TICTACTOE_URL,
-    description: 'Play tic-tac-toe against an AI trained on game patterns. The widget exports board state and imports AI moves, demonstrating bidirectional widget communication.',
+    description: 'Play tic-tac-toe against an AI trained on game patterns. The widget outputs board state and takes AI moves as inputs, demonstrating bidirectional widget communication.',
     categories: ['Featured', 'Reactive'] as Category[],
     size: 'large' as const,
     gifUrl: '/gif/tic-tac-toe.gif',

@@ -362,6 +362,17 @@ CHANGED LINES (only report concerns tied to these lines, or global concerns if t
   "fast_audit": {
     "version": "1.0",
     "widget_description": "...",
+    "safety": {
+      "checks": {
+        "external_network_usage": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "dynamic_code_execution": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "storage_writes": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "cross_origin_fetch": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "iframe_script_injection": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."}
+      },
+      "risk_level": "low|medium|high|unknown",
+      "caveats": ["..."]
+    },
     "concerns": [
       {
         "id": "data.selection.null_handling",
@@ -383,6 +394,17 @@ CHANGED LINES (only report concerns tied to these lines, or global concerns if t
   "full_audit": {
     "version": "1.0",
     "widget_description": "...",
+    "safety": {
+      "checks": {
+        "external_network_usage": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "dynamic_code_execution": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "storage_writes": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "cross_origin_fetch": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "iframe_script_injection": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."}
+      },
+      "risk_level": "low|medium|high|unknown",
+      "caveats": ["..."]
+    },
     "concerns": [
       {
         "id": "computation.parameters.seed",
@@ -428,7 +450,7 @@ Lenses:
 - Edge Behavior: empty/extreme/boundary inputs
 - Default vs Explicit: user choice vs assumption
 - Appropriateness: method suitability
-- Safety: resource usage, side effects, failure modes
+- Safety: external network usage, dynamic code execution, storage writes, cross-origin fetch, iframe/script injection
 
 Constraints:
 - Use line numbers from the provided code.

@@ -108,7 +108,7 @@ if _source_id in vw._widgets:
 
 # Also notify other widgets that might be importing this trait
 for _wid, _widget in vw._widgets.items():
-    if _wid != _source_id and _trait_name in _widget._imports:
+    if _wid != _source_id and _trait_name in _widget._inputs:
         _widget._traits[_trait_name] = _trait_value
         if _trait_name in _widget._observers:
             for _cb in _widget._observers[_trait_name]:
@@ -216,25 +216,52 @@ sys.modules['vibe_widget'] = vw
 _widgets = {}
 _widget_counter = 0
 
-class Export:
+class OutputDefinition:
     def __init__(self, description):
         self.description = description
+
+class OutputHandle:
+    def __init__(self, widget, name):
+        self._widget = widget
+        self._widget_id = widget._widget_id
+        self._trait_name = name
+
+    def __call__(self):
+        return self._widget._traits.get(self._trait_name)
+
+    @property
+    def value(self):
+        return self()
+
+class OutputsNamespace:
+    def __init__(self, widget):
+        self._widget = widget
+
+    def __getattr__(self, name):
+        if name in self._widget._outputs:
+            return OutputHandle(self._widget, name)
+        raise AttributeError(f"outputs has no attribute '{name}'")
 
 class WidgetProxy:
     """Proxy for a vibe widget that interfaces with pre-generated JS modules"""
     
-    def __init__(self, widget_id, module_url, exports=None, imports=None):
+    def __init__(self, widget_id, module_url, outputs=None, inputs=None):
         self._widget_id = widget_id
         self._module_url = module_url
-        self._exports = exports or {}
-        self._imports = imports or {}
+        self._outputs = outputs or {}
+        self._inputs = inputs or {}
         self._traits = {}
         self._observers = {}
+        self._outputs_ns = None
         _widgets[widget_id] = self
     
     def __getattr__(self, name):
         if name.startswith('_'):
             return object.__getattribute__(self, name)
+        if name == 'outputs':
+            if self._outputs_ns is None:
+                self._outputs_ns = OutputsNamespace(self)
+            return self._outputs_ns
         # Return trait value
         return self._traits.get(name)
     
@@ -281,14 +308,20 @@ class WidgetProxy:
         js.window._pyodideDisplayWidget(self._widget_id, self._module_url, json.dumps(self._traits))
         return {'text/plain': f'Widget:{self._widget_id}'}
 
-def export(description):
-    return Export(description)
+def output(description):
+    return OutputDefinition(description)
 
-def exports(**kwargs):
-    return kwargs
+def outputs(**kwargs):
+    resolved = {}
+    for key, value in kwargs.items():
+        if isinstance(value, OutputDefinition):
+            resolved[key] = value.description
+        else:
+            resolved[key] = value
+    return resolved
 
-def imports(*args, **kwargs):
-    result = {'_data': None, '_imports': {}}
+def inputs(*args, **kwargs):
+    result = {'_data': None, '_inputs': {}}
     for arg in args:
         if hasattr(arg, 'to_dict'):  # DataFrame
             result['_data'] = arg
@@ -297,10 +330,10 @@ def imports(*args, **kwargs):
         else:
             result['_data'] = arg
     for k, v in kwargs.items():
-        if isinstance(v, WidgetProxy):
-            result['_imports'][k] = v._widget_id
+        if isinstance(v, OutputHandle):
+            result['_inputs'][k] = v
         else:
-            result['_imports'][k] = v
+            result['_inputs'][k] = v
     return result
 
 def models():
@@ -313,13 +346,13 @@ def config(model=None, api_key=None):
 
 # Widget URL mapping (pre-generated widgets)
 _WIDGET_URLS = {
-    'scatter': '../widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js',
-    'bars': '../widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js',
-    'tictactoe': '../widgets/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js',
-    'solar_system': '../widgets/3d_solar_system_using_three_js_showing_p__0ef429f27d__v1.js',
-    'hacker_news': '../widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js',
-    'line_chart': '../widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js',
-    'line_chart_hover': '../widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js',
+    'scatter': '/widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js',
+    'bars': '/widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js',
+    'tictactoe': '/widgets/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js',
+    'solar_system': '/widgets/3d_solar_system_using_three_js_showing_p__0ef429f27d__v1.js',
+    'hacker_news': '/widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js',
+    'line_chart': '/widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js',
+    'line_chart_hover': '/widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js',
 }
 
 def _match_widget(description):
@@ -342,14 +375,14 @@ def _match_widget(description):
         return 'line_chart', _WIDGET_URLS['line_chart']
     return None, None
 
-def create(description, data=None, exports=None, imports=None):
+def create(description, data=None, outputs=None, inputs=None):
     global _widget_counter
     _widget_counter += 1
     
-    # Handle imports dict format
+    # Handle inputs dict format
     if isinstance(data, dict) and '_data' in data:
         actual_data = data.get('_data')
-        imports = data.get('_imports', {})
+        inputs = data.get('_inputs', {})
         data = actual_data
     
     # Match to pre-generated widget
@@ -361,7 +394,7 @@ def create(description, data=None, exports=None, imports=None):
         module_url = _WIDGET_URLS.get('scatter')  # Default
     
     widget_id = f"{widget_type}_{_widget_counter}"
-    widget = WidgetProxy(widget_id, module_url, exports, imports)
+    widget = WidgetProxy(widget_id, module_url, outputs, inputs)
     
     # Initialize data if provided
     if data is not None:
@@ -372,24 +405,30 @@ def create(description, data=None, exports=None, imports=None):
         else:
             widget._traits['data'] = data
     
-    # Initialize export traits
-    if exports:
-        for key in exports:
+    # Initialize output traits
+    if outputs:
+        for key in outputs:
             if key not in widget._traits:
                 widget._traits[key] = None
     
-    # Initialize import traits from source widgets
-    if imports:
-        for trait_name, source_widget_id in imports.items():
+    # Initialize input traits from source widgets
+    if inputs:
+        for trait_name, source_ref in inputs.items():
+            if isinstance(source_ref, OutputHandle):
+                source_widget_id = source_ref._widget_id
+                source_trait_name = source_ref._trait_name
+            else:
+                source_widget_id = source_ref
+                source_trait_name = trait_name
             if source_widget_id in _widgets:
                 source_widget = _widgets[source_widget_id]
                 # Get current value from source widget
-                if trait_name in source_widget._traits:
-                    widget._traits[trait_name] = source_widget._traits[trait_name]
+                if source_trait_name in source_widget._traits:
+                    widget._traits[trait_name] = source_widget._traits[source_trait_name]
                 else:
                     widget._traits[trait_name] = None
-                # Register this widget as importing this trait
-                widget._imports[trait_name] = source_widget_id
+                # Register this widget as consuming this input
+                widget._inputs[trait_name] = source_widget_id
                 # Notify JS bridge about this link
                 import js
                 js.window._pyodideLinkWidgets(source_widget_id, widget_id, trait_name)
@@ -397,22 +436,22 @@ def create(description, data=None, exports=None, imports=None):
     print(f"[Demo] Created widget: {widget_id}")
     return widget
 
-def revise(description, base_widget, data=None, exports=None, imports=None):
+def edit(description, base_widget, data=None, outputs=None, inputs=None):
     """
-    Revise an existing widget with new features.
-    In demo mode, this returns the revised widget module URL.
+    Edit an existing widget with new features.
+    In demo mode, this returns the edited widget module URL.
     """
     global _widget_counter
     _widget_counter += 1
     
-    # Handle imports dict format
+    # Handle inputs dict format
     if isinstance(data, dict) and '_data' in data:
         actual_data = data.get('_data')
-        imports = data.get('_imports', {})
+        inputs = data.get('_inputs', {})
         data = actual_data
     
-    # Match revision description to appropriate widget
-    # For demo, check what kind of revision is requested
+    # Match edit description to appropriate widget
+    # For demo, check what kind of edit is requested
     desc_lower = description.lower()
     
     # Start with base widget type
@@ -420,14 +459,14 @@ def revise(description, base_widget, data=None, exports=None, imports=None):
     widget_type = base_type
     module_url = base_widget._module_url
     
-    # Check if this is a specific revision we support
+    # Check if this is a specific edit we support
     if 'hover' in desc_lower or 'dashed' in desc_lower or 'vertical' in desc_lower:
         if 'line' in base_type or 'chart' in base_type:
             widget_type = 'line_chart_hover'
             module_url = _WIDGET_URLS.get('line_chart_hover', module_url)
     
     widget_id = f"{widget_type}_v{_widget_counter}"
-    widget = WidgetProxy(widget_id, module_url, exports or base_widget._exports, imports)
+    widget = WidgetProxy(widget_id, module_url, outputs or base_widget._outputs, inputs)
     
     # Copy data from base widget if not provided
     if data is None and 'data' in base_widget._traits:
@@ -440,36 +479,42 @@ def revise(description, base_widget, data=None, exports=None, imports=None):
         else:
             widget._traits['data'] = data
     
-    # Initialize export traits
-    if exports:
-        for key in exports:
+    # Initialize output traits
+    if outputs:
+        for key in outputs:
             if key not in widget._traits:
                 widget._traits[key] = None
     
-    # Initialize import traits from source widgets
-    if imports:
-        for trait_name, source_widget_id in imports.items():
+    # Initialize input traits from source widgets
+    if inputs:
+        for trait_name, source_ref in inputs.items():
+            if isinstance(source_ref, OutputHandle):
+                source_widget_id = source_ref._widget_id
+                source_trait_name = source_ref._trait_name
+            else:
+                source_widget_id = source_ref
+                source_trait_name = trait_name
             if source_widget_id in _widgets:
                 source_widget = _widgets[source_widget_id]
-                if trait_name in source_widget._traits:
-                    widget._traits[trait_name] = source_widget._traits[trait_name]
+                if source_trait_name in source_widget._traits:
+                    widget._traits[trait_name] = source_widget._traits[source_trait_name]
                 else:
                     widget._traits[trait_name] = None
-                widget._imports[trait_name] = source_widget_id
+                widget._inputs[trait_name] = source_widget_id
                 import js
                 js.window._pyodideLinkWidgets(source_widget_id, widget_id, trait_name)
     
-    print(f"[Demo] Revised widget: {widget_id} (from {base_widget._widget_id})")
+    print(f"[Demo] Edited widget: {widget_id} (from {base_widget._widget_id})")
     return widget
 
 # Attach to module
-vw.export = export
-vw.exports = exports
-vw.imports = imports
+vw.output = output
+vw.outputs = outputs
+vw.inputs = inputs
 vw.models = models
 vw.config = config
 vw.create = create
-vw.revise = revise
+vw.edit = edit
 vw.WidgetProxy = WidgetProxy
 vw._widgets = _widgets
 `);
@@ -501,8 +546,8 @@ vw._widgets = _widgets
     // Link widgets for cross-widget reactivity
     (window as any)._pyodideLinkWidgets = (sourceId: string, targetId: string, traitName: string) => {
       const targetModel = manager.getWidgetModel(targetId);
-      // Register that this model imports this trait
-      targetModel.registerImport(traitName, sourceId);
+      // Register that this model consumes this input
+      targetModel.registerInput(traitName, sourceId);
     };
   }
 
@@ -612,7 +657,7 @@ del _json_data
 export class WidgetModel {
   private traits: Map<string, any> = new Map();
   private listeners: Map<string, Set<(change: any) => void>> = new Map();
-  private imports: Set<string> = new Set();
+  private inputs: Set<string> = new Set();
 
   constructor(
     private id: string,
@@ -675,17 +720,17 @@ export class WidgetModel {
   observe(handler: (change: any) => void, names?: string | string[]): void {
     const keys = Array.isArray(names) ? names : names ? [names] : [];
     keys.forEach(key => {
-      this.imports.add(key);
+      this.inputs.add(key);
       this.on(`change:${key}`, handler);
     });
   }
 
-  isImporting(traitName: string): boolean {
-    return this.imports.has(traitName);
+  isInputting(traitName: string): boolean {
+    return this.inputs.has(traitName);
   }
 
-  registerImport(traitName: string, sourceId: string): void {
-    this.imports.add(traitName);
+  registerInput(traitName: string, sourceId: string): void {
+    this.inputs.add(traitName);
   }
 
   receiveTraitUpdate(traitName: string, value: any): void {

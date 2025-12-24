@@ -5,54 +5,90 @@ import { EXAMPLES } from '../data/examples';
 import DynamicWidget from './DynamicWidget';
 import { useIsMobile } from '../utils/useIsMobile';
 
-const RetroCat = () => (
-    <svg viewBox="0 0 200 100" className="w-48 h-24 absolute -top-20 left-10 z-20 overflow-visible">
-        <defs>
-            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
-                <feOffset dx="2" dy="2" result="offsetblur" />
-                <feComponentTransfer>
-                    <feFuncA type="linear" slope="0.3" />
-                </feComponentTransfer>
-                <feMerge>
-                    <feMergeNode />
-                    <feMergeNode in="SourceGraphic" />
-                </feMerge>
-            </filter>
-        </defs>
-        {/* Tail Animation */}
-        <motion.path
-            d="M 160 80 Q 190 80 190 50 Q 190 20 160 30"
-            fill="none"
-            stroke="#ea580c"
-            strokeWidth="8"
-            strokeLinecap="round"
-            initial={{ d: "M 160 80 Q 180 80 180 60 Q 180 50 160 60" }}
-            animate={{ d: "M 160 80 Q 200 90 195 40 Q 180 20 160 40" }}
-            transition={{ repeat: Infinity, repeatType: "mirror", duration: 2, ease: "easeInOut" }}
-        />
-        {/* Body */}
-        <path d="M 40 80 L 160 80 A 10 10 0 0 0 170 70 L 170 50 A 20 20 0 0 0 150 30 L 60 30 A 10 10 0 0 0 50 40 L 50 70 A 10 10 0 0 0 40 80" fill="#1A1A1A" filter="url(#shadow)" />
-        {/* Head */}
-        <g transform="translate(30, 20)">
-            <rect x="0" y="20" width="50" height="40" rx="12" fill="#1A1A1A" />
-            <path d="M 5 20 L 0 5 L 15 20" fill="#1A1A1A" />
-            <path d="M 45 20 L 50 5 L 35 20" fill="#1A1A1A" />
-            <motion.rect
-                x="12" y="35" width="8" height="8" rx="2" fill="#f97316"
-                animate={{ scaleY: [1, 0.1, 1] }}
-                transition={{ repeat: Infinity, duration: 4, delay: 0.5 }}
+const RetroCat = () => {
+    const [isHissing, setIsHissing] = useState(false);
+
+    const handleClick = () => {
+        setIsHissing(true);
+        // Play hiss sound effect could go here
+        setTimeout(() => setIsHissing(false), 800);
+    };
+
+    return (
+        <svg
+            viewBox="0 0 200 100"
+            className="w-48 h-24 absolute -top-20 left-10 z-20 overflow-visible cursor-pointer"
+            onClick={handleClick}
+        >
+            <defs>
+                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+                    <feOffset dx="2" dy="2" result="offsetblur" />
+                    <feComponentTransfer>
+                        <feFuncA type="linear" slope="0.3" />
+                    </feComponentTransfer>
+                    <feMerge>
+                        <feMergeNode />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+            {/* Tail Animation */}
+            <motion.path
+                d="M 160 80 Q 190 80 190 50 Q 190 20 160 30"
+                fill="none"
+                stroke="#ea580c"
+                strokeWidth="8"
+                strokeLinecap="round"
+                initial={{ d: "M 160 80 Q 180 80 180 60 Q 180 50 160 60" }}
+                animate={{ d: "M 160 80 Q 200 90 195 40 Q 180 20 160 40" }}
+                transition={{ repeat: Infinity, repeatType: "mirror", duration: 2, ease: "easeInOut" }}
             />
-            <motion.rect
-                x="30" y="35" width="8" height="8" rx="2" fill="#f97316"
-                animate={{ scaleY: [1, 0.1, 1] }}
-                transition={{ repeat: Infinity, duration: 4, delay: 0.6 }}
-            />
-        </g>
-        <rect x="50" y="80" width="20" height="8" rx="4" fill="#F2F0E9" />
-        <rect x="140" y="80" width="20" height="8" rx="4" fill="#F2F0E9" />
-    </svg>
-);
+            {/* Body */}
+            <path d="M 40 80 L 160 80 A 10 10 0 0 0 170 70 L 170 50 A 20 20 0 0 0 150 30 L 60 30 A 10 10 0 0 0 50 40 L 50 70 A 10 10 0 0 0 40 80" fill="#1A1A1A" filter="url(#shadow)" />
+            {/* Head */}
+            <g transform="translate(30, 20)">
+                <rect x="0" y="20" width="50" height="40" rx="12" fill="#1A1A1A" />
+                {/* Left ear - bigger to avoid gap */}
+                <path d="M 5 20 L -2 3 L 17 20" fill="#1A1A1A" />
+                {/* Right ear */}
+                <path d="M 45 20 L 52 3 L 33 20" fill="#1A1A1A" />
+                {/* Eyes - fully open when hissing */}
+                <motion.rect
+                    x="12" y="35" width="8" height="8" rx="2" fill="#f97316"
+                    animate={isHissing ? { scaleY: 1 } : { scaleY: [1, 0.1, 1] }}
+                    transition={isHissing ? { duration: 0.1 } : { repeat: Infinity, duration: 4, delay: 0.5 }}
+                />
+                <motion.rect
+                    x="30" y="35" width="8" height="8" rx="2" fill="#f97316"
+                    animate={isHissing ? { scaleY: 1 } : { scaleY: [1, 0.1, 1] }}
+                    transition={isHissing ? { duration: 0.1 } : { repeat: Infinity, duration: 4, delay: 0.6 }}
+                />
+                {/* Hissing mouth - orange oval */}
+                <motion.ellipse
+                    cx="25" cy="52" rx="6" ry="4"
+                    fill="#f97316"
+                    initial={{ opacity: 0, scaleY: 0 }}
+                    animate={isHissing ? { opacity: 1, scaleY: 1 } : { opacity: 0, scaleY: 0 }}
+                    transition={{ duration: 0.2 }}
+                />
+                {/* Fangs */}
+                <motion.path
+                    d="M 20 50 L 20 56 M 30 50 L 30 56"
+                    stroke="#F2F0E9"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    initial={{ opacity: 0 }}
+                    animate={isHissing ? { opacity: 1 } : { opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                />
+            </g>
+            {/* Black paws */}
+            <rect x="50" y="80" width="20" height="8" rx="4" fill="#1A1A1A" />
+            <rect x="140" y="80" width="20" height="8" rx="4" fill="#1A1A1A" />
+        </svg>
+    );
+};
 
 const GLITCH_PHRASES = [
     'LANGUAGE TO WIDGETS',
@@ -231,7 +267,7 @@ const Hero = () => {
                         transition={{ delay: 0.5 }}
                         className="text-xl md:text-2xl text-slate/70 max-w-xl font-sans leading-relaxed"
                     >
-                        Create, revise, audit, and wire widgets together via plain English.
+                        Create, edit, audit, and wire widgets together via plain English.
                         Run your widgets in JupyterLab · VS Code · Colab. Powered by AnyWidget.
                     </motion.p>
 

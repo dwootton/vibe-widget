@@ -174,7 +174,7 @@ const NotebookGuide = () => {
                                 </motion.div>
                                 <h2 className="text-5xl font-display leading-none tracking-tighter"> vw.<span className="text-orange font-bold ">Tutorial</span></h2>
                                 <p className="text-lg text-slate/50 font-sans leading-relaxed max-w-[320px]">
-                                    VibeWidgets offers methods to create, revise, audit, and theme widgets via plain English.
+                                    VibeWidgets offers methods to create, edit, audit, and theme widgets via plain English.
                                 </p>
                             </div>
 

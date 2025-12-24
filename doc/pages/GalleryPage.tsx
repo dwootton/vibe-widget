@@ -142,11 +142,11 @@ const GalleryPage = () => {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -100 }}
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-250px)]"
+                            className="flex flex-col lg:flex-row gap-4 lg:gap-8 h-[calc(100vh-200px)] sm:h-[calc(100vh-250px)]"
                         >
-                            {/* Sidebar List */}
-                            <div className="w-full lg:w-80 flex-shrink-0 overflow-y-auto pr-2 custom-scrollbar">
-                                <div className="flex flex-col gap-4">
+                            {/* Sidebar List - Hidden on mobile */}
+                            <div className="hidden lg:flex lg:w-80 flex-shrink-0 overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="flex flex-col gap-4 w-full">
                                     <button
                                         onClick={handleClose}
                                         className="flex items-center gap-2 p-4 bg-white border-2 border-slate rounded-xl font-mono text-xs uppercase tracking-widest hover:bg-slate hover:text-white transition-all group shadow-hard-sm"
@@ -180,17 +180,26 @@ const GalleryPage = () => {
                                 layoutId={`card-${focusedId}`}
                                 className="flex-1 bg-white border-2 border-slate rounded-2xl shadow-hard overflow-hidden flex flex-col"
                             >
+                                {/* Mobile Back Button */}
+                                <button
+                                    onClick={handleClose}
+                                    className="lg:hidden flex items-center gap-2 p-4 m-4 mb-0 bg-white border-2 border-slate rounded-xl font-mono text-xs uppercase tracking-widest hover:bg-slate hover:text-white transition-all group shadow-hard-sm"
+                                >
+                                    <X className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+                                    Back to Gallery
+                                </button>
+
                                 <div className="p-4 border-b-2 border-slate/5 flex items-center justify-between bg-bone/50">
                                     <div className="flex items-center gap-3">
                                         <div className="w-3 h-3 rounded-full bg-red-400" />
                                         <div className="w-3 h-3 rounded-full bg-yellow-400" />
                                         <div className="w-3 h-3 rounded-full bg-green-400" />
-                                        <span className="ml-4 font-mono text-xs text-slate/40 uppercase tracking-widest">
+                                        <span className="ml-4 font-mono text-xs text-slate/40 uppercase tracking-widest hidden sm:inline">
                                             Synthesis Environment / {focusedExample?.label}
                                         </span>
                                     </div>
                                 </div>
-                                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                                <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
                                     {focusedExample && NOTEBOOK_MAP[focusedExample.id] ? (
                                         <PyodideNotebook
                                             cells={NOTEBOOK_MAP[focusedExample.id].cells}

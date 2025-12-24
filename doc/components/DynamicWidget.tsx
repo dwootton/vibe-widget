@@ -151,10 +151,20 @@ export default function DynamicWidget({
 
   useEffect(() => {
     let cancelled = false;
+    let blobUrl: string | null = null;
+
     async function load() {
       try {
         if (moduleUrl) {
-          const mod = await import(/* @vite-ignore */ moduleUrl);
+          // Fetch the module code and create a blob URL to avoid Vite's public folder import restriction
+          const response = await fetch(moduleUrl);
+          if (!response.ok) throw new Error(`Failed to fetch module: ${response.statusText}`);
+
+          const code = await response.text();
+          const blob = new Blob([code], { type: 'application/javascript' });
+          blobUrl = URL.createObjectURL(blob);
+
+          const mod = await import(/* @vite-ignore */ blobUrl);
           const fn = mod?.default ?? mod;
           if (typeof fn !== 'function') throw new Error('Invalid widget module from URL');
           if (!cancelled) setLoaded(() => fn);
@@ -164,8 +174,12 @@ export default function DynamicWidget({
         if (!cancelled) setLoaded(() => () => <div className="p-4 text-red-500 font-mono text-xs">Error loading widget module. Check console.</div>);
       }
     }
+
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
   }, [moduleUrl]);
 
   // Show blur while loading data (only for widgets that need data)

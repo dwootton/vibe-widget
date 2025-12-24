@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+import * as d3 from "https://esm.sh/d3@7";
 
 export const Legend = ({ html, colorScale, weatherTypes }) => {
   return html`

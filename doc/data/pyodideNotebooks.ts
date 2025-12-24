@@ -59,11 +59,11 @@ solar_system = vw.create(
     - Highlight selected planet with a bright glow
     - Add orbit controls for rotation
     - Default selection: Earth
-    - Export the selected planet name
+    - Output the selected planet name
     """,
     data="../testdata/ellipseplanet.pdf",
-    exports=vw.exports(
-        selected_planet=vw.export("name of the currently selected planet")
+    outputs=vw.outputs(
+        selected_planet="name of the currently selected planet"
     ),
 )
 
@@ -107,8 +107,8 @@ hn_clone`,
 solar_system = vw.create(
     description="3D visualization...",
     data="../testdata/planets.pdf",  # PDF path
-    exports=vw.exports(
-        selected_planet=vw.export("selected planet name")
+    outputs=vw.outputs(
+        selected_planet="selected planet name"
     )
 )
 
@@ -128,16 +128,16 @@ hn_clone = vw.create(
 ];
 
 /**
- * Widget Revision demo notebook
+ * Widget Editing demo notebook
  * Showcases iterative refinement of widgets
  */
 export const REVISE_NOTEBOOK: NotebookCell[] = [
   {
     type: 'markdown',
     content: `
-      <h2>Widget Revision Demo</h2>
+      <h2>Widget Editing Demo</h2>
       <p class="text-lg text-slate/70">
-        Start with a basic chart, then refine it iteratively using <code>vw.revise()</code>.
+        Start with a basic chart, then refine it iteratively using <code>vw.edit()</code>.
         Watch how we add interactive features step by step!
       </p>
     `,
@@ -192,13 +192,13 @@ timeline`,
     type: 'markdown',
     content: `
       <h3>Step 2: Add Interactive Hover</h3>
-      <p>Use <code>vw.revise()</code> to add a vertical dashed line when hovering.</p>
+      <p>Use <code>vw.edit()</code> to add a vertical dashed line when hovering.</p>
     `,
   },
   {
     type: 'code',
-    content: `# Revise to add interactive hover crosshair
-timeline_v2 = vw.revise(
+    content: `# Edit to add interactive hover crosshair
+timeline_v2 = vw.edit(
     "add vertical dashed line when user hovering, highlight crossed data points",
     timeline,
     data=covid_df
@@ -210,25 +210,25 @@ timeline_v2`,
   {
     type: 'markdown',
     content: `
-      <h3>How Revision Works</h3>
+      <h3>How Editing Works</h3>
       <pre class="bg-slate/5 p-4 rounded-lg overflow-x-auto text-sm"><code># Create initial widget
 chart = vw.create("scatter plot of data", df)
 
-# Refine it with revise()
-chart_v2 = vw.revise(
+# Refine it with edit()
+chart_v2 = vw.edit(
     "add hover tooltips and color by category",
     chart,  # Pass the original widget
     data=df  # Optionally pass updated data
 )
 
 # Keep refining!
-chart_v3 = vw.revise(
+chart_v3 = vw.edit(
     "add zoom and pan controls",
     chart_v2
 )
       </code></pre>
       <p class="mt-4">
-        Each revision builds on the previous version, maintaining context
+        Each edit builds on the previous version, maintaining context
         while adding new features. This allows for rapid iterative development!
       </p>
     `,
@@ -281,7 +281,7 @@ data.head(3)`,
     content: `
       <h3>Widget 1: Scatter Plot with Brush Selection</h3>
       <p>
-        This widget <strong>exports</strong> <code>selected_indices</code> - 
+        This widget <strong>outputs</strong> <code>selected_indices</code> - 
         when you brush-select points, it updates the shared variable.
       </p>
     `,
@@ -289,12 +289,12 @@ data.head(3)`,
   },
   {
     type: 'code',
-    content: `# Create scatter plot that exports selected indices
+    content: `# Create scatter plot that outputs selected indices
 scatter = vw.create(
     description="temperature across days in Seattle, colored by weather condition",
     data=data,
-    exports=vw.exports(
-        selected_indices=vw.export("List of selected point indices")
+    outputs=vw.outputs(
+        selected_indices="List of selected point indices"
     ),
 )
 
@@ -306,7 +306,7 @@ scatter`,
     content: `
       <h3>Widget 2: Bar Chart (Linked)</h3>
       <p>
-        This widget <strong>imports</strong> <code>selected_indices</code> from the scatter plot.
+        This widget <strong>inputs</strong> <code>selected_indices</code> from the scatter plot.
         When the selection changes, it automatically updates to show filtered counts.
       </p>
     `,
@@ -314,12 +314,12 @@ scatter`,
   },
   {
     type: 'code',
-    content: `# Create bar chart that imports selected_indices
+    content: `# Create bar chart that inputs selected_indices
 bars = vw.create(
     "horizontal bar chart of weather conditions' count for selected points",
-    vw.imports(
+    vw.inputs(
         data,
-        selected_indices=scatter.selected_indices
+        selected_indices=scatter.outputs.selected_indices
     ),
 )
 
@@ -330,20 +330,20 @@ bars`,
     type: 'markdown',
     content: `
       <h3>How It Works</h3>
-      <pre class="bg-material-dark/5 p-4 rounded-lg overflow-x-auto"><code class="text-sm"># Widget A exports a trait
+      <pre class="bg-material-dark/5 p-4 rounded-lg overflow-x-auto"><code class="text-sm"># Widget A outputs a trait
 scatter = vw.create(
     ...,
-    exports=vw.exports(
-        selected_indices=vw.export("description")
+    outputs=vw.outputs(
+        selected_indices="description"
     )
 )
 
-# Widget B imports that trait
+# Widget B inputs that trait
 bars = vw.create(
     ...,
-    vw.imports(
+    vw.inputs(
         df,
-        selected_indices=scatter.selected_indices
+        selected_indices=scatter.outputs.selected_indices
     )
 )
     </code></pre>
@@ -600,18 +600,18 @@ def predict_best_move(board_state, player='o'):
   },
   {
     type: 'code',
-    content: `# Create the game board widget with proper exports
+    content: `# Create the game board widget with proper outputs
 game_board = vw.create(
     """Interactive Tic-Tac-Toe game board
     - Human plays X, AI plays O
     - Click cells to make moves
-    - Exports board_state, current_turn, game_over
-    - Imports ai_move to receive AI responses
+    - Outputs board_state, current_turn, game_over
+    - Inputs ai_move to receive AI responses
     """,
-    exports=vw.exports(
-        board_state=vw.export("9-element array of 'x', 'o', or 'b'"),
-        game_over=vw.export("boolean"),
-        current_turn=vw.export("'x' or 'o'")
+    outputs=vw.outputs(
+        board_state="9-element array of 'x', 'o', or 'b'",
+        game_over="boolean",
+        current_turn="'x' or 'o'"
     ),
 )
 
@@ -626,12 +626,12 @@ import time
 # This widget receives board state and computes AI moves
 ai_controller = vw.create(
     """AI Move Controller
-    - Imports board_state and current_turn from game board
+    - Inputs board_state and current_turn from game board
     - Computes optimal AI move using ML model
-    - Exports ai_move to trigger board update
+    - Outputs ai_move to trigger board update
     """,
-    exports=vw.exports(
-        ai_move=vw.export("object {row: number, col: number}")
+    outputs=vw.outputs(
+        ai_move="object {row: number, col: number}"
     ),
 )
 
@@ -641,9 +641,9 @@ def make_ai_move(change):
     time.sleep(0.3)
     
     try:
-        board_state = game_board.board_state
-        current_turn = game_board.current_turn
-        game_over = game_board.game_over
+        board_state = game_board.outputs.board_state.value
+        current_turn = game_board.outputs.current_turn.value
+        game_over = game_board.outputs.game_over.value
         
         # Only make move if it's O's turn and game is not over
         if current_turn != 'o' or game_over or not board_state:
@@ -662,7 +662,7 @@ def make_ai_move(change):
             print(f"Invalid board state length: {len(board_list)}, expected 9")
             return
         
-        # The board widget exports in row-major order: [00,01,02,10,11,12,20,21,22]
+        # The board widget outputs in row-major order: [00,01,02,10,11,12,20,21,22]
         # Our predict_best_move expects the same format
         move = predict_best_move(board_list, player='o')
         
@@ -684,14 +684,14 @@ game_board.observe(make_ai_move, names=['current_turn'])
 # Link AI controller output to game board input
 game_board_linked = vw.create(
     """Game board with AI integration
-    - Same as game_board but imports ai_move from AI controller
+    - Same as game_board but inputs ai_move from AI controller
     """,
-    exports=vw.exports(
-        board_state=vw.export("9-element array"),
-        game_over=vw.export("boolean"),
-        current_turn=vw.export("'x' or 'o'")
+    outputs=vw.outputs(
+        board_state="9-element array",
+        game_over="boolean",
+        current_turn="'x' or 'o'"
     ),
-    imports=vw.imports(
+    inputs=vw.inputs(
         ai_move=ai_controller
     ),
 )
@@ -729,5 +729,5 @@ export const NOTEBOOK_DATA_MAP: Record<string, typeof WEATHER_DATA_FILES> = {
   'cross-widget': WEATHER_DATA_FILES,
   'tictactoe': TICTACTOE_DATA_FILES,
   'pdf-web': PDF_WEB_DATA_FILES,
-  'revise': REVISE_DATA_FILES,
+  'edit': REVISE_DATA_FILES,
 };

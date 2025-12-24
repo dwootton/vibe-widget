@@ -87,15 +87,10 @@ export default function PyodideNotebook({ cells, title, dataFiles = [], notebook
   const currentNotebookKeyRef = useRef<string | undefined>(undefined);
   const isMobile = useIsMobile();
 
-  type ExamplePreview = typeof EXAMPLES[number];
-  const notebookPreviewMap = useMemo<Record<string, ExamplePreview | undefined>>(() => ({
-    'cross-widget': EXAMPLES.find(ex => ex.id === 'weather-scatter'),
-    'tictactoe': EXAMPLES.find(ex => ex.id === 'tic-tac-toe'),
-    'pdf-web': EXAMPLES.find(ex => ex.id === 'weather-bars'),
-    'revise': EXAMPLES.find(ex => ex.id === 'covid-trends'),
-  }), []);
-
-  const mobilePreview = (notebookKey && notebookPreviewMap[notebookKey]) || EXAMPLES[0];
+  const mobilePreview = useMemo(() => {
+    if (!notebookKey) return EXAMPLES[0];
+    return EXAMPLES.find(ex => ex.id === notebookKey) || EXAMPLES[0];
+  }, [notebookKey]);
 
   // Subscribe to Pyodide state changes
   useEffect(() => {
@@ -148,10 +143,29 @@ export default function PyodideNotebook({ cells, title, dataFiles = [], notebook
   }, [dataFiles, isMobile, notebookKey, pyodideState.ready]);
 
   const runCell = useCallback(async (index: number) => {
-    if (isMobile || !pyodideState.ready) return;
+    if (isMobile) return;
 
     const cell = cells[index];
     if (cell.type !== 'code') return;
+
+    // If Pyodide not ready, try to load it first
+    if (!pyodideState.ready) {
+      try {
+        await pyodideRuntime.load();
+      } catch (error: any) {
+        setCellStates(prev => {
+          const next = [...prev];
+          next[index] = {
+            ...next[index],
+            running: false,
+            executed: true,
+            outputs: [{ type: 'stderr', content: `Failed to load Python runtime: ${error.message}` }]
+          };
+          return next;
+        });
+        return;
+      }
+    }
 
     // Update cell state to running
     setCellStates(prev => {
@@ -556,10 +570,19 @@ function WidgetRenderer({ moduleUrl, model }: { moduleUrl: string; model: Widget
 
   useEffect(() => {
     let cancelled = false;
+    let blobUrl: string | null = null;
 
     async function loadWidget() {
       try {
-        const mod = await import(/* @vite-ignore */ moduleUrl);
+        // Fetch the module code and create a blob URL to avoid Vite's public folder import restriction
+        const response = await fetch(moduleUrl);
+        if (!response.ok) throw new Error(`Failed to fetch module: ${response.statusText}`);
+
+        const code = await response.text();
+        const blob = new Blob([code], { type: 'application/javascript' });
+        blobUrl = URL.createObjectURL(blob);
+
+        const mod = await import(/* @vite-ignore */ blobUrl);
         const fn = mod?.default ?? mod;
 
         if (typeof fn !== 'function') {
@@ -580,7 +603,10 @@ function WidgetRenderer({ moduleUrl, model }: { moduleUrl: string; model: Widget
 
     loadWidget();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
   }, [moduleUrl]);
 
   if (error) {

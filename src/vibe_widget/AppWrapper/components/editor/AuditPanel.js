@@ -4,6 +4,7 @@ import htm from "htm";
 const html = htm.bind(React.createElement);
 
 export default function AuditPanel({
+  hasAuditPayload,
   visibleConcerns,
   dismissedConcerns,
   showDismissed,
@@ -17,15 +18,29 @@ export default function AuditPanel({
   onToggleTechnical,
   onAddPendingChange,
   onDismissConcern,
-  onScrollToLines
+  onScrollToLines,
+  onRunAudit
 }) {
+  const showEmpty = visibleConcerns.length === 0;
+  const concernCountLabel = hasAuditPayload ? `${visibleConcerns.length} concerns` : "No audit yet";
   return html`
     <div class="audit-panel">
+      <style>
+        .audit-run-link {
+          background: none;
+          border: none;
+          color: #f6b089;
+          text-decoration: underline;
+          cursor: pointer;
+          font-size: 11px;
+          padding: 0 0 0 6px;
+        }
+      </style>
       <div class="audit-panel-header">
         <span>Audit Overview</span>
-        <span>${visibleConcerns.length} concerns</span>
+        <span>${concernCountLabel}</span>
       </div>
-      ${visibleConcerns.length > 0 ? html`
+      ${!showEmpty ? html`
         <div class="audit-grid">
           ${visibleConcerns.map(({ concern, cardId, index }) => {
             const isExpanded = !!expandedCards[cardId];
@@ -150,7 +165,10 @@ export default function AuditPanel({
         </div>
       ` : html`
         <div class="audit-empty">
-          All audits resolved.
+          ${hasAuditPayload
+            ? "All audits resolved."
+            : html`Run an audit to see findings. ${onRunAudit && html`<button class="audit-run-link" onClick=${onRunAudit}>Run an audit</button>`}`
+          }
           ${Object.keys(dismissedConcerns).length > 0 && html`
             <div>
               <button onClick=${onToggleDismissed}>

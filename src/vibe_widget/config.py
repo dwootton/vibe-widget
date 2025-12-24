@@ -140,7 +140,25 @@ class Config:
     streaming: bool = True
     mode: str = "standard"  # "standard" (fast/cheap models) or "premium" (powerful/expensive models)
     theme: Any = None
-    
+    execution: str = "auto"  # "auto" or "approve"
+
+    def __repr__(self) -> str:  # pragma: no cover
+        masked_key = "****" if self.api_key else None
+        return (
+            "Config("
+            f"model={self.model!r}, "
+            f"api_key={masked_key!r}, "
+            f"temperature={self.temperature!r}, "
+            f"streaming={self.streaming!r}, "
+            f"mode={self.mode!r}, "
+            f"theme={self.theme!r}, "
+            f"execution={self.execution!r}"
+            ")"
+        )
+
+    def __str__(self) -> str:  # pragma: no cover
+        return self.__repr__()
+
     def __post_init__(self):
         """Resolve model name and load API key from environment."""
         model_map = PREMIUM_MODELS if self.mode == "premium" else STANDARD_MODELS
@@ -158,6 +176,9 @@ class Config:
         # Validate mode
         if self.mode not in ["standard", "premium"]:
             raise ValueError(f"Invalid mode: {self.mode}. Must be 'standard' or 'premium'")
+
+        if self.execution not in ["auto", "approve"]:
+            raise ValueError("Invalid execution mode. Must be 'auto' or 'approve'")
         
         if not self.model:
             raise ValueError("No model specified")
@@ -186,6 +207,7 @@ class Config:
             "streaming": self.streaming,
             "mode": self.mode,
             "theme": theme_value,
+            "execution": self.execution,
         }
     
     @classmethod
@@ -246,6 +268,7 @@ def config(
     temperature: float = None,
     mode: str = None,
     theme: Any = None,
+    execution: str = None,
     **kwargs
 ) -> Config:
     """
@@ -257,6 +280,7 @@ def config(
         temperature: Temperature setting for generation
         mode: "standard" (fast/cheap models) or "premium" (powerful/expensive models)
         theme: Theme name/prompt or Theme object to use by default
+        execution: "auto" (runs immediately) or "approve" (review before run)
         **kwargs: Additional configuration options
     
     Returns:
@@ -273,6 +297,7 @@ def config(
         >>> vw.config(model="openai/gpt-5.1-codex")
         >>> vw.config(model="anthropic/claude-opus-4.5")
         >>> vw.config(theme="financial times")
+        >>> vw.config(execution="approve")
     """
     global _global_config
     
@@ -284,6 +309,7 @@ def config(
             temperature=temperature or 0.7,
             mode=mode or "standard",
             theme=theme,
+            execution=execution or "auto",
             **kwargs
         )
     else:
@@ -311,6 +337,11 @@ def config(
 
         if theme is not None:
             _global_config.theme = theme
+
+        if execution is not None:
+            if execution not in ["auto", "approve"]:
+                raise ValueError("execution must be 'auto' or 'approve'")
+            _global_config.execution = execution
         
         for key, value in kwargs.items():
             if hasattr(_global_config, key):

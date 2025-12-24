@@ -29,11 +29,11 @@ const Sidebar = () => {
         {
             title: "Core Concepts", links: [
                 { label: "Create", href: "/docs/create" },
-                { label: "Revise", href: "/docs/revise" },
+                { label: "Edit", href: "/docs/edit" },
                 { label: "Iterations", href: "/docs/iterations" },
-                { label: "Reactivity", href: "/docs/reactivity" },          // how widgets update based on traitlets (imports, exports)
+                { label: "Reactivity", href: "/docs/reactivity" },          // how widgets update based on traitlets (inputs, outputs)
                 { label: "Data Sources", href: "/docs/data-sources" },      // supported data types including csv, xml, nc, json, pdf, web scraping, etc.
-                { label: "Composability", href: "/docs/composability" },    // talking about the widget.components (for revise and for composing widgets together)
+                { label: "Composability", href: "/docs/composability" },    // talking about widget.component for composing
 
 
             ]
@@ -43,7 +43,7 @@ const Sidebar = () => {
                 { label: "Cross-Widget Demo", href: "/docs/examples/cross-widget" },
                 { label: "Tic-Tac-Toe AI", href: "/docs/examples/tictactoe" },
                 { label: "PDF & Web Data", href: "/docs/examples/pdf-web" },
-                { label: "Revise Example", href: "/docs/examples/revise" },
+                { label: "Edit Example", href: "/docs/examples/edit" },
             ]
         },
         {
@@ -132,7 +132,7 @@ const DocsPage = () => {
                             />
                             <h2>Quick start</h2>
                             <CodeBlock
-                                code={`import pandas as pd\nimport vibe_widget as vw\n\ndf = pd.read_csv("sales.csv")\n\nwidget = vw.create(\n    "scatter plot with brush selection, and a linked histogram",\n    df,\n    vw.exports(selected_indices=vw.export("indices of selected points"))\n)\n\nwidget`}
+                                code={`import pandas as pd\nimport vibe_widget as vw\n\ndf = pd.read_csv("sales.csv")\n\nwidget = vw.create(\n    "scatter plot with brush selection, and a linked histogram",\n    df,\n    outputs=vw.outputs(selected_indices="indices of selected points")\n)\n\nwidget`}
                             />
                         </DocContent>
                     } />
@@ -141,7 +141,7 @@ const DocsPage = () => {
                             <p>Configure model settings and API keys.</p>
                             <h2>Set defaults</h2>
                             <CodeBlock
-                                code={`import vibe_widget as vw\n\nvw.config(model="openai/gpt-5.2-codex")\nvw.config(mode="premium", model="openrouter")`}
+                                code={`import vibe_widget as vw\n\nvw.config(model="openai/gpt-5.2-codex")\nvw.config(mode="premium", model="openrouter")\nvw.config(execution="approve")`}
                             />
                             <h2>API key setup</h2>
                             <CodeBlock
@@ -162,8 +162,8 @@ const DocsPage = () => {
                                 <li>your prompt and theme prompt</li>
                                 <li>data schema (column names, dtypes)</li>
                                 <li>a small sample of rows (up to 3)</li>
-                                <li>exports/imports descriptors</li>
-                                <li>full widget code for revisions, audits, and runtime fixes</li>
+                                <li>outputs/inputs descriptors</li>
+                                <li>full widget code for edits, audits, and runtime fixes</li>
                                 <li>runtime error messages (when auto-fixing)</li>
                             </ul>
                             <p>No API keys are written to disk. Generated widgets and audit reports are stored locally in <code>.vibewidget/</code>.</p>
@@ -175,16 +175,16 @@ const DocsPage = () => {
                             <CodeBlock
                                 code={`import vibe_widget as vw\n\nwidget = vw.create(\n    "bar chart of revenue by region",\n    df\n)\n\nwidget`}
                             />
-                            <h2>Imports and exports</h2>
-                            <p>Use <code>vw.imports</code> to pass multiple inputs, and <code>vw.exports</code> to define reactive state your widget exposes.</p>
+                            <h2>Inputs and outputs</h2>
+                            <p>Use <code>vw.inputs</code> to pass multiple inputs, and <code>vw.outputs</code> to define reactive state your widget exposes.</p>
                             <CodeBlock
-                                code={`vw.create(\n    "...",\n    vw.imports(df, selected_indices=other_widget.selected_indices)\n)`}
+                                code={`vw.create(\n    "...",\n    vw.inputs(df, selected_indices=other_widget.outputs.selected_indices)\n)`}
                             />
                             <CodeBlock
-                                code={`scatter = vw.create(\n    "scatter with brush selection",\n    df,\n    vw.exports(selected_indices=vw.export("indices of selected points"))\n)\n\nscatter.selected_indices()   # live value\nscatter.selected_indices.value`}
+                                code={`scatter = vw.create(\n    "scatter with brush selection",\n    df,\n    outputs=vw.outputs(selected_indices="indices of selected points")\n)\n\nscatter.outputs.selected_indices.value`}
                             />
                             <h2>Dataflow and I/O contract</h2>
-                            <p><code>vw.create</code> converts data to a list of record dicts and cleans non-JSON values (NaN/NaT/inf to <code>None</code>). Imports and exports are synced traitlets. When importing another widget export, Vibe Widget reads the current value once, then keeps it in sync via trait updates. Exports start as <code>None</code> and are updated by generated JS code.</p>
+                            <p><code>vw.create</code> converts data to a list of record dicts and cleans non-JSON values (NaN/NaT/inf to <code>None</code>). Inputs and outputs are synced traitlets. When providing another widget output, Vibe Widget reads the current value once, then keeps it in sync via trait updates. Outputs start as <code>None</code> and are updated by generated JS code.</p>
                             <h2>Supported data sources</h2>
                             <ul>
                                 <li><code>pandas.DataFrame</code></li>
@@ -219,17 +219,17 @@ const DocsPage = () => {
                             />
                         </DocContent>
                     } />
-                    <Route path="/revise" element={
-                        <DocContent title="Revise">
-                            <p>Revise a widget using the instance method. Each revision produces a new widget instance.</p>
+                    <Route path="/edit" element={
+                        <DocContent title="Edit">
+                            <p>Edit a widget using the instance method. Each edit produces a new widget instance.</p>
                             <CodeBlock
-                                code={`v1 = vw.create("basic scatter", df)\nv2 = v1.revise("add hover tooltips")`}
+                                code={`v1 = vw.create("basic scatter", df)\nv2 = v1.edit("add hover tooltips")`}
                             />
-                            <p>Revisions reuse existing code and optionally the theme, then apply requested changes. A new version is persisted in the widget store.</p>
-                            <h2>Advanced revision</h2>
-                            <p>When generated JS exports named components, they are exposed as snake_case component references.</p>
+                            <p>Edits reuse existing code and optionally the theme, then apply requested changes. A new version is persisted in the widget store.</p>
+                            <h2>Advanced edit</h2>
+                            <p>When generated JS exports named components, they are exposed via <code>widget.component.&lt;slug&gt;</code> for composition and targeted edits.</p>
                             <CodeBlock
-                                code={`from vibe_widget.core import revise\n\nlegend = v1.color_legend   # ComponentReference\nv2 = revise("style the legend", source=legend, data=df)`}
+                                code={`legend = v1.component.color_legend\nv2 = vw.edit("style the legend", legend, inputs=df)`}
                             />
                         </DocContent>
                     } />
@@ -237,7 +237,7 @@ const DocsPage = () => {
                         <DocContent title="Iterations">
                             <p>Vibe Widget keeps each iteration reproducible and cached.</p>
                             <h2>Performance and caching</h2>
-                            <p>Generated code is cached on disk to avoid regenerating the same widget. Cache keys include normalized prompt text, data shape, imports/exports signatures, and theme description.</p>
+                            <p>Generated code is cached on disk to avoid regenerating the same widget. Cache keys include normalized prompt text, data shape, inputs/outputs signatures, and theme description.</p>
                             <p>Cached widgets live in <code>.vibewidget/widgets</code> with an index in <code>.vibewidget/index/widgets.json</code>. The model choice is not part of the cache key.</p>
                             <h2>Sampling behavior</h2>
                             <ul>
@@ -245,7 +245,7 @@ const DocsPage = () => {
                                 <li><code>load_data</code> caps in-memory data to 5k rows</li>
                             </ul>
                             <h2>Auditing</h2>
-                            <p>Run audits with <code>widget.audit</code> to get structured feedback and fix suggestions.</p>
+                            <p>Run audits with <code>widget.audit()</code> to get structured feedback and fix suggestions.</p>
                             <CodeBlock
                                 code={`widget.audit(level="fast")\nwidget.audit(level="full", reuse=True)`}
                             />
@@ -254,11 +254,11 @@ const DocsPage = () => {
                     } />
                     <Route path="/reactivity" element={
                         <DocContent title="Reactivity">
-                            <p>Exports are reactive state handles that can be imported into other widgets.</p>
+                            <p>Outputs are reactive state handles that can be passed into other widgets.</p>
                             <CodeBlock
-                                code={`scatter = vw.create(\n    "scatter plot with brush selection tool",\n    df,\n    vw.exports(selected_indices=vw.export("indices of selected points"))\n)\n\nhistogram = vw.create(\n    "histogram with highlighted bars for selected data",\n    vw.imports(df, selected_indices=scatter.selected_indices)\n)`}
+                                code={`scatter = vw.create(\n    "scatter plot with brush selection tool",\n    df,\n    outputs=vw.outputs(selected_indices="indices of selected points")\n)\n\nhistogram = vw.create(\n    "histogram with highlighted bars for selected data",\n    vw.inputs(df, selected_indices=scatter.outputs.selected_indices)\n)`}
                             />
-                            <p>When you select points in the scatter plot, the histogram updates via trait syncing. Exports are exposed as callable handles like <code>scatter.selected_indices()</code>.</p>
+                            <p>When you select points in the scatter plot, the histogram updates via trait syncing. Outputs are exposed under <code>widget.outputs.&lt;name&gt;</code>.</p>
                         </DocContent>
                     } />
                     <Route path="/examples/cross-widget" element={
@@ -285,12 +285,12 @@ const DocsPage = () => {
                             notebookKey="pdf-web"
                         />
                     } />
-                    <Route path="/examples/revise" element={
+                    <Route path="/examples/edit" element={
                         <PyodideNotebook
                             cells={REVISE_NOTEBOOK}
-                            title="Widget Revision"
+                            title="Widget Editing"
                             dataFiles={REVISE_DATA_FILES}
-                            notebookKey="revise"
+                            notebookKey="edit"
                         />
                     } />
                     <Route path="*" element={
