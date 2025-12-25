@@ -1,6 +1,7 @@
 import React from 'react';
-import DocPageRenderer from '../../components/DocPageRenderer';
+import DocMdxPage from '../../components/DocMdxPage';
+import Content, { frontmatter } from '../../content/installation.mdx';
 
-const InstallationPage = () => <DocPageRenderer pageId="installation" />;
+const InstallationPage = () => <DocMdxPage Content={Content} meta={frontmatter} />;
 
 export default InstallationPage;

@@ -1,14 +1,7 @@
 import React from 'react';
-import PyodideNotebook from '../../../components/PyodideNotebook';
-import { REVISE_NOTEBOOK, REVISE_DATA_FILES } from '../../../data/pyodideNotebooks';
+import DocMdxPage from '../../../components/DocMdxPage';
+import Content, { frontmatter } from '../../../content/examples/edit.mdx';
 
-const EditExamplePage = () => (
-    <PyodideNotebook
-        cells={REVISE_NOTEBOOK}
-        title="Widget Editing"
-        dataFiles={REVISE_DATA_FILES}
-        notebookKey="edit"
-    />
-);
+const EditExamplePage = () => <DocMdxPage Content={Content} meta={frontmatter} />;
 
 export default EditExamplePage;

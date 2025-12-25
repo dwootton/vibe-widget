@@ -1,0 +1,56 @@
+export const frontmatter = {
+  title: 'Configuration',
+  description: 'Configure model settings and API keys.'
+};
+
+Configure model settings and API keys.
+
+## Set defaults
+
+```python
+import vibe_widget as vw
+
+vw.config(model="openai/gpt-5.2-codex")
+vw.config(mode="premium", model="openrouter")
+vw.config(execution="approve")
+```
+
+## API key setup
+
+```bash
+export OPENROUTER_API_KEY='your-key'
+```
+
+```python
+import os
+from dotenv import load_dotenv
+import vibe_widget as vw
+
+load_dotenv()
+api_key = os.getenv("MY_SECRET_API_KEY")
+
+vw.config(api_key=api_key)
+```
+
+We recommend avoiding hardcoded keys in notebooks to prevent accidental leaks.
+
+## Models
+
+```python
+vw.models()
+vw.models(show="all")
+vw.models(verbose=False)
+```
+
+## Privacy and telemetry
+
+Vibe Widget sends the following to the model provider:
+
+- your prompt and theme prompt
+- data schema (column names, dtypes)
+- a small sample of rows (up to 3)
+- outputs/inputs descriptors
+- full widget code for edits, audits, and runtime fixes
+- runtime error messages (when auto-fixing)
+
+No API keys are written to disk. Generated widgets and audit reports are stored locally in `.vibewidget/`.

@@ -1,0 +1,66 @@
+export const frontmatter = {
+  title: 'Create',
+  description: 'Create widgets from natural language prompts and data sources.'
+};
+
+Create widgets from natural language prompts and data sources.
+
+```python
+import vibe_widget as vw
+
+widget = vw.create(
+    "bar chart of revenue by region",
+    df
+)
+
+widget
+```
+
+## Inputs and outputs
+
+Use `vw.inputs` to pass multiple inputs, and `vw.outputs` to define reactive state your widget exposes.
+
+```python
+vw.create(
+    "...",
+    vw.inputs(df, selected_indices=other_widget.outputs.selected_indices)
+)
+```
+
+```python
+scatter = vw.create(
+    "scatter with brush selection",
+    df,
+    outputs=vw.outputs(selected_indices="indices of selected points")
+)
+
+scatter.outputs.selected_indices.value
+```
+
+## Dataflow and I/O contract
+
+`vw.create` converts data to a list of record dicts and cleans non-JSON values (NaN/NaT/inf to `None`). Inputs and outputs are synced traitlets. When providing another widget output, Vibe Widget reads the current value once, then keeps it in sync via trait updates. Outputs start as `None` and are updated by generated JS code.
+
+## Supported data sources
+
+- `pandas.DataFrame`
+- local file paths (CSV/TSV, JSON/GeoJSON, Parquet, NetCDF, XML, ISF, Excel, PDF, TXT)
+- URLs (via `crawl4ai`, best-effort)
+
+Some loaders require optional dependencies (for example, `xarray` for NetCDF or `camelot` for PDF).
+
+## Theming
+
+Themes are natural-language design specs that guide code generation.
+
+```python
+vw.create("...", df, theme="financial_times")
+
+vw.create("...", df, theme="like national geographic but greener")
+```
+
+Built-in themes are listed via `vw.themes()`. Theme prompts are cached for the session and can be saved locally.
+
+## Safety warning
+
+Widgets execute LLM-generated JavaScript in the notebook frontend. Treat generated code as untrusted. Use audits and your own verification when the output informs decisions.

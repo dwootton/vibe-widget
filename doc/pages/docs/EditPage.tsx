@@ -1,6 +1,7 @@
 import React from 'react';
-import DocPageRenderer from '../../components/DocPageRenderer';
+import DocMdxPage from '../../components/DocMdxPage';
+import Content, { frontmatter } from '../../content/edit.mdx';
 
-const EditPage = () => <DocPageRenderer pageId="edit" />;
+const EditPage = () => <DocMdxPage Content={Content} meta={frontmatter} />;
 
 export default EditPage;

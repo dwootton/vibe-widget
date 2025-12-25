@@ -1,6 +1,7 @@
 import React from 'react';
-import DocPageRenderer from '../../components/DocPageRenderer';
+import DocMdxPage from '../../components/DocMdxPage';
+import Content, { frontmatter } from '../../content/audit.mdx';
 
-const AuditPage = () => <DocPageRenderer pageId="audit" />;
+const AuditPage = () => <DocMdxPage Content={Content} meta={frontmatter} />;
 
 export default AuditPage;

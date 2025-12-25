@@ -1,14 +1,7 @@
 import React from 'react';
-import PyodideNotebook from '../../../components/PyodideNotebook';
-import { PDF_WEB_NOTEBOOK, PDF_WEB_DATA_FILES } from '../../../data/pyodideNotebooks';
+import DocMdxPage from '../../../components/DocMdxPage';
+import Content, { frontmatter } from '../../../content/examples/pdf-web.mdx';
 
-const PdfWebExamplePage = () => (
-    <PyodideNotebook
-        cells={PDF_WEB_NOTEBOOK}
-        title="PDF & Web Data Extraction"
-        dataFiles={PDF_WEB_DATA_FILES}
-        notebookKey="pdf-web"
-    />
-);
+const PdfWebExamplePage = () => <DocMdxPage Content={Content} meta={frontmatter} />;
 
 export default PdfWebExamplePage;

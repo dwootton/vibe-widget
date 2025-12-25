@@ -1,0 +1,31 @@
+export const frontmatter = {
+  title: 'Installation',
+  description: 'Get up and running with Vibe Widget in seconds.'
+};
+
+Get up and running with Vibe Widget in seconds.
+
+<InstallCommand command="pip install vibe-widget" />
+
+Vibe Widget requires Python 3.8+ and an OpenRouter API key.
+
+```bash
+export OPENROUTER_API_KEY='your-key'
+```
+
+## Quick start
+
+```python
+import pandas as pd
+import vibe_widget as vw
+
+df = pd.read_csv("sales.csv")
+
+widget = vw.create(
+    "scatter plot with brush selection, and a linked histogram",
+    df,
+    outputs=vw.outputs(selected_indices="indices of selected points")
+)
+
+widget
+```

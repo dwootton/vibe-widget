@@ -1,14 +1,7 @@
 import React from 'react';
-import PyodideNotebook from '../../../components/PyodideNotebook';
-import { CROSS_WIDGET_NOTEBOOK, WEATHER_DATA_FILES } from '../../../data/pyodideNotebooks';
+import DocMdxPage from '../../../components/DocMdxPage';
+import Content, { frontmatter } from '../../../content/examples/cross-widget.mdx';
 
-const CrossWidgetExamplePage = () => (
-    <PyodideNotebook
-        cells={CROSS_WIDGET_NOTEBOOK}
-        title="Cross-Widget Interactions"
-        dataFiles={WEATHER_DATA_FILES}
-        notebookKey="cross-widget"
-    />
-);
+const CrossWidgetExamplePage = () => <DocMdxPage Content={Content} meta={frontmatter} />;
 
 export default CrossWidgetExamplePage;

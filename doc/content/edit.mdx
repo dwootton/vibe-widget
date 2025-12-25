@@ -1,0 +1,78 @@
+export const frontmatter = {
+  title: 'Edit',
+  description: 'Iterate on generated widgets using code or the UI.'
+};
+
+While developing interactive widgets, we often do not know what to fully specify until after the first version exists. Vibe Widget makes iteration a first-class workflow by letting you edit generated widgets through code or the UI.
+
+Edits reuse existing code and optionally the theme, then apply requested changes. Each edit produces a new widget instance and persists a new version in the widget store.
+
+## Python edits
+
+Use Python edits when you want structural changes, broader logic refactors, or to preserve edits as code in notebooks and scripts. Python edits are ideal for larger, explicit changes you want to keep versioned and reproducible.
+
+```python
+v1 = vw.create("basic scatter", df)
+
+# Large or structural changes
+v2 = v1.edit("add hover tooltips and a right-side legend")
+```
+
+Component-level edits are ideal when the widget exposes named subcomponents and you want precise changes without rewriting the full widget.
+
+```python
+# Example: targeted edits via components
+v3 = v1.component.colo_legend.edit("style the legend with a muted palette", inputs=df)
+```
+
+## UI edits
+
+Use UI edits for fast, interactive iteration inside the widget runtime. These are best for targeted adjustments, quick fixes, and diagnostics without switching to code.
+
+### Source code editing
+
+Make precise changes in the generated JS/HTML/CSS when you need direct control over logic or styling.
+
+<MediaPlaceholder label="Image Placeholder" caption="Source code editor UI with highlighted widget files." />
+
+### Visual editing (Edit Element)
+
+Select a specific element by its bounding box and issue an edit scoped to that element, using full context from the widget.
+
+<MediaPlaceholder label="Image Placeholder" caption="Edit Element UI showing bounding boxes and selected element context." />
+
+### Auditing
+
+Detect issues, get recommendations, and optionally turn a concern into a fix request.
+
+<MediaPlaceholder label="Image Placeholder" caption="Audit panel UI with issue list and recommendations." />
+
+## Code Auditing
+
+Audits review the current widget code and description to surface concerns, design risks, and fixes. This is designed to help you catch issues early and guide the next edit.
+
+| Level | Scope | When to Use | Output |
+| --- | --- | --- | --- |
+| fast | Quick scan for top issues | Early iterations, frequent checks | Short concern list + fixes |
+| full | Deeper review, alternatives | Pre-share, production polish | Detailed concerns + options |
+
+### How to use auditing
+
+You can run audits from Python to get a structured report without needing to re-run the widget UI.
+
+```python
+# Run a fast audit and return a report
+report = widget.audit(level="fast", display=False)
+
+# Deep audit for detailed alternatives
+full_report = widget.audit(level="full", reuse=True, display=False)
+```
+
+In the UI, audit recommendations can be surfaced as a checklist. You can then turn a specific concern into an edit request or keep it as a TODO for later.
+
+### Examples
+
+```python
+# Use audit output to guide the next change
+widget.edit("fix accessibility issues mentioned in the audit report")
+```

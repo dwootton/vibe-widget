@@ -1,0 +1,21 @@
+export const frontmatter = {
+  title: 'Reactivity',
+  description: 'Connect widgets with reactive inputs and outputs.'
+};
+
+Outputs are reactive state handles that can be passed into other widgets.
+
+```python
+scatter = vw.create(
+    "scatter plot with brush selection tool",
+    df,
+    outputs=vw.outputs(selected_indices="indices of selected points")
+)
+
+histogram = vw.create(
+    "histogram with highlighted bars for selected data",
+    vw.inputs(df, selected_indices=scatter.outputs.selected_indices)
+)
+```
+
+When you select points in the scatter plot, the histogram updates via trait syncing. Outputs are exposed under `widget.outputs.<name>`.

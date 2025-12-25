@@ -1,0 +1,52 @@
+export const frontmatter = {
+  title: 'Audit',
+  description: 'Review widget code and behavior for risks, usability issues, and design gaps.'
+};
+
+Audits review widget code and behavior through a set of lenses to surface risks, usability issues, and design gaps before you ship.
+
+## Audit framework
+
+Each audit runs across domains and lenses so you get feedback that is both technical and experiential.
+
+| Domain | What It Covers | Key Questions |
+| --- | --- | --- |
+| DATA | Input, filtering, transformations, formatting. Subdomains: `data.input`, `data.filtering`, `data.transformations`, `data.formatting`. | What goes in? What gets dropped? How is it changed? |
+| COMPUTATION | Algorithms, parameters, assumptions. Subdomains: `computation.algorithm`, `computation.parameters`, `computation.assumptions`. | What runs? With what settings? What does it assume? |
+| PRESENTATION | Visual encoding, scales, projection. Subdomains: `presentation.encoding`, `presentation.scales`, `presentation.projection`. | How are results shown? What is hidden or over-emphasized? |
+| INTERACTION | Triggers, state, propagation. Subdomains: `interaction.triggers`, `interaction.state`, `interaction.propagation`. | What changes on input? What persists? What updates downstream? |
+| SYSTEM | Accessibility, performance, reliability. Subdomains: `system.accessibility`, `system.performance`, `system.reliability`. | Is it usable for everyone? Is it fast and stable? |
+
+Each domain is reviewed at a second level to pinpoint the issue scope, such as `data.transformations` or `computation.parameters.bin_size`, so fixes stay targeted and explainable.
+
+## Audit lenses
+
+Lenses are the perspectives applied during auditing. You can think of them as different expert reviews running together, such as accessibility, data integrity, or interaction design.
+
+## Fast vs full audits
+
+**Fast** audits provide quick issue scans for early iteration. **Full** audits dig deeper with alternatives and higher coverage for pre-share polish.
+
+```python
+# Fast audit for quick checks
+report = widget.audit(level="fast", display=False)
+
+# Full audit for deeper review
+full_report = widget.audit(level="full", reuse=True, display=False)
+```
+
+Audit outputs are stored in `.vibewidget/audits` as JSON and YAML.
+
+## Launch an audit
+
+### Before widget render (Python)
+
+<MediaPlaceholder label="GIF Placeholder" caption="Run audit from Python before rendering the widget output." />
+
+### During UI editing
+
+<MediaPlaceholder label="GIF Placeholder" caption="Launch audit while editing the widget in the UI." />
+
+## Example audit results
+
+<MediaPlaceholder label="Sample Output" caption="Data: Axis label missing units for &quot;Revenue&quot;. Accessibility: Hover tooltips are not keyboard reachable. Design: Secondary controls compete with chart for visual emphasis." />

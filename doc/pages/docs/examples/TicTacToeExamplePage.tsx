@@ -1,14 +1,7 @@
 import React from 'react';
-import PyodideNotebook from '../../../components/PyodideNotebook';
-import { TICTACTOE_NOTEBOOK, TICTACTOE_DATA_FILES } from '../../../data/pyodideNotebooks';
+import DocMdxPage from '../../../components/DocMdxPage';
+import Content, { frontmatter } from '../../../content/examples/tictactoe.mdx';
 
-const TicTacToeExamplePage = () => (
-    <PyodideNotebook
-        cells={TICTACTOE_NOTEBOOK}
-        title="Tic-Tac-Toe AI"
-        dataFiles={TICTACTOE_DATA_FILES}
-        notebookKey="tictactoe"
-    />
-);
+const TicTacToeExamplePage = () => <DocMdxPage Content={Content} meta={frontmatter} />;
 
 export default TicTacToeExamplePage;

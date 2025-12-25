@@ -1,6 +1,7 @@
 import React from 'react';
-import DocPageRenderer from '../../components/DocPageRenderer';
+import DocMdxPage from '../../components/DocMdxPage';
+import Content, { frontmatter } from '../../content/config.mdx';
 
-const ConfigPage = () => <DocPageRenderer pageId="config" />;
+const ConfigPage = () => <DocMdxPage Content={Content} meta={frontmatter} />;
 
 export default ConfigPage;

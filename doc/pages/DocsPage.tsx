@@ -7,19 +7,22 @@ import ThemingPage from './docs/ThemingPage';
 import EditPage from './docs/EditPage';
 import AuditPage from './docs/AuditPage';
 import ReactivityPage from './docs/ReactivityPage';
+import DataSourcesPage from './docs/DataSourcesPage';
+import ComposabilityPage from './docs/ComposabilityPage';
+import WidgetariumPage from './docs/WidgetariumPage';
 import CrossWidgetExamplePage from './docs/examples/CrossWidgetExamplePage';
 import TicTacToeExamplePage from './docs/examples/TicTacToeExamplePage';
 import PdfWebExamplePage from './docs/examples/PdfWebExamplePage';
 import EditExamplePage from './docs/examples/EditExamplePage';
 import ComingSoonPage from './docs/ComingSoonPage';
-import { DOC_NAV } from '../data/docsContent';
+import { DOC_SECTIONS } from '../data/docsManifest';
 
 const Sidebar = () => {
     const location = useLocation();
 
     return (
         <div className="w-64 flex-shrink-0 border-r-2 border-slate/10 min-h-screen pt-32 px-6 bg-bone sticky top-0 h-screen overflow-y-auto hidden md:block">
-            {DOC_NAV.map((section, i) => (
+            {DOC_SECTIONS.map((section, i) => (
                 <div key={i} className="mb-8">
                     <h3 className="font-display font-bold text-lg mb-4">{section.title}</h3>
                     <div className="flex flex-col gap-2 font-mono text-sm">
@@ -55,6 +58,9 @@ const DocsPage = () => {
                     <Route path="edit" element={<EditPage />} />
                     <Route path="audit" element={<AuditPage />} />
                     <Route path="reactivity" element={<ReactivityPage />} />
+                    <Route path="data-sources" element={<DataSourcesPage />} />
+                    <Route path="composability" element={<ComposabilityPage />} />
+                    <Route path="widgetarium" element={<WidgetariumPage />} />
                     <Route path="examples/cross-widget" element={<CrossWidgetExamplePage />} />
                     <Route path="examples/tictactoe" element={<TicTacToeExamplePage />} />
                     <Route path="examples/pdf-web" element={<PdfWebExamplePage />} />

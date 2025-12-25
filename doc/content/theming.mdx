@@ -1,0 +1,31 @@
+export const frontmatter = {
+  title: 'Theming',
+  description: 'Style widgets with natural-language design specs.'
+};
+
+Themes are natural-language design specs that guide code generation.
+
+## List available themes
+
+```python
+import vibe_widget as vw
+
+vw.themes()
+```
+
+## Create a custom theme
+
+```python
+theme = vw.theme("like national geographic but greener")
+
+# Inspect or reuse the generated description
+print(theme.description)
+
+vw.create("...", df, theme=theme.description)
+```
+
+## Use a theme in create
+
+```python
+vw.create("...", df, theme="financial_times")
+```
