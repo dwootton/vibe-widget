@@ -37,16 +37,31 @@ full_report = widget.audit(level="full", reuse=True, display=False)
 
 Audit outputs are stored in `.vibewidget/audits` as JSON and YAML.
 
-## Launch an audit
 
-### Before widget render (Python)
+## How to use auditing
 
-<MediaPlaceholder label="GIF Placeholder" caption="Run audit from Python before rendering the widget output." />
+You can run audits from Python to get a structured report without needing to run the widget UI.
 
-### During UI editing
+```python
+# Run a fast audit and return a report
+report = widget.audit(level="fast", display=False)
 
-<MediaPlaceholder label="GIF Placeholder" caption="Launch audit while editing the widget in the UI." />
+# Deep audit for detailed alternatives
+full_report = widget.audit(level="full", reuse=True, display=False)
+```
 
-## Example audit results
+In the UI, audit recommendations can be surfaced as a checklist inside the `Edit Code` view. You can then turn a specific concern into an edit request or keep it as a TODO for later.
 
-<MediaPlaceholder label="Sample Output" caption="Data: Axis label missing units for &quot;Revenue&quot;. Accessibility: Hover tooltips are not keyboard reachable. Design: Secondary controls compete with chart for visual emphasis." />
+{/*## Launch an audit*/}
+
+{/* ### Before widget render (Python)*/}
+
+{/* <MediaPlaceholder label="GIF Placeholder" caption="Run audit from Python before rendering the widget output." /> */}
+
+{/*### During UI editing*/}
+
+{/* <MediaPlaceholder label="GIF Placeholder" caption="Launch audit while editing the widget in the UI." /> */}
+
+{/*## Example audit results*/}
+
+{/* <MediaPlaceholder label="Sample Output" caption="Data: Axis label missing units for &quot;Revenue&quot;. Accessibility: Hover tooltips are not keyboard reachable. Design: Secondary controls compete with chart for visual emphasis." /> */}

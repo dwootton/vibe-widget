@@ -33,46 +33,16 @@ Use UI edits for fast, interactive iteration inside the widget runtime. These ar
 
 Make precise changes in the generated JS/HTML/CSS when you need direct control over logic or styling.
 
-<MediaPlaceholder label="Image Placeholder" caption="Source code editor UI with highlighted widget files." />
+{/* <MediaPlaceholder label="Image Placeholder" caption="Source code editor UI with highlighted widget files." /> */}
 
 ### Visual editing (Edit Element)
 
 Select a specific element by its bounding box and issue an edit scoped to that element, using full context from the widget.
 
-<MediaPlaceholder label="Image Placeholder" caption="Edit Element UI showing bounding boxes and selected element context." />
+{/* <MediaPlaceholder label="Image Placeholder" caption="Edit Element UI showing bounding boxes and selected element context." /> */}
 
 ### Auditing
 
-Detect issues, get recommendations, and optionally turn a concern into a fix request.
+Detect issues, get recommendations, and optionally turn a concern into a fix request. See [the Audit docs](/docs/audit) for more information.
 
-<MediaPlaceholder label="Image Placeholder" caption="Audit panel UI with issue list and recommendations." />
-
-## Code Auditing
-
-Audits review the current widget code and description to surface concerns, design risks, and fixes. This is designed to help you catch issues early and guide the next edit.
-
-| Level | Scope | When to Use | Output |
-| --- | --- | --- | --- |
-| fast | Quick scan for top issues | Early iterations, frequent checks | Short concern list + fixes |
-| full | Deeper review, alternatives | Pre-share, production polish | Detailed concerns + options |
-
-### How to use auditing
-
-You can run audits from Python to get a structured report without needing to re-run the widget UI.
-
-```python
-# Run a fast audit and return a report
-report = widget.audit(level="fast", display=False)
-
-# Deep audit for detailed alternatives
-full_report = widget.audit(level="full", reuse=True, display=False)
-```
-
-In the UI, audit recommendations can be surfaced as a checklist. You can then turn a specific concern into an edit request or keep it as a TODO for later.
-
-### Examples
-
-```python
-# Use audit output to guide the next change
-widget.edit("fix accessibility issues mentioned in the audit report")
-```
+{/* <MediaPlaceholder label="Image Placeholder" caption="Audit panel UI with issue list and recommendations." /> */}
