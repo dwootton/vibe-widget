@@ -180,8 +180,8 @@ const GalleryItem = ({
       transition={{ duration: 0.6, delay: index * 0.1, type: "spring" }}
       onClick={handleClick}
       className={`
-                relative bg-white border-2 border-slate rounded-xl p-6 shadow-hard flex flex-col gap-4 group cursor-pointer
-                ${mode === 'horizontal' ? 'min-w-[450px]' : 'w-full'}
+                relative bg-white border-2 border-slate rounded-xl p-4 sm:p-6 shadow-hard flex flex-col gap-4 group cursor-pointer
+                ${mode === 'horizontal' ? 'min-w-[280px] sm:min-w-[360px] lg:min-w-[450px]' : 'w-full'}
             `}
     >
       {/* Context previews (only in horizontal mode) */}
@@ -194,7 +194,7 @@ const GalleryItem = ({
         </AnimatePresence>
       )}
 
-      <div className="h-[280px] bg-bone border-2 border-slate/5 rounded-lg overflow-hidden relative shadow-inner group-hover:border-orange/20 transition-colors">
+      <div className="h-[200px] sm:h-[240px] lg:h-[280px] bg-bone border-2 border-slate/5 rounded-lg overflow-hidden relative shadow-inner group-hover:border-orange/20 transition-colors">
         <div className="absolute inset-0 bg-grid-pattern opacity-[0.05] pointer-events-none" />
         <div className="h-full w-full overflow-hidden">
           <DynamicWidget

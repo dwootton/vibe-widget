@@ -14,7 +14,7 @@ import {
 import PyodideNotebook from '../components/PyodideNotebook';
 import DynamicWidget from '../components/DynamicWidget';
 import { createWidgetModel } from '../utils/exampleDataLoader';
-import { SquareArrowOutUpRight, X, Zap, Box, BarChart3, LayoutGrid } from 'lucide-react';
+import { SquareArrowOutUpRight, X, Zap, Box, BarChart3, LayoutGrid, ChevronDown, Search } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
 const CATEGORIES: { label: Category; icon: any }[] = [
@@ -35,8 +35,10 @@ const NOTEBOOK_MAP: Record<string, any> = {
 
 const GalleryPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
+    const [filterQuery, setFilterQuery] = useState('');
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [focusedId, setFocusedId] = useState<string | null>(searchParams.get('focus'));
+    const filterRef = useRef<HTMLDivElement | null>(null);
 
     // Shared models for cross-widget reactivity (keyed by dataUrl for widgets that share data)
     const modelsRef = useRef<Map<string, any>>(new Map());
@@ -46,10 +48,65 @@ const GalleryPage = () => {
         setFocusedId(focus);
     }, [searchParams]);
 
+    useEffect(() => {
+        if (focusedId && filterQuery.trim()) {
+            setSearchParams({});
+        }
+    }, [filterQuery, focusedId, setSearchParams]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (!filterRef.current) return;
+            if (!filterRef.current.contains(event.target as Node)) {
+                setIsFilterOpen(false);
+            }
+        };
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsFilterOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, []);
+
     const filteredExamples = useMemo(() => {
-        if (activeCategory === 'All') return EXAMPLES;
-        return EXAMPLES.filter(ex => ex.categories.includes(activeCategory));
-    }, [activeCategory]);
+        const normalized = filterQuery.trim().toLowerCase();
+        if (!normalized || normalized === 'all') return EXAMPLES;
+
+        const categoryMatch = CATEGORIES.find(
+            ({ label }) => label.toLowerCase() === normalized
+        );
+        if (categoryMatch) {
+            return EXAMPLES.filter(ex => ex.categories.includes(categoryMatch.label));
+        }
+
+        return EXAMPLES.filter(ex => {
+            const haystack = [
+                ex.label,
+                ex.prompt,
+                ex.categories.join(' '),
+            ]
+                .join(' ')
+                .toLowerCase();
+            return haystack.includes(normalized);
+        });
+    }, [filterQuery]);
+
+    const activeCategory = useMemo(() => {
+        const normalized = filterQuery.trim().toLowerCase();
+        if (!normalized || normalized === 'all') return 'All';
+        const categoryMatch = CATEGORIES.find(
+            ({ label }) => label.toLowerCase() === normalized
+        );
+        return categoryMatch ? categoryMatch.label : null;
+    }, [filterQuery]);
 
     const handleFocus = (id: string) => {
         setSearchParams({ focus: id });
@@ -88,29 +145,127 @@ const GalleryPage = () => {
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 bg-slate/5 p-1.5 rounded-xl border border-slate/10 backdrop-blur-sm">
-                        <button
-                            onClick={() => setActiveCategory('All')}
-                            className={`px-4 py-2 rounded-lg font-mono text-xs uppercase tracking-widest transition-all ${activeCategory === 'All'
-                                ? 'bg-orange text-white shadow-hard-sm'
-                                : 'text-slate/40 hover:text-slate/60 hover:bg-slate/5'
-                                }`}
-                        >
-                            All
-                        </button>
-                        {CATEGORIES.map(({ label, icon: Icon }) => (
-                            <button
-                                key={label}
-                                onClick={() => setActiveCategory(label)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs uppercase tracking-widest transition-all ${activeCategory === label
-                                    ? 'bg-orange text-white shadow-hard-sm'
-                                    : 'text-slate/40 hover:text-slate/60 hover:bg-slate/5'
-                                    }`}
-                            >
-                                <Icon className="w-3 h-3" />
-                                {label}
-                            </button>
-                        ))}
+                    <div className="flex flex-wrap gap-2 bg-slate/5 p-1.5 rounded-xl border border-slate/10 backdrop-blur-sm w-full md:w-auto">
+                        <div ref={filterRef} className="relative w-full md:w-96 z-40">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate/40" />
+                                <input
+                                    value={filterQuery}
+                                    onChange={(event) => setFilterQuery(event.target.value)}
+                                    onFocus={() => setIsFilterOpen(true)}
+                                    placeholder="Search or pick a category…"
+                                    className="w-full bg-white border-2 border-slate/10 rounded-lg py-2.5 pl-10 pr-16 font-mono text-xs uppercase tracking-widest focus:outline-none focus:border-orange transition-all"
+                                />
+                                {filterQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFilterQuery('');
+                                            setIsFilterOpen(false);
+                                        }}
+                                        className="absolute right-9 top-1/2 -translate-y-1/2 text-slate/30 hover:text-orange transition-colors"
+                                        aria-label="Clear filter"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate/30 hover:text-orange transition-colors"
+                                    aria-label="Toggle filter menu"
+                                >
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                            </div>
+
+                            <AnimatePresence>
+                                {isFilterOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -6 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -6 }}
+                                        className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-slate rounded-xl shadow-hard z-50 overflow-hidden"
+                                    >
+                                        <div className="p-4 border-b border-slate/10">
+                                            <div className="text-[10px] font-mono uppercase tracking-widest text-slate/40 mb-3">
+                                                Categories
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFilterQuery('All');
+                                                        setIsFilterOpen(false);
+                                                    }}
+                                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all border ${activeCategory === 'All'
+                                                        ? 'bg-orange text-white border-orange shadow-hard-sm'
+                                                        : 'text-slate/50 border-slate/10 hover:text-orange hover:border-orange/50'
+                                                        }`}
+                                                >
+                                                    <LayoutGrid className="w-3 h-3" />
+                                                    All
+                                                </button>
+                                                {CATEGORIES.map(({ label, icon: Icon }) => (
+                                                    <button
+                                                        key={label}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setFilterQuery(label);
+                                                            setIsFilterOpen(false);
+                                                        }}
+                                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all border ${activeCategory === label
+                                                            ? 'bg-orange text-white border-orange shadow-hard-sm'
+                                                            : 'text-slate/50 border-slate/10 hover:text-orange hover:border-orange/50'
+                                                            }`}
+                                                    >
+                                                        <Icon className="w-3 h-3" />
+                                                        {label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="p-4">
+                                            <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-slate/40">
+                                                <span>Matches</span>
+                                                <span>{filteredExamples.length} results</span>
+                                            </div>
+                                            <div className="mt-3 max-h-64 overflow-y-auto custom-scrollbar">
+                                                {filteredExamples.length === 0 ? (
+                                                    <div className="px-3 py-4 text-xs font-mono text-slate/40">
+                                                        No matches. Try a different search.
+                                                    </div>
+                                                ) : (
+                                                    filteredExamples.slice(0, 6).map((example) => (
+                                                        <button
+                                                            key={example.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFilterQuery(example.label);
+                                                                setIsFilterOpen(false);
+                                                            }}
+                                                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-orange/5 transition-colors border border-transparent hover:border-orange/20"
+                                                        >
+                                                            <div className="text-sm font-display font-bold text-slate">
+                                                                {example.label}
+                                                            </div>
+                                                            <div className="text-[10px] font-mono text-slate/40 uppercase tracking-widest">
+                                                                {example.categories.join(' • ')}
+                                                            </div>
+                                                        </button>
+                                                    ))
+                                                )}
+                                                {filteredExamples.length > 6 && (
+                                                    <div className="px-3 pt-2 text-[10px] font-mono uppercase tracking-widest text-slate/30">
+                                                        +{filteredExamples.length - 6} more results
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
                 </motion.div>
             </div>
@@ -123,7 +278,7 @@ const GalleryPage = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="grid grid-cols-1 grid-cols-4 lg:grid-cols-6 md:grid-cols-3 gap-6 auto-rows-[300px]"
+                            className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 auto-rows-[220px] sm:auto-rows-[260px] lg:auto-rows-[300px]"
                         >
                             {filteredExamples.map((example, index) => (
                                 <GalleryCard
@@ -240,8 +395,19 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
             transition={{ duration: 0.5, delay: index * 0.05, type: "spring", stiffness: 200, damping: 25 }}
             className={`
                 relative group bg-white border-2 border-slate rounded-2xl overflow-hidden shadow-hard hover:shadow-hard-lg transition-all
+                ${hasNotebook ? 'cursor-pointer' : 'cursor-default'}
                 ${sizeClasses[example.size as keyof typeof sizeClasses] || 'md:col-span-1 md:row-span-1'}
             `}
+            onClick={hasNotebook ? onOpen : undefined}
+            onKeyDown={(event) => {
+                if (!hasNotebook) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onOpen();
+                }
+            }}
+            role={hasNotebook ? 'button' : undefined}
+            tabIndex={hasNotebook ? 0 : -1}
         >
             {/* Preview Area */}
             <div className="absolute inset-0 bg-slate/5 group-hover:bg-orange/5 transition-colors overflow-hidden">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { Terminal, Copy, ChevronDown, Check, Sparkles } from 'lucide-react';
+import { Terminal, Copy, ChevronDown, Sparkles } from 'lucide-react';
 import { EXAMPLES } from '../data/examples';
 import DynamicWidget from './DynamicWidget';
 import { useIsMobile } from '../utils/useIsMobile';
@@ -169,10 +169,8 @@ const GlitchSubtitle = () => {
 
 const Hero = () => {
     const [selectedExample, setSelectedExample] = useState(EXAMPLES[1]);
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [generationState, setGenerationState] = useState<'idle' | 'generating' | 'complete'>('complete');
     const [inputText, setInputText] = useState("");
-    const [filteredExamples, setFilteredExamples] = useState(EXAMPLES);
     const [packageVersion, setPackageVersion] = useState<string | null>(null);
     const isMobile = useIsMobile();
 
@@ -182,22 +180,9 @@ const Hero = () => {
     const simulatorY = useTransform(scrollY, [0, 800], [0, -100]);
     const opacity = useTransform(scrollY, [0, 600], [1, 0]);
 
-    useEffect(() => {
-        if (inputText) {
-            const filtered = EXAMPLES.filter(ex =>
-                ex.prompt.toLowerCase().includes(inputText.toLowerCase()) ||
-                ex.label.toLowerCase().includes(inputText.toLowerCase())
-            );
-            setFilteredExamples(filtered);
-        } else {
-            setFilteredExamples(EXAMPLES);
-        }
-    }, [inputText]);
-
     const handleSelect = (example: typeof EXAMPLES[0]) => {
         setSelectedExample(example);
         setInputText(example.prompt);
-        setIsMenuOpen(false);
         setGenerationState('idle');
     };
 
@@ -312,55 +297,41 @@ const Hero = () => {
 
                         <div className="bg-white border-b-2 border-slate/10 p-4 relative z-50">
                             <form onSubmit={handleRun} className="relative">
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-orange">
-                                    <Terminal className="w-4 h-4" />
-                                </div>
-
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        value={inputText}
-                                        onChange={(e) => {
-                                            setInputText(e.target.value);
-                                            setIsMenuOpen(true);
-                                        }}
-                                        onFocus={() => setIsMenuOpen(true)}
-                                        placeholder="Describe your visualization..."
-                                        className="w-full bg-bone/50 border-2 border-slate/10 rounded py-3 pl-10 pr-10 font-mono text-sm focus:outline-none focus:border-orange focus:ring-0 transition-all placeholder:opacity-30"
-                                    />
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate/40 hover:text-orange" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                                        <ChevronDown className="w-4 h-4" />
+                                <div className="flex flex-col gap-3">
+                                    <div className="relative">
+                                        <select
+                                            value={selectedExample.id}
+                                            onChange={(event) => {
+                                                const nextExample = EXAMPLES.find((ex) => ex.id === event.target.value);
+                                                if (nextExample) {
+                                                    handleSelect(nextExample);
+                                                }
+                                            }}
+                                            className="w-full bg-bone/50 border-2 border-slate/10 rounded py-3 pl-10 pr-10 font-mono text-xs uppercase tracking-widest focus:outline-none focus:border-orange focus:ring-0 transition-all"
+                                        >
+                                            {EXAMPLES.map((ex) => (
+                                                <option key={ex.id} value={ex.id}>
+                                                    {ex.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-orange">
+                                            <ChevronDown className="w-4 h-4" />
+                                        </div>
+                                    </div>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={inputText}
+                                            onChange={(e) => setInputText(e.target.value)}
+                                            placeholder="Describe your visualization..."
+                                            className="w-full bg-bone/50 border-2 border-slate/10 rounded py-3 pl-10 pr-4 font-mono text-sm focus:outline-none focus:border-orange focus:ring-0 transition-all placeholder:opacity-30"
+                                        />
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-orange">
+                                            <Terminal className="w-4 h-4" />
+                                        </div>
                                     </div>
                                 </div>
-
-                                <AnimatePresence>
-                                    {isMenuOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                            className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-slate rounded shadow-hard z-50 overflow-hidden max-h-60 overflow-y-auto"
-                                        >
-                                            {filteredExamples.length === 0 ? (
-                                                <div className="px-4 py-3 font-mono text-xs text-slate/50">No matches...</div>
-                                            ) : (
-                                                filteredExamples.map((ex) => (
-                                                    <div
-                                                        key={ex.id}
-                                                        onClick={() => handleSelect(ex)}
-                                                        className="px-4 py-3 hover:bg-orange/10 cursor-pointer font-mono text-xs flex justify-between items-center group border-b border-slate/5 last:border-0"
-                                                    >
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold group-hover:text-orange transition-colors">{ex.label}</span>
-                                                            <span className="text-slate/50 truncate max-w-[250px] italic">{ex.prompt}</span>
-                                                        </div>
-                                                        {selectedExample.id === ex.id && <Check className="w-3 h-3 text-orange" />}
-                                                    </div>
-                                                ))
-                                            )}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
                             </form>
                         </div>
 

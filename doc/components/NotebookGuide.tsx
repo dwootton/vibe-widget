@@ -1,12 +1,13 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion';
-import { Package, Play, ArrowDown, Database, Upload, Download, CheckCircle, Terminal, ListCheck, SquarePen } from 'lucide-react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { motion, useScroll, useInView, AnimatePresence, useMotionValueEvent } from 'framer-motion';
+import { Package, Play, Database, Upload, Download, CheckCircle, Terminal, ListCheck, SquarePen } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const NotebookCell = ({ index, title, code, output, isActive, icon }: any) => {
     const ref = useRef(null);
     const isInView = useInView(ref, { margin: "-40% 0px -40% 0px" });
+    const [hasRenderedOutput, setHasRenderedOutput] = useState(false);
 
     // Simulated typing effect for code
     const [typedCode, setTypedCode] = useState("");
@@ -43,6 +44,12 @@ const NotebookCell = ({ index, title, code, output, isActive, icon }: any) => {
             setTypedCode(code);
         }
     }, [isInView, code]);
+
+    useEffect(() => {
+        if (isInView && output) {
+            setHasRenderedOutput(true);
+        }
+    }, [isInView, output]);
 
     // Custom style for syntax highlighter that matches the design
     const customStyle = {
@@ -109,7 +116,7 @@ const NotebookCell = ({ index, title, code, output, isActive, icon }: any) => {
 
             {/* Fixed: AnimatePresence was not imported */}
             <AnimatePresence>
-                {isInView && output && (
+                {hasRenderedOutput && output && (
                     <motion.div
                         initial={{ opacity: 0, y: 10, filter: 'blur(5px)' }}
                         animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
@@ -150,10 +157,26 @@ const NotebookGuide = () => {
         { id: 5, label: "Exportation", icon: <Download className="w-4 h-4" /> }
     ];
 
-    // Map scroll progress to active step (2 cells per step)
+    const draftHeatmap = useMemo(
+        () => Array.from({ length: 50 }, (_, i) => ({
+            color: i % 3 === 0 ? '#f97316' : i % 5 === 0 ? '#1A1A1A' : '#e5e7eb',
+            opacity: Math.random() * 0.8 + 0.2
+        })),
+        []
+    );
+
+    const refinedHeatmap = useMemo(
+        () => Array.from({ length: 50 }, (_, i) => ({
+            color: bamako[i % bamako.length],
+            opacity: Math.random() * 0.8 + 0.2
+        })),
+        [bamako]
+    );
+
+    // Map scroll progress to active step
     const [activeStep, setActiveStep] = useState(1);
-    scrollYProgress.on("change", (latest) => {
-        const step = Math.min(Math.floor(latest * (steps.length / 1.2)) + 1, steps.length);
+    useMotionValueEvent(scrollYProgress, "change", (latest) => {
+        const step = Math.min(Math.round(latest * (steps.length - 1)) + 1, steps.length);
         setActiveStep(step);
     });
 
@@ -229,13 +252,13 @@ vw.config(theme="vibe-widgets")`}
                                 <div className="bg-white border-2 border-slate p-1 rounded-xl shadow-sm h-40 flex items-center justify-center overflow-hidden relative">
                                     <div className="absolute inset-0 bg-orange/5 animate-pulse" />
                                     <div className="grid grid-cols-10 gap-0.5 w-full h-full p-2">
-                                        {[...Array(50)].map((_, i) => (
+                                        {draftHeatmap.map((cell, i) => (
                                             <div
                                                 key={i}
                                                 className="w-full h-full rounded-[1px] transition-all duration-1000"
                                                 style={{
-                                                    backgroundColor: i % 3 === 0 ? '#f97316' : i % 5 === 0 ? '#1A1A1A' : '#e5e7eb',
-                                                    opacity: Math.random() * 0.8 + 0.2
+                                                    backgroundColor: cell.color,
+                                                    opacity: cell.opacity
                                                 }}
                                             />
                                         ))}
@@ -279,13 +302,13 @@ vw.config(theme="vibe-widgets")`}
                             output={
                                 <div className="bg-white border-2 border-slate p-2 rounded-xl shadow-sm h-40 flex flex-col overflow-hidden">
                                     <div className="grid grid-cols-10 gap-0.5 w-full h-full p-2">
-                                        {[...Array(50)].map((_, i) => (
+                                        {refinedHeatmap.map((cell, i) => (
                                             <div
                                                 key={i}
                                                 className="w-full h-full rounded-[1px]"
                                                 style={{
-                                                    backgroundColor: bamako[i % bamako.length],
-                                                    opacity: Math.random() * 0.8 + 0.2
+                                                    backgroundColor: cell.color,
+                                                    opacity: cell.opacity
                                                 }}
                                             />
                                         ))}
