@@ -1,57 +1,76 @@
-import React from 'react';
-import PyodideNotebook from './PyodideNotebook';
-import {
-  CROSS_WIDGET_NOTEBOOK,
-  TICTACTOE_NOTEBOOK,
-  PDF_WEB_NOTEBOOK,
-  REVISE_NOTEBOOK,
-  WEATHER_DATA_FILES,
-  TICTACTOE_DATA_FILES,
-  PDF_WEB_DATA_FILES,
-  REVISE_DATA_FILES,
-} from '../data/pyodideNotebooks';
+import React, { useEffect, useState, Suspense } from 'react';
 
-const NOTEBOOKS = {
-  'cross-widget': {
-    cells: CROSS_WIDGET_NOTEBOOK,
-    dataFiles: WEATHER_DATA_FILES,
-    title: 'Cross-Widget Interactions',
-  },
-  tictactoe: {
-    cells: TICTACTOE_NOTEBOOK,
-    dataFiles: TICTACTOE_DATA_FILES,
-    title: 'Tic-Tac-Toe AI',
-  },
-  'pdf-web': {
-    cells: PDF_WEB_NOTEBOOK,
-    dataFiles: PDF_WEB_DATA_FILES,
-    title: 'PDF & Web Data Extraction',
-  },
-  edit: {
-    cells: REVISE_NOTEBOOK,
-    dataFiles: REVISE_DATA_FILES,
-    title: 'Widget Editing',
-  },
+const PyodideNotebook = React.lazy(() => import('./PyodideNotebook'));
+
+type NotebookConfig = {
+  cells: any[];
+  dataFiles: { url: string; varName: string; type?: string }[];
+  title: string;
 };
 
-const ExampleNotebook = ({ exampleId, title }: { exampleId: keyof typeof NOTEBOOKS; title?: string }) => {
-  const config = NOTEBOOKS[exampleId];
+const ExampleNotebook = ({ exampleId, title }: { exampleId: string; title?: string }) => {
+  const [config, setConfig] = useState<NotebookConfig | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    import('../data/pyodideNotebooks').then((mod) => {
+      const notebooks: Record<string, NotebookConfig> = {
+        'cross-widget': {
+          cells: mod.CROSS_WIDGET_NOTEBOOK,
+          dataFiles: mod.WEATHER_DATA_FILES,
+          title: 'Cross-Widget Interactions',
+        },
+        tictactoe: {
+          cells: mod.TICTACTOE_NOTEBOOK,
+          dataFiles: mod.TICTACTOE_DATA_FILES,
+          title: 'Tic-Tac-Toe AI',
+        },
+        'pdf-web': {
+          cells: mod.PDF_WEB_NOTEBOOK,
+          dataFiles: mod.PDF_WEB_DATA_FILES,
+          title: 'PDF & Web Data Extraction',
+        },
+        edit: {
+          cells: mod.REVISE_NOTEBOOK,
+          dataFiles: mod.REVISE_DATA_FILES,
+          title: 'Widget Editing',
+        },
+      };
+
+      if (mounted) {
+        setConfig(notebooks[exampleId] || null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [exampleId]);
 
   if (!config) {
     return (
       <div className="bg-white border-2 border-slate rounded-2xl p-6 shadow-hard-sm">
-        <p className="text-sm text-slate/70 font-mono">Example notebook not found.</p>
+        <p className="text-sm text-slate/70 font-mono">Loading notebook...</p>
       </div>
     );
   }
 
   return (
-    <PyodideNotebook
-      cells={config.cells}
-      title={title || config.title}
-      dataFiles={config.dataFiles}
-      notebookKey={exampleId}
-    />
+    <Suspense
+      fallback={(
+        <div className="bg-white border-2 border-slate rounded-2xl p-6 shadow-hard-sm">
+          <p className="text-sm text-slate/70 font-mono">Loading notebook...</p>
+        </div>
+      )}
+    >
+      <PyodideNotebook
+        cells={config.cells}
+        title={title || config.title}
+        dataFiles={config.dataFiles}
+        notebookKey={exampleId}
+      />
+    </Suspense>
   );
 };
 

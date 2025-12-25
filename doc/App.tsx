@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, Suspense } from 'react';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
@@ -7,9 +7,9 @@ import NotebookGuide from './components/NotebookGuide';
 import ModuleGrid from './components/ModuleGrid';
 import WidgetGallery from './components/WidgetGallery';
 import Footer from './components/Footer';
-import DocsPage from './pages/DocsPage';
-import GalleryPage from './pages/GalleryPage';
-import NotFoundPage from './pages/NotFoundPage';
+const DocsPage = React.lazy(() => import('./pages/DocsPage'));
+const GalleryPage = React.lazy(() => import('./pages/GalleryPage'));
+const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
 // const Cursor = () => {
 //   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -91,13 +91,21 @@ const AppContent = () => {
 
       <Navbar />
 
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/docs/*" element={<DocsPage />} />
-        <Route path="/gallery" element={<GalleryPage />} />
-        <Route path="/gallery/*" element={<NotFoundPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      <Suspense
+        fallback={(
+          <div className="min-h-screen pt-32 px-6 text-slate/70 font-mono">
+            Loading...
+          </div>
+        )}
+      >
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/docs/*" element={<DocsPage />} />
+          <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/gallery/*" element={<NotFoundPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
 
       <Footer />
     </div>

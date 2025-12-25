@@ -1,20 +1,20 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import InstallationPage from './docs/InstallationPage';
-import ConfigPage from './docs/ConfigPage';
-import CreatePage from './docs/CreatePage';
-import ThemingPage from './docs/ThemingPage';
-import EditPage from './docs/EditPage';
-import AuditPage from './docs/AuditPage';
-import ReactivityPage from './docs/ReactivityPage';
-import DataSourcesPage from './docs/DataSourcesPage';
-import ComposabilityPage from './docs/ComposabilityPage';
-import WidgetariumPage from './docs/WidgetariumPage';
-import CrossWidgetExamplePage from './docs/examples/CrossWidgetExamplePage';
-import TicTacToeExamplePage from './docs/examples/TicTacToeExamplePage';
-import PdfWebExamplePage from './docs/examples/PdfWebExamplePage';
-import EditExamplePage from './docs/examples/EditExamplePage';
-import ComingSoonPage from './docs/ComingSoonPage';
+const InstallationPage = React.lazy(() => import('./docs/InstallationPage'));
+const ConfigPage = React.lazy(() => import('./docs/ConfigPage'));
+const CreatePage = React.lazy(() => import('./docs/CreatePage'));
+const ThemingPage = React.lazy(() => import('./docs/ThemingPage'));
+const EditPage = React.lazy(() => import('./docs/EditPage'));
+const AuditPage = React.lazy(() => import('./docs/AuditPage'));
+const ReactivityPage = React.lazy(() => import('./docs/ReactivityPage'));
+const DataSourcesPage = React.lazy(() => import('./docs/DataSourcesPage'));
+const ComposabilityPage = React.lazy(() => import('./docs/ComposabilityPage'));
+const WidgetariumPage = React.lazy(() => import('./docs/WidgetariumPage'));
+const CrossWidgetExamplePage = React.lazy(() => import('./docs/examples/CrossWidgetExamplePage'));
+const TicTacToeExamplePage = React.lazy(() => import('./docs/examples/TicTacToeExamplePage'));
+const PdfWebExamplePage = React.lazy(() => import('./docs/examples/PdfWebExamplePage'));
+const EditExamplePage = React.lazy(() => import('./docs/examples/EditExamplePage'));
+const ComingSoonPage = React.lazy(() => import('./docs/ComingSoonPage'));
 import { DOC_SECTIONS } from '../data/docsManifest';
 
 const Sidebar = () => {
@@ -50,23 +50,29 @@ const DocsPage = () => {
         <div className="flex min-h-screen bg-bone">
             <Sidebar />
             <div className="flex-1 pt-32 px-4 sm:px-8 md:px-16 pb-20 min-w-0">
-                <Routes>
-                    <Route index element={<InstallationPage />} />
-                    <Route path="config" element={<ConfigPage />} />
-                    <Route path="create" element={<CreatePage />} />
-                    <Route path="theming" element={<ThemingPage />} />
-                    <Route path="edit" element={<EditPage />} />
-                    <Route path="audit" element={<AuditPage />} />
-                    <Route path="reactivity" element={<ReactivityPage />} />
-                    <Route path="data-sources" element={<DataSourcesPage />} />
-                    <Route path="composability" element={<ComposabilityPage />} />
-                    <Route path="widgetarium" element={<WidgetariumPage />} />
-                    <Route path="examples/cross-widget" element={<CrossWidgetExamplePage />} />
-                    <Route path="examples/tictactoe" element={<TicTacToeExamplePage />} />
-                    <Route path="examples/pdf-web" element={<PdfWebExamplePage />} />
-                    <Route path="examples/edit" element={<EditExamplePage />} />
-                    <Route path="*" element={<ComingSoonPage />} />
-                </Routes>
+                <Suspense
+                    fallback={(
+                        <div className="text-slate/60 font-mono">Loading docs…</div>
+                    )}
+                >
+                    <Routes>
+                        <Route index element={<InstallationPage />} />
+                        <Route path="config" element={<ConfigPage />} />
+                        <Route path="create" element={<CreatePage />} />
+                        <Route path="theming" element={<ThemingPage />} />
+                        <Route path="edit" element={<EditPage />} />
+                        <Route path="audit" element={<AuditPage />} />
+                        <Route path="reactivity" element={<ReactivityPage />} />
+                        <Route path="data-sources" element={<DataSourcesPage />} />
+                        <Route path="composability" element={<ComposabilityPage />} />
+                        <Route path="widgetarium" element={<WidgetariumPage />} />
+                        <Route path="examples/cross-widget" element={<CrossWidgetExamplePage />} />
+                        <Route path="examples/tictactoe" element={<TicTacToeExamplePage />} />
+                        <Route path="examples/pdf-web" element={<PdfWebExamplePage />} />
+                        <Route path="examples/edit" element={<EditExamplePage />} />
+                        <Route path="*" element={<ComingSoonPage />} />
+                    </Routes>
+                </Suspense>
             </div>
         </div>
     );
