@@ -23,12 +23,54 @@ class OutputBundle:
 
 
 @dataclass
+class CommandDefinition:
+    """Definition of a widget command."""
+
+    description: str
+
+
+@dataclass
+class CommandBundle:
+    """Container for resolved commands."""
+
+    commands: dict[str, str]
+
+
+@dataclass
+class EventDefinition:
+    """Definition of a widget event."""
+
+    description: str
+    params: dict[str, str] | None = None
+
+
+@dataclass
+class EventBundle:
+    """Container for resolved events."""
+
+    events: dict[str, str]
+    params: dict[str, dict[str, str] | None] | None = None
+
+
+@dataclass
 class InputsBundle:
     """Container that unifies data with other inputs."""
 
     data: Any
     inputs: dict[str, Any]
     data_name: str | None = None
+
+
+@dataclass
+class OutputChangeEvent:
+    """Structured change event for output observers."""
+
+    name: str
+    old: Any
+    new: Any
+    timestamp: float
+    source: str
+    seq: int
 
 
 class ExportHandle:
@@ -119,6 +161,11 @@ def output(description: str) -> OutputDefinition:
     return OutputDefinition(description)
 
 
+def command(description: str) -> CommandDefinition:
+    """Declare a single command."""
+    return CommandDefinition(description)
+
+
 def outputs(**kwargs: OutputDefinition | str) -> OutputBundle:
     """Bundle outputs into the shape the core expects."""
     output_map: dict[str, str] = {}
@@ -130,6 +177,40 @@ def outputs(**kwargs: OutputDefinition | str) -> OutputBundle:
         else:
             raise TypeError(f"Output '{name}' must be a string or vw.output(...)")
     return OutputBundle(output_map)
+
+
+def commands(**kwargs: CommandDefinition | str) -> CommandBundle:
+    """Bundle commands into the shape the core expects."""
+    command_map: dict[str, str] = {}
+    for name, definition in kwargs.items():
+        if isinstance(definition, CommandDefinition):
+            command_map[name] = definition.description
+        elif isinstance(definition, str):
+            command_map[name] = definition
+        else:
+            raise TypeError(f"Command '{name}' must be a string or vw.command(...)")
+    return CommandBundle(command_map)
+
+
+def event(description: str, params: dict[str, str] | None = None) -> EventDefinition:
+    """Declare a single event."""
+    return EventDefinition(description, params=params)
+
+
+def events(**kwargs: EventDefinition | str) -> EventBundle:
+    """Bundle events into the shape the core expects."""
+    event_map: dict[str, str] = {}
+    event_params: dict[str, dict[str, str] | None] = {}
+    for name, definition in kwargs.items():
+        if isinstance(definition, EventDefinition):
+            event_map[name] = definition.description
+            event_params[name] = definition.params
+        elif isinstance(definition, str):
+            event_map[name] = definition
+            event_params[name] = None
+        else:
+            raise TypeError(f"Event '{name}' must be a string or vw.event(...)")
+    return EventBundle(event_map, params=event_params)
 
 
 def inputs(*args: Any, **kwargs: Any) -> InputsBundle:

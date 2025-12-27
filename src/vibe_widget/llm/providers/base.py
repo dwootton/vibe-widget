@@ -112,9 +112,16 @@ class LLMProvider(ABC):
         sample_data = data_info.get("sample", {})
         exports = data_info.get("exports", {})
         imports = data_info.get("imports", {})
+        events = data_info.get("events", {})
+        event_params = data_info.get("event_params", {})
         theme_description = data_info.get("theme_description")
         
-        exports_imports_section = self._build_exports_imports_section(exports, imports)
+        exports_imports_section = self._build_exports_imports_section(
+            exports,
+            imports,
+            events,
+            event_params,
+        )
         
         # Build composition section if base code provided
         composition_section = ""
@@ -245,9 +252,16 @@ Begin the response with code immediately."""
         sample_data = data_info.get("sample", {})
         exports = data_info.get("exports", {})
         imports = data_info.get("imports", {})
+        events = data_info.get("events", {})
+        event_params = data_info.get("event_params", {})
         theme_description = data_info.get("theme_description")
         
-        exports_imports_section = self._build_exports_imports_section(exports, imports)
+        exports_imports_section = self._build_exports_imports_section(
+            exports,
+            imports,
+            events,
+            event_params,
+        )
         
         # Build composition section if additional base code provided
         composition_section = ""
@@ -297,9 +311,16 @@ Return only the full revised JavaScript code. No markdown fences or explanations
         sample_data = data_info.get("sample", {})
         exports = data_info.get("exports", {})
         imports = data_info.get("imports", {})
+        events = data_info.get("events", {})
+        event_params = data_info.get("event_params", {})
         theme_description = data_info.get("theme_description")
         
-        exports_imports_section = self._build_exports_imports_section(exports, imports)
+        exports_imports_section = self._build_exports_imports_section(
+            exports,
+            imports,
+            events,
+            event_params,
+        )
         
         theme_section = ""
         if theme_description:
@@ -477,9 +498,15 @@ CODE WITH LINE NUMBERS:
 
 {schema}"""
     
-    def _build_exports_imports_section(self, exports: dict, imports: dict) -> str:
-        """Build the exports/imports section of the prompt."""
-        if not exports and not imports:
+    def _build_exports_imports_section(
+        self,
+        exports: dict,
+        imports: dict,
+        events: dict,
+        event_params: dict | None,
+    ) -> str:
+        """Build the exports/imports/events section of the prompt."""
+        if not exports and not imports and not events:
             return ""
         
         sections: list[str] = []
@@ -499,6 +526,48 @@ IMPORTS (State from other widgets):
 {import_list}
 
 CRITICAL: Subscribe with model.on("change:trait", handler), unsubscribe in cleanup""")
+
+        if events:
+            event_lines = []
+            event_handler_lines = []
+            for name, desc in events.items():
+                params = (event_params or {}).get(name)
+                if params:
+                    params_list = ", ".join([f"{key}: {val}" for key, val in params.items()])
+                    event_lines.append(f"- {name}: {desc} (params: {params_list})")
+                else:
+                    event_lines.append(f"- {name}: {desc}")
+                event_handler_lines.append(
+                    f'  // Event "{name}" (case-sensitive)\n'
+                    f'  if (msg.type === "event" && msg.name === "{name}") {{\n'
+                    f'    const payload = msg.payload || {{}};\n'
+                    f'    // use payload.<param> values here\n'
+                    f'  }}'
+                )
+            event_list = "\n".join(event_lines)
+            event_handlers = "\n".join(event_handler_lines)
+            sections.append(f"""
+EVENTS (Custom messages from Python to widget):
+{event_list}
+
+CRITICAL: Listen with model.on("msg:custom", handler).
+CRITICAL: Message envelope is fixed:
+  {{ type: "event", name: "<event>", payload: {{...}} }}
+CRITICAL: Handle with EXACT code (copy verbatim, do not rename fields):
+  const handleEvent = (msg) => {{
+{event_handlers}
+  }};
+  model.on("msg:custom", handleEvent);
+  return () => model.off("msg:custom", handleEvent);
+DEBUG (required while events exist): append a short log entry on receipt so Python can inspect `widget.logs`.
+  const logEvent = (label, data) => {{
+    const logs = model.get("logs") || [];
+    const entry = `${{label}} ${{JSON.stringify(data)}}`;
+    model.set("logs", [...logs, entry].slice(-50));
+    model.save_changes();
+  }};
+  // Inside handleEvent, before handling:
+  logEvent("event", msg);""")
         
         return "\n".join(sections)
     
@@ -547,6 +616,8 @@ Focus on modifying only what's necessary for the requested changes.
         df,
         exports: dict[str, str] | None = None,
         imports: dict[str, str] | None = None,
+        events: dict[str, str] | None = None,
+        event_params: dict[str, dict[str, str] | None] | None = None,
         theme_description: str | None = None,
     ) -> dict[str, Any]:
         """Build data info dictionary from DataFrame."""
@@ -554,6 +625,8 @@ Focus on modifying only what's necessary for the requested changes.
         
         exports = exports or {}
         imports = imports or {}
+        events = events or {}
+        event_params = event_params or {}
         
         sample = df.head(3).to_dict(orient="records") if not df.empty else []
         
@@ -576,6 +649,8 @@ Focus on modifying only what's necessary for the requested changes.
             "sample": sample,
             "exports": exports,
             "imports": imports,
+            "events": events,
+            "event_params": event_params,
             "theme_description": theme_description,
             "is_geospatial": is_geospatial,
             "temporal_columns": [str(col) for col in temporal_cols],
