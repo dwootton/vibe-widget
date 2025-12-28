@@ -27,6 +27,12 @@ def clean_for_json(obj: Any) -> Any:
             return obj()
         except Exception:
             return str(obj)
+    if isinstance(obj, pd.DataFrame):
+        return clean_for_json(obj.to_dict(orient="records"))
+    if isinstance(obj, pd.Series):
+        return clean_for_json(obj.tolist())
+    if isinstance(obj, np.ndarray):
+        return clean_for_json(obj.tolist())
     if isinstance(obj, dict):
         return {k: clean_for_json(v) for k, v in obj.items()}
     elif isinstance(obj, list):
@@ -75,12 +81,25 @@ def initial_import_value(import_name: str, import_source: Any) -> Any:
 
 def load_data(data: pd.DataFrame | str | Path | None, max_rows: int = 5000) -> pd.DataFrame:
     """Load and prepare data from various sources."""
+    debug_inputs = False
+    try:
+        import os
+
+        debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
+    except Exception:
+        debug_inputs = False
     if data is None:
+        if debug_inputs:
+            print("[vibe_widget][debug] load_data: data is None")
         return pd.DataFrame()
     
     if isinstance(data, pd.DataFrame):
         df = data
+        if debug_inputs:
+            print("[vibe_widget][debug] load_data: dataframe", {"shape": df.shape})
     else:
+        if debug_inputs:
+            print("[vibe_widget][debug] load_data: non-dataframe", {"type": type(data).__name__})
         result = DataLoadTool().execute(data)
         if not result.success:
             raise ValueError(f"Failed to load data: {result.error}")

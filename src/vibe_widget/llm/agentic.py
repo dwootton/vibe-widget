@@ -70,6 +70,23 @@ class AgenticOrchestrator:
         exports = exports or {}
         imports = imports or {}
         base_components = base_components or []
+        debug_inputs = False
+        try:
+            import os
+
+            debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
+        except Exception:
+            debug_inputs = False
+        if debug_inputs:
+            print(
+                "[vibe_widget][debug] orchestrator: generate start",
+                {
+                    "exports": list(exports.keys()),
+                    "imports": list(imports.keys()),
+                    "rows": df.shape[0],
+                    "cols": df.shape[1],
+                },
+            )
         
         self._emit(progress_callback, "step", "Analyzing data")
         
@@ -97,14 +114,20 @@ class AgenticOrchestrator:
         else:
             # Generate code with LLM provider
             self._emit(progress_callback, "step", "Generating widget code...")
+            if debug_inputs:
+                print("[vibe_widget][debug] orchestrator: provider generate")
             code = self.provider.generate_widget_code(
                 description=description,
                 data_info=data_info,
                 progress_callback=lambda msg: self._emit(progress_callback, "chunk", msg),
             )
+            if debug_inputs:
+                print("[vibe_widget][debug] orchestrator: provider done")
         
         # Validate code
         self._emit(progress_callback, "step", "Validating code")
+        if debug_inputs:
+            print("[vibe_widget][debug] orchestrator: validating code")
         validation = self.validate_tool.execute(
             code=code,
             expected_exports=list(exports.keys()),
@@ -113,6 +136,8 @@ class AgenticOrchestrator:
         
         # Runtime test
         self._emit(progress_callback, "step", "Testing runtime")
+        if debug_inputs:
+            print("[vibe_widget][debug] orchestrator: runtime test")
         runtime = self.runtime_tool.execute(code=code)
         
         # Repair loop if needed
@@ -155,6 +180,8 @@ class AgenticOrchestrator:
             runtime = self.runtime_tool.execute(code=code)
         
         self._emit(progress_callback, "complete", "Widget generation complete")
+        if debug_inputs:
+            print("[vibe_widget][debug] orchestrator: generate complete")
         
         # Store artifacts
         self.artifacts["generated_code"] = code
