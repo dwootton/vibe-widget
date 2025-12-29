@@ -111,62 +111,11 @@ class ComponentReference:
         """
         Generate standalone widget code that renders only this component.
         
-        This wraps the component in a default export that passes through
-        the required props (model, html, React).
+        Keeps the full original code (all imports, helpers, components) but
+        replaces the default export to render only this component.
         """
-        full_code = self.widget.code
-        component_code = self.component_code
-        
-        if not component_code:
-            # Fallback: use full code with modified default export
-            return self._generate_wrapper_code(full_code)
-        
-        # Extract imports from original code
-        imports = self._extract_imports(full_code)
-        
-        # Generate wrapper that exports the component as default
-        wrapper = f"""{imports}
-
-{component_code}
-
-// Standalone wrapper for {self.component_name}
-export default function Widget({{ model, html, React }}) {{
-  return html`<${{{self.component_name}}} model=${{model}} html=${{html}} React=${{React}} />`;
-}}
-"""
-        return wrapper
-    
-    def _extract_imports(self, code: str) -> str:
-        """Extract import statements from code."""
-        import re
-        import_lines = []
-        for line in code.split('\n'):
-            if line.strip().startswith('import '):
-                import_lines.append(line)
-        return '\n'.join(import_lines)
-    
-    def _generate_wrapper_code(self, full_code: str) -> str:
-        """Generate wrapper code that renders the component from full widget code."""
-        import re
-        
-        # Find and replace the default export to render only this component
-        # First, find all code before the default export
-        default_pattern = r'export\s+default\s+function\s+\w+\s*\('
-        match = re.search(default_pattern, full_code)
-        
-        if not match:
-            return full_code  # Can't modify, return as-is
-        
-        # Get everything before the default export
-        pre_default = full_code[:match.start()]
-        
-        # Generate new default export that just renders the component
-        new_default = f"""
-export default function Widget({{ model, html, React }}) {{
-  return html`<${{{self.component_name}}} model=${{model}} html=${{html}} React=${{React}} />`;
-}}
-"""
-        return pre_default + new_default
+        from vibe_widget.utils.code_parser import generate_standalone_wrapper
+        return generate_standalone_wrapper(self.widget.code, self.component_name)
     
     def display(self) -> "VibeWidget":
         """
@@ -260,29 +209,19 @@ class _ComponentNamespace:
         return self._widget._component_attr_names()
     
     def list(self) -> None:
-        """Print available components with their original names."""
+        """Print available components."""
         components = []
         if hasattr(self._widget, "_widget_metadata") and self._widget._widget_metadata:
             components = self._widget._widget_metadata.get("components", [])
         
         if not components:
-            print("No components found in this widget.")
+            print("No components found.")
             return
         
-        slug = self._widget._widget_metadata.get("slug", "widget") if self._widget._widget_metadata else "widget"
-        print(f"Components in '{slug}':")
-        print("-" * 40)
+        print(f"Available components ({len(components)}):")
         for comp in components:
             py_name = self._widget._to_python_attr(comp)
-            print(f"  • {comp}")
-            if py_name != comp.lower():
-                print(f"    Access: widget.component.{py_name}")
-            else:
-                print(f"    Access: widget.component.{py_name}")
-        print("-" * 40)
-        print(f"Total: {len(components)} component(s)")
-        print("\nTo display a component: widget.component.<name>.display()")
-        print("To edit a component: vw.edit('description', widget.component.<name>)")
+            print(f"  • widget.component.{py_name}")
 
 
 class _OutputsNamespace:

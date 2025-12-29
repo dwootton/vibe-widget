@@ -371,90 +371,14 @@ class WidgetStore:
         return widget_entry, code
     
     def extract_components(self, code: str) -> list[str]:
-        """
-        Extract named exports (components) from JavaScript code.
-        
-        Detects patterns like:
-        - export const ComponentName = ...
-        - export function ComponentName(...) {...}
-        - export class ComponentName {...}
-        
-        Args:
-            code: JavaScript code
-        
-        Returns:
-            List of component names found
-        """
-        components = []
-        
-        # Match: export const Name = ...
-        const_exports = re.findall(r'export\s+const\s+([A-Z][a-zA-Z0-9_]*)\s*=', code)
-        components.extend(const_exports)
-        
-        # Match: export function Name(...) {...}
-        func_exports = re.findall(r'export\s+function\s+([A-Z][a-zA-Z0-9_]*)\s*\(', code)
-        components.extend(func_exports)
-        
-        # Match: export class Name {...}
-        class_exports = re.findall(r'export\s+class\s+([A-Z][a-zA-Z0-9_]*)\s*\{', code)
-        components.extend(class_exports)
-        
-        return list(set(components))  # Remove duplicates
+        """Extract named exports (components) from JavaScript code."""
+        from vibe_widget.utils.code_parser import extract_named_exports
+        return extract_named_exports(code)
     
     def extract_component_code(self, full_code: str, component_name: str) -> str | None:
-        """
-        Extract the code for a specific named export component.
-        
-        Args:
-            full_code: Full widget JavaScript code
-            component_name: Name of the component to extract
-        
-        Returns:
-            Component code if found, None otherwise
-        """
-        # Pattern for arrow function: export const Name = (...) => { ... };
-        arrow_pattern = rf'export\s+const\s+{re.escape(component_name)}\s*=\s*\([^)]*\)\s*=>\s*\{{'
-        # Pattern for function component: export const Name = ({ ... }) => { ... }
-        func_component_pattern = rf'export\s+const\s+{re.escape(component_name)}\s*=\s*\(\{{'
-        # Pattern for regular function: export function Name(...) { ... }
-        function_pattern = rf'export\s+function\s+{re.escape(component_name)}\s*\('
-        
-        for pattern in [arrow_pattern, func_component_pattern, function_pattern]:
-            match = re.search(pattern, full_code)
-            if match:
-                start = match.start()
-                # Find the matching closing brace
-                brace_count = 0
-                in_string = False
-                string_char = None
-                i = match.end() - 1  # Start from the opening brace
-                
-                while i < len(full_code):
-                    char = full_code[i]
-                    
-                    # Handle string literals
-                    if char in '"\'`' and (i == 0 or full_code[i-1] != '\\'):
-                        if not in_string:
-                            in_string = True
-                            string_char = char
-                        elif char == string_char:
-                            in_string = False
-                            string_char = None
-                    
-                    if not in_string:
-                        if char == '{':
-                            brace_count += 1
-                        elif char == '}':
-                            brace_count -= 1
-                            if brace_count == 0:
-                                # Include trailing semicolon if present
-                                end = i + 1
-                                if end < len(full_code) and full_code[end] == ';':
-                                    end += 1
-                                return full_code[start:end]
-                    i += 1
-        
-        return None
+        """Extract the code for a specific named export component."""
+        from vibe_widget.utils.code_parser import extract_component_code
+        return extract_component_code(full_code, component_name)
     
     def get_notebook_path(self) -> str | None:
         """Try to infer the current notebook path from IPython."""
