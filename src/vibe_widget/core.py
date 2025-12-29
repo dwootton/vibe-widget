@@ -755,6 +755,10 @@ class VibeWidget(anywidget.AnyWidget):
         Instance helper that mirrors vw.edit but defaults the source to self.
         Supports the same inputs/outputs/data wrappers as vw.edit.
         """
+        # Capture var_name from the caller (depth=2 from here)
+        from vibe_widget.utils.widget_store import capture_caller_var_name
+        var_name = capture_caller_var_name(depth=2)
+        
         data, outputs, inputs, _ = _normalize_api_inputs(
             data=data,
             outputs=outputs,
@@ -769,6 +773,7 @@ class VibeWidget(anywidget.AnyWidget):
             theme=theme,
             config=config,
             cache=cache,
+            _var_name=var_name,
         )
 
     def audit(
@@ -1833,6 +1838,7 @@ def edit(
     theme: Theme | str | None = None,
     config: Config | None = None,
     cache: bool = True,
+    _var_name: str | None = None,
 ) -> "VibeWidget":
     """Edit a widget by building upon existing code.
     
@@ -1853,9 +1859,12 @@ def edit(
         >>> scatter2 = edit("add hover tooltips", scatter)
         >>> legend = edit("make legend horizontal", scatter.component.color_legend)
     """
-    # Capture the variable name from the caller's assignment
-    from vibe_widget.utils.widget_store import capture_caller_var_name
-    var_name = capture_caller_var_name(depth=2)
+    # Capture the variable name from the caller's assignment (if not already provided)
+    if _var_name is None:
+        from vibe_widget.utils.widget_store import capture_caller_var_name
+        var_name = capture_caller_var_name(depth=2)
+    else:
+        var_name = _var_name
     
     data, outputs, inputs, _ = _normalize_api_inputs(
         data=data,
