@@ -131,23 +131,6 @@ class _ComponentNamespace:
         """Get list of component names (snake_case for Python access)."""
         widget = object.__getattribute__(self, "_widget")
         return widget._component_attr_names()
-    
-    def list(self) -> None:
-        """Print available components."""
-        widget = object.__getattribute__(self, "_widget")
-        components = []
-        if hasattr(widget, "_widget_metadata") and widget._widget_metadata:
-            components = widget._widget_metadata.get("components", [])
-        
-        if not components:
-            print("No components found.")
-            return
-        
-        print(f"Available components ({len(components)}):")
-        for comp in components:
-            py_name = widget._to_python_attr(comp)
-            print(f"  • widget.component.{py_name}")
-
 
 class _OutputsNamespace:
     """Namespace for accessing outputs on a widget."""
@@ -246,7 +229,7 @@ class VibeWidget(anywidget.AnyWidget):
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
         theme: Theme | None = None,
-        data_var_name: str | None = None,
+        var_name: str | None = None,
         base_code: str | None = None,
         base_components: list[str] | None = None,
         base_widget_id: str | None = None,
@@ -287,7 +270,7 @@ class VibeWidget(anywidget.AnyWidget):
             exports=exports,
             imports=imports,
             theme=theme,
-            data_var_name=data_var_name,
+            var_name=var_name,
             base_code=base_code,
             base_components=base_components,
             base_widget_id=base_widget_id,
@@ -310,7 +293,7 @@ class VibeWidget(anywidget.AnyWidget):
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
         theme: Theme | None = None,
-        data_var_name: str | None = None,
+        var_name: str | None = None,
         base_code: str | None = None,
         base_components: list[str] | None = None,
         base_widget_id: str | None = None,
@@ -332,7 +315,7 @@ class VibeWidget(anywidget.AnyWidget):
             model: OpenRouter model to use (or alias resolved via config)
             exports: Dict of trait_name -> description for state this widget exposes
             imports: Dict of trait_name -> source widget/value for state this widget consumes
-            data_var_name: Variable name of the data parameter for cache key
+            var_name: Variable name for storage grouping (captured from caller)
             base_code: Optional base widget code for revision/composition
             base_components: Optional list of component names from base widget
             base_widget_id: Optional ID of base widget for provenance tracking
@@ -438,7 +421,7 @@ class VibeWidget(anywidget.AnyWidget):
             if cache:
                 cached_widget = store.lookup(
                     description=description,
-                    data_var_name=data_var_name,
+                    var_name=var_name,
                     data_shape=df.shape,
                     exports=self._exports,
                     imports_serialized=imports_serialized,
@@ -451,7 +434,7 @@ class VibeWidget(anywidget.AnyWidget):
             
             if cached_widget:
                 self.logs = self.logs + ["✓ Found cached widget"]
-                self.logs = self.logs + [f"  {cached_widget['slug']} v{cached_widget['version']}"]
+                self.logs = self.logs + [f"  {cached_widget.get('var_name', 'widget')}"]
                 self.logs = self.logs + [f"  Created: {cached_widget['created_at'][:10]}"]
                 widget_code = store.load_widget_code(cached_widget)
                 self.code = widget_code
@@ -547,7 +530,7 @@ class VibeWidget(anywidget.AnyWidget):
             widget_entry = store.save(
                 widget_code=widget_code,
                 description=description,
-                data_var_name=data_var_name,
+                var_name=var_name,
                 data_shape=df.shape,
                 model=resolved_model,
                 exports=self._exports,
@@ -555,19 +538,10 @@ class VibeWidget(anywidget.AnyWidget):
                 theme_name=self._theme.name if self._theme else None,
                 theme_description=self._theme.description if self._theme else None,
                 notebook_path=notebook_path,
+                revision_parent=self._base_widget_id,
             )
             
-            # Update widget_entry with base_widget_id if this is a revision
-            if self._base_widget_id:
-                widget_entry["base_widget_id"] = self._base_widget_id
-                # Update in index
-                for entry in store.index["widgets"]:
-                    if entry["id"] == widget_entry["id"]:
-                        entry["base_widget_id"] = self._base_widget_id
-                        break
-                store._save_index()
-            
-            self.logs = self.logs + [f"Widget saved: {widget_entry['slug']} v{widget_entry['version']}"]
+            self.logs = self.logs + [f"Widget saved: {widget_entry.get('var_name', 'widget')}"]
             self.logs = self.logs + [f"Location: .vibewidget/widgets/{widget_entry['file_name']}"]
             self.code = widget_code
             self.status = "ready"
@@ -754,7 +728,7 @@ class VibeWidget(anywidget.AnyWidget):
             exports=self._recipe_exports,
             imports=imports,
             theme=self._recipe_theme,
-            data_var_name=None,
+            var_name=None,
             base_code=getattr(self, '_recipe_base_code', None),
             base_components=getattr(self, '_recipe_base_components', None),
             base_widget_id=getattr(self, '_recipe_base_widget_id', None),
@@ -1276,14 +1250,6 @@ class VibeWidget(anywidget.AnyWidget):
             >>> widget.component.scatter_chart.display()  # Display one component
         """
         return self._component_attr_names()
-    
-    def list_components(self) -> None:
-        """
-        Print a formatted list of available components.
-        
-        Shows component names and how to access/display them.
-        """
-        self.component.list()
 
     def _component_attr_names(self) -> list[str]:
         components = []
@@ -1479,10 +1445,13 @@ class VibeWidget(anywidget.AnyWidget):
                 for import_name in self._imports.keys():
                     imports_serialized[import_name] = f"<imported_trait:{import_name}>"
             
+            # Get parent cache_key before saving (for revision chain)
+            parent_cache_key = previous_metadata.get("cache_key") if previous_metadata else None
+            
             widget_entry = store.save(
                 widget_code=revised_code,
                 description=self.description,
-                data_var_name=self._widget_metadata.get('data_var_name') if self._widget_metadata else None,
+                var_name=self._widget_metadata.get('var_name') if self._widget_metadata else None,
                 data_shape=tuple(self._widget_metadata.get('data_shape', [0, 0])) if self._widget_metadata else (0, 0),
                 model=self._widget_metadata.get('model', 'unknown') if self._widget_metadata else 'unknown',
                 exports=self._exports,
@@ -1490,16 +1459,11 @@ class VibeWidget(anywidget.AnyWidget):
                 theme_name=self._theme.name if self._theme else None,
                 theme_description=self._theme.description if self._theme else None,
                 notebook_path=store.get_notebook_path(),
+                revision_parent=parent_cache_key,
             )
-            if previous_metadata and previous_metadata.get("id"):
-                widget_entry["base_widget_id"] = previous_metadata["id"]
-                for entry in store.index["widgets"]:
-                    if entry["id"] == widget_entry["id"]:
-                        entry["base_widget_id"] = previous_metadata["id"]
-                        break
-                store._save_index()
             self._widget_metadata = widget_entry
-            self.logs = self.logs + [f"Saved: {widget_entry['slug']} v{widget_entry['version']}"]
+            var_name = widget_entry.get('var_name', 'widget')
+            self.logs = self.logs + [f"Saved: {var_name} (cache: {widget_entry['cache_key'][:8]}...)"]
             
         except Exception as e:
             if "cancelled" in str(e).lower():
@@ -1721,15 +1685,20 @@ def create(
         VibeWidget instance
     
     Examples:
-        >>> widget = create("show temperature trends", df)
-        >>> widget = create("visualize sales data", "sales.csv")
+        >>> scatter_plot = create("show temperature trends", df)
+        >>> sales_chart = create("visualize sales data", "sales.csv")
     """
+    # Capture the variable name from the caller's assignment
+    # e.g., scatter_plot = vw.create(...) -> var_name = "scatter_plot"
+    from vibe_widget.utils.widget_store import capture_caller_var_name
+    var_name = capture_caller_var_name(depth=2)
+    
     if inputs is None and data is not None and not isinstance(data, InputsBundle):
         frame = inspect.currentframe()
         caller_frame = frame.f_back if frame else None
         data = _build_inputs_bundle((data,), {}, caller_frame=caller_frame)
 
-    data, outputs, inputs, data_var_name = _normalize_api_inputs(
+    data, outputs, inputs, _data_var_name = _normalize_api_inputs(
         data=data,
         outputs=outputs,
         inputs=inputs,
@@ -1750,7 +1719,7 @@ def create(
         exports=outputs,
         imports=inputs,
         theme=resolved_theme,
-        data_var_name=data_var_name,
+        var_name=var_name,
         display_widget=display,
         cache=cache,
         execution_mode=resolved_config.execution if resolved_config else "auto",
@@ -1884,6 +1853,10 @@ def edit(
         >>> scatter2 = edit("add hover tooltips", scatter)
         >>> legend = edit("make legend horizontal", scatter.component.color_legend)
     """
+    # Capture the variable name from the caller's assignment
+    from vibe_widget.utils.widget_store import capture_caller_var_name
+    var_name = capture_caller_var_name(depth=2)
+    
     data, outputs, inputs, _ = _normalize_api_inputs(
         data=data,
         outputs=outputs,
@@ -1903,6 +1876,9 @@ def edit(
         )
     df = source_info.df if data is None and source_info.df is not None else load_data(data)
     
+    # Get the parent widget's cache_key for revision tracking
+    base_cache_key = source_info.metadata.get("cache_key") if source_info.metadata else None
+    
     widget = VibeWidget._create_with_dynamic_traits(
         description=description,
         df=df,
@@ -1910,10 +1886,10 @@ def edit(
         exports=outputs,
         imports=inputs,
         theme=resolved_theme,
-        data_var_name=None,
+        var_name=var_name,
         base_code=source_info.code,
         base_components=source_info.components,
-        base_widget_id=source_info.metadata.get("id") if source_info.metadata else None,
+        base_widget_id=base_cache_key,
         cache=cache,
         execution_mode=resolved_config.execution if resolved_config else "auto",
         execution_approved=None,
@@ -1931,7 +1907,7 @@ def edit(
         theme=resolved_theme,
         base_code=source_info.code,
         base_components=source_info.components,
-        base_widget_id=source_info.metadata.get("id") if source_info.metadata else None,
+        base_widget_id=base_cache_key,
     )
     
     return widget
@@ -2006,7 +1982,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
         exports=outputs,
         imports=imports,
         theme=theme,
-        data_var_name=None,
+        var_name=None,
         existing_code=code,
         existing_metadata=metadata,
         display_widget=display,
