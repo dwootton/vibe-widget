@@ -1,6 +1,7 @@
 """OpenRouter provider implementation (OpenAI-compatible client)."""
 
 import os
+from pathlib import Path
 from typing import Any, Callable
 
 from openai import OpenAI
@@ -8,6 +9,17 @@ from openai import OpenAI
 from vibe_widget.llm.providers.base import LLMProvider
 
 MAX_TOKENS = 20000
+
+
+def _maybe_dump_prompt(prompt: str, filename: str = "last_prompt.txt") -> None:
+    if os.getenv("VIBE_WIDGET_DEBUG_PROMPT") != "1":
+        return
+    try:
+        debug_dir = Path(".vibewidget")
+        debug_dir.mkdir(parents=True, exist_ok=True)
+        (debug_dir / filename).write_text(prompt, encoding="utf-8")
+    except Exception:
+        pass
 
 class OpenRouterProvider(LLMProvider):
     """LLM provider that routes all traffic through OpenRouter."""
@@ -56,6 +68,7 @@ class OpenRouterProvider(LLMProvider):
     ) -> str:
         """Generate widget code using the configured OpenRouter model."""
         prompt = self._build_prompt(description, data_info)
+        _maybe_dump_prompt(prompt)
         completion_params = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
@@ -93,6 +106,7 @@ class OpenRouterProvider(LLMProvider):
             base_code=base_code,
             base_components=base_components,
         )
+        _maybe_dump_prompt(prompt, filename="last_revision_prompt.txt")
         
         completion_params = {
             "model": self.model,
@@ -117,6 +131,7 @@ class OpenRouterProvider(LLMProvider):
     ) -> str:
         """Fix errors in widget code."""
         prompt = self._build_fix_prompt(broken_code, error_message, data_info)
+        _maybe_dump_prompt(prompt, filename="last_fix_prompt.txt")
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
@@ -195,6 +210,7 @@ class OpenRouterProvider(LLMProvider):
                 reduced_info["sample"] = sample[:1]
 
         prompt = self._build_prompt(description, reduced_info)
+        _maybe_dump_prompt(prompt)
         completion_params = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],

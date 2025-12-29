@@ -47,7 +47,7 @@ from vibe_widget.utils.audit_store import (
     strip_internal_fields,
     normalize_location,
 )
-from vibe_widget.utils.util import clean_for_json, initial_import_value, load_data
+from vibe_widget.utils.util import clean_for_json, initial_import_value, load_data, summarize_for_prompt
 from vibe_widget.themes import Theme, resolve_theme_for_request, clear_theme_cache
 
 
@@ -643,16 +643,13 @@ class VibeWidget(anywidget.AnyWidget):
                 print("[vibe_widget][debug] widget: provider ready")
 
             if self._events:
-                imports_serialized = {}
-                if self._imports:
-                    for import_name in self._imports.keys():
-                        imports_serialized[import_name] = f"<imported_trait:{import_name}>"
+                imports_for_prompt = _summarize_imports_for_prompt(self._imports)
                 self.logs = self.logs + [f"DEBUG events metadata: {self._events}"]
                 if self._event_params:
                     self.logs = self.logs + [f"DEBUG event_params metadata: {self._event_params}"]
                 section = provider._build_exports_imports_section(
                     self._exports,
-                    imports_serialized,
+                    imports_for_prompt,
                     self._events,
                     self._event_params,
                 )
@@ -661,7 +658,7 @@ class VibeWidget(anywidget.AnyWidget):
                 preview_info = LLMProvider.build_data_info(
                     df,
                     self._exports,
-                    imports_serialized,
+                    imports_for_prompt,
                     events=self._events,
                     event_params=self._event_params,
                     theme_description=self._theme.description if self._theme else None,
@@ -689,14 +686,11 @@ class VibeWidget(anywidget.AnyWidget):
                 if self._theme and "theme_description" not in self._widget_metadata:
                     self._widget_metadata["theme_description"] = self._theme.description
                     self._widget_metadata["theme_name"] = self._theme.name
-                imports_serialized = {}
-                if self._imports:
-                    for import_name in self._imports.keys():
-                        imports_serialized[import_name] = f"<imported_trait:{import_name}>"
+                imports_for_prompt = _summarize_imports_for_prompt(self._imports)
                 self.data_info = LLMProvider.build_data_info(
                     df,
                     self._exports,
-                    imports_serialized,
+                    imports_for_prompt,
                     events=self._events,
                     event_params=self._event_params,
                     theme_description=self._theme.description if self._theme else None,
@@ -708,6 +702,7 @@ class VibeWidget(anywidget.AnyWidget):
             if self._imports:
                 for import_name in self._imports.keys():
                     imports_serialized[import_name] = f"<imported_trait:{import_name}>"
+            imports_for_prompt = _summarize_imports_for_prompt(self._imports)
             
             store = WidgetStore()
             cached_widget = None
@@ -744,7 +739,7 @@ class VibeWidget(anywidget.AnyWidget):
                 self.data_info = LLMProvider.build_data_info(
                     df,
                     self._exports,
-                    imports_serialized,
+                    imports_for_prompt,
                     events=self._events,
                     event_params=self._event_params,
                     theme_description=self._theme.description if self._theme else None,
@@ -811,7 +806,7 @@ class VibeWidget(anywidget.AnyWidget):
                 description=description,
                 df=df,
                 exports=self._exports,
-                imports=imports_serialized,
+                imports=imports_for_prompt,
                 base_code=self._base_code,
                 base_components=self._base_components,
                 theme_description=self._theme.description if self._theme else None,
@@ -863,7 +858,7 @@ class VibeWidget(anywidget.AnyWidget):
             self.data_info = LLMProvider.build_data_info(
                 df,
                 self._exports,
-                imports_serialized,
+                imports_for_prompt,
                 events=self._events,
                 event_params=self._event_params,
                 theme_description=self._theme.description if self._theme else None,
@@ -1881,6 +1876,19 @@ def _serialize_inputs(widget: VibeWidget) -> dict[str, Any]:
             values[name] = str(value)
 
     return {"embedded": True, "values": values}
+
+
+def _summarize_imports_for_prompt(imports: dict[str, Any] | None) -> dict[str, str]:
+    if not imports:
+        return {}
+    summarized: dict[str, str] = {}
+    for name, source in imports.items():
+        try:
+            value = initial_import_value(name, source)
+            summarized[name] = summarize_for_prompt(value)
+        except Exception:
+            summarized[name] = f"{type(source).__name__}(unavailable)"
+    return summarized
 
 
 def _link_imports(widget: VibeWidget, imports: dict[str, Any] | None) -> None:
