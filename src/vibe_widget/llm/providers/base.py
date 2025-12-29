@@ -192,25 +192,48 @@ Key Syntax Rules:
 - Style objects: style=${{{{ padding: '20px' }}}}
 - Conditionals: ${{condition && html`...`}}
 
-MODULARITY & COMPOSITION:
+MODULARITY & STANDALONE COMPONENTS:
 
-For reusable UI components (sliders, legends, tooltips, controls), export them as named exports:
+For reusable UI components (sliders, legends, tooltips, controls, charts, panels), export them as NAMED EXPORTS that are FULLY STANDALONE:
 ```javascript
-export const Slider = ({{ value, onChange, min, max }}) => {{
+// Each exported component MUST be fully self-contained and independently renderable
+export const Slider = ({{ value, onChange, min, max, html }}) => {{
   return html`<input type="range" value=${{value}} onInput=${{onChange}} min=${{min}} max=${{max}} />`;
 }};
 
-export const ColorLegend = ({{ colors, labels }}) => {{
-  return html`<div class="legend">${{labels.map((label, i) => html`<span>...</span>`)}}</div>`;
+export const ColorLegend = ({{ colors, labels, html }}) => {{
+  return html`<div class="legend">${{labels.map((label, i) => html`<span style=${{{{ background: colors[i], padding: '4px 8px' }}}}>${{label}}</span>`)}}</div>`;
+}};
+
+// For chart components that need data access, accept model as prop
+export const ScatterChart = ({{ model, html, React, width = 400, height = 300 }}) => {{
+  const data = model.get("data") || [];
+  const containerRef = React.useRef(null);
+  // ... full chart implementation with proper cleanup ...
+  return html`<div ref=${{containerRef}} style=${{{{ width: width + 'px', height: height + 'px' }}}}></div>`;
 }};
 
 export default function Widget({{ model, html, React }}) {{
-  // Use: html`<${{Slider}} value=${{v}} ... />`
+  // Compose using standalone components
+  return html`
+    <div>
+      <${{ScatterChart}} model=${{model}} html=${{html}} React=${{React}} width=${{600}} height=${{400}} />
+      <${{ColorLegend}} colors=${{['#f00', '#0f0']}} labels=${{['A', 'B']}} html=${{html}} />
+    </div>
+  `;
 }}
 ```
 
+STANDALONE COMPONENT REQUIREMENTS:
+1. Each named export component MUST be renderable independently
+2. Pass html, React, and model as props when the component needs them
+3. Include all required state, effects, and cleanup within the component
+4. Do NOT rely on shared state from parent scope - receive everything via props
+5. For data-driven components, accept model as prop to access model.get("data")
+
 BENEFITS:
-- Components can be imported and reused in other widgets
+- Components can be displayed individually in separate cells
+- Users can reference and reuse specific subcomponents
 - Cleaner code structure and separation of concerns
 - Easier testing and maintenance
 
