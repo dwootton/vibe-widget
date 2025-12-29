@@ -66,153 +66,78 @@ def _import_to_json_value(value: Any, widget: Any) -> Any:
     return value
 
 
-class ComponentReference:
-    """
-    Reference to a component within a widget for composition.
-    
-    ComponentReferences can be:
-    - Displayed as standalone widgets using display() or _ipython_display_
-    - Used as source in vw.edit() to modify specific components
-    - Composed into new widgets
-    
-    Examples:
-        >>> scatter = vw.create("scatter plot", df)
-        >>> scatter.component.color_legend.display()  # Show component in separate cell
-        >>> new_widget = vw.edit("make legend horizontal", scatter.component.color_legend)
-    """
-    
-    def __init__(self, widget: "VibeWidget", component_name: str):
-        self.widget = widget
-        self.component_name = component_name
-        self._standalone_widget: "VibeWidget | None" = None
-    
-    def __repr__(self) -> str:
-        slug = self.widget._widget_metadata.get('slug', 'unknown') if self.widget._widget_metadata else 'unknown'
-        return f"<ComponentReference: {self.component_name} from widget '{slug}'>"
-    
-    @property
-    def code(self) -> str:
-        """Get the full code of the source widget."""
-        return self.widget.code
-    
-    @property
-    def component_code(self) -> str | None:
-        """Get the code for this specific component."""
-        store = WidgetStore()
-        return store.extract_component_code(self.widget.code, self.component_name)
-    
-    @property
-    def metadata(self) -> dict[str, Any]:
-        """Get the widget metadata."""
-        return self.widget._widget_metadata or {}
-    
-    @property
-    def standalone_code(self) -> str:
-        """
-        Generate standalone widget code that renders only this component.
-        
-        Keeps the full original code (all imports, helpers, components) but
-        replaces the default export to render only this component.
-        """
-        from vibe_widget.utils.code_parser import generate_standalone_wrapper
-        return generate_standalone_wrapper(self.widget.code, self.component_name)
-    
-    def display(self) -> "VibeWidget":
-        """
-        Display this component as a standalone widget in a new cell.
-        
-        Returns:
-            VibeWidget instance rendering only this component
-        """
-        if self._standalone_widget is None:
-            self._standalone_widget = self._create_standalone_widget()
-        
-        _display_widget(self._standalone_widget)
-        return self._standalone_widget
-    
-    def _create_standalone_widget(self) -> "VibeWidget":
-        """Create a VibeWidget that renders only this component."""
-        # Get the data from the parent widget
-        data = self.widget.data
-        df = pd.DataFrame(data) if data else pd.DataFrame()
-        
-        # Create widget with the standalone code
-        widget = VibeWidget._create_with_dynamic_traits(
-            description=f"{self.component_name} (from {self.metadata.get('slug', 'widget')})",
-            df=df,
-            model=self.metadata.get("model", "claude-haiku-4-5-20251001"),
-            exports=None,
-            imports=None,
-            theme=self.widget._theme,
-            existing_code=self.standalone_code,
-            existing_metadata={
-                **self.metadata,
-                "is_component_view": True,
-                "source_component": self.component_name,
-            },
-            display_widget=False,
-            cache=False,
-        )
-        return widget
-    
-    def _ipython_display_(self) -> None:
-        """IPython display hook - shows the component as a standalone widget."""
-        self.display()
-    
-    def _repr_mimebundle_(self, **kwargs) -> tuple[dict[str, Any], dict[str, Any]] | None:
-        """Support rich display in IPython/Jupyter."""
-        widget = self.display()
-        if hasattr(widget, '_repr_mimebundle_'):
-            return widget._repr_mimebundle_(**kwargs)
-        return None
+# ComponentReference is deprecated - component access now returns VibeWidget directly
+# For backwards compatibility, we keep this as an alias
+ComponentReference = None  # Will be set to VibeWidget after class definition
 
 
 class _ComponentNamespace:
     """
     Namespace for accessing components on a widget.
     
-    Provides attribute-style access to widget components and lists available components.
+    Component access returns full VibeWidget instances, lazily created and cached.
+    Each component widget renders only that specific component and has all standard
+    VibeWidget methods including display(), edit(), audit(), etc.
     
     Examples:
-        >>> widget.component.scatter_chart  # Get ComponentReference
-        >>> widget.component.list()  # Print available components
-        >>> list(widget.component)  # Get list of component names
+        >>> widget.component.scatter_chart         # Get component as VibeWidget
+        >>> widget.component.scatter_chart.edit("change colors")  # Edit component
+        >>> list(widget.component)                 # Get list of component names
     """
 
     def __init__(self, widget: "VibeWidget"):
-        self._widget = widget
+        object.__setattr__(self, "_widget", widget)
+        object.__setattr__(self, "_cache", {})  # Cache for component widgets
 
-    def __getattr__(self, name: str) -> ComponentReference:
-        reference = self._widget._resolve_component_reference(name)
-        if reference is None:
-            available = self._widget._component_attr_names()
+    def __getattr__(self, name: str) -> "VibeWidget":
+        """Get a component as a standalone VibeWidget."""
+        # Return from cache if already created
+        cache = object.__getattribute__(self, "_cache")
+        if name in cache:
+            return cache[name]
+        
+        widget = object.__getattribute__(self, "_widget")
+        
+        # Resolve python attr name to original component name
+        component_name = widget._resolve_component_name(name)
+        if component_name is None:
+            available = widget._component_attr_names()
             hint = f" Available: {', '.join(available)}" if available else ""
             raise AttributeError(
-                f"'{type(self._widget).__name__}.component' has no attribute '{name}'.{hint}"
+                f"'{type(widget).__name__}.component' has no attribute '{name}'.{hint}"
             )
-        return reference
+        
+        # Create component widget
+        component_widget = widget._create_component_widget(component_name)
+        cache[name] = component_widget
+        return component_widget
 
     def __dir__(self) -> list[str]:
-        return self._widget._component_attr_names() + ["list", "names"]
+        widget = object.__getattribute__(self, "_widget")
+        return widget._component_attr_names() + ["list", "names"]
     
     def __iter__(self):
         """Iterate over component names."""
-        return iter(self._widget._component_attr_names())
+        widget = object.__getattribute__(self, "_widget")
+        return iter(widget._component_attr_names())
     
     def __len__(self) -> int:
         """Return number of components."""
-        return len(self._widget._component_attr_names())
+        widget = object.__getattribute__(self, "_widget")
+        return len(widget._component_attr_names())
     
     @property
     def names(self) -> list[str]:
         """Get list of component names (snake_case for Python access)."""
-        return self._widget._component_attr_names()
+        widget = object.__getattribute__(self, "_widget")
+        return widget._component_attr_names()
     
     def list(self) -> None:
         """Print available components."""
+        widget = object.__getattribute__(self, "_widget")
         components = []
-        if hasattr(self._widget, "_widget_metadata") and self._widget._widget_metadata:
-            components = self._widget._widget_metadata.get("components", [])
+        if hasattr(widget, "_widget_metadata") and widget._widget_metadata:
+            components = widget._widget_metadata.get("components", [])
         
         if not components:
             print("No components found.")
@@ -220,7 +145,7 @@ class _ComponentNamespace:
         
         print(f"Available components ({len(components)}):")
         for comp in components:
-            py_name = self._widget._to_python_attr(comp)
+            py_name = widget._to_python_attr(comp)
             print(f"  • widget.component.{py_name}")
 
 
@@ -1366,14 +1291,75 @@ class VibeWidget(anywidget.AnyWidget):
             components = self._widget_metadata["components"] or []
         return [self._to_python_attr(comp) for comp in components]
 
-    def _resolve_component_reference(self, name: str) -> ComponentReference | None:
+    def _resolve_component_name(self, name: str) -> str | None:
+        """Resolve a Python attribute name to the original component name."""
         if not hasattr(self, "_widget_metadata") or not self._widget_metadata or "components" not in self._widget_metadata:
             return None
         components = self._widget_metadata["components"]
         for comp in components:
             if self._to_python_attr(comp) == name or comp.lower() == name.lower():
-                return ComponentReference(self, comp)
+                return comp
         return None
+
+    def _create_component_widget(self, component_name: str) -> "VibeWidget":
+        """
+        Create a VibeWidget that renders only this component.
+        
+        This widget has all standard VibeWidget methods including edit(), display(), etc.
+        The widget's code is the original code with the default export replaced to render
+        only the specified component.
+        
+        Args:
+            component_name: Name of the component (PascalCase as in JS code)
+        
+        Returns:
+            VibeWidget instance configured to render only this component
+        """
+        from vibe_widget.utils.code_parser import generate_standalone_wrapper
+        
+        # Generate standalone code for this component
+        standalone_code = generate_standalone_wrapper(self.code, component_name)
+        
+        # Get metadata from parent widget
+        parent_metadata = self._widget_metadata or {}
+        parent_slug = parent_metadata.get('slug', 'widget')
+        
+        # Component widget metadata
+        component_metadata = {
+            **parent_metadata,
+            "is_component_view": True,
+            "source_component": component_name,
+            "parent_widget_id": parent_metadata.get("id"),
+            "parent_slug": parent_slug,
+            # Override slug for the component
+            "slug": f"{parent_slug}:{self._to_python_attr(component_name)}",
+            # Component has single component (itself)
+            "components": [component_name],
+        }
+        
+        # Get data from parent widget
+        data = self.data
+        df = pd.DataFrame(data) if data else pd.DataFrame()
+        
+        # Create the component widget
+        widget = VibeWidget._create_with_dynamic_traits(
+            description=f"{component_name} (from {parent_slug})",
+            df=df,
+            model=parent_metadata.get("model", "claude-haiku-4-5-20251001"),
+            exports=None,
+            imports=None,
+            theme=self._theme,
+            existing_code=standalone_code,
+            existing_metadata=component_metadata,
+            display_widget=False,
+            cache=False,
+        )
+        
+        # Store reference back to parent for edit operations
+        widget._parent_widget = self
+        widget._source_component = component_name
+        
+        return widget
 
     def __dir__(self):
         """Return list of attributes including outputs/component helpers for autocomplete."""
@@ -1387,19 +1373,12 @@ class VibeWidget(anywidget.AnyWidget):
     
     def __getattr__(self, name: str):
         """
-        Enable access to components via dot notation (legacy).
-        
-        Examples:
-            scatter.component.slider -> ComponentReference
-            scatter.component.color_legend -> ComponentReference
+        Enable access to exports via dot notation.
+        Components should be accessed via widget.component.name.
         """
         # Avoid infinite recursion for special attributes
         if name.startswith('_'):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-        
-        reference = self._resolve_component_reference(name)
-        if reference is not None:
-            return reference
         
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
@@ -1815,11 +1794,28 @@ class _SourceInfo:
 
 
 def _resolve_source(
-    source: "VibeWidget | ComponentReference | str | Path",
+    source: "VibeWidget | str | Path",
     store: WidgetStore
 ) -> _SourceInfo:
     """Resolve source widget to code, metadata, components, and data."""
     if isinstance(source, VibeWidget):
+        # Check if this is a component widget (has _source_component)
+        source_component = getattr(source, "_source_component", None)
+        
+        if source_component:
+            # This is a component widget - use ITS standalone code as the base
+            # The standalone code already renders only this component, so we treat
+            # it as a regular widget edit (no target_component needed)
+            return _SourceInfo(
+                code=source.code,  # The standalone wrapper code
+                metadata=source._widget_metadata,
+                components=[source_component],
+                df=pd.DataFrame(source.data) if source.data else None,
+                theme=source._theme,
+                target_component=None,  # Not needed - standalone code already focuses on component
+            )
+        
+        # Regular widget
         return _SourceInfo(
             code=source.code,
             metadata=source._widget_metadata,
@@ -1827,17 +1823,6 @@ def _resolve_source(
             df=pd.DataFrame(source.data) if source.data else None,
             theme=source._theme,
             target_component=None,
-        )
-    
-    if isinstance(source, ComponentReference):
-        # When editing a component, we pass the full code but track which component is targeted
-        return _SourceInfo(
-            code=source.code,
-            metadata=source.metadata,
-            components=[source.component_name],
-            df=pd.DataFrame(source.widget.data) if source.widget.data else None,
-            theme=source.widget._theme,
-            target_component=source.component_name,
         )
     
     if isinstance(source, (str, Path)):
@@ -1872,7 +1857,7 @@ def _resolve_source(
 
 def edit(
     description: str,
-    source: "VibeWidget | ComponentReference | str | Path",
+    source: "VibeWidget | str | Path",
     data: pd.DataFrame | str | Path | None = None,
     outputs: dict[str, str] | OutputBundle | None = None,
     inputs: dict[str, Any] | InputsBundle | None = None,
@@ -1884,7 +1869,7 @@ def edit(
     
     Args:
         description: Natural language description of changes
-        source: Widget, ComponentReference, widget ID, or file path
+        source: Widget (including component widgets), widget ID, or file path
         data: DataFrame to visualize (uses source data if None)
         outputs: Dict of {trait_name: description} for new/modified outputs
         inputs: Dict of {trait_name: source} for new/modified inputs
@@ -1918,13 +1903,8 @@ def edit(
         )
     df = source_info.df if data is None and source_info.df is not None else load_data(data)
     
-    # Enhance description when targeting a specific component
-    effective_description = description
-    if source_info.target_component:
-        effective_description = f"[Focus on component: {source_info.target_component}] {description}"
-    
     widget = VibeWidget._create_with_dynamic_traits(
-        description=effective_description,
+        description=description,
         df=df,
         model=model,
         exports=outputs,
