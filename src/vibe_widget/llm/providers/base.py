@@ -157,7 +157,8 @@ MUST FOLLOW EXACTLY:
 9. Avoid 100vh/100vw—use fixed heights (360–640px) or flex layouts that respect notebook constraints
 10. Ensure high contrast for text and data marks (WCAG AA minimum) in all visual states
 11. Inline styles must be object literals: style=${{ ... }} (never style="..." or style=${"..."}).
-12. Never wrap the output in markdown code fences
+12. Any component that returns html`...` MUST accept `html` in its props, and you MUST pass `html=${{html}}` when using it.
+13. Never wrap the output in markdown code fences
 
 CORRECT Template:
 ```javascript
@@ -205,12 +206,12 @@ export const Slider = ({{ value, onChange, min, max }}) => {{
   return html`<input type="range" value=${{value}} onInput=${{onChange}} min=${{min}} max=${{max}} />`;
 }};
 
-export const ColorLegend = ({{ colors, labels }}) => {{
+export const ColorLegend = ({{ colors, labels, html }}) => {{
   return html`<div class="legend">${{labels.map((label, i) => html`<span>...</span>`)}}</div>`;
 }};
 
 export default function Widget({{ model, html, React }}) {{
-  // Use: html`<${{Slider}} value=${{v}} ... />`
+  // Use: html`<${{Slider}} value=${{v}} ... html=${{html}} />`
 }}
 ```
 

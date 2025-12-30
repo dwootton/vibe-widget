@@ -1700,6 +1700,9 @@ def _resolve_import_source(import_name: str, import_source: Any) -> tuple[Any | 
     """Resolve a provided import source into a widget + trait name."""
     if isinstance(import_source, ExportHandle):
         return import_source.widget, import_source.name
+
+    if hasattr(import_source, "_widget") and hasattr(import_source, "_name"):
+        return getattr(import_source, "_widget", None), getattr(import_source, "_name", None)
     
     if hasattr(import_source, "trait_names") and hasattr(import_source, import_name):
         return import_source, import_name
