@@ -116,7 +116,7 @@ class LLMProvider(ABC):
         action_params = data_info.get("action_params", {})
         theme_description = data_info.get("theme_description")
         
-        exports_imports_section = self._build_exports_imports_section(
+        outputs_inputs_section = self._build_outputs_inputs_section(
             exports,
             imports,
             actions,
@@ -144,7 +144,7 @@ Data schema:
 - Types: {dtypes}
 - Sample data: {sample_data}
 
-{theme_section}{composition_section}{exports_imports_section}
+{theme_section}{composition_section}{outputs_inputs_section}
 
 CRITICAL REACT + HTM SPECIFICATION:
 
@@ -256,7 +256,7 @@ Begin the response with code immediately."""
         action_params = data_info.get("action_params", {})
         theme_description = data_info.get("theme_description")
         
-        exports_imports_section = self._build_exports_imports_section(
+        outputs_inputs_section = self._build_outputs_inputs_section(
             exports,
             imports,
             actions,
@@ -286,7 +286,7 @@ CURRENT CODE:
 - Types: {dtypes}
 - Sample data: {sample_data}
 
-{exports_imports_section}
+{outputs_inputs_section}
 
 Follow the SAME constraints as generation:
 - export default function Widget({{ model, html, React }})
@@ -315,7 +315,7 @@ Return only the full revised JavaScript code. No markdown fences or explanations
         action_params = data_info.get("action_params", {})
         theme_description = data_info.get("theme_description")
         
-        exports_imports_section = self._build_exports_imports_section(
+        outputs_inputs_section = self._build_outputs_inputs_section(
             exports,
             imports,
             actions,
@@ -343,7 +343,7 @@ Data schema:
 - Types: {dtypes}
 - Sample data: {sample_data}
 
-{theme_section}{exports_imports_section}
+{theme_section}{outputs_inputs_section}
 
 MANDATORY FIX RULES:
 1. Export default function Widget({{ model, html, React }})
@@ -498,14 +498,14 @@ CODE WITH LINE NUMBERS:
 
 {schema}"""
     
-    def _build_exports_imports_section(
+    def _build_outputs_inputs_section(
         self,
         exports: dict,
         imports: dict,
         actions: dict,
         action_params: dict | None,
     ) -> str:
-        """Build the exports/imports/actions section of the prompt."""
+        """Build the outputs/inputs/actions section of the prompt."""
         if not exports and not imports and not actions:
             return ""
         
@@ -514,7 +514,7 @@ CODE WITH LINE NUMBERS:
         if exports:
             export_list = "\n".join([f"- {name}: {desc}" for name, desc in exports.items()])
             sections.append(f"""
-EXPORTS (State shared with other widgets):
+OUTPUTS (State shared with other widgets):
 {export_list}
 
 CRITICAL: Initialize exports when widget mounts, update continuously, call model.save_changes()""")
@@ -522,7 +522,7 @@ CRITICAL: Initialize exports when widget mounts, update continuously, call model
         if imports:
             import_list = "\n".join([f"- {name}: {desc}" for name, desc in imports.items()])
             sections.append(f"""
-IMPORTS (State from other widgets):
+INPUTS (State from other widgets):
 {import_list}
 
 CRITICAL: Subscribe with model.on("change:trait", handler), unsubscribe in cleanup""")
