@@ -1,7 +1,5 @@
 from typing import Any, Callable, Tuple
 
-import pandas as pd
-
 
 from vibe_widget.llm.providers.base import LLMProvider
 # Tool imports
@@ -44,61 +42,51 @@ class AgenticOrchestrator:
     def generate(
         self,
         description: str,
-        df: pd.DataFrame,
-        exports: dict[str, str] | None = None,
-        imports: dict[str, str] | None = None,
+        outputs: dict[str, str] | None = None,
+        inputs: dict[str, str] | None = None,
+        input_summaries: dict[str, str] | None = None,
+        actions: dict[str, str] | None = None,
+        action_params: dict[str, dict[str, str] | None] | None = None,
         base_code: str | None = None,
         base_components: list[str] | None = None,
         theme_description: str | None = None,
         progress_callback: Callable[[str, str], None] | None = None,
-    ) -> Tuple[str, pd.DataFrame]:
+    ) -> Tuple[str, None]:
         """
-        Generate widget code from description and DataFrame.
+        Generate widget code from description and summarized inputs.
         
         Args:
             description: Natural language widget description
-            df: DataFrame to visualize
-            exports: Dict of export trait names -> descriptions
-            imports: Dict of import trait names -> descriptions
+            outputs: Dict of output trait names -> descriptions
+            inputs: Dict of input trait names -> descriptions
+            input_summaries: Dict of input summaries for prompt context
             base_code: Optional base widget code for composition/revision
             base_components: Optional list of component names from base widget
             progress_callback: Optional callback for progress updates
         
         Returns:
-            Tuple of (widget_code, processed_dataframe)
+            Tuple of (widget_code, None)
         """
-        exports = exports or {}
-        imports = imports or {}
+        outputs = outputs or {}
+        inputs = inputs or {}
+        input_summaries = input_summaries or inputs or {}
+        actions = actions or {}
+        action_params = action_params or {}
         base_components = base_components or []
-        debug_inputs = False
-        try:
-            import os
-
-            debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
-        except Exception:
-            debug_inputs = False
-        if debug_inputs:
-            print(
-                "[vibe_widget][debug] orchestrator: generate start",
-                {
-                    "exports": list(exports.keys()),
-                    "imports": list(imports.keys()),
-                    "rows": df.shape[0],
-                    "cols": df.shape[1],
-                },
-            )
         
         self._emit(progress_callback, "step", "Analyzing data")
         
         # Build data context for LLM using base class method
         data_info = LLMProvider.build_data_info(
-            df,
-            exports,
-            imports,
+            outputs=outputs,
+            inputs=input_summaries,
+            actions=actions,
+            action_params=action_params,
             theme_description=theme_description,
         )
         
-        self._emit(progress_callback, "step", f"Data: {df.shape[0]} rows × {df.shape[1]} columns")
+        if input_summaries:
+            self._emit(progress_callback, "step", f"Inputs: {len(input_summaries)}")
         
         # Determine if this is a revision or fresh generation
         if base_code:
@@ -114,30 +102,22 @@ class AgenticOrchestrator:
         else:
             # Generate code with LLM provider
             self._emit(progress_callback, "step", "Generating widget code...")
-            if debug_inputs:
-                print("[vibe_widget][debug] orchestrator: provider generate")
             code = self.provider.generate_widget_code(
                 description=description,
                 data_info=data_info,
                 progress_callback=lambda msg: self._emit(progress_callback, "chunk", msg),
             )
-            if debug_inputs:
-                print("[vibe_widget][debug] orchestrator: provider done")
         
         # Validate code
         self._emit(progress_callback, "step", "Validating code")
-        if debug_inputs:
-            print("[vibe_widget][debug] orchestrator: validating code")
         validation = self.validate_tool.execute(
             code=code,
-            expected_exports=list(exports.keys()),
-            expected_imports=list(imports.keys()),
+            expected_exports=list(outputs.keys()),
+            expected_imports=list(inputs.keys()),
         )
         
         # Runtime test
         self._emit(progress_callback, "step", "Testing runtime")
-        if debug_inputs:
-            print("[vibe_widget][debug] orchestrator: runtime test")
         runtime = self.runtime_tool.execute(code=code)
         
         # Repair loop if needed
@@ -174,20 +154,18 @@ class AgenticOrchestrator:
             # Re-validate
             validation = self.validate_tool.execute(
                 code=code,
-                expected_exports=list(exports.keys()),
-                expected_imports=list(imports.keys()),
+                expected_exports=list(outputs.keys()),
+                expected_imports=list(inputs.keys()),
             )
             runtime = self.runtime_tool.execute(code=code)
         
         self._emit(progress_callback, "complete", "Widget generation complete")
-        if debug_inputs:
-            print("[vibe_widget][debug] orchestrator: generate complete")
         
         # Store artifacts
         self.artifacts["generated_code"] = code
         self.artifacts["validation"] = validation.output
         
-        return code, df
+        return code, None
     
     def fix_runtime_error(
         self,

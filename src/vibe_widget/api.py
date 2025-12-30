@@ -42,11 +42,9 @@ class ActionBundle:
 
 @dataclass
 class InputsBundle:
-    """Container that unifies data with other inputs."""
+    """Container for resolved inputs."""
 
-    data: Any
     inputs: dict[str, Any]
-    data_name: str | None = None
 
 
 @dataclass
@@ -113,21 +111,10 @@ def _build_inputs_bundle(
     *,
     caller_frame=None,
 ) -> InputsBundle:
-    debug_inputs = False
-    try:
-        import os
-
-        debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
-    except Exception:
-        debug_inputs = False
     inputs: dict[str, Any] = {}
-    data = None
-    data_name = None
 
     if args:
-        data = args[0]
-        data_name = _sanitize_input_name(_infer_name_from_frame(data, caller_frame), "data")
-        for idx, arg in enumerate(args[1:], start=1):
+        for idx, arg in enumerate(args, start=1):
             inferred = _infer_name_from_frame(arg, caller_frame)
             name = _sanitize_input_name(inferred, f"input_{idx}")
             suffix = 2
@@ -136,31 +123,11 @@ def _build_inputs_bundle(
                 unique = f"{name}_{suffix}"
                 suffix += 1
             inputs[unique] = arg
-        if debug_inputs:
-            print(
-                "[vibe_widget][debug] inputs positional:",
-                {"data_name": data_name, "extra_inputs": list(inputs.keys())},
-            )
-
-    if "data" in kwargs:
-        kw_data = kwargs.pop("data")
-        if data is None:
-            data = kw_data
-            data_name = "data"
-        else:
-            inputs["data"] = kw_data
-        if debug_inputs:
-            print("[vibe_widget][debug] inputs kw 'data' seen")
 
     for name, value in kwargs.items():
         inputs[name] = value
-    if debug_inputs:
-        print(
-            "[vibe_widget][debug] inputs kwargs:",
-            {"keys": list(kwargs.keys()), "data_name": data_name},
-        )
 
-    return InputsBundle(data=data, inputs=inputs, data_name=data_name)
+    return InputsBundle(inputs=inputs)
 
 
 def output(description: str) -> OutputDefinition:

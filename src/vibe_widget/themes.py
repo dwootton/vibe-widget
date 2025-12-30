@@ -297,30 +297,13 @@ def resolve_theme_for_request(
     *,
     cache: bool = True,
 ) -> Theme | None:
-    debug_inputs = False
-    try:
-        import os
-
-        debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
-    except Exception:
-        debug_inputs = False
     if value is None:
         config = get_global_config()
         value = getattr(config, "theme", None)
-    if debug_inputs:
-        print(
-            "[vibe_widget][debug] theme: resolve request",
-            {"value": value, "model": model, "cache": cache},
-        )
     if value is None:
         return None
     provider = _get_provider(model=model, api_key=api_key) if (model or api_key) else None
     resolved = ThemeRegistry().resolve(value, provider=provider, cache=cache)
-    if debug_inputs:
-        print(
-            "[vibe_widget][debug] theme: resolved",
-            {"name": getattr(resolved, "name", None)},
-        )
     return resolved
 
 

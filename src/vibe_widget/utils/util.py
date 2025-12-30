@@ -57,6 +57,28 @@ def clean_for_json(obj: Any) -> Any:
         return obj if isinstance(obj, (str, int, float, bool, type(None))) else str(obj)
 
 
+def prepare_input_for_widget(
+    value: Any,
+    *,
+    max_rows: int = 5000,
+    input_name: str | None = None,
+) -> Any:
+    """Prepare input values for widget transport, sampling large tabular data."""
+    if isinstance(value, pd.DataFrame):
+        df = value
+        if len(df) > max_rows:
+            label = f"'{input_name}'" if input_name else "input"
+            print(f"[vibe_widget] Sampling {label}: {len(df)} rows -> {max_rows} rows for widget transport.")
+            df = df.sample(max_rows)
+        return clean_for_json(df.to_dict(orient="records"))
+    if isinstance(value, (str, Path)):
+        path = Path(value)
+        if path.exists():
+            df = load_data(path, max_rows=max_rows)
+            return clean_for_json(df.to_dict(orient="records"))
+    return clean_for_json(value)
+
+
 def summarize_for_prompt(value: Any) -> str:
     """Return a compact summary for prompts using pretty-little-summary."""
     return pls.describe(value)
@@ -88,25 +110,12 @@ def initial_import_value(import_name: str, import_source: Any) -> Any:
 
 def load_data(data: pd.DataFrame | str | Path | None, max_rows: int = 5000) -> pd.DataFrame:
     """Load and prepare data from various sources."""
-    debug_inputs = False
-    try:
-        import os
-
-        debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
-    except Exception:
-        debug_inputs = False
     if data is None:
-        if debug_inputs:
-            print("[vibe_widget][debug] load_data: data is None")
         return pd.DataFrame()
     
     if isinstance(data, pd.DataFrame):
         df = data
-        if debug_inputs:
-            print("[vibe_widget][debug] load_data: dataframe", {"shape": df.shape})
     else:
-        if debug_inputs:
-            print("[vibe_widget][debug] load_data: non-dataframe", {"type": type(data).__name__})
         result = DataLoadTool().execute(data)
         if not result.success:
             raise ValueError(f"Failed to load data: {result.error}")

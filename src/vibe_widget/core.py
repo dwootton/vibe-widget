@@ -46,7 +46,7 @@ from vibe_widget.utils.audit_store import (
     strip_internal_fields,
     normalize_location,
 )
-from vibe_widget.utils.util import clean_for_json, initial_import_value, load_data, summarize_for_prompt
+from vibe_widget.utils.util import clean_for_json, initial_import_value, load_data, summarize_for_prompt, prepare_input_for_widget
 from vibe_widget.themes import Theme, resolve_theme_for_request, clear_theme_cache
 
 
@@ -61,7 +61,7 @@ def _export_to_json_value(value: Any, widget: Any) -> Any:
 def _import_to_json_value(value: Any, widget: Any) -> Any:
     """Trait serialization helper for imports."""
     try:
-        return clean_for_json(value)
+        return prepare_input_for_widget(value)
     except Exception:
         return None
 
@@ -141,8 +141,6 @@ class _InputsNamespace:
         object.__setattr__(self, "_batch_depth", 0)
 
     def __getattr__(self, name: str) -> Any:
-        if name == "data":
-            return self._widget.data
         imports = getattr(self._widget, "_imports", {}) or {}
         if name in imports:
             return getattr(self._widget, name)
@@ -156,7 +154,7 @@ class _InputsNamespace:
 
     def __dir__(self) -> list[str]:
         imports = getattr(self._widget, "_imports", {}) or {}
-        return list(set(list(imports.keys()) + ["data"]))
+        return list(imports.keys())
 
     def update(self, updates: dict[str, Any]) -> None:
         normalized: dict[str, Any] = {}
@@ -183,16 +181,11 @@ class _InputsNamespace:
                 self._send_update(pending)
 
     def _validate_name(self, name: str) -> None:
-        if name == "data":
-            return
         imports = getattr(self._widget, "_imports", {}) or {}
         if name not in imports:
             raise AttributeError(f"'{type(self._widget).__name__}.inputs' has no attribute '{name}'")
 
     def _assign_value(self, name: str, value: Any) -> None:
-        if name == "data":
-            setattr(self._widget, "data", value)
-            return
         setattr(self._widget, name, value)
 
     def _set_value(self, name: str, value: Any) -> None:
@@ -307,18 +300,6 @@ class _ActionProxy:
             else:
                 legacy_payload["value"] = action_payload
             sender(legacy_payload)
-        debug_inputs = False
-        try:
-            import os
-
-            debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
-        except Exception:
-            debug_inputs = False
-        if debug_inputs:
-            logs = getattr(self._widget, "logs", None)
-            if isinstance(logs, list):
-                entry = f"DEBUG send action {self._name}: {action_payload}"
-                self._widget.logs = logs + [entry]
 
 
 class _ActionsNamespace:
@@ -343,7 +324,6 @@ class _ActionsNamespace:
 
 
 class VibeWidget(anywidget.AnyWidget):
-    data = traitlets.List([]).tag(sync=True)
     description = traitlets.Unicode("").tag(sync=True)
     status = traitlets.Unicode("idle").tag(sync=True)
     logs = traitlets.List([]).tag(sync=True)
@@ -404,7 +384,6 @@ class VibeWidget(anywidget.AnyWidget):
     def _create_with_dynamic_traits(
         cls,
         description: str,
-        df: pd.DataFrame,
         model: str = DEFAULT_MODEL,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
@@ -412,6 +391,8 @@ class VibeWidget(anywidget.AnyWidget):
         action_params: dict[str, dict[str, str] | None] | None = None,
         theme: Theme | None = None,
         data_var_name: str | None = None,
+        data_shape: tuple[int, int] | None = None,
+        input_summaries: dict[str, str] | None = None,
         base_code: str | None = None,
         base_components: list[str] | None = None,
         base_widget_id: str | None = None,
@@ -443,11 +424,11 @@ class VibeWidget(anywidget.AnyWidget):
         for export_name in exports.keys():
             init_values[export_name] = None
         for import_name, import_source in imports.items():
-            init_values[import_name] = initial_import_value(import_name, import_source)
+            initial_value = initial_import_value(import_name, import_source)
+            init_values[import_name] = prepare_input_for_widget(initial_value, input_name=import_name)
 
         return widget_class(
             description=description,
-            df=df,
             model=model,
             exports=exports,
             imports=imports,
@@ -455,6 +436,8 @@ class VibeWidget(anywidget.AnyWidget):
             action_params=action_params,
             theme=theme,
             data_var_name=data_var_name,
+            data_shape=data_shape,
+            input_summaries=input_summaries,
             base_code=base_code,
             base_components=base_components,
             base_widget_id=base_widget_id,
@@ -472,7 +455,6 @@ class VibeWidget(anywidget.AnyWidget):
     def __init__(
         self, 
         description: str, 
-        df: pd.DataFrame, 
         model: str = DEFAULT_MODEL,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
@@ -480,6 +462,8 @@ class VibeWidget(anywidget.AnyWidget):
         action_params: dict[str, dict[str, str] | None] | None = None,
         theme: Theme | None = None,
         data_var_name: str | None = None,
+        data_shape: tuple[int, int] | None = None,
+        input_summaries: dict[str, str] | None = None,
         base_code: str | None = None,
         base_components: list[str] | None = None,
         base_widget_id: str | None = None,
@@ -497,39 +481,24 @@ class VibeWidget(anywidget.AnyWidget):
         
         Args:
             description: Natural language description of desired visualization
-            df: DataFrame to visualize
             model: OpenRouter model to use (or alias resolved via config)
             exports: Dict of trait_name -> description for state this widget exposes
             imports: Dict of trait_name -> source widget/value for state this widget consumes
             actions: Dict of action_name -> description for emitted actions
-            data_var_name: Variable name of the data parameter for cache key
+            data_var_name: Variable name of the primary input for cache key
+            data_shape: Shape hint for cache keys when available
             base_code: Optional base widget code for revision/composition
             base_components: Optional list of component names from base widget
             base_widget_id: Optional ID of base widget for provenance tracking
             cache: If False, bypass widget cache and regenerate
             **kwargs: Additional widget parameters
         """
-        debug_inputs = False
-        try:
-            import os
-
-            debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
-        except Exception:
-            debug_inputs = False
-        if debug_inputs:
-            print(
-                "[vibe_widget][debug] widget: init start",
-                {
-                    "exports": list((exports or {}).keys()),
-                    "imports": list((imports or {}).keys()),
-                    "display_widget": display_widget,
-                },
-            )
         parser = CodeStreamParser()
         self._exports = exports or {}
         self._imports = imports or {}
         self._actions = actions or {}
         self._action_params = action_params or {}
+        self._input_summaries = input_summaries or {}
         self._export_accessors: dict[str, ExportHandle] = {}
         self._output_accessors: dict[str, _OutputProxy] = {}
         self._action_accessors: dict[str, _ActionProxy] = {}
@@ -553,14 +522,7 @@ class VibeWidget(anywidget.AnyWidget):
             # Fallback for older builds
             app_wrapper_path = app_wrapper_dir / "app_wrapper.js"
         self._esm = app_wrapper_path.read_text()
-        
-        data_json = df.to_dict(orient="records")
-        data_json = clean_for_json(data_json)
-        if debug_inputs:
-            print(
-                "[vibe_widget][debug] widget: data prepared",
-                {"rows": len(data_json), "cols": len(df.columns)},
-            )
+        data_shape = data_shape or (0, 0)
         
         if execution_mode is None:
             execution_mode = "auto"
@@ -570,7 +532,6 @@ class VibeWidget(anywidget.AnyWidget):
             execution_approved_hash = ""
 
         super().__init__(
-            data=data_json,
             description=description,
             status="generating",
             logs=[],
@@ -593,8 +554,6 @@ class VibeWidget(anywidget.AnyWidget):
 
         if display_widget:
             _display_widget(self)
-            if debug_inputs:
-                print("[vibe_widget][debug] widget: display called")
         
         self.observe(self._on_error, names='error_message')
         self.observe(self._on_grab_edit, names='grab_edit_request')
@@ -604,53 +563,12 @@ class VibeWidget(anywidget.AnyWidget):
         self.observe(self._on_execution_approved, names='execution_approved')
         
         try:
-            self.logs = [f"Analyzing data: {df.shape[0]} rows × {df.shape[1]} columns"]
+            input_count = len(self._imports or {})
+            self.logs = [f"Analyzing inputs: {input_count}"]
             
             resolved_model, config = _resolve_model(model)
-            if debug_inputs:
-                print(
-                    "[vibe_widget][debug] widget: resolved model",
-                    {"model": resolved_model},
-                )
             provider = OpenRouterProvider(resolved_model, config.api_key)
-            if debug_inputs:
-                print("[vibe_widget][debug] widget: provider ready")
-
-            if self._actions:
-                imports_for_prompt = _summarize_imports_for_prompt(self._imports)
-                self.logs = self.logs + [f"DEBUG actions metadata: {self._actions}"]
-                if self._action_params:
-                    self.logs = self.logs + [f"DEBUG action_params metadata: {self._action_params}"]
-                section = provider._build_exports_imports_section(
-                    self._exports,
-                    imports_for_prompt,
-                    self._actions,
-                    self._action_params,
-                )
-                for line in section.strip().splitlines():
-                    self.logs = self.logs + [f"DEBUG prompt: {line}"]
-                preview_info = LLMProvider.build_data_info(
-                    df,
-                    self._exports,
-                    imports_for_prompt,
-                    actions=self._actions,
-                    action_params=self._action_params,
-                    theme_description=self._theme.description if self._theme else None,
-                )
-                prompt_preview = provider._build_prompt(description, preview_info)
-                tail_lines = prompt_preview.strip().splitlines()[-40:]
-                self.logs = self.logs + [f"DEBUG prompt length: {len(prompt_preview)}"]
-                self.logs = self.logs + ["DEBUG prompt tail:"]
-                self.logs = self.logs + [f"DEBUG prompt tail: {line}" for line in tail_lines]
-                try:
-                    debug_dir = Path(".vibewidget")
-                    debug_dir.mkdir(parents=True, exist_ok=True)
-                    prompt_path = debug_dir / "last_prompt.txt"
-                    prompt_path.write_text(prompt_preview, encoding="utf-8")
-                    self.logs = self.logs + [f"DEBUG prompt saved: {prompt_path}"]
-                except Exception as exc:
-                    self.logs = self.logs + [f"DEBUG prompt save failed: {exc}"]
-            
+            inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
             if existing_code is not None:
                 self.logs = self.logs + ["Reusing existing widget code"]
                 self.code = existing_code
@@ -660,11 +578,10 @@ class VibeWidget(anywidget.AnyWidget):
                 if self._theme and "theme_description" not in self._widget_metadata:
                     self._widget_metadata["theme_description"] = self._theme.description
                     self._widget_metadata["theme_name"] = self._theme.name
-                imports_for_prompt = _summarize_imports_for_prompt(self._imports)
+                inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
                 self.data_info = LLMProvider.build_data_info(
-                    df,
-                    self._exports,
-                    imports_for_prompt,
+                    outputs=self._exports,
+                    inputs=inputs_for_prompt,
                     actions=self._actions,
                     action_params=self._action_params,
                     theme_description=self._theme.description if self._theme else None,
@@ -676,7 +593,7 @@ class VibeWidget(anywidget.AnyWidget):
             if self._imports:
                 for import_name in self._imports.keys():
                     imports_serialized[import_name] = f"<imported_trait:{import_name}>"
-            imports_for_prompt = _summarize_imports_for_prompt(self._imports)
+            inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
             
             store = WidgetStore()
             cached_widget = None
@@ -684,7 +601,7 @@ class VibeWidget(anywidget.AnyWidget):
                 cached_widget = store.lookup(
                     description=description,
                     data_var_name=data_var_name,
-                    data_shape=df.shape,
+                    data_shape=data_shape,
                     exports=self._exports,
                     imports_serialized=imports_serialized,
                     theme_description=self._theme.description if self._theme else None,
@@ -711,9 +628,8 @@ class VibeWidget(anywidget.AnyWidget):
                 
                 # Store data_info for error recovery
                 self.data_info = LLMProvider.build_data_info(
-                    df,
-                    self._exports,
-                    imports_for_prompt,
+                    outputs=self._exports,
+                    inputs=inputs_for_prompt,
                     actions=self._actions,
                     action_params=self._action_params,
                     theme_description=self._theme.description if self._theme else None,
@@ -721,8 +637,6 @@ class VibeWidget(anywidget.AnyWidget):
                 return
             
             self.logs = self.logs + ["Generating widget code"]
-            if debug_inputs:
-                print("[vibe_widget][debug] widget: generating code")
             
             chunk_buffer = []
             update_counter = 0
@@ -778,19 +692,16 @@ class VibeWidget(anywidget.AnyWidget):
             # Generate code using the agentic orchestrator
             widget_code, processed_df = self.orchestrator.generate(
                 description=description,
-                df=df,
-                exports=self._exports,
-                imports=imports_for_prompt,
+                outputs=self._exports,
+                inputs=self._imports,
+                input_summaries=inputs_for_prompt,
+                actions=self._actions,
+                action_params=self._action_params,
                 base_code=self._base_code,
                 base_components=self._base_components,
                 theme_description=self._theme.description if self._theme else None,
                 progress_callback=stream_callback,
             )
-            if debug_inputs:
-                print(
-                    "[vibe_widget][debug] widget: generate complete",
-                    {"code_len": len(widget_code)},
-                )
             
             current_logs = list(self.logs)
             current_logs.append(f"Code generated: {len(widget_code)} characters")
@@ -802,7 +713,7 @@ class VibeWidget(anywidget.AnyWidget):
                 widget_code=widget_code,
                 description=description,
                 data_var_name=data_var_name,
-                data_shape=df.shape,
+                data_shape=data_shape,
                 model=resolved_model,
                 exports=self._exports,
                 imports_serialized=imports_serialized,
@@ -830,9 +741,8 @@ class VibeWidget(anywidget.AnyWidget):
             
             # Store data_info for error recovery  (build from LLMProvider method)
             self.data_info = LLMProvider.build_data_info(
-                df,
-                self._exports,
-                imports_for_prompt,
+                outputs=self._exports,
+                inputs=inputs_for_prompt,
                 actions=self._actions,
                 action_params=self._action_params,
                 theme_description=self._theme.description if self._theme else None,
@@ -841,8 +751,6 @@ class VibeWidget(anywidget.AnyWidget):
         except Exception as e:
             self.status = "error"
             self.logs = self.logs + [f"Error: {str(e)}"]
-            if debug_inputs:
-                print(f"[vibe_widget][debug] widget: error {e}")
             raise
 
     def __getattribute__(self, name: str):
@@ -869,11 +777,11 @@ class VibeWidget(anywidget.AnyWidget):
         self,
         *,
         description: str,
-        data_source: Any,
-        data_type: type | None,
-        data_columns: list[str] | None,
+        inputs: dict[str, Any] | None,
         exports: dict[str, str] | None,
         imports: dict[str, Any] | None,
+        actions: dict[str, str] | None,
+        action_params: dict[str, dict[str, str] | None] | None = None,
         model: str,
         theme: Theme | None,
         base_code: str | None = None,
@@ -881,11 +789,11 @@ class VibeWidget(anywidget.AnyWidget):
         base_widget_id: str | None = None,
     ) -> None:
         self._recipe_description = description
-        self._recipe_data_source = data_source
-        self._recipe_data_type = data_type
-        self._recipe_data_columns = data_columns
+        self._recipe_inputs = inputs
         self._recipe_exports = exports
         self._recipe_imports = imports
+        self._recipe_actions = actions
+        self._recipe_action_params = action_params
         self._recipe_model = model
         self._recipe_model_resolved = model
         self._recipe_theme = theme
@@ -894,7 +802,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._recipe_base_widget_id = base_widget_id
 
     def __call__(self, *args, **kwargs):
-        """Create a new widget instance, swapping data/inputs heuristically."""
+        """Create a new widget instance, swapping inputs heuristically."""
         if not args and not kwargs:
             return self._rerun_with()
         if not args and set(kwargs.keys()) == {"display"}:
@@ -921,8 +829,6 @@ class VibeWidget(anywidget.AnyWidget):
             }
 
         inputs_signature = {name: "<input>" for name in (self._imports or {}).keys()}
-        if self.data:
-            inputs_signature.setdefault("data", "<input>")
         save_inputs = {"embedded": False, "values": {}}
         if include_inputs:
             save_inputs = _serialize_inputs(self)
@@ -951,68 +857,54 @@ class VibeWidget(anywidget.AnyWidget):
             raise ValueError("This widget was created before rerun support was added.")
 
         display = kwargs.pop("display", True)
-        candidate_data = kwargs.pop("data", None)
-        candidate_inputs = kwargs.pop("inputs", None)
+        inputs = kwargs.pop("inputs", None)
+        outputs = kwargs.pop("outputs", None)
+        actions = kwargs.pop("actions", None)
+        theme = kwargs.pop("theme", None)
         if "imports" in kwargs:
             raise TypeError("Use 'inputs' instead of 'imports'.")
-        candidate_imports = candidate_inputs
-        if isinstance(candidate_imports, InputsBundle):
-            if candidate_data is None:
-                candidate_data = candidate_imports.data
-            candidate_imports = candidate_imports.inputs
-
-        if len(args) > 1:
-            raise TypeError("Pass at most one positional argument to override data/inputs.")
-
-        if len(args) == 1 and candidate_data is None and candidate_imports is None:
-            arg = args[0]
-            if isinstance(arg, InputsBundle):
-                bundle_data = arg.data if arg.data is not None else candidate_data
-                bundle_inputs = arg.inputs
-                candidate_data = bundle_data
-                merged = dict(self._recipe_imports or {})
-                merged.update(bundle_inputs or {})
-                candidate_imports = merged
+        if args:
+            if len(args) == 1 and inputs is None:
+                inputs = args[0]
             else:
-                matched = False
-                if self._recipe_data_type and isinstance(arg, self._recipe_data_type):
-                    candidate_data = arg
-                    matched = True
-                if not matched:
-                    # Try to swap an import with the same type
-                    for name, source in (self._recipe_imports or {}).items():
-                        if source is not None and isinstance(arg, type(source)):
-                            merged = dict(self._recipe_imports or {})
-                            merged[name] = arg
-                            candidate_imports = merged
-                            matched = True
-                            break
-                if not matched:
-                    # Fallback: treat as data (covers DataFrame, str path, etc.)
-                    candidate_data = arg
+                raise TypeError("Pass at most one positional argument to override inputs.")
 
-        data = candidate_data if candidate_data is not None else self._recipe_data_source
-        imports = candidate_imports if candidate_imports is not None else self._recipe_imports
-        df = load_data(data)
+        inputs, outputs = _coerce_outputs_inputs(inputs, outputs)
+        frame = inspect.currentframe()
+        caller_frame = frame.f_back if frame else None
+        inputs = _coerce_inputs_bundle(inputs, caller_frame=caller_frame) if inputs is not None else None
+        outputs, inputs, actions, action_params = _normalize_api_inputs(
+            outputs=outputs,
+            inputs=inputs,
+            actions=actions,
+        )
+        if inputs is None:
+            inputs = getattr(self, "_recipe_inputs", None) or getattr(self, "_recipe_imports", None)
+        if outputs is None:
+            outputs = self._recipe_exports
+        if actions is None:
+            actions = getattr(self, "_recipe_actions", None)
+        if action_params is None:
+            action_params = getattr(self, "_recipe_action_params", None)
+        if theme is None:
+            theme = self._recipe_theme
+
+        data_var_name, data_shape = _inputs_cache_info(inputs)
         existing_code = getattr(self, "code", None)
         existing_metadata = getattr(self, "_widget_metadata", None)
 
-        if self._recipe_data_columns and isinstance(df, pd.DataFrame):
-            missing = set(self._recipe_data_columns) - set(df.columns)
-            if missing:
-                raise ValueError(
-                    "The new dataset is missing required columns for this widget: "
-                    f"{sorted(missing)}. Provide data with these columns or regenerate the widget."
-                )
-
+        input_summaries = _summarize_inputs_for_prompt(inputs)
         widget = VibeWidget._create_with_dynamic_traits(
             description=self._recipe_description,
-            df=df,
             model=self._recipe_model_resolved,
-            exports=self._recipe_exports,
-            imports=imports,
-            theme=self._recipe_theme,
-            data_var_name=None,
+            exports=outputs,
+            imports=inputs,
+            actions=actions,
+            action_params=action_params,
+            theme=theme,
+            data_var_name=data_var_name,
+            data_shape=data_shape,
+            input_summaries=input_summaries,
             base_code=getattr(self, '_recipe_base_code', None),
             base_components=getattr(self, '_recipe_base_components', None),
             base_widget_id=getattr(self, '_recipe_base_widget_id', None),
@@ -1823,11 +1715,6 @@ def _resolve_import_source(import_name: str, import_source: Any) -> tuple[Any | 
 def _serialize_inputs(widget: VibeWidget) -> dict[str, Any]:
     """Serialize inputs for save/load bundles."""
     values: dict[str, Any] = {}
-    # Data is treated as an input and stored under "data".
-    try:
-        values["data"] = clean_for_json(widget.data)
-    except Exception:
-        values["data"] = widget.data
 
     for name, value in (widget._imports or {}).items():
         if isinstance(value, ExportHandle) or getattr(value, "__vibe_export__", False):
@@ -1852,6 +1739,29 @@ def _summarize_imports_for_prompt(imports: dict[str, Any] | None) -> dict[str, s
         except Exception:
             summarized[name] = f"{type(source).__name__}(unavailable)"
     return summarized
+
+
+def _summarize_inputs_for_prompt(imports: dict[str, Any] | None) -> dict[str, str]:
+    return _summarize_imports_for_prompt(imports)
+
+
+def _inputs_cache_info(inputs: dict[str, Any] | None) -> tuple[str | None, tuple[int, int]]:
+    if not inputs:
+        return None, (0, 0)
+    data_var_name = None
+    data_shape = (0, 0)
+    if len(inputs) == 1:
+        data_var_name, value = next(iter(inputs.items()))
+        if isinstance(value, pd.DataFrame):
+            data_shape = value.shape
+        elif isinstance(value, (str, Path)):
+            try:
+                df = load_data(value)
+            except Exception:
+                df = None
+            if isinstance(df, pd.DataFrame):
+                data_shape = df.shape
+    return data_var_name, data_shape
 
 
 def _link_imports(widget: VibeWidget, imports: dict[str, Any] | None) -> None:
@@ -1879,25 +1789,12 @@ def _link_imports(widget: VibeWidget, imports: dict[str, Any] | None) -> None:
 
 def _display_widget(widget: VibeWidget) -> None:
     """Display widget in IPython environment if available."""
-    debug_inputs = False
-    try:
-        import os
-
-        debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
-    except Exception:
-        debug_inputs = False
     try:
         from IPython.display import display
-        if debug_inputs:
-            print("[vibe_widget][debug] display: calling IPython.display")
         display(widget)
     except ImportError:
-        if debug_inputs:
-            print("[vibe_widget][debug] display: IPython not available")
         pass
     except Exception as exc:
-        if debug_inputs:
-            print(f"[vibe_widget][debug] display: error {exc}")
         print(f"[vibe_widget] Display error: {exc}", file=sys.stderr)
 
 
@@ -1925,21 +1822,12 @@ def _normalize_api_inputs(
     outputs: dict[str, str] | OutputBundle | None,
     inputs: dict[str, Any] | InputsBundle | None,
     actions: dict[str, str] | ActionBundle | None,
-) -> tuple[Any, dict[str, str] | None, dict[str, Any] | None, dict[str, str] | None, dict[str, dict[str, str] | None] | None, str | None]:
+) -> tuple[dict[str, str] | None, dict[str, Any] | None, dict[str, str] | None, dict[str, dict[str, str] | None] | None]:
     """Allow flexible ordering/wrapping for outputs/inputs."""
-    debug_inputs = False
-    try:
-        import os
-
-        debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
-    except Exception:
-        debug_inputs = False
-    normalized_data = None
     normalized_inputs = inputs
     normalized_outputs = outputs
     normalized_actions = actions
     normalized_action_params: dict[str, dict[str, str] | None] | None = None
-    data_var_name: str | None = None
 
     if isinstance(normalized_outputs, OutputBundle):
         normalized_outputs = normalized_outputs.outputs
@@ -1950,35 +1838,12 @@ def _normalize_api_inputs(
         normalized_action_params = action_bundle.params
 
     if isinstance(normalized_inputs, InputsBundle):
-        if normalized_data is None:
-            normalized_data = normalized_inputs.data
-            data_var_name = normalized_inputs.data_name or data_var_name
         normalized_inputs = normalized_inputs.inputs
-        if debug_inputs:
-            print(
-                "[vibe_widget][debug] normalize: inputs InputsBundle",
-                {
-                    "data_var_name": data_var_name,
-                    "inputs": list((normalized_inputs or {}).keys()),
-                },
-            )
-
-    if debug_inputs:
-        print(
-            "[vibe_widget][debug] normalize: final",
-            {
-                "data_type": type(normalized_data).__name__ if normalized_data is not None else None,
-                "inputs_keys": list((normalized_inputs or {}).keys()) if normalized_inputs else [],
-                "outputs_keys": list((normalized_outputs or {}).keys()) if normalized_outputs else [],
-            },
-        )
     return (
-        normalized_data,
         normalized_outputs,
         normalized_inputs,
         normalized_actions,
         normalized_action_params,
-        data_var_name,
     )
 
 
@@ -2015,7 +1880,7 @@ def create(
     display: bool = True,
     cache: bool = True,
 ) -> VibeWidget:
-    """Create a VibeWidget visualization with automatic data processing.
+    """Create a VibeWidget visualization with automatic input processing.
     
     Args:
         description: Natural language description of the visualization
@@ -2034,48 +1899,27 @@ def create(
         >>> widget = create("show temperature trends", df)
         >>> widget = create("visualize sales data", inputs=vw.inputs("sales.csv"))
     """
-    debug_inputs = False
-    try:
-        import os
-
-        debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
-    except Exception:
-        debug_inputs = False
     inputs, outputs = _coerce_outputs_inputs(inputs, outputs)
     frame = inspect.currentframe()
     caller_frame = frame.f_back if frame else None
     inputs = _coerce_inputs_bundle(inputs, caller_frame=caller_frame)
-    data, outputs, inputs, actions, action_params, data_var_name = _normalize_api_inputs(
+    outputs, inputs, actions, action_params = _normalize_api_inputs(
         outputs=outputs,
         inputs=inputs,
         actions=actions,
     )
-    if debug_inputs:
-        print(
-            "[vibe_widget][debug] create: normalized",
-            {
-                "data_type": type(data).__name__ if data is not None else None,
-                "inputs_keys": list((inputs or {}).keys()) if inputs else [],
-                "outputs_keys": list((outputs or {}).keys()) if outputs else [],
-            },
-        )
+    data_var_name, data_shape = _inputs_cache_info(inputs)
     model, resolved_config = _resolve_model(config_override=config)
-    df = load_data(data)
     resolved_theme = resolve_theme_for_request(
         theme,
         model=model,
         api_key=resolved_config.api_key if resolved_config else None,
         cache=cache,
     )
-    if debug_inputs:
-        print(
-            "[vibe_widget][debug] create: theme resolved",
-            {"theme": getattr(resolved_theme, "name", None)},
-        )
 
+    input_summaries = _summarize_inputs_for_prompt(inputs)
     widget = VibeWidget._create_with_dynamic_traits(
         description=description,
-        df=df,
         model=model,
         exports=outputs,
         imports=inputs,
@@ -2083,6 +1927,8 @@ def create(
         action_params=action_params,
         theme=resolved_theme,
         data_var_name=data_var_name,
+        data_shape=data_shape,
+        input_summaries=input_summaries,
         display_widget=display,
         cache=cache,
         execution_mode=resolved_config.execution if resolved_config else "auto",
@@ -2093,11 +1939,11 @@ def create(
     # Store recipe for convenient reruns/clones
     widget._set_recipe(
         description=description,
-        data_source=data,
-        data_type=type(data) if data is not None else None,
-        data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
+        inputs=inputs,
         exports=outputs,
         imports=inputs,
+        actions=actions,
+        action_params=action_params,
         model=model,
         theme=resolved_theme,
     )
@@ -2107,11 +1953,18 @@ def create(
 
 class _SourceInfo:
     """Container for resolved source information."""
-    def __init__(self, code: str, metadata: dict[str, Any] | None, components: list[str], df: pd.DataFrame | None, theme: Theme | None):
+    def __init__(
+        self,
+        code: str,
+        metadata: dict[str, Any] | None,
+        components: list[str],
+        inputs: dict[str, Any] | None,
+        theme: Theme | None,
+    ):
         self.code = code
         self.metadata = metadata
         self.components = components
-        self.df = df
+        self.inputs = inputs
         self.theme = theme
 
 
@@ -2119,13 +1972,13 @@ def _resolve_source(
     source: "VibeWidget | ComponentReference | str | Path",
     store: WidgetStore
 ) -> _SourceInfo:
-    """Resolve source widget to code, metadata, components, and data."""
+    """Resolve source widget to code, metadata, components, and inputs."""
     if isinstance(source, VibeWidget):
         return _SourceInfo(
             code=source.code,
             metadata=source._widget_metadata,
             components=source._widget_metadata.get("components", []) if source._widget_metadata else [],
-            df=pd.DataFrame(source.data) if source.data else None,
+            inputs=source._imports,
             theme=source._theme,
         )
     
@@ -2134,7 +1987,7 @@ def _resolve_source(
             code=source.code,
             metadata=source.metadata,
             components=[source.component_name],
-            df=pd.DataFrame(source.widget.data) if source.widget.data else None,
+            inputs=source.widget._imports,
             theme=source.widget._theme,
         )
     
@@ -2157,7 +2010,7 @@ def _resolve_source(
                 code=code,
                 metadata=metadata,
                 components=metadata.get("components", []),
-                df=None,
+                inputs=None,
                 theme=theme,
             )
         
@@ -2180,7 +2033,7 @@ def _edit_from_source(
     frame = inspect.currentframe()
     caller_frame = frame.f_back if frame else None
     inputs = _coerce_inputs_bundle(inputs, caller_frame=caller_frame)
-    data, outputs, inputs, actions, action_params, _ = _normalize_api_inputs(
+    outputs, inputs, actions, action_params = _normalize_api_inputs(
         outputs=outputs,
         inputs=inputs,
         actions=actions,
@@ -2197,18 +2050,21 @@ def _edit_from_source(
             api_key=resolved_config.api_key if resolved_config else None,
             cache=cache,
         )
-    df = source_info.df if data is None and source_info.df is not None else load_data(data)
-
+    if inputs is None:
+        inputs = source_info.inputs
+    input_summaries = _summarize_inputs_for_prompt(inputs)
+    data_var_name, data_shape = _inputs_cache_info(inputs)
     widget = VibeWidget._create_with_dynamic_traits(
         description=description,
-        df=df,
         model=model,
         exports=outputs,
         imports=inputs,
         actions=actions,
         action_params=action_params,
         theme=resolved_theme,
-        data_var_name=None,
+        data_var_name=data_var_name,
+        data_shape=data_shape,
+        input_summaries=input_summaries,
         base_code=source_info.code,
         base_components=source_info.components,
         base_widget_id=source_info.metadata.get("id") if source_info.metadata else None,
@@ -2220,11 +2076,11 @@ def _edit_from_source(
     _link_imports(widget, inputs)
     widget._set_recipe(
         description=description,
-        data_source=data if data is not None else source_info.df,
-        data_type=type(data) if data is not None else (type(source_info.df) if source_info.df is not None else None),
-        data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
+        inputs=inputs,
         exports=outputs,
         imports=inputs,
+        actions=actions,
+        action_params=action_params,
         model=model,
         theme=resolved_theme,
         base_code=source_info.code,
@@ -2248,25 +2104,14 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
     theme_payload = payload.get("theme") or {}
     components = payload.get("components") or []
     save_inputs = payload.get("save_inputs") or {}
-    embedded = bool(save_inputs.get("embedded"))
     input_values = save_inputs.get("values") if isinstance(save_inputs.get("values"), dict) else {}
-
-    data_rows = []
-    if embedded and isinstance(input_values, dict):
-        data_rows = input_values.pop("data", [])
-
-    df = pd.DataFrame(data_rows) if isinstance(data_rows, list) else pd.DataFrame()
 
     imports: dict[str, Any] = {}
     if isinstance(inputs_signature, dict):
         for name in inputs_signature.keys():
-            if name == "data":
-                continue
             imports[name] = None
     if isinstance(input_values, dict):
         for name, value in input_values.items():
-            if name == "data":
-                continue
             if isinstance(value, dict) and value.get("type") == "export_handle":
                 imports[name] = None
             else:
@@ -2297,14 +2142,17 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
     execution_approved = not approval
     approved_hash = compute_code_hash(code) if not approval else ""
 
+    data_var_name, data_shape = _inputs_cache_info(imports)
+    input_summaries = _summarize_inputs_for_prompt(imports)
     widget = VibeWidget._create_with_dynamic_traits(
         description=description,
-        df=df,
         model=payload.get("model") or DEFAULT_MODEL,
         exports=outputs,
         imports=imports,
         theme=theme,
-        data_var_name=None,
+        data_var_name=data_var_name,
+        data_shape=data_shape,
+        input_summaries=input_summaries,
         existing_code=code,
         existing_metadata=metadata,
         display_widget=display,
@@ -2316,8 +2164,6 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
 
     if isinstance(input_values, dict):
         for name, value in input_values.items():
-            if name == "data":
-                continue
             if isinstance(value, dict) and value.get("type") == "export_handle":
                 continue
             try:
@@ -2327,11 +2173,11 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
 
     widget._set_recipe(
         description=description,
-        data_source=data_rows if embedded else None,
-        data_type=type(data_rows) if embedded else None,
-        data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
+        inputs=imports,
         exports=outputs,
         imports=imports,
+        actions=None,
+        action_params=None,
         model=payload.get("model") or DEFAULT_MODEL,
         theme=theme,
     )

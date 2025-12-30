@@ -107,18 +107,15 @@ class LLMProvider(ABC):
             base_code: Optional base widget code for composition
             base_components: Optional list of component names available from base
         """
-        columns = data_info.get("columns", [])
-        dtypes = data_info.get("dtypes", {})
-        sample_data = data_info.get("sample", {})
-        exports = data_info.get("exports", {})
-        imports = data_info.get("imports", {})
+        outputs = data_info.get("outputs", {})
+        inputs = data_info.get("inputs", {})
         actions = data_info.get("actions", {})
         action_params = data_info.get("action_params", {})
         theme_description = data_info.get("theme_description")
         
         outputs_inputs_section = self._build_outputs_inputs_section(
-            exports,
-            imports,
+            outputs,
+            inputs,
             actions,
             action_params,
         )
@@ -128,8 +125,10 @@ class LLMProvider(ABC):
         if base_code:
             composition_section = self._build_composition_section(base_code, base_components or [])
         
-        # Convert columns to strings to handle integer or other non-string column names
-        columns_str = ', '.join(str(col) for col in columns) if columns else 'No data (widget uses imports only)'
+        if inputs:
+            input_summary = "\n".join([f"- {name}: {summary}" for name, summary in inputs.items()])
+        else:
+            input_summary = "No inputs"
         
         theme_section = ""
         if theme_description:
@@ -139,10 +138,8 @@ class LLMProvider(ABC):
 
 TASK: {description}
 
-Data schema:
-- Columns: {columns_str}
-- Types: {dtypes}
-- Sample data: {sample_data}
+Input summaries:
+{input_summary}
 
 {theme_section}{composition_section}{outputs_inputs_section}
 
@@ -151,22 +148,23 @@ CRITICAL REACT + HTM SPECIFICATION:
 MUST FOLLOW EXACTLY:
 1. Export a default function: export default function Widget({{ model, html, React }}) {{ ... }}
 2. Use html tagged templates (htm) for markup—no JSX or ReactDOM.render
-3. Access data with model.get("data") and treat it as immutable
+3. Access inputs with model.get("<input_name>") using names from INPUTS and treat them as immutable
 4. Append DOM nodes via refs rendered inside html templates (never touch document.body)
 5. Import libraries from ESM CDN with locked versions (d3@7, three@0.160, regl@3, etc.)
-6. Initialize exports immediately, update them as interactions occur, and call model.save_changes() each time
-7. Subscribe to imported traits with model.on("change:trait", handler) and unsubscribe in cleanup
+6. Initialize outputs immediately, update them as interactions occur, and call model.save_changes() each time
+7. Subscribe to input traits with model.on("change:trait", handler) and unsubscribe in cleanup
 8. Every React.useEffect MUST return a cleanup that tears down listeners, observers, intervals, animation frames, WebGL resources, etc.
 9. Avoid 100vh/100vw—use fixed heights (360–640px) or flex layouts that respect notebook constraints
 10. Ensure high contrast for text and data marks (WCAG AA minimum) in all visual states
-11. Never wrap the output in markdown code fences
+11. Inline styles must be object literals: style=${{ ... }} (never style="..." or style=${"..."}).
+12. Never wrap the output in markdown code fences
 
 CORRECT Template:
 ```javascript
 import * as d3 from "https://esm.sh/d3@7";
 
 export default function VisualizationWidget({{ model, html, React }}) {{
-  const data = model.get("data") || [];
+  const data = model.get("input_name") || [];
   const [selectedItem, setSelectedItem] = React.useState(null);
   const containerRef = React.useRef(null);
 
@@ -247,22 +245,24 @@ Begin the response with code immediately."""
             base_code: Optional additional base widget code for composition
             base_components: Optional list of components from base widget
         """
-        columns = data_info.get("columns", [])
-        dtypes = data_info.get("dtypes", {})
-        sample_data = data_info.get("sample", {})
-        exports = data_info.get("exports", {})
-        imports = data_info.get("imports", {})
+        outputs = data_info.get("outputs", {})
+        inputs = data_info.get("inputs", {})
         actions = data_info.get("actions", {})
         action_params = data_info.get("action_params", {})
         theme_description = data_info.get("theme_description")
         
         outputs_inputs_section = self._build_outputs_inputs_section(
-            exports,
-            imports,
+            outputs,
+            inputs,
             actions,
             action_params,
         )
         
+        if inputs:
+            input_summary = "\n".join([f"- {name}: {summary}" for name, summary in inputs.items()])
+        else:
+            input_summary = "No inputs"
+
         # Build composition section if additional base code provided
         composition_section = ""
         if base_code:
@@ -281,10 +281,8 @@ CURRENT CODE:
 {current_code}
 ```
 
-{theme_section}{composition_section}Data schema:
-- Columns: {', '.join(columns) if columns else 'No data (widget uses imports only)'}
-- Types: {dtypes}
-- Sample data: {sample_data}
+{theme_section}{composition_section}Input summaries:
+{input_summary}
 
 {outputs_inputs_section}
 
@@ -306,22 +304,24 @@ Return only the full revised JavaScript code. No markdown fences or explanations
         data_info: dict[str, Any],
     ) -> str:
         """Build the prompt for fixing code errors."""
-        columns = data_info.get("columns", [])
-        dtypes = data_info.get("dtypes", {})
-        sample_data = data_info.get("sample", {})
-        exports = data_info.get("exports", {})
-        imports = data_info.get("imports", {})
+        outputs = data_info.get("outputs", {})
+        inputs = data_info.get("inputs", {})
         actions = data_info.get("actions", {})
         action_params = data_info.get("action_params", {})
         theme_description = data_info.get("theme_description")
         
         outputs_inputs_section = self._build_outputs_inputs_section(
-            exports,
-            imports,
+            outputs,
+            inputs,
             actions,
             action_params,
         )
         
+        if inputs:
+            input_summary = "\n".join([f"- {name}: {summary}" for name, summary in inputs.items()])
+        else:
+            input_summary = "No inputs"
+
         theme_section = ""
         if theme_description:
             theme_section = f"THEME:\n{theme_description}\n\n"
@@ -338,10 +338,8 @@ BROKEN CODE:
 {broken_code}
 ```
 
-Data schema:
-- Columns: {', '.join(columns) if columns else 'No data (widget uses imports only)'}
-- Types: {dtypes}
-- Sample data: {sample_data}
+Input summaries:
+{input_summary}
 
 {theme_section}{outputs_inputs_section}
 
@@ -351,7 +349,7 @@ MANDATORY FIX RULES:
 3. Guard every model.get payload before iterating
 4. Keep CDN imports version-pinned
 5. Restore all cleanup handlers
-6. Initialize exports and call model.save_changes()
+6. Initialize outputs and call model.save_changes()
 
 Return ONLY the corrected JavaScript code."""
 
@@ -365,11 +363,8 @@ Return ONLY the corrected JavaScript code."""
         changed_lines: list[int] | None = None,
     ) -> str:
         """Build prompt for audit generation."""
-        columns = data_info.get("columns", [])
-        dtypes = data_info.get("dtypes", {})
-        sample_data = data_info.get("sample", {})
-        exports = data_info.get("exports", {})
-        imports = data_info.get("imports", {})
+        outputs = data_info.get("outputs", {})
+        inputs = data_info.get("inputs", {})
         changed_lines_section = ""
         if changed_lines:
             changed_lines_section = f"""
@@ -485,12 +480,10 @@ Constraints:
 - Return ONLY JSON, no markdown or commentary.
 
 Widget description: {description}
-Data schema:
-- Columns: {', '.join(columns) if columns else 'No data (widget uses imports only)'}
-- Types: {dtypes}
-- Sample data: {sample_data}
-- Exports: {exports}
-- Imports: {imports}
+Inputs:
+{inputs}
+Outputs:
+{outputs}
 
 {changed_lines_section}
 CODE WITH LINE NUMBERS:
@@ -500,30 +493,30 @@ CODE WITH LINE NUMBERS:
     
     def _build_outputs_inputs_section(
         self,
-        exports: dict,
-        imports: dict,
+        outputs: dict,
+        inputs: dict,
         actions: dict,
         action_params: dict | None,
     ) -> str:
         """Build the outputs/inputs/actions section of the prompt."""
-        if not exports and not imports and not actions:
+        if not outputs and not inputs and not actions:
             return ""
         
         sections: list[str] = []
         
-        if exports:
-            export_list = "\n".join([f"- {name}: {desc}" for name, desc in exports.items()])
+        if outputs:
+            output_list = "\n".join([f"- {name}: {desc}" for name, desc in outputs.items()])
             sections.append(f"""
 OUTPUTS (State shared with other widgets):
-{export_list}
+{output_list}
 
-CRITICAL: Initialize exports when widget mounts, update continuously, call model.save_changes()""")
+CRITICAL: Initialize outputs when widget mounts, update continuously, call model.save_changes()""")
         
-        if imports:
-            import_list = "\n".join([f"- {name}: {desc}" for name, desc in imports.items()])
+        if inputs:
+            input_list = "\n".join([f"- {name}: {desc}" for name, desc in inputs.items()])
             sections.append(f"""
 INPUTS (State from other widgets):
-{import_list}
+{input_list}
 
 CRITICAL: Subscribe with model.on("change:trait", handler), unsubscribe in cleanup""")
 
@@ -558,16 +551,7 @@ CRITICAL: Handle with EXACT code (copy verbatim, do not rename fields):
 {action_handlers}
   }};
   model.on("msg:custom", handleAction);
-  return () => model.off("msg:custom", handleAction);
-DEBUG (required while actions exist): append a short log entry on receipt so Python can inspect `widget.logs`.
-  const logAction = (label, data) => {{
-    const logs = model.get("logs") || [];
-    const entry = `${{label}} ${{JSON.stringify(data)}}`;
-    model.set("logs", [...logs, entry].slice(-50));
-    model.save_changes();
-  }};
-  // Inside handleAction, before handling:
-  logAction("action", msg);""")
+  return () => model.off("msg:custom", handleAction);""")
         
         return "\n".join(sections)
     
@@ -613,45 +597,23 @@ Focus on modifying only what's necessary for the requested changes.
     
     @staticmethod
     def build_data_info(
-        df,
-        exports: dict[str, str] | None = None,
-        imports: dict[str, str] | None = None,
+        *,
+        outputs: dict[str, str] | None = None,
+        inputs: dict[str, str] | None = None,
         actions: dict[str, str] | None = None,
         action_params: dict[str, dict[str, str] | None] | None = None,
         theme_description: str | None = None,
     ) -> dict[str, Any]:
-        """Build data info dictionary from DataFrame."""
-        import pandas as pd
-        
-        exports = exports or {}
-        imports = imports or {}
+        """Build data info dictionary from summarized inputs."""
+        outputs = outputs or {}
+        inputs = inputs or {}
         actions = actions or {}
         action_params = action_params or {}
-        
-        sample = df.head(3).to_dict(orient="records") if not df.empty else []
-        
-        # Detect potential data characteristics
-        is_geospatial = any(
-            str(col).lower() in ['lat', 'latitude', 'lon', 'longitude', 'lng', 'geometry']
-            for col in df.columns
-        )
-        
-        temporal_cols = [
-            col for col in df.columns
-            if pd.api.types.is_datetime64_any_dtype(df[col])
-            or str(col).lower() in ['date', 'time', 'datetime', 'timestamp']
-        ]
-        
+
         return {
-            "columns": [str(col) for col in df.columns.tolist()],
-            "dtypes": {str(col): str(dtype) for col, dtype in df.dtypes.items()},
-            "shape": df.shape,
-            "sample": sample,
-            "exports": exports,
-            "imports": imports,
+            "outputs": outputs,
+            "inputs": inputs,
             "actions": actions,
             "action_params": action_params,
             "theme_description": theme_description,
-            "is_geospatial": is_geospatial,
-            "temporal_columns": [str(col) for col in temporal_cols],
         }
