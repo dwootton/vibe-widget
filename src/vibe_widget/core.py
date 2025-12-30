@@ -18,8 +18,7 @@ import traitlets
 from vibe_widget.api import (
     ExportHandle,
     OutputChangeEvent,
-    CommandBundle,
-    EventBundle,
+    ActionBundle,
     OutputBundle,
     InputsBundle,
     _build_inputs_bundle,
@@ -76,6 +75,28 @@ class ComponentReference:
     
     def __repr__(self) -> str:
         return f"<ComponentReference: {self.component_name} from widget {self.widget._widget_metadata.get('slug', 'unknown') if self.widget._widget_metadata else 'unknown'}>"
+
+    def edit(
+        self,
+        description: str,
+        inputs: dict[str, Any] | InputsBundle | Any | None = None,
+        outputs: dict[str, str] | OutputBundle | None = None,
+        actions: dict[str, str] | ActionBundle | None = None,
+        theme: Theme | str | None = None,
+        config: Config | None = None,
+        cache: bool = True,
+    ) -> "VibeWidget":
+        inputs, outputs = _coerce_outputs_inputs(inputs, outputs)
+        return _edit_from_source(
+            description=description,
+            source=self,
+            inputs=inputs,
+            outputs=outputs,
+            actions=actions,
+            theme=theme,
+            config=config,
+            cache=cache,
+        )
     
     @property
     def code(self) -> str:
@@ -248,60 +269,8 @@ class _OutputsNamespace:
         raise AttributeError(f"'{type(self._widget).__name__}.outputs' has no attribute '{name}'")
 
 
-class _CommandProxy:
-    """Proxy for invoking widget commands."""
-
-    def __init__(self, widget: "VibeWidget", name: str, description: str):
-        self._widget = widget
-        self._name = name
-        self._description = description
-
-    @property
-    def description(self) -> str:
-        return self._description
-
-    def __call__(self, payload: Any | None = None, **kwargs) -> None:
-        if payload is not None and kwargs:
-            raise TypeError("Pass either a payload dict or keyword arguments, not both.")
-        if payload is not None:
-            if isinstance(payload, dict):
-                payload.setdefault("nonce", time.time())
-                setattr(self._widget.inputs, self._name, payload)
-            else:
-                setattr(self._widget.inputs, self._name, payload)
-            return
-
-        if kwargs:
-            if len(kwargs) == 1 and "index" in kwargs:
-                setattr(self._widget.inputs, self._name, kwargs["index"])
-                return
-            command_payload = dict(kwargs)
-            command_payload.setdefault("nonce", time.time())
-            setattr(self._widget.inputs, self._name, command_payload)
-
-
-class _CommandsNamespace:
-    """Namespace for invoking commands on a widget."""
-
-    def __init__(self, widget: "VibeWidget"):
-        object.__setattr__(self, "_widget", widget)
-
-    def __getattr__(self, name: str) -> _CommandProxy:
-        commands = getattr(self._widget, "_commands", {}) or {}
-        if name in commands:
-            accessors = getattr(self._widget, "_command_accessors", {})
-            if name not in accessors:
-                accessors[name] = _CommandProxy(self._widget, name, commands[name])
-            return accessors[name]
-        raise AttributeError(f"'{type(self._widget).__name__}.commands' has no attribute '{name}'")
-
-    def __dir__(self) -> list[str]:
-        commands = getattr(self._widget, "_commands", {}) or {}
-        return list(commands.keys())
-
-
-class _EventProxy:
-    """Proxy for sending widget events (custom messages)."""
+class _ActionProxy:
+    """Proxy for invoking widget actions."""
 
     def __init__(self, widget: "VibeWidget", name: str, description: str):
         self._widget = widget
@@ -314,7 +283,7 @@ class _EventProxy:
 
     @property
     def params(self) -> dict[str, str] | None:
-        params = getattr(self._widget, "_event_params", {}) or {}
+        params = getattr(self._widget, "_action_params", {}) or {}
         return params.get(self._name)
 
     @property
@@ -328,40 +297,50 @@ class _EventProxy:
     def __call__(self, payload: Any | None = None, **kwargs) -> None:
         if payload is not None and kwargs:
             raise TypeError("Pass either a payload dict or keyword arguments, not both.")
-        event_payload = payload if payload is not None else kwargs
+        action_payload = payload if payload is not None else kwargs
         sender = getattr(self._widget, "send", None)
         if callable(sender):
-            sender({"type": "event", "name": self._name, "payload": event_payload})
+            sender({"type": "action", "name": self._name, "payload": action_payload})
             legacy_payload = {"type": self._name}
-            if isinstance(event_payload, dict):
-                legacy_payload.update(event_payload)
+            if isinstance(action_payload, dict):
+                legacy_payload.update(action_payload)
             else:
-                legacy_payload["value"] = event_payload
+                legacy_payload["value"] = action_payload
             sender(legacy_payload)
-        logs = getattr(self._widget, "logs", None)
-        if isinstance(logs, list):
-            entry = f"DEBUG send event {self._name}: {event_payload}"
-            self._widget.logs = logs + [entry]
+        debug_inputs = False
+        try:
+            import os
+
+            debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
+        except Exception:
+            debug_inputs = False
+        if debug_inputs:
+            logs = getattr(self._widget, "logs", None)
+            if isinstance(logs, list):
+                entry = f"DEBUG send action {self._name}: {action_payload}"
+                self._widget.logs = logs + [entry]
 
 
-class _EventsNamespace:
-    """Namespace for sending events to a widget."""
+class _ActionsNamespace:
+    """Namespace for invoking actions on a widget."""
 
     def __init__(self, widget: "VibeWidget"):
         object.__setattr__(self, "_widget", widget)
 
-    def __getattr__(self, name: str) -> _EventProxy:
-        events = getattr(self._widget, "_events", {}) or {}
-        if name in events:
-            accessors = getattr(self._widget, "_event_accessors", {})
+    def __getattr__(self, name: str) -> _ActionProxy:
+        actions = getattr(self._widget, "_actions", {}) or {}
+        if name in actions:
+            accessors = getattr(self._widget, "_action_accessors", {})
             if name not in accessors:
-                accessors[name] = _EventProxy(self._widget, name, events[name])
+                accessors[name] = _ActionProxy(self._widget, name, actions[name])
             return accessors[name]
-        raise AttributeError(f"'{type(self._widget).__name__}.events' has no attribute '{name}'")
+        raise AttributeError(f"'{type(self._widget).__name__}.actions' has no attribute '{name}'")
 
     def __dir__(self) -> list[str]:
-        events = getattr(self._widget, "_events", {}) or {}
-        return list(events.keys())
+        actions = getattr(self._widget, "_actions", {}) or {}
+        return list(actions.keys())
+
+
 
 class VibeWidget(anywidget.AnyWidget):
     data = traitlets.List([]).tag(sync=True)
@@ -429,9 +408,8 @@ class VibeWidget(anywidget.AnyWidget):
         model: str = DEFAULT_MODEL,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
-        commands: dict[str, str] | None = None,
-        events: dict[str, str] | None = None,
-        event_params: dict[str, dict[str, str] | None] | None = None,
+        actions: dict[str, str] | None = None,
+        action_params: dict[str, dict[str, str] | None] | None = None,
         theme: Theme | None = None,
         data_var_name: str | None = None,
         base_code: str | None = None,
@@ -473,9 +451,8 @@ class VibeWidget(anywidget.AnyWidget):
             model=model,
             exports=exports,
             imports=imports,
-            commands=commands,
-            events=events,
-            event_params=event_params,
+            actions=actions,
+            action_params=action_params,
             theme=theme,
             data_var_name=data_var_name,
             base_code=base_code,
@@ -499,9 +476,8 @@ class VibeWidget(anywidget.AnyWidget):
         model: str = DEFAULT_MODEL,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
-        commands: dict[str, str] | None = None,
-        events: dict[str, str] | None = None,
-        event_params: dict[str, dict[str, str] | None] | None = None,
+        actions: dict[str, str] | None = None,
+        action_params: dict[str, dict[str, str] | None] | None = None,
         theme: Theme | None = None,
         data_var_name: str | None = None,
         base_code: str | None = None,
@@ -525,6 +501,7 @@ class VibeWidget(anywidget.AnyWidget):
             model: OpenRouter model to use (or alias resolved via config)
             exports: Dict of trait_name -> description for state this widget exposes
             imports: Dict of trait_name -> source widget/value for state this widget consumes
+            actions: Dict of action_name -> description for emitted actions
             data_var_name: Variable name of the data parameter for cache key
             base_code: Optional base widget code for revision/composition
             base_components: Optional list of component names from base widget
@@ -551,17 +528,14 @@ class VibeWidget(anywidget.AnyWidget):
         parser = CodeStreamParser()
         self._exports = exports or {}
         self._imports = imports or {}
-        self._commands = commands or {}
-        self._events = events or {}
-        self._event_params = event_params or {}
+        self._actions = actions or {}
+        self._action_params = action_params or {}
         self._export_accessors: dict[str, ExportHandle] = {}
         self._output_accessors: dict[str, _OutputProxy] = {}
-        self._command_accessors: dict[str, _CommandProxy] = {}
-        self._event_accessors: dict[str, _EventProxy] = {}
+        self._action_accessors: dict[str, _ActionProxy] = {}
         self._outputs_namespace: _OutputsNamespace | None = None
         self._inputs_namespace: _InputsNamespace | None = None
-        self._commands_namespace: _CommandsNamespace | None = None
-        self._events_namespace: _EventsNamespace | None = None
+        self._actions_namespace: _ActionsNamespace | None = None
         self._component_namespace: _ComponentNamespace | None = None
         self._output_observers: dict[str, list] = {}
         self._output_listener_installed: set[str] = set()
@@ -642,16 +616,16 @@ class VibeWidget(anywidget.AnyWidget):
             if debug_inputs:
                 print("[vibe_widget][debug] widget: provider ready")
 
-            if self._events:
+            if self._actions:
                 imports_for_prompt = _summarize_imports_for_prompt(self._imports)
-                self.logs = self.logs + [f"DEBUG events metadata: {self._events}"]
-                if self._event_params:
-                    self.logs = self.logs + [f"DEBUG event_params metadata: {self._event_params}"]
+                self.logs = self.logs + [f"DEBUG actions metadata: {self._actions}"]
+                if self._action_params:
+                    self.logs = self.logs + [f"DEBUG action_params metadata: {self._action_params}"]
                 section = provider._build_exports_imports_section(
                     self._exports,
                     imports_for_prompt,
-                    self._events,
-                    self._event_params,
+                    self._actions,
+                    self._action_params,
                 )
                 for line in section.strip().splitlines():
                     self.logs = self.logs + [f"DEBUG prompt: {line}"]
@@ -659,8 +633,8 @@ class VibeWidget(anywidget.AnyWidget):
                     df,
                     self._exports,
                     imports_for_prompt,
-                    events=self._events,
-                    event_params=self._event_params,
+                    actions=self._actions,
+                    action_params=self._action_params,
                     theme_description=self._theme.description if self._theme else None,
                 )
                 prompt_preview = provider._build_prompt(description, preview_info)
@@ -691,8 +665,8 @@ class VibeWidget(anywidget.AnyWidget):
                     df,
                     self._exports,
                     imports_for_prompt,
-                    events=self._events,
-                    event_params=self._event_params,
+                    actions=self._actions,
+                    action_params=self._action_params,
                     theme_description=self._theme.description if self._theme else None,
                 )
                 return
@@ -740,8 +714,8 @@ class VibeWidget(anywidget.AnyWidget):
                     df,
                     self._exports,
                     imports_for_prompt,
-                    events=self._events,
-                    event_params=self._event_params,
+                    actions=self._actions,
+                    action_params=self._action_params,
                     theme_description=self._theme.description if self._theme else None,
                 )
                 return
@@ -859,8 +833,8 @@ class VibeWidget(anywidget.AnyWidget):
                 df,
                 self._exports,
                 imports_for_prompt,
-                events=self._events,
-                event_params=self._event_params,
+                actions=self._actions,
+                action_params=self._action_params,
                 theme_description=self._theme.description if self._theme else None,
             )
             
@@ -873,7 +847,7 @@ class VibeWidget(anywidget.AnyWidget):
 
     def __getattribute__(self, name: str):
         """Return callable handles for exports to support import chaining."""
-        if not name.startswith("_") and name not in {"outputs", "inputs", "commands", "events", "component"}:
+        if not name.startswith("_") and name not in {"outputs", "inputs", "actions", "component"}:
             try:
                 exports = object.__getattribute__(self, "_exports")
                 if name in exports:
@@ -1054,28 +1028,24 @@ class VibeWidget(anywidget.AnyWidget):
     def edit(
         self,
         description: str,
-        data: pd.DataFrame | str | Path | None = None,
+        inputs: dict[str, Any] | InputsBundle | Any | None = None,
         outputs: dict[str, str] | OutputBundle | None = None,
-        inputs: dict[str, Any] | InputsBundle | None = None,
+        actions: dict[str, str] | ActionBundle | None = None,
         theme: Theme | str | None = None,
         config: Config | None = None,
         cache: bool = True,
     ) -> "VibeWidget":
         """
-        Instance helper that mirrors vw.edit but defaults the source to self.
-        Supports the same inputs/outputs/data wrappers as vw.edit.
+        Instance helper that edits the current widget.
+        Supports the same inputs/outputs wrappers as vw.inputs/outputs.
         """
-        data, outputs, inputs, _ = _normalize_api_inputs(
-            data=data,
-            outputs=outputs,
-            inputs=inputs,
-        )
-        return edit(
+        inputs, outputs = _coerce_outputs_inputs(inputs, outputs)
+        return _edit_from_source(
             description=description,
             source=self,
-            data=data,
-            outputs=outputs,
             inputs=inputs,
+            outputs=outputs,
+            actions=actions,
             theme=theme,
             config=config,
             cache=cache,
@@ -1547,18 +1517,11 @@ class VibeWidget(anywidget.AnyWidget):
         return self._inputs_namespace
 
     @property
-    def commands(self) -> _CommandsNamespace:
-        """Namespace accessor for widget commands."""
-        if self._commands_namespace is None:
-            self._commands_namespace = _CommandsNamespace(self)
-        return self._commands_namespace
-
-    @property
-    def events(self) -> _EventsNamespace:
-        """Namespace accessor for widget events."""
-        if self._events_namespace is None:
-            self._events_namespace = _EventsNamespace(self)
-        return self._events_namespace
+    def actions(self) -> _ActionsNamespace:
+        """Namespace accessor for widget actions."""
+        if self._actions_namespace is None:
+            self._actions_namespace = _ActionsNamespace(self)
+        return self._actions_namespace
 
     @property
     def component(self) -> _ComponentNamespace:
@@ -1590,7 +1553,7 @@ class VibeWidget(anywidget.AnyWidget):
         
         if hasattr(self, "_exports") and self._exports:
             export_attrs = list(self._exports.keys())
-        return list(set(default_attrs + export_attrs + ["outputs", "inputs", "commands", "events", "component"]))
+        return list(set(default_attrs + export_attrs + ["outputs", "inputs", "actions", "component"]))
     
     def __getattr__(self, name: str):
         """
@@ -1959,13 +1922,11 @@ def _resolve_model(
 
 
 def _normalize_api_inputs(
-    data: Any,
     outputs: dict[str, str] | OutputBundle | None,
     inputs: dict[str, Any] | InputsBundle | None,
-    commands: dict[str, str] | CommandBundle | None,
-    events: dict[str, str] | EventBundle | None,
-) -> tuple[Any, dict[str, str] | None, dict[str, Any] | None, dict[str, str] | None, dict[str, str] | None, dict[str, dict[str, str] | None] | None, str | None]:
-    """Allow flexible ordering/wrapping for outputs/inputs/data."""
+    actions: dict[str, str] | ActionBundle | None,
+) -> tuple[Any, dict[str, str] | None, dict[str, Any] | None, dict[str, str] | None, dict[str, dict[str, str] | None] | None, str | None]:
+    """Allow flexible ordering/wrapping for outputs/inputs."""
     debug_inputs = False
     try:
         import os
@@ -1973,38 +1934,20 @@ def _normalize_api_inputs(
         debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
     except Exception:
         debug_inputs = False
-    normalized_data = data
+    normalized_data = None
     normalized_inputs = inputs
     normalized_outputs = outputs
-    normalized_commands = commands
-    normalized_events = events
-    normalized_event_params: dict[str, dict[str, str] | None] | None = None
+    normalized_actions = actions
+    normalized_action_params: dict[str, dict[str, str] | None] | None = None
     data_var_name: str | None = None
-
-    # Data can be passed as an InputsBundle to keep everything together
-    if isinstance(normalized_data, InputsBundle):
-        data_var_name = normalized_data.data_name
-        bundle_inputs = normalized_data.inputs or {}
-        if isinstance(normalized_inputs, InputsBundle):
-            normalized_inputs = {**bundle_inputs, **(normalized_inputs.inputs or {})}
-        else:
-            normalized_inputs = {**bundle_inputs, **(normalized_inputs or {})}
-        normalized_data = normalized_data.data
-        if debug_inputs:
-            print(
-                "[vibe_widget][debug] normalize: data InputsBundle",
-                {"data_var_name": data_var_name, "inputs": list(bundle_inputs.keys())},
-            )
 
     if isinstance(normalized_outputs, OutputBundle):
         normalized_outputs = normalized_outputs.outputs
 
-    if isinstance(normalized_commands, CommandBundle):
-        normalized_commands = normalized_commands.commands
-
-    if isinstance(normalized_events, EventBundle):
-        normalized_event_params = normalized_events.params
-        normalized_events = normalized_events.events
+    if isinstance(normalized_actions, ActionBundle):
+        action_bundle = normalized_actions
+        normalized_actions = action_bundle.actions
+        normalized_action_params = action_bundle.params
 
     if isinstance(normalized_inputs, InputsBundle):
         if normalized_data is None:
@@ -2033,20 +1976,40 @@ def _normalize_api_inputs(
         normalized_data,
         normalized_outputs,
         normalized_inputs,
-        normalized_commands,
-        normalized_events,
-        normalized_event_params,
+        normalized_actions,
+        normalized_action_params,
         data_var_name,
     )
 
 
+def _coerce_inputs_bundle(
+    inputs: Any,
+    *,
+    caller_frame=None,
+) -> dict[str, Any] | InputsBundle | None:
+    if inputs is None:
+        return None
+    if isinstance(inputs, (InputsBundle, dict)):
+        return inputs
+    return _build_inputs_bundle((inputs,), {}, caller_frame=caller_frame)
+
+
+def _coerce_outputs_inputs(
+    inputs: Any,
+    outputs: Any,
+) -> tuple[Any, dict[str, str] | OutputBundle | None]:
+    if outputs is None and isinstance(inputs, OutputBundle):
+        return None, inputs
+    if outputs is None and inputs is not None and not isinstance(inputs, (dict, InputsBundle)):
+        return inputs, None
+    return inputs, outputs
+
+
 def create(
     description: str,
-    data: pd.DataFrame | str | Path | None = None,
-    outputs: dict[str, str] | None = None,
-    inputs: dict[str, Any] | None = None,
-    commands: dict[str, str] | CommandBundle | None = None,
-    events: dict[str, str] | EventBundle | None = None,
+    inputs: dict[str, Any] | InputsBundle | Any | None = None,
+    outputs: dict[str, str] | OutputBundle | None = None,
+    actions: dict[str, str] | ActionBundle | None = None,
     theme: Theme | str | None = None,
     config: Config | None = None,
     display: bool = True,
@@ -2056,9 +2019,9 @@ def create(
     
     Args:
         description: Natural language description of the visualization
-        data: DataFrame, file path, or URL to visualize
+        inputs: Dict of {trait_name: source}, a single input value, or vw.inputs(...) bundle
         outputs: Dict of {trait_name: description} for exposed state
-        inputs: Dict of {trait_name: source} for consumed state
+        actions: Dict of {action_name: description} for callable actions
         theme: Theme object, theme name, or prompt string
         config: Optional Config object with model settings (deprecated; call vw.config instead)
         display: Whether to display the widget immediately (IPython environments only)
@@ -2069,7 +2032,7 @@ def create(
     
     Examples:
         >>> widget = create("show temperature trends", df)
-        >>> widget = create("visualize sales data", "sales.csv")
+        >>> widget = create("visualize sales data", inputs=vw.inputs("sales.csv"))
     """
     debug_inputs = False
     try:
@@ -2078,17 +2041,14 @@ def create(
         debug_inputs = os.getenv("VIBE_WIDGET_DEBUG_INPUTS") == "1"
     except Exception:
         debug_inputs = False
-    if inputs is None and data is not None and not isinstance(data, InputsBundle):
-        frame = inspect.currentframe()
-        caller_frame = frame.f_back if frame else None
-        data = _build_inputs_bundle((data,), {}, caller_frame=caller_frame)
-
-    data, outputs, inputs, commands, events, event_params, data_var_name = _normalize_api_inputs(
-        data=data,
+    inputs, outputs = _coerce_outputs_inputs(inputs, outputs)
+    frame = inspect.currentframe()
+    caller_frame = frame.f_back if frame else None
+    inputs = _coerce_inputs_bundle(inputs, caller_frame=caller_frame)
+    data, outputs, inputs, actions, action_params, data_var_name = _normalize_api_inputs(
         outputs=outputs,
         inputs=inputs,
-        commands=commands,
-        events=events,
+        actions=actions,
     )
     if debug_inputs:
         print(
@@ -2099,10 +2059,6 @@ def create(
                 "outputs_keys": list((outputs or {}).keys()) if outputs else [],
             },
         )
-    if commands:
-        inputs = dict(inputs or {})
-        for name in commands.keys():
-            inputs.setdefault(name, None)
     model, resolved_config = _resolve_model(config_override=config)
     df = load_data(data)
     resolved_theme = resolve_theme_for_request(
@@ -2123,9 +2079,8 @@ def create(
         model=model,
         exports=outputs,
         imports=inputs,
-        commands=commands,
-        events=events,
-        event_params=event_params,
+        actions=actions,
+        action_params=action_params,
         theme=resolved_theme,
         data_var_name=data_var_name,
         display_widget=display,
@@ -2211,49 +2166,25 @@ def _resolve_source(
     
     raise TypeError(f"Invalid source type: {type(source)}")
 
-
-def edit(
+def _edit_from_source(
     description: str,
     source: "VibeWidget | ComponentReference | str | Path",
-    data: pd.DataFrame | str | Path | None = None,
+    inputs: dict[str, Any] | InputsBundle | Any | None = None,
     outputs: dict[str, str] | OutputBundle | None = None,
-    inputs: dict[str, Any] | InputsBundle | None = None,
-    commands: dict[str, str] | CommandBundle | None = None,
-    events: dict[str, str] | EventBundle | None = None,
+    actions: dict[str, str] | ActionBundle | None = None,
     theme: Theme | str | None = None,
     config: Config | None = None,
     cache: bool = True,
 ) -> "VibeWidget":
-    """Edit a widget by building upon existing code.
-    
-    Args:
-        description: Natural language description of changes
-        source: Widget, ComponentReference, widget ID, or file path
-        data: DataFrame to visualize (uses source data if None)
-        outputs: Dict of {trait_name: description} for new/modified outputs
-        inputs: Dict of {trait_name: source} for new/modified inputs
-        theme: Theme object, theme name, or prompt string
-        config: Optional Config object with model settings (deprecated; call vw.config instead)
-        cache: If False, bypass cache and regenerate widget/theme
-    
-    Returns:
-        New VibeWidget instance with edited code
-    
-    Examples:
-        >>> scatter2 = edit("add hover tooltips", scatter)
-        >>> hist = edit("histogram with slider", scatter.slider, data=df)
-    """
-    data, outputs, inputs, commands, events, event_params, _ = _normalize_api_inputs(
-        data=data,
+    inputs, outputs = _coerce_outputs_inputs(inputs, outputs)
+    frame = inspect.currentframe()
+    caller_frame = frame.f_back if frame else None
+    inputs = _coerce_inputs_bundle(inputs, caller_frame=caller_frame)
+    data, outputs, inputs, actions, action_params, _ = _normalize_api_inputs(
         outputs=outputs,
         inputs=inputs,
-        commands=commands,
-        events=events,
+        actions=actions,
     )
-    if commands:
-        inputs = dict(inputs or {})
-        for name in commands.keys():
-            inputs.setdefault(name, None)
     store = WidgetStore()
     source_info = _resolve_source(source, store)
     model, resolved_config = _resolve_model(config_override=config)
@@ -2267,16 +2198,15 @@ def edit(
             cache=cache,
         )
     df = source_info.df if data is None and source_info.df is not None else load_data(data)
-    
+
     widget = VibeWidget._create_with_dynamic_traits(
         description=description,
         df=df,
         model=model,
         exports=outputs,
         imports=inputs,
-        commands=commands,
-        events=events,
-        event_params=event_params,
+        actions=actions,
+        action_params=action_params,
         theme=resolved_theme,
         data_var_name=None,
         base_code=source_info.code,
@@ -2286,7 +2216,7 @@ def edit(
         execution_mode=resolved_config.execution if resolved_config else "auto",
         execution_approved=None,
     )
-    
+
     _link_imports(widget, inputs)
     widget._set_recipe(
         description=description,
@@ -2301,7 +2231,7 @@ def edit(
         base_components=source_info.components,
         base_widget_id=source_info.metadata.get("id") if source_info.metadata else None,
     )
-    
+
     return widget
 
 

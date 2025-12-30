@@ -23,33 +23,21 @@ class OutputBundle:
 
 
 @dataclass
-class CommandDefinition:
-    """Definition of a widget command."""
-
-    description: str
-
-
-@dataclass
-class CommandBundle:
-    """Container for resolved commands."""
-
-    commands: dict[str, str]
-
-
-@dataclass
-class EventDefinition:
-    """Definition of a widget event."""
+class ActionDefinition:
+    """Definition of a widget action."""
 
     description: str
     params: dict[str, str] | None = None
 
 
 @dataclass
-class EventBundle:
-    """Container for resolved events."""
+class ActionBundle:
+    """Container for resolved actions."""
 
-    events: dict[str, str]
+    actions: dict[str, str]
     params: dict[str, dict[str, str] | None] | None = None
+
+
 
 
 @dataclass
@@ -180,9 +168,9 @@ def output(description: str) -> OutputDefinition:
     return OutputDefinition(description)
 
 
-def command(description: str) -> CommandDefinition:
-    """Declare a single command."""
-    return CommandDefinition(description)
+def action(description: str, params: dict[str, str] | None = None) -> ActionDefinition:
+    """Declare a single action."""
+    return ActionDefinition(description, params=params)
 
 
 def outputs(**kwargs: OutputDefinition | str) -> OutputBundle:
@@ -198,42 +186,24 @@ def outputs(**kwargs: OutputDefinition | str) -> OutputBundle:
     return OutputBundle(output_map)
 
 
-def commands(**kwargs: CommandDefinition | str) -> CommandBundle:
-    """Bundle commands into the shape the core expects."""
-    command_map: dict[str, str] = {}
+def actions(**kwargs: ActionDefinition | str) -> ActionBundle:
+    """Bundle actions into the shape the core expects."""
+    action_map: dict[str, str] = {}
+    action_params: dict[str, dict[str, str] | None] = {}
     for name, definition in kwargs.items():
-        if isinstance(definition, CommandDefinition):
-            command_map[name] = definition.description
+        if isinstance(definition, ActionDefinition):
+            action_map[name] = definition.description
+            action_params[name] = definition.params
         elif isinstance(definition, str):
-            command_map[name] = definition
+            action_map[name] = definition
+            action_params[name] = None
         else:
-            raise TypeError(f"Command '{name}' must be a string or vw.command(...)")
-    return CommandBundle(command_map)
-
-
-def event(description: str, params: dict[str, str] | None = None) -> EventDefinition:
-    """Declare a single event."""
-    return EventDefinition(description, params=params)
-
-
-def events(**kwargs: EventDefinition | str) -> EventBundle:
-    """Bundle events into the shape the core expects."""
-    event_map: dict[str, str] = {}
-    event_params: dict[str, dict[str, str] | None] = {}
-    for name, definition in kwargs.items():
-        if isinstance(definition, EventDefinition):
-            event_map[name] = definition.description
-            event_params[name] = definition.params
-        elif isinstance(definition, str):
-            event_map[name] = definition
-            event_params[name] = None
-        else:
-            raise TypeError(f"Event '{name}' must be a string or vw.event(...)")
-    return EventBundle(event_map, params=event_params)
+            raise TypeError(f"Action '{name}' must be a string or vw.action(...)")
+    return ActionBundle(action_map, params=action_params)
 
 
 def inputs(*args: Any, **kwargs: Any) -> InputsBundle:
-    """Bundle data with inputs, allowing positional or named arguments."""
+    """Bundle inputs, optionally capturing a data value for widget creation."""
     frame = inspect.currentframe()
     caller_frame = frame.f_back if frame else None
     return _build_inputs_bundle(args, kwargs, caller_frame=caller_frame)
