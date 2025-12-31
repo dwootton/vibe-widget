@@ -92,17 +92,32 @@ class _ComponentNamespace:
     """Namespace for accessing components on a widget."""
 
     def __init__(self, widget: "VibeWidget"):
-        self._widget = widget
+        object.__setattr__(self, "_widget", widget)
+        object.__setattr__(self, "_cache", {})
 
-    def __getattr__(self, name: str) -> ComponentReference:
-        reference = self._widget._resolve_component_reference(name)
-        if reference is None:
-            raise AttributeError(f"'{type(self._widget).__name__}.component' has no attribute '{name}'")
-        return reference
+    def __getattr__(self, name: str) -> "VibeWidget":
+        cache = object.__getattribute__(self, "_cache")
+        if name in cache:
+            return cache[name]
+
+        widget = object.__getattribute__(self, "_widget")
+        component_name = widget._resolve_component_name(name)
+        if component_name is None:
+            available = widget._component_attr_names()
+            available_str = ", ".join(available) if available else "none"
+            raise AttributeError(
+                f"'{type(widget).__name__}.component' has no attribute '{name}'. "
+                f"Available components: {available_str}"
+            )
+
+        component_widget = widget._create_component_widget(component_name)
+        cache[name] = component_widget
+        return component_widget
 
     def __dir__(self) -> list[str]:
         widget = object.__getattribute__(self, "_widget")
-        return widget._component_attr_names() + ["list", "names"]
+        names = widget._component_attr_names()
+        return names + ["list", "names"]
     
     def __iter__(self):
         """Iterate over component names."""
@@ -1511,50 +1526,111 @@ class VibeWidget(anywidget.AnyWidget):
             VibeWidget instance configured to render only this component
         """
         from vibe_widget.utils.code_parser import generate_standalone_wrapper
-        
-        # Generate standalone code for this component
-        standalone_code = generate_standalone_wrapper(self.code, component_name)
-        
-        # Get metadata from parent widget
+        standalone_code = generate_standalone_wrapper(self.code or "", component_name)
+
         parent_metadata = self._widget_metadata or {}
-        parent_slug = parent_metadata.get('slug', 'widget')
-        
-        # Component widget metadata
+        parent_slug = parent_metadata.get("slug", "widget")
+
         component_metadata = {
             **parent_metadata,
             "is_component_view": True,
             "source_component": component_name,
             "parent_widget_id": parent_metadata.get("id"),
             "parent_slug": parent_slug,
-            # Override slug for the component
             "slug": f"{parent_slug}:{self._to_python_attr(component_name)}",
-            # Component has single component (itself)
             "components": [component_name],
         }
-        
-        # Get data from parent widget
-        data = self.data
-        df = pd.DataFrame(data) if data else pd.DataFrame()
-        
-        # Create the component widget
-        widget = VibeWidget._create_with_dynamic_traits(
-            description=f"{component_name} (from {parent_slug})",
-            df=df,
-            model=parent_metadata.get("model", "claude-haiku-4-5-20251001"),
-            exports=None,
-            imports=None,
+
+        parent_inputs = (
+            getattr(self, "_recipe_inputs", None)
+            or getattr(self, "_recipe_imports", None)
+            or getattr(self, "_imports", None)
+        )
+        if isinstance(parent_inputs, InputsBundle):
+            parent_inputs = parent_inputs.inputs
+        if parent_inputs is not None:
+            parent_inputs = dict(parent_inputs)
+
+        parent_outputs = (
+            getattr(self, "_recipe_exports", None)
+            or getattr(self, "_exports", None)
+        )
+        if parent_outputs is not None:
+            parent_outputs = dict(parent_outputs)
+
+        parent_actions = (
+            getattr(self, "_recipe_actions", None)
+            or getattr(self, "_actions", None)
+        )
+        if parent_actions is not None:
+            parent_actions = dict(parent_actions)
+
+        parent_action_params = (
+            getattr(self, "_recipe_action_params", None)
+            or getattr(self, "_action_params", None)
+        )
+        if parent_action_params is not None:
+            parent_action_params = dict(parent_action_params)
+
+        input_sampling = getattr(self, "_recipe_input_sampling", None)
+        if input_sampling is None:
+            input_sampling = getattr(self, "_input_sampling", True)
+
+        parent_model = (
+            getattr(self, "_recipe_model_resolved", None)
+            or getattr(self, "_recipe_model", None)
+            or parent_metadata.get("model")
+            or DEFAULT_MODEL
+        )
+
+        input_summaries = _summarize_inputs_for_prompt(parent_inputs)
+        data_var_name, data_shape = _inputs_cache_info(parent_inputs)
+
+        component_widget = VibeWidget._create_with_dynamic_traits(
+            description=f"{component_name} (component of {parent_slug})",
+            model=parent_model,
+            exports=parent_outputs,
+            imports=parent_inputs,
+            actions=parent_actions,
+            action_params=parent_action_params,
             theme=self._theme,
+            data_var_name=data_var_name,
+            data_shape=data_shape,
+            input_summaries=input_summaries,
+            input_sampling=input_sampling,
+            base_code=self.code,
+            base_components=[component_name],
+            base_widget_id=parent_metadata.get("id"),
             existing_code=standalone_code,
             existing_metadata=component_metadata,
             display_widget=False,
             cache=False,
+            execution_mode=self.execution_mode,
+            execution_approved=self.execution_approved,
+            execution_approved_hash=self.execution_approved_hash,
         )
-        
-        # Store reference back to parent for edit operations
-        widget._parent_widget = self
-        widget._source_component = component_name
-        
-        return widget
+
+        _link_imports(component_widget, parent_inputs)
+
+        component_widget._set_recipe(
+            description=f"{component_name} (component of {parent_slug})",
+            inputs=parent_inputs,
+            exports=parent_outputs,
+            imports=parent_inputs,
+            actions=parent_actions,
+            action_params=parent_action_params,
+            input_sampling=input_sampling,
+            model=parent_model,
+            theme=self._theme,
+            base_code=self.code,
+            base_components=[component_name],
+            base_widget_id=parent_metadata.get("id"),
+        )
+
+        component_widget._parent_widget = self
+        component_widget._source_component = component_name
+
+        return component_widget
 
     def __dir__(self):
         """Return list of attributes including outputs/component helpers for autocomplete."""
@@ -2280,11 +2356,13 @@ def _edit_from_source(
         cache=cache,
         execution_mode=resolved_config.execution if resolved_config else "auto",
         execution_approved=None,
+        display_widget=True,
     )
 
     _link_imports(widget, inputs)
     widget._set_recipe(
         description=description,
+        inputs=inputs,
         exports=outputs,
         imports=inputs,
         actions=actions,
