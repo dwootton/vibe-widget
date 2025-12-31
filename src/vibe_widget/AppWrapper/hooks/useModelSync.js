@@ -6,6 +6,7 @@ export default function useModelSync(model) {
   const [logs, setLogs] = React.useState(model.get("logs"));
   const [code, setCode] = React.useState(model.get("code"));
   const [errorMessage, setErrorMessage] = React.useState(model.get("error_message"));
+  const [retryCount, setRetryCount] = React.useState(model.get("retry_count"));
   const [auditStatus, setAuditStatus] = React.useState(model.get("audit_status"));
   const [auditResponse, setAuditResponse] = React.useState(model.get("audit_response"));
   const [auditError, setAuditError] = React.useState(model.get("audit_error"));
@@ -20,6 +21,7 @@ export default function useModelSync(model) {
     const onLogsChange = () => setLogs(model.get("logs"));
     const onCodeChange = () => setCode(model.get("code"));
     const onErrorChange = () => setErrorMessage(model.get("error_message"));
+    const onRetryCountChange = () => setRetryCount(model.get("retry_count"));
     const onAuditStatusChange = () => setAuditStatus(model.get("audit_status"));
     const onAuditResponseChange = () => setAuditResponse(model.get("audit_response"));
     const onAuditErrorChange = () => setAuditError(model.get("audit_error"));
@@ -33,6 +35,7 @@ export default function useModelSync(model) {
     model.on("change:logs", onLogsChange);
     model.on("change:code", onCodeChange);
     model.on("change:error_message", onErrorChange);
+    model.on("change:retry_count", onRetryCountChange);
     model.on("change:audit_status", onAuditStatusChange);
     model.on("change:audit_response", onAuditResponseChange);
     model.on("change:audit_error", onAuditErrorChange);
@@ -47,6 +50,7 @@ export default function useModelSync(model) {
       model.off("change:logs", onLogsChange);
       model.off("change:code", onCodeChange);
       model.off("change:error_message", onErrorChange);
+      model.off("change:retry_count", onRetryCountChange);
       model.off("change:audit_status", onAuditStatusChange);
       model.off("change:audit_response", onAuditResponseChange);
       model.off("change:audit_error", onAuditErrorChange);
@@ -63,6 +67,7 @@ export default function useModelSync(model) {
     logs,
     code,
     errorMessage,
+    retryCount,
     auditStatus,
     auditResponse,
     auditError,

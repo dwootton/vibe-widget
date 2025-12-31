@@ -36,6 +36,7 @@ dependencies = [
     "crawl4ai>=0.3.0",
     "beautifulsoup4>=4.12.0",
     "nest-asyncio>=1.5.0",
+    "pretty-little-summary",
 ]
 
 [project.optional-dependencies]

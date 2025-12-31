@@ -101,6 +101,15 @@ class CodeValidateTool(Tool):
             if "className=" in code and "html`" in code:
                 warnings.append("Use 'class=' not 'className=' in htm templates")
 
+            if (
+                re.search(r"style\s*=\s*['\"]", code)
+                or re.search(r"style\s*=\s*\$\{\s*['\"]", code)
+                or re.search(r"style\s*=\s*\{\s*['\"]", code)
+            ):
+                issues.append(
+                    "Inline style must be an object literal: use style=${{ ... }} not a string"
+                )
+
             cdn_imports = re.findall(r'from\s+["\']https://esm\.sh/([^"\']+)["\']', code)
             for imp in cdn_imports:
                 if "@" not in imp:

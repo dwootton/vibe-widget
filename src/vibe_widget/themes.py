@@ -303,7 +303,8 @@ def resolve_theme_for_request(
     if value is None:
         return None
     provider = _get_provider(model=model, api_key=api_key) if (model or api_key) else None
-    return ThemeRegistry().resolve(value, provider=provider, cache=cache)
+    resolved = ThemeRegistry().resolve(value, provider=provider, cache=cache)
+    return resolved
 
 
 def clear_theme_cache() -> int:

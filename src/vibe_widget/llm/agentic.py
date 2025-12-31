@@ -1,7 +1,5 @@
 from typing import Any, Callable, Tuple
 
-import pandas as pd
-
 
 from vibe_widget.llm.providers.base import LLMProvider
 # Tool imports
@@ -44,44 +42,51 @@ class AgenticOrchestrator:
     def generate(
         self,
         description: str,
-        df: pd.DataFrame,
-        exports: dict[str, str] | None = None,
-        imports: dict[str, str] | None = None,
+        outputs: dict[str, str] | None = None,
+        inputs: dict[str, str] | None = None,
+        input_summaries: dict[str, str] | None = None,
+        actions: dict[str, str] | None = None,
+        action_params: dict[str, dict[str, str] | None] | None = None,
         base_code: str | None = None,
         base_components: list[str] | None = None,
         theme_description: str | None = None,
         progress_callback: Callable[[str, str], None] | None = None,
-    ) -> Tuple[str, pd.DataFrame]:
+    ) -> Tuple[str, None]:
         """
-        Generate widget code from description and DataFrame.
+        Generate widget code from description and summarized inputs.
         
         Args:
             description: Natural language widget description
-            df: DataFrame to visualize
-            exports: Dict of export trait names -> descriptions
-            imports: Dict of import trait names -> descriptions
+            outputs: Dict of output trait names -> descriptions
+            inputs: Dict of input trait names -> descriptions
+            input_summaries: Dict of input summaries for prompt context
             base_code: Optional base widget code for composition/revision
             base_components: Optional list of component names from base widget
             progress_callback: Optional callback for progress updates
         
         Returns:
-            Tuple of (widget_code, processed_dataframe)
+            Tuple of (widget_code, None)
         """
-        exports = exports or {}
-        imports = imports or {}
+        outputs = outputs or {}
+        inputs = inputs or {}
+        input_summaries = input_summaries or inputs or {}
+        actions = actions or {}
+        action_params = action_params or {}
         base_components = base_components or []
         
         self._emit(progress_callback, "step", "Analyzing data")
         
         # Build data context for LLM using base class method
         data_info = LLMProvider.build_data_info(
-            df,
-            exports,
-            imports,
+            outputs=outputs,
+            inputs=input_summaries,
+            actions=actions,
+            action_params=action_params,
             theme_description=theme_description,
         )
         
-        self._emit(progress_callback, "step", f"Data: {df.shape[0]} rows × {df.shape[1]} columns")
+        if input_summaries:
+            self._emit(progress_callback, "step", f"Inputs: {len(input_summaries)}")
         
         # Determine if this is a revision or fresh generation
         if base_code:
@@ -107,8 +112,8 @@ class AgenticOrchestrator:
         self._emit(progress_callback, "step", "Validating code")
         validation = self.validate_tool.execute(
             code=code,
-            expected_exports=list(exports.keys()),
-            expected_imports=list(imports.keys()),
+            expected_exports=list(outputs.keys()),
+            expected_imports=list(inputs.keys()),
         )
         
         # Runtime test
@@ -149,8 +154,8 @@ class AgenticOrchestrator:
             # Re-validate
             validation = self.validate_tool.execute(
                 code=code,
-                expected_exports=list(exports.keys()),
-                expected_imports=list(imports.keys()),
+                expected_exports=list(outputs.keys()),
+                expected_imports=list(inputs.keys()),
             )
             runtime = self.runtime_tool.execute(code=code)
         
@@ -160,7 +165,7 @@ class AgenticOrchestrator:
         self.artifacts["generated_code"] = code
         self.artifacts["validation"] = validation.output
         
-        return code, df
+        return code, None
     
     def fix_runtime_error(
         self,
@@ -187,12 +192,24 @@ class AgenticOrchestrator:
             error_message=error_message,
             code=code,
         )
+        full_error = diagnosis.output.get("full_error", error_message)
+        affected_lines = diagnosis.output.get("affected_lines") or []
+        if affected_lines:
+            code_lines = code.splitlines()
+            snippet_lines = []
+            for line_num in sorted(set(affected_lines)):
+                start = max(1, line_num - 2)
+                end = min(len(code_lines), line_num + 2)
+                for idx in range(start, end + 1):
+                    snippet_lines.append(f"{idx}: {code_lines[idx - 1]}")
+            snippet = "\n".join(snippet_lines)
+            full_error = f"{full_error}\n\nCode context:\n{snippet}"
         
         self._emit(progress_callback, "step", "Repairing code")
         
         fixed_code = self.provider.fix_code_error(
             broken_code=code,
-            error_message=diagnosis.output.get("full_error", error_message),
+            error_message=full_error,
             data_info=data_info,
         )
         

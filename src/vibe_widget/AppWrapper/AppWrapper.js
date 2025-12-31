@@ -26,6 +26,7 @@ function AppWrapper({ model }) {
     logs,
     code,
     errorMessage,
+    retryCount,
     auditStatus,
     auditResponse,
     auditError,
@@ -97,7 +98,8 @@ function AppWrapper({ model }) {
     setGrabMode(null);
   };
 
-  const isLoading = status === "generating";
+  const isRetrying = (retryCount || 0) > 0 && (retryCount || 0) < 2;
+  const isLoading = status === "generating" || isRetrying;
   const hasCode = renderCode && renderCode.length > 0;
   const approvalMode = executionMode === "approve";
   const isApproved = executionApproved || !approvalMode;
@@ -117,6 +119,9 @@ function AppWrapper({ model }) {
     observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, []);
+  React.useEffect(() => {
+    setMinHeight(0);
+  }, [renderCode]);
   React.useEffect(() => {
     if (approvalMode) {
       setShowAudit(false);
