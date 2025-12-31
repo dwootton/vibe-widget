@@ -371,35 +371,14 @@ class WidgetStore:
         return widget_entry, code
     
     def extract_components(self, code: str) -> list[str]:
-        """
-        Extract named exports (components) from JavaScript code.
-        
-        Detects patterns like:
-        - export const ComponentName = ...
-        - export function ComponentName(...) {...}
-        - export class ComponentName {...}
-        
-        Args:
-            code: JavaScript code
-        
-        Returns:
-            List of component names found
-        """
-        components = []
-        
-        # Match: export const Name = ...
-        const_exports = re.findall(r'export\s+const\s+([A-Z][a-zA-Z0-9_]*)\s*=', code)
-        components.extend(const_exports)
-        
-        # Match: export function Name(...) {...}
-        func_exports = re.findall(r'export\s+function\s+([A-Z][a-zA-Z0-9_]*)\s*\(', code)
-        components.extend(func_exports)
-        
-        # Match: export class Name {...}
-        class_exports = re.findall(r'export\s+class\s+([A-Z][a-zA-Z0-9_]*)\s*\{', code)
-        components.extend(class_exports)
-        
-        return list(set(components))  # Remove duplicates
+        """Extract named exports (components) from JavaScript code."""
+        from vibe_widget.utils.code_parser import extract_named_exports
+        return extract_named_exports(code)
+    
+    def extract_component_code(self, full_code: str, component_name: str) -> str | None:
+        """Extract the code for a specific named export component."""
+        from vibe_widget.utils.code_parser import extract_component_code
+        return extract_component_code(full_code, component_name)
     
     def get_notebook_path(self) -> str | None:
         """Try to infer the current notebook path from IPython."""

@@ -76,28 +76,6 @@ class ComponentReference:
     
     def __repr__(self) -> str:
         return f"<ComponentReference: {self.component_name} from widget {self.widget._widget_metadata.get('slug', 'unknown') if self.widget._widget_metadata else 'unknown'}>"
-
-    def edit(
-        self,
-        description: str,
-        inputs: dict[str, Any] | InputsBundle | Any | None = None,
-        outputs: dict[str, str] | OutputBundle | None = None,
-        actions: dict[str, str] | ActionBundle | None = None,
-        theme: Theme | str | None = None,
-        config: Config | None = None,
-        cache: bool = True,
-    ) -> "VibeWidget":
-        inputs, outputs = _coerce_outputs_inputs(inputs, outputs)
-        return _edit_from_source(
-            description=description,
-            source=self,
-            inputs=inputs,
-            outputs=outputs,
-            actions=actions,
-            theme=theme,
-            config=config,
-            cache=cache,
-        )
     
     @property
     def code(self) -> str:
@@ -123,7 +101,40 @@ class _ComponentNamespace:
         return reference
 
     def __dir__(self) -> list[str]:
-        return self._widget._component_attr_names()
+        widget = object.__getattribute__(self, "_widget")
+        return widget._component_attr_names() + ["list", "names"]
+    
+    def __iter__(self):
+        """Iterate over component names."""
+        widget = object.__getattribute__(self, "_widget")
+        return iter(widget._component_attr_names())
+    
+    def __len__(self) -> int:
+        """Return number of components."""
+        widget = object.__getattribute__(self, "_widget")
+        return len(widget._component_attr_names())
+    
+    @property
+    def names(self) -> list[str]:
+        """Get list of component names (snake_case for Python access)."""
+        widget = object.__getattribute__(self, "_widget")
+        return widget._component_attr_names()
+    
+    def list(self) -> None:
+        """Print available components."""
+        widget = object.__getattribute__(self, "_widget")
+        components = []
+        if hasattr(widget, "_widget_metadata") and widget._widget_metadata:
+            components = widget._widget_metadata.get("components", [])
+        
+        if not components:
+            print("No components found.")
+            return
+        
+        print(f"Available components ({len(components)}):")
+        for comp in components:
+            py_name = widget._to_python_attr(comp)
+            print(f"  • widget.component.{py_name}")
 
 
 def _values_equal(left: Any, right: Any) -> bool:
@@ -1445,6 +1456,29 @@ class VibeWidget(anywidget.AnyWidget):
         if self._component_namespace is None:
             self._component_namespace = _ComponentNamespace(self)
         return self._component_namespace
+    
+    @property
+    def components(self) -> list[str]:
+        """
+        List of available component names in this widget.
+        
+        Returns:
+            List of component names (snake_case for Python access)
+        
+        Examples:
+            >>> widget.components
+            ['scatter_chart', 'color_legend', 'slider']
+            >>> widget.component.scatter_chart.display()  # Display one component
+        """
+        return self._component_attr_names()
+    
+    def list_components(self) -> None:
+        """
+        Print a formatted list of available components.
+        
+        Shows component names and how to access/display them.
+        """
+        self.component.list()
 
     def _component_attr_names(self) -> list[str]:
         components = []
@@ -1452,14 +1486,75 @@ class VibeWidget(anywidget.AnyWidget):
             components = self._widget_metadata["components"] or []
         return [self._to_python_attr(comp) for comp in components]
 
-    def _resolve_component_reference(self, name: str) -> ComponentReference | None:
+    def _resolve_component_name(self, name: str) -> str | None:
+        """Resolve a Python attribute name to the original component name."""
         if not hasattr(self, "_widget_metadata") or not self._widget_metadata or "components" not in self._widget_metadata:
             return None
         components = self._widget_metadata["components"]
         for comp in components:
             if self._to_python_attr(comp) == name or comp.lower() == name.lower():
-                return ComponentReference(self, comp)
+                return comp
         return None
+
+    def _create_component_widget(self, component_name: str) -> "VibeWidget":
+        """
+        Create a VibeWidget that renders only this component.
+        
+        This widget has all standard VibeWidget methods including edit(), display(), etc.
+        The widget's code is the original code with the default export replaced to render
+        only the specified component.
+        
+        Args:
+            component_name: Name of the component (PascalCase as in JS code)
+        
+        Returns:
+            VibeWidget instance configured to render only this component
+        """
+        from vibe_widget.utils.code_parser import generate_standalone_wrapper
+        
+        # Generate standalone code for this component
+        standalone_code = generate_standalone_wrapper(self.code, component_name)
+        
+        # Get metadata from parent widget
+        parent_metadata = self._widget_metadata or {}
+        parent_slug = parent_metadata.get('slug', 'widget')
+        
+        # Component widget metadata
+        component_metadata = {
+            **parent_metadata,
+            "is_component_view": True,
+            "source_component": component_name,
+            "parent_widget_id": parent_metadata.get("id"),
+            "parent_slug": parent_slug,
+            # Override slug for the component
+            "slug": f"{parent_slug}:{self._to_python_attr(component_name)}",
+            # Component has single component (itself)
+            "components": [component_name],
+        }
+        
+        # Get data from parent widget
+        data = self.data
+        df = pd.DataFrame(data) if data else pd.DataFrame()
+        
+        # Create the component widget
+        widget = VibeWidget._create_with_dynamic_traits(
+            description=f"{component_name} (from {parent_slug})",
+            df=df,
+            model=parent_metadata.get("model", "claude-haiku-4-5-20251001"),
+            exports=None,
+            imports=None,
+            theme=self._theme,
+            existing_code=standalone_code,
+            existing_metadata=component_metadata,
+            display_widget=False,
+            cache=False,
+        )
+        
+        # Store reference back to parent for edit operations
+        widget._parent_widget = self
+        widget._source_component = component_name
+        
+        return widget
 
     def __dir__(self):
         """Return list of attributes including outputs/component helpers for autocomplete."""
@@ -1473,19 +1568,12 @@ class VibeWidget(anywidget.AnyWidget):
     
     def __getattr__(self, name: str):
         """
-        Enable access to components via dot notation (legacy).
-        
-        Examples:
-            scatter.component.slider -> ComponentReference
-            scatter.component.color_legend -> ComponentReference
+        Enable access to exports via dot notation.
+        Components should be accessed via widget.component.name.
         """
         # Avoid infinite recursion for special attributes
         if name.startswith('_'):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-        
-        reference = self._resolve_component_reference(name)
-        if reference is not None:
-            return reference
         
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
@@ -1998,15 +2086,17 @@ class _SourceInfo:
     """Container for resolved source information."""
     def __init__(
         self,
+        *,
         code: str,
         metadata: dict[str, Any] | None,
         components: list[str],
-        inputs: dict[str, Any] | None,
-        outputs: dict[str, str] | None,
-        actions: dict[str, str] | None,
-        action_params: dict[str, dict[str, str] | None] | None,
-        input_sampling: bool,
-        theme: Theme | None,
+        inputs: dict[str, Any] | None = None,
+        outputs: dict[str, str] | None = None,
+        actions: dict[str, str] | None = None,
+        action_params: dict[str, dict[str, str] | None] | None = None,
+        input_sampling: bool | None = None,
+        theme: Theme | None = None,
+        target_component: str | None = None,
     ):
         self.code = code
         self.metadata = metadata
@@ -2017,6 +2107,8 @@ class _SourceInfo:
         self.action_params = action_params
         self.input_sampling = input_sampling
         self.theme = theme
+        # When editing a specific component, this is the component name
+        self.target_component = target_component
 
 
 def _resolve_source(
@@ -2025,29 +2117,61 @@ def _resolve_source(
 ) -> _SourceInfo:
     """Resolve source widget to code, metadata, components, and inputs."""
     if isinstance(source, VibeWidget):
+        inputs = getattr(source, "_recipe_inputs", None) or getattr(source, "_recipe_imports", None)
+        if inputs is None:
+            inputs = getattr(source, "_imports", None)
+        outputs = getattr(source, "_recipe_exports", None)
+        if outputs is None:
+            outputs = getattr(source, "_exports", None)
+        actions = getattr(source, "_recipe_actions", None)
+        if actions is None:
+            actions = getattr(source, "_actions", None)
+        action_params = getattr(source, "_recipe_action_params", None)
+        if action_params is None:
+            action_params = getattr(source, "_action_params", None)
+        input_sampling = getattr(source, "_recipe_input_sampling", None)
+        if input_sampling is None:
+            input_sampling = getattr(source, "_input_sampling", None)
         return _SourceInfo(
             code=source.code,
             metadata=source._widget_metadata,
             components=source._widget_metadata.get("components", []) if source._widget_metadata else [],
-            inputs=source._imports,
-            outputs=source._exports,
-            actions=source._actions,
-            action_params=source._action_params,
-            input_sampling=getattr(source, "_input_sampling", True),
+            inputs=inputs,
+            outputs=outputs,
+            actions=actions,
+            action_params=action_params,
+            input_sampling=input_sampling,
             theme=source._theme,
+            target_component=None,
         )
     
     if isinstance(source, ComponentReference):
+        inputs = getattr(source.widget, "_recipe_inputs", None) or getattr(source.widget, "_recipe_imports", None)
+        if inputs is None:
+            inputs = getattr(source.widget, "_imports", None)
+        outputs = getattr(source.widget, "_recipe_exports", None)
+        if outputs is None:
+            outputs = getattr(source.widget, "_exports", None)
+        actions = getattr(source.widget, "_recipe_actions", None)
+        if actions is None:
+            actions = getattr(source.widget, "_actions", None)
+        action_params = getattr(source.widget, "_recipe_action_params", None)
+        if action_params is None:
+            action_params = getattr(source.widget, "_action_params", None)
+        input_sampling = getattr(source.widget, "_recipe_input_sampling", None)
+        if input_sampling is None:
+            input_sampling = getattr(source.widget, "_input_sampling", None)
         return _SourceInfo(
             code=source.code,
             metadata=source.metadata,
             components=[source.component_name],
-            inputs=source.widget._imports,
-            outputs=source.widget._exports,
-            actions=source.widget._actions,
-            action_params=source.widget._action_params,
-            input_sampling=getattr(source.widget, "_input_sampling", True),
+            inputs=inputs,
+            outputs=outputs,
+            actions=actions,
+            action_params=action_params,
+            input_sampling=input_sampling,
             theme=source.widget._theme,
+            target_component=source.component_name,
         )
     
     if isinstance(source, (str, Path)):
@@ -2075,6 +2199,7 @@ def _resolve_source(
                 action_params=None,
                 input_sampling=True,
                 theme=theme,
+                target_component=None,
             )
         
         error_msg = f"Could not find widget with ID '{source}'" if isinstance(source, str) else f"Widget file not found: {source}"
@@ -2092,15 +2217,19 @@ def _edit_from_source(
     config: Config | None = None,
     cache: bool = True,
 ) -> "VibeWidget":
+    """Edit a widget by building upon existing code or components."""
     inputs, outputs = _coerce_outputs_inputs(inputs, outputs)
     frame = inspect.currentframe()
     caller_frame = frame.f_back if frame else None
-    inputs = _coerce_inputs_bundle(inputs, caller_frame=caller_frame)
+    if inputs is not None:
+        inputs = _coerce_inputs_bundle(inputs, caller_frame=caller_frame)
+
     outputs, inputs, actions, action_params, input_sampling = _normalize_api_inputs(
         outputs=outputs,
         inputs=inputs,
         actions=actions,
     )
+
     store = WidgetStore()
     source_info = _resolve_source(source, store)
     if outputs is None:
@@ -2113,6 +2242,9 @@ def _edit_from_source(
         action_params = source_info.action_params
     if input_sampling is None:
         input_sampling = source_info.input_sampling
+    if input_sampling is None:
+        input_sampling = True
+
     model, resolved_config = _resolve_model(config_override=config)
     if theme is None and source_info.theme is not None:
         resolved_theme = source_info.theme
@@ -2125,6 +2257,9 @@ def _edit_from_source(
         )
     if inputs is None:
         inputs = source_info.inputs
+    if inputs is None:
+        inputs = {}
+
     input_summaries = _summarize_inputs_for_prompt(inputs)
     data_var_name, data_shape = _inputs_cache_info(inputs)
     widget = VibeWidget._create_with_dynamic_traits(
@@ -2150,7 +2285,6 @@ def _edit_from_source(
     _link_imports(widget, inputs)
     widget._set_recipe(
         description=description,
-        inputs=inputs,
         exports=outputs,
         imports=inputs,
         actions=actions,
@@ -2164,6 +2298,29 @@ def _edit_from_source(
     )
 
     return widget
+
+
+def edit(
+    description: str,
+    source: "VibeWidget | ComponentReference | str | Path",
+    inputs: dict[str, Any] | InputsBundle | Any | None = None,
+    outputs: dict[str, str] | OutputBundle | None = None,
+    actions: dict[str, str] | ActionBundle | None = None,
+    theme: Theme | str | None = None,
+    config: Config | None = None,
+    cache: bool = True,
+) -> VibeWidget:
+    """Public helper to edit an existing widget or component."""
+    return _edit_from_source(
+        description=description,
+        source=source,
+        inputs=inputs,
+        outputs=outputs,
+        actions=actions,
+        theme=theme,
+        config=config,
+        cache=cache,
+    )
 
 
 def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeWidget:
