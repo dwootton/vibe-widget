@@ -60,13 +60,14 @@ def clean_for_json(obj: Any) -> Any:
 def prepare_input_for_widget(
     value: Any,
     *,
-    max_rows: int = 5000,
+    max_rows: int | None = 5000,
     input_name: str | None = None,
+    sample: bool = True,
 ) -> Any:
     """Prepare input values for widget transport, sampling large tabular data."""
     if isinstance(value, pd.DataFrame):
         df = value
-        if len(df) > max_rows:
+        if sample and max_rows is not None and len(df) > max_rows:
             label = f"'{input_name}'" if input_name else "input"
             print(f"[vibe_widget] Sampling {label}: {len(df)} rows -> {max_rows} rows for widget transport.")
             df = df.sample(max_rows)
@@ -74,7 +75,7 @@ def prepare_input_for_widget(
     if isinstance(value, (str, Path)):
         path = Path(value)
         if path.exists():
-            df = load_data(path, max_rows=max_rows)
+            df = load_data(path, max_rows=max_rows if sample else None)
             return clean_for_json(df.to_dict(orient="records"))
     return clean_for_json(value)
 
@@ -108,7 +109,7 @@ def initial_import_value(import_name: str, import_source: Any) -> Any:
 
 
 
-def load_data(data: pd.DataFrame | str | Path | None, max_rows: int = 5000) -> pd.DataFrame:
+def load_data(data: pd.DataFrame | str | Path | None, max_rows: int | None = 5000) -> pd.DataFrame:
     """Load and prepare data from various sources."""
     if data is None:
         return pd.DataFrame()
@@ -121,7 +122,7 @@ def load_data(data: pd.DataFrame | str | Path | None, max_rows: int = 5000) -> p
             raise ValueError(f"Failed to load data: {result.error}")
         df = result.output.get("dataframe", pd.DataFrame())
     
-    if len(df) > max_rows:
+    if max_rows is not None and len(df) > max_rows:
         df = df.sample(max_rows)
     
     return df

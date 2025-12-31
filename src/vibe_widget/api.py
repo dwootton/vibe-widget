@@ -45,6 +45,7 @@ class InputsBundle:
     """Container for resolved inputs."""
 
     inputs: dict[str, Any]
+    sample: bool = True
 
 
 @dataclass
@@ -109,6 +110,7 @@ def _build_inputs_bundle(
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
     *,
+    sample: bool = True,
     caller_frame=None,
 ) -> InputsBundle:
     inputs: dict[str, Any] = {}
@@ -127,7 +129,7 @@ def _build_inputs_bundle(
     for name, value in kwargs.items():
         inputs[name] = value
 
-    return InputsBundle(inputs=inputs)
+    return InputsBundle(inputs=inputs, sample=sample)
 
 
 def output(description: str) -> OutputDefinition:
@@ -169,8 +171,8 @@ def actions(**kwargs: ActionDefinition | str) -> ActionBundle:
     return ActionBundle(action_map, params=action_params)
 
 
-def inputs(*args: Any, **kwargs: Any) -> InputsBundle:
+def inputs(*args: Any, sample: bool = True, **kwargs: Any) -> InputsBundle:
     """Bundle inputs, optionally capturing a data value for widget creation."""
     frame = inspect.currentframe()
     caller_frame = frame.f_back if frame else None
-    return _build_inputs_bundle(args, kwargs, caller_frame=caller_frame)
+    return _build_inputs_bundle(args, kwargs, sample=sample, caller_frame=caller_frame)

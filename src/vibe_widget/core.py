@@ -61,7 +61,8 @@ def _export_to_json_value(value: Any, widget: Any) -> Any:
 def _import_to_json_value(value: Any, widget: Any) -> Any:
     """Trait serialization helper for imports."""
     try:
-        return prepare_input_for_widget(value)
+        sample = getattr(widget, "_input_sampling", True)
+        return prepare_input_for_widget(value, sample=sample)
     except Exception:
         return None
 
@@ -186,7 +187,9 @@ class _InputsNamespace:
             raise AttributeError(f"'{type(self._widget).__name__}.inputs' has no attribute '{name}'")
 
     def _assign_value(self, name: str, value: Any) -> None:
-        setattr(self._widget, name, value)
+        sample = getattr(self._widget, "_input_sampling", True)
+        prepared = prepare_input_for_widget(value, input_name=name, sample=sample)
+        setattr(self._widget, name, prepared)
 
     def _set_value(self, name: str, value: Any) -> None:
         self._validate_name(name)
@@ -393,6 +396,7 @@ class VibeWidget(anywidget.AnyWidget):
         data_var_name: str | None = None,
         data_shape: tuple[int, int] | None = None,
         input_summaries: dict[str, str] | None = None,
+        input_sampling: bool = True,
         base_code: str | None = None,
         base_components: list[str] | None = None,
         base_widget_id: str | None = None,
@@ -425,7 +429,11 @@ class VibeWidget(anywidget.AnyWidget):
             init_values[export_name] = None
         for import_name, import_source in imports.items():
             initial_value = initial_import_value(import_name, import_source)
-            init_values[import_name] = prepare_input_for_widget(initial_value, input_name=import_name)
+            init_values[import_name] = prepare_input_for_widget(
+                initial_value,
+                input_name=import_name,
+                sample=input_sampling,
+            )
 
         return widget_class(
             description=description,
@@ -438,6 +446,7 @@ class VibeWidget(anywidget.AnyWidget):
             data_var_name=data_var_name,
             data_shape=data_shape,
             input_summaries=input_summaries,
+            input_sampling=input_sampling,
             base_code=base_code,
             base_components=base_components,
             base_widget_id=base_widget_id,
@@ -464,6 +473,7 @@ class VibeWidget(anywidget.AnyWidget):
         data_var_name: str | None = None,
         data_shape: tuple[int, int] | None = None,
         input_summaries: dict[str, str] | None = None,
+        input_sampling: bool = True,
         base_code: str | None = None,
         base_components: list[str] | None = None,
         base_widget_id: str | None = None,
@@ -499,6 +509,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._actions = actions or {}
         self._action_params = action_params or {}
         self._input_summaries = input_summaries or {}
+        self._input_sampling = input_sampling
         self._export_accessors: dict[str, ExportHandle] = {}
         self._output_accessors: dict[str, _OutputProxy] = {}
         self._action_accessors: dict[str, _ActionProxy] = {}
@@ -782,6 +793,7 @@ class VibeWidget(anywidget.AnyWidget):
         imports: dict[str, Any] | None,
         actions: dict[str, str] | None,
         action_params: dict[str, dict[str, str] | None] | None = None,
+        input_sampling: bool = True,
         model: str,
         theme: Theme | None,
         base_code: str | None = None,
@@ -794,6 +806,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._recipe_imports = imports
         self._recipe_actions = actions
         self._recipe_action_params = action_params
+        self._recipe_input_sampling = input_sampling
         self._recipe_model = model
         self._recipe_model_resolved = model
         self._recipe_theme = theme
@@ -873,7 +886,7 @@ class VibeWidget(anywidget.AnyWidget):
         frame = inspect.currentframe()
         caller_frame = frame.f_back if frame else None
         inputs = _coerce_inputs_bundle(inputs, caller_frame=caller_frame) if inputs is not None else None
-        outputs, inputs, actions, action_params = _normalize_api_inputs(
+        outputs, inputs, actions, action_params, input_sampling = _normalize_api_inputs(
             outputs=outputs,
             inputs=inputs,
             actions=actions,
@@ -888,6 +901,8 @@ class VibeWidget(anywidget.AnyWidget):
             action_params = getattr(self, "_recipe_action_params", None)
         if theme is None:
             theme = self._recipe_theme
+        if input_sampling is None:
+            input_sampling = getattr(self, "_recipe_input_sampling", True)
 
         data_var_name, data_shape = _inputs_cache_info(inputs)
         existing_code = getattr(self, "code", None)
@@ -905,6 +920,7 @@ class VibeWidget(anywidget.AnyWidget):
             data_var_name=data_var_name,
             data_shape=data_shape,
             input_summaries=input_summaries,
+            input_sampling=input_sampling,
             base_code=getattr(self, '_recipe_base_code', None),
             base_components=getattr(self, '_recipe_base_components', None),
             base_widget_id=getattr(self, '_recipe_base_widget_id', None),
@@ -1375,6 +1391,13 @@ class VibeWidget(anywidget.AnyWidget):
         self.logs = self.logs + [f"Error detected: {error_preview}"]
         self.logs = self.logs + ["Asking LLM to fix the error"]
         
+        def progress_callback(event_type: str, message: str):
+            if event_type == "chunk":
+                return
+            prefix = "✓" if event_type == "complete" else "✘" if event_type == "error" else ""
+            entry = f"{prefix} {message}".strip()
+            self.logs = self.logs + [entry]
+
         try:
             clean_data_info = clean_for_json(self.data_info)
             
@@ -1382,6 +1405,7 @@ class VibeWidget(anywidget.AnyWidget):
                 code=self.code,
                 error_message=error_msg,
                 data_info=clean_data_info,
+                progress_callback=progress_callback,
             )
             
             self.logs = self.logs + ["Code fixed, retrying"]
@@ -1825,12 +1849,19 @@ def _normalize_api_inputs(
     outputs: dict[str, str] | OutputBundle | None,
     inputs: dict[str, Any] | InputsBundle | None,
     actions: dict[str, str] | ActionBundle | None,
-) -> tuple[dict[str, str] | None, dict[str, Any] | None, dict[str, str] | None, dict[str, dict[str, str] | None] | None]:
+) -> tuple[
+    dict[str, str] | None,
+    dict[str, Any] | None,
+    dict[str, str] | None,
+    dict[str, dict[str, str] | None] | None,
+    bool | None,
+]:
     """Allow flexible ordering/wrapping for outputs/inputs."""
     normalized_inputs = inputs
     normalized_outputs = outputs
     normalized_actions = actions
     normalized_action_params: dict[str, dict[str, str] | None] | None = None
+    input_sampling: bool | None = None
 
     if isinstance(normalized_outputs, OutputBundle):
         normalized_outputs = normalized_outputs.outputs
@@ -1841,12 +1872,17 @@ def _normalize_api_inputs(
         normalized_action_params = action_bundle.params
 
     if isinstance(normalized_inputs, InputsBundle):
-        normalized_inputs = normalized_inputs.inputs
+        bundle = normalized_inputs
+        normalized_inputs = bundle.inputs
+        input_sampling = bundle.sample
+    elif isinstance(normalized_inputs, dict):
+        input_sampling = True
     return (
         normalized_outputs,
         normalized_inputs,
         normalized_actions,
         normalized_action_params,
+        input_sampling,
     )
 
 
@@ -1906,11 +1942,13 @@ def create(
     frame = inspect.currentframe()
     caller_frame = frame.f_back if frame else None
     inputs = _coerce_inputs_bundle(inputs, caller_frame=caller_frame)
-    outputs, inputs, actions, action_params = _normalize_api_inputs(
+    outputs, inputs, actions, action_params, input_sampling = _normalize_api_inputs(
         outputs=outputs,
         inputs=inputs,
         actions=actions,
     )
+    if input_sampling is None:
+        input_sampling = True
     data_var_name, data_shape = _inputs_cache_info(inputs)
     model, resolved_config = _resolve_model(config_override=config)
     resolved_theme = resolve_theme_for_request(
@@ -1932,6 +1970,7 @@ def create(
         data_var_name=data_var_name,
         data_shape=data_shape,
         input_summaries=input_summaries,
+        input_sampling=input_sampling,
         display_widget=display,
         cache=cache,
         execution_mode=resolved_config.execution if resolved_config else "auto",
@@ -1947,6 +1986,7 @@ def create(
         imports=inputs,
         actions=actions,
         action_params=action_params,
+        input_sampling=input_sampling,
         model=model,
         theme=resolved_theme,
     )
@@ -1962,12 +2002,20 @@ class _SourceInfo:
         metadata: dict[str, Any] | None,
         components: list[str],
         inputs: dict[str, Any] | None,
+        outputs: dict[str, str] | None,
+        actions: dict[str, str] | None,
+        action_params: dict[str, dict[str, str] | None] | None,
+        input_sampling: bool,
         theme: Theme | None,
     ):
         self.code = code
         self.metadata = metadata
         self.components = components
         self.inputs = inputs
+        self.outputs = outputs
+        self.actions = actions
+        self.action_params = action_params
+        self.input_sampling = input_sampling
         self.theme = theme
 
 
@@ -1982,6 +2030,10 @@ def _resolve_source(
             metadata=source._widget_metadata,
             components=source._widget_metadata.get("components", []) if source._widget_metadata else [],
             inputs=source._imports,
+            outputs=source._exports,
+            actions=source._actions,
+            action_params=source._action_params,
+            input_sampling=getattr(source, "_input_sampling", True),
             theme=source._theme,
         )
     
@@ -1991,6 +2043,10 @@ def _resolve_source(
             metadata=source.metadata,
             components=[source.component_name],
             inputs=source.widget._imports,
+            outputs=source.widget._exports,
+            actions=source.widget._actions,
+            action_params=source.widget._action_params,
+            input_sampling=getattr(source.widget, "_input_sampling", True),
             theme=source.widget._theme,
         )
     
@@ -2014,6 +2070,10 @@ def _resolve_source(
                 metadata=metadata,
                 components=metadata.get("components", []),
                 inputs=None,
+                outputs=metadata.get("outputs") if metadata else None,
+                actions=None,
+                action_params=None,
+                input_sampling=True,
                 theme=theme,
             )
         
@@ -2036,13 +2096,23 @@ def _edit_from_source(
     frame = inspect.currentframe()
     caller_frame = frame.f_back if frame else None
     inputs = _coerce_inputs_bundle(inputs, caller_frame=caller_frame)
-    outputs, inputs, actions, action_params = _normalize_api_inputs(
+    outputs, inputs, actions, action_params, input_sampling = _normalize_api_inputs(
         outputs=outputs,
         inputs=inputs,
         actions=actions,
     )
     store = WidgetStore()
     source_info = _resolve_source(source, store)
+    if outputs is None:
+        outputs = source_info.outputs
+    if inputs is None:
+        inputs = source_info.inputs
+    if actions is None:
+        actions = source_info.actions
+    if action_params is None:
+        action_params = source_info.action_params
+    if input_sampling is None:
+        input_sampling = source_info.input_sampling
     model, resolved_config = _resolve_model(config_override=config)
     if theme is None and source_info.theme is not None:
         resolved_theme = source_info.theme
@@ -2068,6 +2138,7 @@ def _edit_from_source(
         data_var_name=data_var_name,
         data_shape=data_shape,
         input_summaries=input_summaries,
+        input_sampling=input_sampling,
         base_code=source_info.code,
         base_components=source_info.components,
         base_widget_id=source_info.metadata.get("id") if source_info.metadata else None,
@@ -2084,6 +2155,7 @@ def _edit_from_source(
         imports=inputs,
         actions=actions,
         action_params=action_params,
+        input_sampling=input_sampling,
         model=model,
         theme=resolved_theme,
         base_code=source_info.code,
@@ -2156,6 +2228,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
         data_var_name=data_var_name,
         data_shape=data_shape,
         input_summaries=input_summaries,
+        input_sampling=True,
         existing_code=code,
         existing_metadata=metadata,
         display_widget=display,
@@ -2181,6 +2254,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
         imports=imports,
         actions=None,
         action_params=None,
+        input_sampling=True,
         model=payload.get("model") or DEFAULT_MODEL,
         theme=theme,
     )

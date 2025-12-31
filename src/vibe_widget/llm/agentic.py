@@ -192,12 +192,24 @@ class AgenticOrchestrator:
             error_message=error_message,
             code=code,
         )
+        full_error = diagnosis.output.get("full_error", error_message)
+        affected_lines = diagnosis.output.get("affected_lines") or []
+        if affected_lines:
+            code_lines = code.splitlines()
+            snippet_lines = []
+            for line_num in sorted(set(affected_lines)):
+                start = max(1, line_num - 2)
+                end = min(len(code_lines), line_num + 2)
+                for idx in range(start, end + 1):
+                    snippet_lines.append(f"{idx}: {code_lines[idx - 1]}")
+            snippet = "\n".join(snippet_lines)
+            full_error = f"{full_error}\n\nCode context:\n{snippet}"
         
         self._emit(progress_callback, "step", "Repairing code")
         
         fixed_code = self.provider.fix_code_error(
             broken_code=code,
-            error_message=diagnosis.output.get("full_error", error_message),
+            error_message=full_error,
             data_info=data_info,
         )
         

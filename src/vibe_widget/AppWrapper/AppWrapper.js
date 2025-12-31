@@ -98,7 +98,7 @@ function AppWrapper({ model }) {
     setGrabMode(null);
   };
 
-  const isRetrying = Boolean(errorMessage) && (retryCount || 0) < 2;
+  const isRetrying = (retryCount || 0) > 0 && (retryCount || 0) < 2;
   const isLoading = status === "generating" || isRetrying;
   const hasCode = renderCode && renderCode.length > 0;
   const approvalMode = executionMode === "approve";
