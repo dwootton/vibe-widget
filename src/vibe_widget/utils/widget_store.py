@@ -17,15 +17,17 @@ JSON index structure (v3):
         "scatter_plot": [  # Grouped by var_name, newest-first
             {
                 "created_at": ISO timestamp,
-                "file_name": "scatter_plot_20241229_120000.js",
+                "file_name": "scatter_plot_sales_data_20241229_120000_c8ea84b720.js",
                 "cache_key": "abc123...",  # Full hash for cache lookup
-                "description": "...",
+                "description": "scatter plot of sales data",
                 "data_shape": [100, 5],
                 "model": "...",
+                "parameter_signature": "c8ea84b720",  # 10-char unified param hash
+                "prompt_keywords": ["sales", "data"],  # Keywords from description
                 ...metadata fields...
             }
         ],
-        "_anonymous_": [  # Widgets without assigned variable names
+        "temperature_trends": [  # Anonymous widgets extract name from prompt
             ...
         ]
     },
@@ -38,8 +40,13 @@ Design notes:
 - Variable names (var_name) are the primary identifier for grouping related widgets
 - Cache key is computed from: description + all inputs (data shape, imports) + outputs + theme
 - When data moves to inputs in future API, cache key computation stays the same
-- File names: {var_name}_{timestamp}.js for easy filesystem browsing
-- _anonymous_ group collects widgets created without variable assignment
+- File names: {var_name}_{prompt_keywords}_{timestamp}_{param_signature}.js
+  - var_name: Variable name from assignment, or extracted from description
+  - prompt_keywords: 2-3 key words from description (or delta if editing)
+  - timestamp: YYYYMMDD_HHMMSS in UTC
+  - param_signature: 10-char hash of data_shape + I/O + theme
+- Anonymous widgets (no variable) extract name from description instead of "_anonymous_"
+- Edit operations use prompt delta to show what changed in the filename
 """
 import hashlib
 import inspect
@@ -50,6 +57,133 @@ from typing import Any
 
 SCHEMA_VERSION = 3
 ANONYMOUS_VAR_NAME = "_anonymous_"
+
+
+def extract_prompt_keywords(description: str, max_words: int = 3) -> list[str]:
+    """
+    Extract key words from a widget description for file naming.
+
+    Args:
+        description: Natural language widget description
+        max_words: Maximum number of keywords to extract
+
+    Returns:
+        List of meaningful keywords
+
+    Examples:
+        "scatter plot of sales data" -> ["scatter", "plot", "sales"]
+        "Show temperature trends" -> ["temperature", "trends"]
+    """
+    import re
+
+    # Common words to skip (articles, prepositions, etc.)
+    SKIP_WORDS = {
+        'a', 'an', 'the', 'of', 'for', 'in', 'on', 'at', 'to', 'from',
+        'with', 'by', 'as', 'is', 'are', 'was', 'were', 'be', 'been',
+        'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+        'would', 'should', 'could', 'may', 'might', 'must', 'can',
+        'show', 'display', 'visualize', 'create', 'make', 'draw',
+        'render', 'that', 'this', 'and', 'or', 'over', 'under',
+        'about', 'into', 'through', 'during', 'using', 'add', 'change',
+    }
+
+    # Visualization-related keywords that are meaningful
+    VIZ_KEYWORDS = {
+        'chart', 'plot', 'graph', 'map', 'histogram', 'scatter',
+        'bar', 'line', 'pie', 'area', 'heatmap', 'treemap',
+        'dashboard', 'gauge', 'slider', 'timeline', 'network',
+        'sankey', 'bubble', 'violin', 'box', 'radar', 'funnel',
+    }
+
+    # Clean and tokenize
+    text = description.lower().strip()
+    # Remove punctuation
+    text = re.sub(r'[^\w\s]', ' ', text)
+    # Split into words
+    words = text.split()
+
+    # Extract meaningful words
+    meaningful_words = []
+    for word in words[:15]:  # Look at first 15 words
+        # Keep visualization keywords and skip common words
+        if word in VIZ_KEYWORDS or (word not in SKIP_WORDS and len(word) > 2):
+            meaningful_words.append(word)
+
+        # Stop after collecting enough words
+        if len(meaningful_words) >= max_words:
+            break
+
+    return meaningful_words
+
+
+def compute_prompt_delta(old_description: str, new_description: str, max_words: int = 3) -> list[str]:
+    """
+    Compute the delta between two prompts, showing what changed.
+
+    Extracts keywords from both prompts and returns words that were added
+    or changed in the new description.
+
+    Args:
+        old_description: Original widget description
+        new_description: New/edited widget description
+        max_words: Maximum number of delta words to return
+
+    Returns:
+        List of keywords highlighting the change
+
+    Examples:
+        ("scatter plot", "scatter plot with tooltips") -> ["tooltips"]
+        ("bar chart", "line chart") -> ["line"]
+        ("red circles", "blue circles") -> ["blue"]
+    """
+    old_keywords = set(extract_prompt_keywords(old_description, max_words=10))
+    new_keywords = extract_prompt_keywords(new_description, max_words=10)
+
+    # Find added or changed keywords (preserve order from new)
+    delta_words = []
+    for word in new_keywords:
+        if word not in old_keywords:
+            delta_words.append(word)
+            if len(delta_words) >= max_words:
+                break
+
+    # If no new words, just return the first few keywords from new description
+    if not delta_words:
+        return new_keywords[:max_words]
+
+    return delta_words
+
+
+def extract_var_name_from_description(description: str) -> str:
+    """
+    Extract a potential variable name from a widget description.
+
+    Extracts key nouns and adjectives from the description to create
+    a meaningful variable name instead of using "_anonymous_".
+
+    Args:
+        description: Natural language widget description
+
+    Returns:
+        A sanitized variable name derived from the description
+
+    Examples:
+        "scatter plot of sales data" -> "scatter_plot"
+        "interactive bar chart" -> "bar_chart"
+        "Show temperature trends over time" -> "temperature_trends"
+    """
+    # Use the existing keyword extraction
+    keywords = extract_prompt_keywords(description, max_words=3)
+
+    if keywords:
+        # Join with underscore
+        extracted_name = '_'.join(keywords)
+        # Validate it's a proper identifier
+        if extracted_name and extracted_name.isidentifier():
+            return extracted_name
+
+    # Fallback to anonymous if we couldn't extract anything meaningful
+    return ANONYMOUS_VAR_NAME
 
 
 def capture_caller_var_name(depth: int = 2) -> str | None:
@@ -166,8 +300,8 @@ class WidgetStore:
         old_widgets = old_index.get("widgets", [])
         if isinstance(old_widgets, list):
             for widget in old_widgets:
-                # Use data_var_name or slug as var_name, fallback to anonymous
-                var_name = widget.get("data_var_name") or widget.get("slug") or ANONYMOUS_VAR_NAME
+                # Use var_name or slug as var_name, fallback to anonymous
+                var_name = widget.get("var_name") or widget.get("slug") or ANONYMOUS_VAR_NAME
                 var_name = self._sanitize_var_name(var_name)
                 
                 if var_name not in new_index["widgets"]:
@@ -380,6 +514,7 @@ class WidgetStore:
         exports_signature: str,
         imports_signature: str,
         theme_signature: str,
+        revision_parent: str | None = None,
     ) -> str:
         """
         Compute cache key from inputs.
@@ -410,6 +545,7 @@ class WidgetStore:
             "exports_signature": exports_signature,
             "imports_signature": imports_signature,
             "theme_signature": theme_signature,
+            "revision_parent": revision_parent,
         }
         
         cache_str = json.dumps(cache_input, sort_keys=True)
@@ -463,7 +599,42 @@ class WidgetStore:
             return ""
         normalized = " ".join(theme_description.split())
         return hashlib.md5(normalized.encode()).hexdigest()[:8]
-    
+
+    def _compute_parameter_signature(
+        self,
+        data_shape: tuple[int, int] | None,
+        exports_signature: str,
+        imports_signature: str,
+        theme_signature: str,
+    ) -> str:
+        """
+        Compute a unified parameter signature for file naming.
+
+        Combines data shape, exports, imports, and theme into a single
+        compact signature for file names.
+
+        Args:
+            data_shape: Shape of data as (rows, cols)
+            exports_signature: Hash of export definitions
+            imports_signature: Hash of import definitions
+            theme_signature: Hash of theme description
+
+        Returns:
+            10-character signature representing all parameters
+        """
+        # Combine all signatures
+        combined_parts = [
+            str(data_shape) if data_shape else "nodata",
+            exports_signature or "noexp",
+            imports_signature or "noimp",
+            theme_signature or "notheme",
+        ]
+        combined_str = "_".join(combined_parts)
+
+        # Create a 10-character hash
+        full_hash = hashlib.md5(combined_str.encode()).hexdigest()
+        return full_hash[:10]
+
     def lookup(
         self,
         description: str,
@@ -472,6 +643,7 @@ class WidgetStore:
         exports: dict[str, str] | None,
         imports_serialized: dict[str, str] | None,
         theme_description: str | None,
+        revision_parent: str | None = None,
     ) -> dict[str, Any] | None:
         """
         Look up a cached widget by cache key.
@@ -497,6 +669,7 @@ class WidgetStore:
             exports_signature=exports_signature,
             imports_signature=imports_signature,
             theme_signature=theme_signature,
+            revision_parent=revision_parent,
         )
         
         # Use cache_index for O(1) lookup
@@ -579,16 +752,52 @@ class WidgetStore:
             exports_signature=exports_signature,
             imports_signature=imports_signature,
             theme_signature=theme_signature,
+            revision_parent=revision_parent,
         )
-        
+
         # Sanitize var_name to be a valid identifier
-        safe_var_name = self._sanitize_var_name(var_name) if var_name else ANONYMOUS_VAR_NAME
-        
-        # File name: {var_name}_{timestamp}.js
+        # If no var_name, extract one from the description instead of using "_anonymous_"
+        if var_name:
+            safe_var_name = self._sanitize_var_name(var_name)
+        else:
+            extracted_name = extract_var_name_from_description(description)
+            safe_var_name = self._sanitize_var_name(extracted_name)
+
+        # Extract prompt keywords for file naming
+        # If this is an edit (has revision_parent), use prompt delta to show what changed
+        prompt_words = []
+        if revision_parent:
+            # Try to get the parent widget's description
+            parent_widget = self.get_widget_by_cache_key(revision_parent)
+            if parent_widget and parent_widget.get("description"):
+                # Use delta to show what changed
+                prompt_words = compute_prompt_delta(
+                    parent_widget["description"],
+                    description,
+                    max_words=2
+                )
+            else:
+                # Fallback to regular keywords
+                prompt_words = extract_prompt_keywords(description, max_words=2)
+        else:
+            # New widget, use regular keywords
+            prompt_words = extract_prompt_keywords(description, max_words=2)
+
+        # Compute parameter signature
+        param_signature = self._compute_parameter_signature(
+            data_shape=data_shape,
+            exports_signature=exports_signature,
+            imports_signature=imports_signature,
+            theme_signature=theme_signature,
+        )
+
+        # File name: {var_name}_{prompt_words}_{timestamp}_{param_sig}.js
         now = datetime.utcnow()
         timestamp = now.strftime("%Y%m%d_%H%M%S")
-        file_name = f"{safe_var_name}_{timestamp}.js"
-        
+
+        prompt_part = "_".join(prompt_words) if prompt_words else "widget"
+        file_name = f"{safe_var_name}_{prompt_part}_{timestamp}_{param_signature}.js"
+
         widget_file = self.widgets_dir / file_name
         widget_file.write_text(widget_code, encoding='utf-8')
         
@@ -607,6 +816,8 @@ class WidgetStore:
             "exports_signature": exports_signature,
             "imports_signature": imports_signature,
             "theme_signature": theme_signature,
+            "parameter_signature": param_signature,  # Unified parameter signature
+            "prompt_keywords": prompt_words,  # Keywords extracted from description
             "theme_name": theme_name,
             "theme_description": theme_description,
             "notebook_path": notebook_path,

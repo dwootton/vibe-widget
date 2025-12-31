@@ -261,7 +261,12 @@ class VibeWidget(anywidget.AnyWidget):
         for export_name in exports.keys():
             init_values[export_name] = None
         for import_name, import_source in imports.items():
-            init_values[import_name] = initial_import_value(import_name, import_source)
+            initial_value = initial_import_value(import_name, import_source)
+            init_values[import_name] = prepare_input_for_widget(
+                initial_value,
+                input_name=import_name,
+                sample=input_sampling,
+            )
 
         return widget_class(
             description=description,
@@ -325,6 +330,9 @@ class VibeWidget(anywidget.AnyWidget):
         parser = CodeStreamParser()
         self._exports = exports or {}
         self._imports = imports or {}
+        self._actions = kwargs.pop("actions", None) or {}
+        self._action_params = kwargs.pop("action_params", None) or {}
+        self._input_summaries = kwargs.pop("input_summaries", None)
         self._export_accessors: dict[str, ExportHandle] = {}
         self._outputs_namespace: _OutputsNamespace | None = None
         self._component_namespace: _ComponentNamespace | None = None
@@ -384,10 +392,17 @@ class VibeWidget(anywidget.AnyWidget):
         self.observe(self._on_execution_approved, names='execution_approved')
         
         try:
-            self.logs = [f"Analyzing data: {df.shape[0]} rows × {df.shape[1]} columns"]
+            input_count = len(self._imports or {})
+            self.logs = [f"Analyzing inputs: {input_count}"]
             
             resolved_model, config = _resolve_model(model)
             provider = OpenRouterProvider(resolved_model, config.api_key)
+            inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
+            if df is not None and isinstance(df, pd.DataFrame) and "data" not in inputs_for_prompt:
+                try:
+                    inputs_for_prompt["data"] = summarize_for_prompt(df)
+                except Exception:
+                    inputs_for_prompt["data"] = "<data>"
             
             if existing_code is not None:
                 self.logs = self.logs + ["Reusing existing widget code"]
@@ -398,14 +413,11 @@ class VibeWidget(anywidget.AnyWidget):
                 if self._theme and "theme_description" not in self._widget_metadata:
                     self._widget_metadata["theme_description"] = self._theme.description
                     self._widget_metadata["theme_name"] = self._theme.name
-                imports_serialized = {}
-                if self._imports:
-                    for import_name in self._imports.keys():
-                        imports_serialized[import_name] = f"<imported_trait:{import_name}>"
                 self.data_info = LLMProvider.build_data_info(
-                    df,
-                    self._exports,
-                    imports_serialized,
+                    outputs=self._exports,
+                    inputs=inputs_for_prompt,
+                    actions=self._actions,
+                    action_params=self._action_params,
                     theme_description=self._theme.description if self._theme else None,
                 )
                 return
@@ -426,6 +438,7 @@ class VibeWidget(anywidget.AnyWidget):
                     exports=self._exports,
                     imports_serialized=imports_serialized,
                     theme_description=self._theme.description if self._theme else None,
+                    revision_parent=self._base_widget_id,
                 )
             else:
                 self.logs = self.logs + ["Skipping cache (cache=False)"]
@@ -449,9 +462,10 @@ class VibeWidget(anywidget.AnyWidget):
                 
                 # Store data_info for error recovery
                 self.data_info = LLMProvider.build_data_info(
-                    df,
-                    self._exports,
-                    imports_serialized,
+                    outputs=self._exports,
+                    inputs=inputs_for_prompt,
+                    actions=self._actions,
+                    action_params=self._action_params,
                     theme_description=self._theme.description if self._theme else None,
                 )
                 return
@@ -510,11 +524,13 @@ class VibeWidget(anywidget.AnyWidget):
                     self.logs = current_logs
             
             # Generate code using the agentic orchestrator
-            widget_code, processed_df = self.orchestrator.generate(
+            widget_code, _ = self.orchestrator.generate(
                 description=description,
-                df=df,
-                exports=self._exports,
-                imports=imports_serialized,
+                outputs=self._exports,
+                inputs=self._imports,
+                input_summaries=inputs_for_prompt,
+                actions=self._actions,
+                action_params=self._action_params,
                 base_code=self._base_code,
                 base_components=self._base_components,
                 theme_description=self._theme.description if self._theme else None,
@@ -550,9 +566,10 @@ class VibeWidget(anywidget.AnyWidget):
             
             # Store data_info for error recovery  (build from LLMProvider method)
             self.data_info = LLMProvider.build_data_info(
-                df,
-                self._exports,
-                imports_serialized,
+                outputs=self._exports,
+                inputs=inputs_for_prompt,
+                actions=self._actions,
+                action_params=self._action_params,
                 theme_description=self._theme.description if self._theme else None,
             )
             
@@ -749,6 +766,7 @@ class VibeWidget(anywidget.AnyWidget):
         inputs: dict[str, Any] | InputsBundle | None = None,
         theme: Theme | str | None = None,
         config: Config | None = None,
+        display: bool = True,
         cache: bool = True,
     ) -> "VibeWidget":
         """
@@ -772,6 +790,7 @@ class VibeWidget(anywidget.AnyWidget):
             inputs=inputs,
             theme=theme,
             config=config,
+            display=display,
             cache=cache,
             _var_name=var_name,
         )
@@ -1577,6 +1596,20 @@ def _serialize_inputs(widget: VibeWidget) -> dict[str, Any]:
     return {"embedded": True, "values": values}
 
 
+def _summarize_inputs_for_prompt(imports: dict[str, Any] | None) -> dict[str, str]:
+    """Build a summary map for prompt context from imports."""
+    if not imports:
+        return {}
+    summaries: dict[str, str] = {}
+    for name, value in imports.items():
+        try:
+            resolved = initial_import_value(name, value)
+            summaries[name] = summarize_for_prompt(resolved)
+        except Exception:
+            summaries[name] = f"<{name}>"
+    return summaries
+
+
 def _link_imports(widget: VibeWidget, imports: dict[str, Any] | None) -> None:
     """Link imported traits to widget."""
     if not imports:
@@ -1640,28 +1673,30 @@ def _normalize_api_inputs(
     normalized_data = data
     normalized_inputs = inputs
     normalized_outputs = outputs
-    data_var_name: str | None = None
+    var_name: str | None = None
 
     # Data can be passed as an InputsBundle to keep everything together
     if isinstance(normalized_data, InputsBundle):
-        data_var_name = normalized_data.data_name
         bundle_inputs = normalized_data.inputs or {}
         if isinstance(normalized_inputs, InputsBundle):
             normalized_inputs = {**bundle_inputs, **(normalized_inputs.inputs or {})}
         else:
             normalized_inputs = {**bundle_inputs, **(normalized_inputs or {})}
-        normalized_data = normalized_data.data
+        if normalized_data is None and len(bundle_inputs) == 1:
+            normalized_data = next(iter(bundle_inputs.values()))
+        else:
+            normalized_data = None
 
     if isinstance(normalized_outputs, OutputBundle):
         normalized_outputs = normalized_outputs.outputs
 
     if isinstance(normalized_inputs, InputsBundle):
-        if normalized_data is None:
-            normalized_data = normalized_inputs.data
-            data_var_name = normalized_inputs.data_name or data_var_name
-        normalized_inputs = normalized_inputs.inputs
+        bundle_inputs = normalized_inputs.inputs or {}
+        if normalized_data is None and len(bundle_inputs) == 1:
+            normalized_data = next(iter(bundle_inputs.values()))
+        normalized_inputs = bundle_inputs
 
-    return normalized_data, normalized_outputs, normalized_inputs, data_var_name
+    return normalized_data, normalized_outputs, normalized_inputs, var_name
 
 
 def create(
@@ -1698,12 +1733,7 @@ def create(
     from vibe_widget.utils.widget_store import capture_caller_var_name
     var_name = capture_caller_var_name(depth=2)
     
-    if inputs is None and data is not None and not isinstance(data, InputsBundle):
-        frame = inspect.currentframe()
-        caller_frame = frame.f_back if frame else None
-        data = _build_inputs_bundle((data,), {}, caller_frame=caller_frame)
-
-    data, outputs, inputs, _data_var_name = _normalize_api_inputs(
+    data, outputs, inputs, _var_name = _normalize_api_inputs(
         data=data,
         outputs=outputs,
         inputs=inputs,
@@ -1837,6 +1867,7 @@ def edit(
     inputs: dict[str, Any] | InputsBundle | None = None,
     theme: Theme | str | None = None,
     config: Config | None = None,
+    display: bool = True,
     cache: bool = True,
     _var_name: str | None = None,
 ) -> "VibeWidget":
@@ -1900,6 +1931,7 @@ def edit(
         base_components=source_info.components,
         base_widget_id=base_cache_key,
         cache=cache,
+        display_widget=display,
         execution_mode=resolved_config.execution if resolved_config else "auto",
         execution_approved=None,
     )

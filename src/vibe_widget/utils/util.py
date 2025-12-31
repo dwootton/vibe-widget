@@ -4,8 +4,10 @@ Helper functions for data cleaning, serialization, and trait management.
 """
 from pathlib import Path
 from typing import Any
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+import pretty_little_summary as pls
 from vibe_widget.llm.tools.data_tools import DataLoadTool
 from vibe_widget.api import ExportHandle
 from vibe_widget.config import Config, get_global_config
@@ -27,6 +29,12 @@ def clean_for_json(obj: Any) -> Any:
             return obj()
         except Exception:
             return str(obj)
+    if isinstance(obj, pd.DataFrame):
+        return clean_for_json(obj.to_dict(orient="records"))
+    if isinstance(obj, pd.Series):
+        return clean_for_json(obj.tolist())
+    if isinstance(obj, np.ndarray):
+        return clean_for_json(obj.tolist())
     if isinstance(obj, dict):
         return {k: clean_for_json(v) for k, v in obj.items()}
     elif isinstance(obj, list):
@@ -47,6 +55,34 @@ def clean_for_json(obj: Any) -> Any:
     else:
         # Fallback: best-effort string conversion to keep serialization robust
         return obj if isinstance(obj, (str, int, float, bool, type(None))) else str(obj)
+
+
+def prepare_input_for_widget(
+    value: Any,
+    *,
+    max_rows: int | None = 5000,
+    input_name: str | None = None,
+    sample: bool = True,
+) -> Any:
+    """Prepare input values for widget transport, sampling large tabular data."""
+    if isinstance(value, pd.DataFrame):
+        df = value
+        if sample and max_rows is not None and len(df) > max_rows:
+            label = f"'{input_name}'" if input_name else "input"
+            print(f"[vibe_widget] Sampling {label}: {len(df)} rows -> {max_rows} rows for widget transport.")
+            df = df.sample(max_rows)
+        return clean_for_json(df.to_dict(orient="records"))
+    if isinstance(value, (str, Path)):
+        path = Path(value)
+        if path.exists():
+            df = load_data(path, max_rows=max_rows if sample else None)
+            return clean_for_json(df.to_dict(orient="records"))
+    return clean_for_json(value)
+
+
+def summarize_for_prompt(value: Any) -> str:
+    """Return a compact summary for prompts using pretty-little-summary."""
+    return pls.describe(value)
 
 
 def initial_import_value(import_name: str, import_source: Any) -> Any:
@@ -73,7 +109,7 @@ def initial_import_value(import_name: str, import_source: Any) -> Any:
 
 
 
-def load_data(data: pd.DataFrame | str | Path | None, max_rows: int = 5000) -> pd.DataFrame:
+def load_data(data: pd.DataFrame | str | Path | None, max_rows: int | None = 5000) -> pd.DataFrame:
     """Load and prepare data from various sources."""
     if data is None:
         return pd.DataFrame()
@@ -86,7 +122,7 @@ def load_data(data: pd.DataFrame | str | Path | None, max_rows: int = 5000) -> p
             raise ValueError(f"Failed to load data: {result.error}")
         df = result.output.get("dataframe", pd.DataFrame())
     
-    if len(df) > max_rows:
+    if max_rows is not None and len(df) > max_rows:
         df = df.sample(max_rows)
     
     return df

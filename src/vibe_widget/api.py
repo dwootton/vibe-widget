@@ -23,12 +23,41 @@ class OutputBundle:
 
 
 @dataclass
-class InputsBundle:
-    """Container that unifies data with other inputs."""
+class ActionDefinition:
+    """Definition of a widget action."""
 
-    data: Any
+    description: str
+    params: dict[str, str] | None = None
+
+
+@dataclass
+class ActionBundle:
+    """Container for resolved actions."""
+
+    actions: dict[str, str]
+    params: dict[str, dict[str, str] | None] | None = None
+
+
+
+
+@dataclass
+class InputsBundle:
+    """Container for resolved inputs."""
+
     inputs: dict[str, Any]
-    data_name: str | None = None
+    sample: bool = True
+
+
+@dataclass
+class OutputChangeEvent:
+    """Structured change event for output observers."""
+
+    name: str
+    old: Any
+    new: Any
+    timestamp: float
+    source: str
+    seq: int
 
 
 class ExportHandle:
@@ -81,16 +110,13 @@ def _build_inputs_bundle(
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
     *,
+    sample: bool = True,
     caller_frame=None,
 ) -> InputsBundle:
     inputs: dict[str, Any] = {}
-    data = None
-    data_name = None
 
     if args:
-        data = args[0]
-        data_name = _sanitize_input_name(_infer_name_from_frame(data, caller_frame), "data")
-        for idx, arg in enumerate(args[1:], start=1):
+        for idx, arg in enumerate(args, start=1):
             inferred = _infer_name_from_frame(arg, caller_frame)
             name = _sanitize_input_name(inferred, f"input_{idx}")
             suffix = 2
@@ -100,23 +126,20 @@ def _build_inputs_bundle(
                 suffix += 1
             inputs[unique] = arg
 
-    if "data" in kwargs:
-        kw_data = kwargs.pop("data")
-        if data is None:
-            data = kw_data
-            data_name = "data"
-        else:
-            inputs["data"] = kw_data
-
     for name, value in kwargs.items():
         inputs[name] = value
 
-    return InputsBundle(data=data, inputs=inputs, data_name=data_name)
+    return InputsBundle(inputs=inputs, sample=sample)
 
 
 def output(description: str) -> OutputDefinition:
     """Declare a single output."""
     return OutputDefinition(description)
+
+
+def action(description: str, params: dict[str, str] | None = None) -> ActionDefinition:
+    """Declare a single action."""
+    return ActionDefinition(description, params=params)
 
 
 def outputs(**kwargs: OutputDefinition | str) -> OutputBundle:
@@ -132,8 +155,24 @@ def outputs(**kwargs: OutputDefinition | str) -> OutputBundle:
     return OutputBundle(output_map)
 
 
-def inputs(*args: Any, **kwargs: Any) -> InputsBundle:
-    """Bundle data with inputs, allowing positional or named arguments."""
+def actions(**kwargs: ActionDefinition | str) -> ActionBundle:
+    """Bundle actions into the shape the core expects."""
+    action_map: dict[str, str] = {}
+    action_params: dict[str, dict[str, str] | None] = {}
+    for name, definition in kwargs.items():
+        if isinstance(definition, ActionDefinition):
+            action_map[name] = definition.description
+            action_params[name] = definition.params
+        elif isinstance(definition, str):
+            action_map[name] = definition
+            action_params[name] = None
+        else:
+            raise TypeError(f"Action '{name}' must be a string or vw.action(...)")
+    return ActionBundle(action_map, params=action_params)
+
+
+def inputs(*args: Any, sample: bool = True, **kwargs: Any) -> InputsBundle:
+    """Bundle inputs, optionally capturing a data value for widget creation."""
     frame = inspect.currentframe()
     caller_frame = frame.f_back if frame else None
-    return _build_inputs_bundle(args, kwargs, caller_frame=caller_frame)
+    return _build_inputs_bundle(args, kwargs, sample=sample, caller_frame=caller_frame)
