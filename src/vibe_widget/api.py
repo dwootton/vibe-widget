@@ -77,6 +77,35 @@ class ExportHandle:
     def value(self):
         return self()
 
+    def observe(self, handler, names=None, type='change'):
+        """
+        Observe changes to this export's value on the underlying widget.
+
+        Args:
+            handler: Callback function that receives change dict with 'new', 'old', etc.
+            names: Ignored (kept for compatibility with traitlets API)
+            type: Type of notification (default: 'change')
+
+        Returns:
+            None
+        """
+        # Delegate to the widget's observe method with this export's name
+        return self.widget.observe(handler, names=self.name, type=type)
+
+    def unobserve(self, handler, names=None, type='change'):
+        """
+        Remove an observer from this export.
+
+        Args:
+            handler: Callback function to remove
+            names: Ignored (kept for compatibility with traitlets API)
+            type: Type of notification (default: 'change')
+
+        Returns:
+            None
+        """
+        return self.widget.unobserve(handler, names=self.name, type=type)
+
     def __repr__(self) -> str:
         metadata = getattr(self.widget, "_widget_metadata", {}) or {}
         slug = metadata.get("slug") or getattr(self.widget, "description", None) or "widget"

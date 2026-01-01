@@ -530,11 +530,23 @@ CODE WITH LINE NUMBERS:
         
         if outputs:
             output_list = "\n".join([f"- {name}: {desc}" for name, desc in outputs.items()])
+            output_names = ", ".join([f'"{name}"' for name in outputs.keys()])
             sections.append(f"""
 OUTPUTS (State shared with other widgets):
 {output_list}
 
-CRITICAL: Initialize outputs when widget mounts, update continuously, call model.save_changes()""")
+CRITICAL: Outputs are synced Python traits that you must update explicitly:
+1. Initialize ALL outputs on mount: model.set({{{", ".join([f'"{k}": <initial_value>' for k in outputs.keys()])}}})
+2. Update outputs whenever state changes: model.set('<output_name>', newValue)
+3. Call model.save_changes() AFTER updating one or more outputs
+4. Example pattern:
+   const [count, setCount] = React.useState(0);
+   React.useEffect(() => {{
+     model.set('count_output', count);  // Update the output trait
+     model.save_changes();                // Sync to Python
+   }}, [count]);
+
+Outputs to track: {output_names}""")
         
         if inputs:
             input_list = "\n".join([f"- {name}: {desc}" for name, desc in inputs.items()])
@@ -556,26 +568,29 @@ CRITICAL: Subscribe with model.on("change:trait", handler), unsubscribe in clean
                     action_lines.append(f"- {name}: {desc}")
                 action_handler_lines.append(
                     f'  // Action "{name}" (case-sensitive)\n'
-                    f'  if (msg.type === "action" && msg.name === "{name}") {{\n'
-                    f'    const payload = msg.payload || {{}};\n'
-                    f'    // use payload.<param> values here\n'
+                    f'  if (action === "{name}") {{\n'
+                    f'    const params = event.changed.action_event.params || {{}};\n'
+                    f'    // use params.<param> values here\n'
                     f'  }}'
                 )
             action_list = "\n".join(action_lines)
             action_handlers = "\n".join(action_handler_lines)
             sections.append(f"""
-ACTIONS (Custom messages from Python to widget):
+ACTIONS (Events from Python to widget):
 {action_list}
 
-CRITICAL: Listen with model.on("msg:custom", handler).
-CRITICAL: Message envelope is fixed:
-  {{ type: "action", name: "<action>", payload: {{...}} }}
+CRITICAL: Listen for actions on the action_event trait with model.on("change:action_event", handler).
+CRITICAL: Action event structure:
+  {{ action: "<action_name>", params: {{...}}, timestamp: number }}
 CRITICAL: Handle with EXACT code (copy verbatim, do not rename fields):
-  const handleAction = (msg) => {{
+  React.useEffect(() => {{
+    const handleAction = (event) => {{
+      const {{ action, params }} = event.changed.action_event || {{}};
 {action_handlers}
-  }};
-  model.on("msg:custom", handleAction);
-  return () => model.off("msg:custom", handleAction);""")
+    }};
+    model.on("change:action_event", handleAction);
+    return () => model.off("change:action_event", handleAction);
+  }}, []);""")
         
         return "\n".join(sections)
     

@@ -41,6 +41,10 @@ class DataLoadTool(Tool):
         from pathlib import Path
         import json as json_lib
         try:
+            # Handle ExportHandle by resolving to actual value
+            if hasattr(source, '__vibe_export__'):
+                source = source.value if hasattr(source, 'value') else source()
+
             # Routing logic (from DataProcessor)
             # 1. DataFrame direct
             if isinstance(source, pd.DataFrame) or (isinstance(source, str) and source == "dataframe" and df is not None):
