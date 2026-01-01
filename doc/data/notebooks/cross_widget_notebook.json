@@ -1,0 +1,52 @@
+{
+  "cells": [
+    {
+      "type": "markdown",
+      "content": "\n      <h2>Cross-Widget Interactions</h2>\n      <p class=\"text-lg text-slate/70\">\n        This demo shows how widgets can communicate with each other. \n        Select points in the scatter plot and watch the bar chart update automatically!\n      </p>\n    "
+    },
+    {
+      "type": "code",
+      "content": "import vibe_widget as vw\nimport pandas as pd\n\nvw.models()",
+      "defaultCollapsed": true,
+      "label": "Setup"
+    },
+    {
+      "type": "code",
+      "content": "# Configure (demo mode - no actual LLM calls)\nvw.config(\n    model=\"google/gemini-3-flash-preview\",\n    api_key=\"demo-key\"\n)",
+      "defaultCollapsed": true,
+      "label": "Config"
+    },
+    {
+      "type": "code",
+      "content": "# Load Seattle weather data\n# (data is pre-loaded from /testdata/seattle-weather.csv)\nprint(f\"Weather data loaded: {len(data)} rows\")\nprint(f\"Columns: {list(data.columns)}\")\ndata.head(3)",
+      "defaultCollapsed": true,
+      "label": "Load Data"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>Widget 1: Scatter Plot with Brush Selection</h3>\n      <p>\n        This widget <strong>outputs</strong> <code>selected_indices</code> - \n        when you brush-select points, it updates the shared variable.\n      </p>\n    ",
+      "defaultCollapsed": true
+    },
+    {
+      "type": "code",
+      "content": "# Create scatter plot that outputs selected indices\nscatter = vw.create(\n    description=\"temperature across days in Seattle, colored by weather condition\",\n    data=data,\n    outputs=vw.outputs(\n        selected_indices=\"List of selected point indices\"\n    ),\n)\n\nscatter",
+      "label": "Scatter Plot"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>Widget 2: Bar Chart (Linked)</h3>\n      <p>\n        This widget <strong>inputs</strong> <code>selected_indices</code> from the scatter plot.\n        When the selection changes, it automatically updates to show filtered counts.\n      </p>\n    ",
+      "defaultCollapsed": true
+    },
+    {
+      "type": "code",
+      "content": "# Create bar chart that inputs selected_indices\nbars = vw.create(\n    \"horizontal bar chart of weather conditions' count for selected points\",\n    vw.inputs(\n        data,\n        selected_indices=scatter.outputs.selected_indices\n    ),\n)\n\nbars",
+      "label": "Bar Chart"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>How It Works</h3>\n      <pre class=\"bg-material-dark/5 p-4 rounded-lg overflow-x-auto\"><code class=\"text-sm\"># Widget A outputs a trait\nscatter = vw.create(\n    ...,\n    outputs=vw.outputs(\n        selected_indices=\"description\"\n    )\n)\n\n# Widget B inputs that trait\nbars = vw.create(\n    ...,\n    vw.inputs(\n        df,\n        selected_indices=scatter.outputs.selected_indices\n    )\n)\n    </code></pre>\n    <p class=\"mt-4\">\n        Vibe Widget automatically creates bidirectional links using traitlets,\n        so changes flow between widgets in real-time!\n      </p>\n    ",
+      "defaultCollapsed": true
+    }
+  ],
+  "dataFiles": [{ "url": "/testdata/seattle-weather.csv", "varName": "data" }]
+}

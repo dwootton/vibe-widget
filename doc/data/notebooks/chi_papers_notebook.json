@@ -1,0 +1,66 @@
+{
+  "cells": [
+    {
+      "type": "markdown",
+      "content": "\n      <h2>CHI 2025 Paper Explorer</h2>\n      <p class=\"text-lg text-slate/70\">\n        Explore CHI 2025 research papers through semantic similarity search!\n        Search for topics and watch related papers light up with beautiful wave animations.\n      </p>\n    "
+    },
+    {
+      "type": "code",
+      "content": "import vibe_widget as vw\nimport pandas as pd\nimport numpy as np\n\nvw.config(model=\"google/gemini-3-flash-preview\", api_key=\"demo\")",
+      "defaultCollapsed": true,
+      "label": "Setup"
+    },
+    {
+      "type": "code",
+      "content": "# Load CHI 2025 papers data with pre-computed 2D embeddings from GitHub releases\nfrom pyodide.http import pyfetch\nimport io\n\nasync def load_papers_data():\n    data_url = \"https://github.com/dwootton/vibe-widget/releases/download/v0.2.3/CHI_2025_papers_2D.csv\"\n    print(f\"Loading CHI papers data from: {data_url}\")\n    \n    response = await pyfetch(data_url)\n    csv_text = await response.string()\n    \n    df = pd.read_csv(io.StringIO(csv_text))\n    print(f\"Loaded {len(df)} papers\")\n    return df\n\npapers_df = await load_papers_data()\npapers_df.head(3)",
+      "defaultCollapsed": true,
+      "label": "Load Data"
+    },
+    {
+      "type": "code",
+      "content": "# Load pre-computed embeddings for similarity search\n# Using a simple TF-IDF based similarity for the demo\nfrom sklearn.feature_extraction.text import TfidfVectorizer\nfrom sklearn.metrics.pairwise import cosine_similarity\n\n# Create TF-IDF vectors from abstracts\nabstracts = papers_df['abstract'].fillna('').tolist()\nvectorizer = TfidfVectorizer(max_features=1000, stop_words='english')\ntfidf_matrix = vectorizer.fit_transform(abstracts)\n\nprint(f\"Created TF-IDF matrix: {tfidf_matrix.shape}\")\nprint(f\"Vocabulary size: {len(vectorizer.vocabulary_)}\")",
+      "defaultCollapsed": true,
+      "label": "Build Search Index"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>Interactive Paper Explorer</h3>\n      <p>\n        Each dot represents a CHI 2025 paper positioned by its semantic embedding.\n        Search for topics like \"accessibility\", \"AI\", \"collaboration\", or \"VR\" \n        to see related papers light up with a radiating wave animation!\n      </p>\n    "
+    },
+    {
+      "type": "code",
+      "content": "# Create the papers explorer widget using pre-built JS module\npapers_explorer = vw.Widget(\n    module_url=\"/widgets/papers_explorer_interactive_chi_20260101_134322_ccc97fc18c.js\",\n    data=papers_df,\n    outputs={\n        \"query_text\": \"user's search query string\",\n        \"submit_count\": \"integer counter incremented on each query submission\",\n        \"related_papers\": \"list of top 5 related papers with info: {index, title, abstract, authors, session}\"\n    },\n    inputs={\n        \"similarity_scores\": \"array of similarity scores (0-1) for each paper\"\n    }\n)\n\npapers_explorer",
+      "label": "Paper Explorer"
+    },
+    {
+      "type": "code",
+      "content": "# Create the paper cards widget for displaying related papers\npaper_cards = vw.Widget(\n    module_url=\"/widgets/paper_cards_horizontal_list_20260101_134456_fcab3175e1.js\",\n    data=papers_df,\n    inputs={\n        \"related_papers\": papers_explorer.outputs.related_papers\n    }\n)\n\npaper_cards",
+      "label": "Related Papers"
+    },
+    {
+      "type": "code",
+      "content": "# Connect semantic search to the explorer widget\ndef search_papers(change):\n    \"\"\"Compute similarity scores when user submits a query\"\"\"\n    try:\n        query_text = papers_explorer.outputs.query_text.value\n        submit_count = papers_explorer.outputs.submit_count.value\n        \n        if not query_text or submit_count == 0:\n            return\n        \n        print(f\"🔍 Searching for: '{query_text}'\")\n        \n        # Transform query using same vectorizer\n        query_vec = vectorizer.transform([query_text])\n        \n        # Calculate cosine similarity\n        similarities = cosine_similarity(query_vec, tfidf_matrix)[0]\n        \n        # Clip to 0-1 range\n        similarities = np.clip(similarities, 0, 1)\n        \n        # Find most similar paper\n        most_similar_idx = np.argmax(similarities)\n        most_similar_score = similarities[most_similar_idx]\n        most_similar_title = papers_df.iloc[most_similar_idx]['title']\n        \n        print(f\"✓ Most similar: '{most_similar_title[:50]}...'\")\n        print(f\"  Score: {most_similar_score:.2%}\")\n        \n        # Send similarity scores to widget (triggers wave animation)\n        papers_explorer.similarity_scores = similarities.tolist()\n        \n    except Exception as e:\n        print(f\"Error in search: {e}\")\n        import traceback\n        traceback.print_exc()\n\n# Observe query submissions with traitlets-style binding\npapers_explorer.observe(search_papers, names=['submit_count'])\nprint(\"Search connected! Try searching for 'accessibility', 'machine learning', or 'collaboration'\")",
+      "label": "Connect Search"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>How Cross-Widget Reactivity Works</h3>\n      <pre class=\"bg-slate/5 p-4 rounded-lg overflow-x-auto text-sm\"><code># Explorer widget outputs related papers\npapers_explorer = vw.Widget(\n    module_url=\"/widgets/explorer.js\",\n    outputs={\n        \"query_text\": \"search query\",\n        \"related_papers\": \"top matches\"\n    },\n    inputs={\n        \"similarity_scores\": \"search results\"\n    }\n)\n\n# Cards widget inputs from explorer\npaper_cards = vw.Widget(\n    module_url=\"/widgets/cards.js\",\n    inputs={\n        \"related_papers\": papers_explorer.outputs.related_papers\n    }\n)\n\n# Python bridges the search computation\ndef search(change):\n    query = explorer.outputs.query_text.value\n    scores = compute_similarity(query)\n    explorer.similarity_scores = scores  # Triggers wave animation\n\nexplorer.observe(search, names=['submit_count'])\n      </code></pre>\n      <p class=\"mt-4\">\n        Multiple widgets share state through traitlets-style bindings.\n        The explorer outputs <code>related_papers</code>, which the cards widget inputs.\n        Python computes similarity scores that flow back to trigger visualizations!\n      </p>\n    ",
+      "defaultCollapsed": true
+    }
+  ],
+  "dataFiles": [],
+  "remoteDataFiles": [
+    {
+      "url": "https://github.com/dwootton/vibe-widget/releases/download/v0.2.3/CHI_2025_papers_2D.csv",
+      "varName": "papers_df",
+      "type": "csv"
+    }
+  ],
+  "preloadWidgets": [
+    {
+      "url": "/widgets/papers_explorer_interactive_chi_20260101_134322_ccc97fc18c.js"
+    },
+    {
+      "url": "/widgets/paper_cards_horizontal_list_20260101_134456_fcab3175e1.js"
+    }
+  ]
+}

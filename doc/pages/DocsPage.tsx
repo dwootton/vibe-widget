@@ -14,6 +14,8 @@ const CrossWidgetExamplePage = React.lazy(() => import('./docs/examples/CrossWid
 const TicTacToeExamplePage = React.lazy(() => import('./docs/examples/TicTacToeExamplePage'));
 const PdfWebExamplePage = React.lazy(() => import('./docs/examples/PdfWebExamplePage'));
 const EditExamplePage = React.lazy(() => import('./docs/examples/EditExamplePage'));
+const MnistExamplePage = React.lazy(() => import('./docs/examples/MnistExamplePage'));
+const ChiPapersExamplePage = React.lazy(() => import('./docs/examples/ChiPapersExamplePage'));
 const ComingSoonPage = React.lazy(() => import('./docs/ComingSoonPage'));
 import { DOC_SECTIONS } from '../data/docsManifest';
 
@@ -70,6 +72,8 @@ const DocsPage = () => {
                         <Route path="examples/tictactoe" element={<TicTacToeExamplePage />} />
                         <Route path="examples/pdf-web" element={<PdfWebExamplePage />} />
                         <Route path="examples/edit" element={<EditExamplePage />} />
+                        <Route path="examples/mnist" element={<MnistExamplePage />} />
+                        <Route path="examples/chi-papers" element={<ChiPapersExamplePage />} />
                         <Route path="*" element={<ComingSoonPage />} />
                     </Routes>
                 </Suspense>

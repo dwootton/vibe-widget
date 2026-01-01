@@ -5,8 +5,8 @@ const SOLAR_SYSTEM_URL = '/widgets/3d_solar_system_using_three_js_showing_p__0ef
 const HN_CLONE_URL = '/widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js';
 const COVID_TRENDS_URL = '/widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js';
 const COVID_TRENDS_2_URL = '/widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js';
-const CHI25_EMBEDDING_URL = '../public/widgets/interactive_visualization_showing_paper__8646b068fa__v8.js';
-const MNIST_RECOG_URL = '../public/widgets/combined_mnist_digit_recognition_widget__b42bb3c898__v2.js';
+const CHI25_EMBEDDING_URL = '/widgets/papers_explorer_interactive_chi_20260101_134322_ccc97fc18c.js';
+const MNIST_RECOG_URL = '/widgets/combined_widget_mnist_digit_20260101_134827_059414e7a5.js';
 
 
 export type Category = 'Featured' | 'Data Visualization' | 'Reactive' | '3D';
@@ -20,7 +20,8 @@ export const EXAMPLES = [
     description: 'Play tic-tac-toe against an AI trained on game patterns. The widget outputs board state and takes AI moves as inputs, demonstrating bidirectional widget communication.',
     categories: ['Featured', 'Reactive'] as Category[],
     size: 'large' as const,
-    gifUrl: '/gif/tic-tac-toe.gif',
+    dataUrl: '/testdata/tic-tac-toe.csv',
+    dataType: 'csv' as const,
   },
   {
     id: 'weather-scatter',
@@ -30,7 +31,6 @@ export const EXAMPLES = [
     description: 'Interactive scatter plot showing Seattle weather data. Brush-select points to see selected weather patterns exported to linked widgets.',
     categories: ['Data Visualization', 'Reactive', 'Featured'] as Category[],
     size: 'medium' as const,
-    gifUrl: '',
     dataUrl: '/testdata/seattle-weather.csv',
     dataType: 'csv' as const,
   },
@@ -42,7 +42,6 @@ export const EXAMPLES = [
     description: 'Bar chart showing weather condition counts. Automatically updates based on scatter plot selections, demonstrating reactive data flow.',
     categories: ['Data Visualization', 'Reactive', 'Featured'] as Category[],
     size: 'large' as const,
-    gifUrl: '',
     dataUrl: '/testdata/seattle-weather.csv',
     dataType: 'csv' as const,
   },
@@ -54,7 +53,6 @@ export const EXAMPLES = [
     description: 'Extract planet data from a PDF and visualize it as an interactive 3D solar system. Click on planets to select them!',
     categories: ['Featured', '3D'] as Category[],
     size: 'small' as const,
-    gifUrl: '',
     dataUrl: '/testdata/planets.csv',
     dataType: 'csv' as const,
   },
@@ -66,7 +64,6 @@ export const EXAMPLES = [
     description: 'Scrape Hacker News stories and display them in an interactive interface. Filter by score, search by keywords, and sort by different criteria!',
     categories: ['Data Visualization'] as Category[],
     size: 'medium' as const,
-    gifUrl: '',
     dataUrl: '/testdata/hn_stories.json',
     dataType: 'json' as const,
   },
@@ -78,7 +75,6 @@ export const EXAMPLES = [
     description: 'Visualize COVID-19 pandemic trends with an interactive line chart showing confirmed cases, deaths, and recoveries over time.',
     categories: ['Data Visualization'] as Category[],
     size: 'medium' as const,
-    gifUrl: '',
     dataUrl: '/testdata/day_wise.csv',
     dataType: 'csv' as const,
   },
@@ -90,7 +86,6 @@ export const EXAMPLES = [
     description: 'Interactive canvas for drawing digits with live predictions from a pre-trained TensorFlow model. See real-time accuracy scores for each digit class with cross-widget communication.',
     categories: ['Featured', 'Reactive'] as Category[],
     size: 'large' as const,
-    gifUrl: '/gif/mnist_recog.gif',
   },
   {
     id: 'chi25-papers',
@@ -100,8 +95,7 @@ export const EXAMPLES = [
     description: 'Explore CHI 2025 papers using semantic search with animated wave visualization. Type queries to find similar papers with real-time similarity-based highlighting and interactive node exploration.',
     categories: ['Featured', 'Data Visualization', 'Reactive'] as Category[],
     size: 'large' as const,
-    gifUrl: '/gif/chi25embedding.gif',
-    dataUrl: '/testdata/chi25_papers.csv',
+    dataUrl: 'https://github.com/dwootton/vibe-widget/releases/download/v0.2.3/CHI_2025_papers_2D.csv',
     dataType: 'csv' as const,
   },
 ];

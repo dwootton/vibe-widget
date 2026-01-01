@@ -103,6 +103,20 @@ export const DOC_PAGES = [
     source: 'examples/edit.mdx',
   },
   {
+    id: 'examples-mnist',
+    path: '/docs/examples/mnist',
+    label: 'MNIST Recognition',
+    section: 'Live Examples',
+    source: 'examples/mnist.mdx',
+  },
+  {
+    id: 'examples-chi-papers',
+    path: '/docs/examples/chi-papers',
+    label: 'CHI Papers Explorer',
+    section: 'Live Examples',
+    source: 'examples/chi-papers.mdx',
+  },
+  {
     id: 'widgetarium',
     path: '/docs/widgetarium',
     label: 'Widgetarium',

@@ -6,10 +6,14 @@ import {
     TICTACTOE_NOTEBOOK,
     PDF_WEB_NOTEBOOK,
     REVISE_NOTEBOOK,
+    MNIST_NOTEBOOK,
+    CHI_PAPERS_NOTEBOOK,
     WEATHER_DATA_FILES,
     TICTACTOE_DATA_FILES,
     PDF_WEB_DATA_FILES,
     REVISE_DATA_FILES,
+    MNIST_DATA_FILES,
+    CHI_PAPERS_DATA_FILES,
 } from '../data/pyodideNotebooks';
 import PyodideNotebook from '../components/PyodideNotebook';
 import DynamicWidget from '../components/DynamicWidget';
@@ -31,6 +35,8 @@ const NOTEBOOK_MAP: Record<string, any> = {
     'solar-system': { cells: PDF_WEB_NOTEBOOK, dataFiles: PDF_WEB_DATA_FILES },
     'hn-clone': { cells: PDF_WEB_NOTEBOOK, dataFiles: PDF_WEB_DATA_FILES },
     'covid-trends': { cells: REVISE_NOTEBOOK, dataFiles: REVISE_DATA_FILES },
+    'mnist-recognition': { cells: MNIST_NOTEBOOK, dataFiles: MNIST_DATA_FILES },
+    'chi25-papers': { cells: CHI_PAPERS_NOTEBOOK, dataFiles: CHI_PAPERS_DATA_FILES },
 };
 
 const GalleryPage = () => {
@@ -411,19 +417,15 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
         >
             {/* Preview Area */}
             <div className="absolute inset-0 bg-slate/5 group-hover:bg-orange/5 transition-colors overflow-hidden">
-                {example.gifUrl ? (
-                    <img src={example.gifUrl} alt={example.label} className="w-full h-full object-cover" />
-                ) : (
-                    <div className="w-full h-full p-4">
-                        <DynamicWidget
-                            moduleUrl={example.moduleUrl}
-                            model={model}
-                            exampleId={example.id}
-                            dataUrl={example.dataUrl}
-                            dataType={example.dataType}
-                        />
-                    </div>
-                )}
+                <div className="w-full h-full p-4">
+                    <DynamicWidget
+                        moduleUrl={example.moduleUrl}
+                        model={model}
+                        exampleId={example.id}
+                        dataUrl={example.dataUrl}
+                        dataType={example.dataType}
+                    />
+                </div>
 
                 {/* Hover Overlay for Navigation */}
                 <div className="absolute inset-0 pointer-events-none">
