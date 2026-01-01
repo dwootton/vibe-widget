@@ -42,7 +42,13 @@ from vibe_widget.utils.audit_store import (
     strip_internal_fields,
     normalize_location,
 )
-from vibe_widget.utils.util import clean_for_json, initial_import_value, load_data
+from vibe_widget.utils.util import (
+    clean_for_json,
+    initial_import_value,
+    load_data,
+    prepare_input_for_widget,
+    summarize_for_prompt,
+)
 from vibe_widget.themes import Theme, resolve_theme_for_request, clear_theme_cache
 
 
@@ -230,6 +236,7 @@ class VibeWidget(anywidget.AnyWidget):
         imports: dict[str, Any] | None = None,
         theme: Theme | None = None,
         var_name: str | None = None,
+        input_sampling: bool = True,
         base_code: str | None = None,
         base_components: list[str] | None = None,
         base_widget_id: str | None = None,
@@ -276,6 +283,7 @@ class VibeWidget(anywidget.AnyWidget):
             imports=imports,
             theme=theme,
             var_name=var_name,
+            input_sampling=input_sampling,
             base_code=base_code,
             base_components=base_components,
             base_widget_id=base_widget_id,
@@ -299,6 +307,7 @@ class VibeWidget(anywidget.AnyWidget):
         imports: dict[str, Any] | None = None,
         theme: Theme | None = None,
         var_name: str | None = None,
+        input_sampling: bool = True,
         base_code: str | None = None,
         base_components: list[str] | None = None,
         base_widget_id: str | None = None,
@@ -333,6 +342,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._actions = kwargs.pop("actions", None) or {}
         self._action_params = kwargs.pop("action_params", None) or {}
         self._input_summaries = kwargs.pop("input_summaries", None)
+        self._input_sampling = input_sampling
         self._export_accessors: dict[str, ExportHandle] = {}
         self._outputs_namespace: _OutputsNamespace | None = None
         self._component_namespace: _ComponentNamespace | None = None
@@ -427,6 +437,10 @@ class VibeWidget(anywidget.AnyWidget):
             if self._imports:
                 for import_name in self._imports.keys():
                     imports_serialized[import_name] = f"<imported_trait:{import_name}>"
+            if isinstance(df, pd.DataFrame) and "data" not in imports_serialized:
+                imports_serialized["data"] = "<input>"
+            if isinstance(df, pd.DataFrame) and "data" not in imports_serialized:
+                imports_serialized["data"] = "<input>"
             
             store = WidgetStore()
             cached_widget = None
@@ -1678,13 +1692,13 @@ def _normalize_api_inputs(
     # Data can be passed as an InputsBundle to keep everything together
     if isinstance(normalized_data, InputsBundle):
         bundle_inputs = normalized_data.inputs or {}
-        if isinstance(normalized_inputs, InputsBundle):
-            normalized_inputs = {**bundle_inputs, **(normalized_inputs.inputs or {})}
-        else:
-            normalized_inputs = {**bundle_inputs, **(normalized_inputs or {})}
-        if normalized_data is None and len(bundle_inputs) == 1:
+        if len(bundle_inputs) == 1:
             normalized_data = next(iter(bundle_inputs.values()))
         else:
+            if isinstance(normalized_inputs, InputsBundle):
+                normalized_inputs = {**bundle_inputs, **(normalized_inputs.inputs or {})}
+            else:
+                normalized_inputs = {**bundle_inputs, **(normalized_inputs or {})}
             normalized_data = None
 
     if isinstance(normalized_outputs, OutputBundle):
@@ -1694,7 +1708,9 @@ def _normalize_api_inputs(
         bundle_inputs = normalized_inputs.inputs or {}
         if normalized_data is None and len(bundle_inputs) == 1:
             normalized_data = next(iter(bundle_inputs.values()))
-        normalized_inputs = bundle_inputs
+            normalized_inputs = {}
+        else:
+            normalized_inputs = bundle_inputs
 
     return normalized_data, normalized_outputs, normalized_inputs, var_name
 
@@ -1732,7 +1748,7 @@ def create(
     # e.g., scatter_plot = vw.create(...) -> var_name = "scatter_plot"
     from vibe_widget.utils.widget_store import capture_caller_var_name
     var_name = capture_caller_var_name(depth=2)
-    
+
     data, outputs, inputs, _var_name = _normalize_api_inputs(
         data=data,
         outputs=outputs,
