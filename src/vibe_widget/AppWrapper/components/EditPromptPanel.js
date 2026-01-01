@@ -177,7 +177,6 @@ export default function EditPromptPanel({ elementBounds, elementDescription, ini
           boxSizing: "border-box",
           fontFamily: "inherit",
         }}
-            autoFocus
           />
           <button 
             onClick=${() => prompt.trim() ? onSubmit(prompt) : onCancel(prompt)} 

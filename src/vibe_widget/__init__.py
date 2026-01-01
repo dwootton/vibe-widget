@@ -1,5 +1,5 @@
 from vibe_widget.core import VibeWidget, create, edit, load, clear, ComponentReference
-from vibe_widget.api import outputs, inputs, output, ExportHandle
+from vibe_widget.api import outputs, inputs, output, actions, action, ExportHandle
 from vibe_widget.config import config, Config, models
 from vibe_widget.themes import Theme, theme, themes
 
@@ -20,5 +20,7 @@ __all__ = [
     "output",
     "outputs",
     "inputs",
+    "action",
+    "actions",
     "ExportHandle",
 ]

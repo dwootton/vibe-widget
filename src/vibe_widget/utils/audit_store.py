@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -238,7 +238,7 @@ class AuditStore:
         json_name = f"{file_stub}.json"
         yaml_name = f"{file_stub}.yaml"
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         audit_payload = {
             "schema_version": 1,
             "audit_id": audit_id,

@@ -9,10 +9,13 @@ export default function ProgressMap({ logs, fullHeight = false }) {
   const containerRef = React.useRef(null);
   const [spinnerFrame, setSpinnerFrame] = React.useState(0);
 
-  React.useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
+  React.useLayoutEffect(() => {
+    if (!containerRef.current) return;
+    const node = containerRef.current;
+    const raf = requestAnimationFrame(() => {
+      node.scrollTop = node.scrollHeight;
+    });
+    return () => cancelAnimationFrame(raf);
   }, [logs]);
 
   React.useEffect(() => {
@@ -52,6 +55,7 @@ export default function ProgressMap({ logs, fullHeight = false }) {
           flex: 1;
           display: flex;
           flex-direction: column;
+          min-height: 0;
         }
         
         .progress-heading {
@@ -78,6 +82,7 @@ export default function ProgressMap({ logs, fullHeight = false }) {
         .progress-wrapper--full .progress-container {
           flex: 1;
           max-height: none;
+          min-height: 0;
         }
         
         .progress-container::-webkit-scrollbar {

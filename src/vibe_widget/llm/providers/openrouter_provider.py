@@ -9,6 +9,7 @@ from vibe_widget.llm.providers.base import LLMProvider
 
 MAX_TOKENS = 20000
 
+
 class OpenRouterProvider(LLMProvider):
     """LLM provider that routes all traffic through OpenRouter."""
 

@@ -50,6 +50,31 @@ w = vw.create("test widget", df)
 w
 ```
 
+## Tests
+
+Run the full test suite:
+
+```bash
+pytest
+```
+
+Run the example-flow integration tests:
+
+```bash
+pytest -k "example_flows or tic_tac_toe_actions"
+```
+
+Optional suites:
+
+```bash
+RUN_PERF=1 pytest -m performance
+RUN_E2E=1 pytest -m e2e
+```
+
+Notes:
+* Most tests use a mocked LLM provider and do not hit the network.
+* E2E tests require `OPENROUTER_API_KEY` (loaded from `.env` if present).
+
 ### After JS changes
 
 1. Rebuild (`build-app-wrapper` or watch)
