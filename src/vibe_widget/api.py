@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 import inspect
-import re
 
 
 @dataclass
@@ -113,14 +112,9 @@ class ExportHandle:
 
 
 def _sanitize_input_name(name: str | None, fallback: str) -> str:
-    if not name:
-        return fallback
-    sanitized = re.sub(r"\W+", "_", name).strip("_")
-    if not sanitized:
-        return fallback
-    if sanitized[0].isdigit():
-        sanitized = f"input_{sanitized}"
-    return sanitized
+    from vibe_widget.utils.validation import sanitize_input_name
+
+    return sanitize_input_name(name, fallback)
 
 
 def _infer_name_from_frame(value: Any, frame) -> str | None:
