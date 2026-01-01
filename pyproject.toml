@@ -32,17 +32,18 @@ dependencies = [
     "openai>=1.50.0",
     "requests>=2.32.0",
     "pandas>=2.0.0",
-    "python-dotenv>=1.0.0",
     "crawl4ai>=0.3.0",
     "beautifulsoup4>=4.12.0",
     "nest-asyncio>=1.5.0",
     "pretty-little-summary",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
+    "python-dotenv>=1.0.0",
     "mypy>=1.8.0",
     "ruff>=0.6.0",
     "ipython>=8.12.0",
@@ -98,6 +99,15 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "unit: Fast unit tests (no LLM, no network)",
+    "integration: Integration tests with mocked LLM",
+    "e2e: End-to-end tests with real LLM calls",
+    "notebook: Tests requiring notebook environment mocking",
+    "performance: Performance benchmarks",
+    "manual: Manual tests (not for CI)",
+    "component_code: Use mock LLM code that includes named component exports",
+]
 addopts = [
     "--strict-markers",
     "--strict-config",

@@ -51,7 +51,7 @@ Design notes:
 import hashlib
 import inspect
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -792,7 +792,7 @@ class WidgetStore:
         )
 
         # File name: {var_name}_{prompt_words}_{timestamp}_{param_sig}.js
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         timestamp = now.strftime("%Y%m%d_%H%M%S")
 
         prompt_part = "_".join(prompt_words) if prompt_words else "widget"

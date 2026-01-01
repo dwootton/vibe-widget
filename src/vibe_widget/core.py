@@ -17,6 +17,7 @@ from vibe_widget.api import (
     ExportHandle,
     OutputBundle,
     InputsBundle,
+    ActionBundle,
     _build_inputs_bundle,
 )
 from vibe_widget.utils.code_parser import CodeStreamParser, RevisionStreamParser
@@ -168,6 +169,43 @@ class _OutputsNamespace:
         raise AttributeError(f"'{type(self._widget).__name__}.outputs' has no attribute '{name}'")
 
 
+class _ActionsNamespace:
+    """Namespace for calling actions on a widget."""
+
+    def __init__(self, widget: "VibeWidget"):
+        object.__setattr__(self, "_widget", widget)
+
+    def __getattr__(self, name: str):
+        """Return a callable that triggers the action."""
+        actions = getattr(self._widget, "_actions", {}) or {}
+        if name in actions:
+            action_params = getattr(self._widget, "_action_params", {}) or {}
+            params_schema = action_params.get(name)
+
+            def action_caller(**kwargs):
+                """Callable that sends action event to the widget."""
+                import time
+                # Send action event to frontend via synced trait
+                action_event = {
+                    "action": name,
+                    "params": kwargs,
+                    "timestamp": time.time(),
+                }
+                # Update the action_event trait which will sync to the frontend
+                self._widget.action_event = action_event
+                return None
+
+            action_caller.__name__ = name
+            action_caller.__doc__ = actions[name]
+            return action_caller
+
+        raise AttributeError(f"'{type(self._widget).__name__}.actions' has no attribute '{name}'")
+
+    def __dir__(self) -> list[str]:
+        actions = getattr(self._widget, "_actions", {}) or {}
+        return list(actions.keys())
+
+
 class VibeWidget(anywidget.AnyWidget):
     data = traitlets.List([]).tag(sync=True)
     description = traitlets.Unicode("").tag(sync=True)
@@ -178,6 +216,7 @@ class VibeWidget(anywidget.AnyWidget):
     retry_count = traitlets.Int(0).tag(sync=True)
     grab_edit_request = traitlets.Dict({}).tag(sync=True)
     edit_in_progress = traitlets.Bool(False).tag(sync=True)
+    action_event = traitlets.Dict({}).tag(sync=True)
     audit_request = traitlets.Dict({}).tag(sync=True)
     audit_response = traitlets.Dict({}).tag(sync=True)
     audit_status = traitlets.Unicode("idle").tag(sync=True)
@@ -345,6 +384,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._input_sampling = input_sampling
         self._export_accessors: dict[str, ExportHandle] = {}
         self._outputs_namespace: _OutputsNamespace | None = None
+        self._actions_namespace: _ActionsNamespace | None = None
         self._component_namespace: _ComponentNamespace | None = None
         self._widget_metadata = None
         self._theme = theme
@@ -594,7 +634,7 @@ class VibeWidget(anywidget.AnyWidget):
 
     def __getattribute__(self, name: str):
         """Return callable handles for exports to support import chaining."""
-        if not name.startswith("_") and name not in {"outputs", "component"}:
+        if not name.startswith("_") and name not in {"outputs", "actions", "component"}:
             try:
                 exports = object.__getattribute__(self, "_exports")
                 if name in exports:
@@ -778,6 +818,7 @@ class VibeWidget(anywidget.AnyWidget):
         data: pd.DataFrame | str | Path | None = None,
         outputs: dict[str, str] | OutputBundle | None = None,
         inputs: dict[str, Any] | InputsBundle | None = None,
+        actions: dict[str, str] | ActionBundle | None = None,
         theme: Theme | str | None = None,
         config: Config | None = None,
         display: bool = True,
@@ -785,16 +826,17 @@ class VibeWidget(anywidget.AnyWidget):
     ) -> "VibeWidget":
         """
         Instance helper that mirrors vw.edit but defaults the source to self.
-        Supports the same inputs/outputs/data wrappers as vw.edit.
+        Supports the same inputs/outputs/actions/data wrappers as vw.edit.
         """
         # Capture var_name from the caller (depth=2 from here)
         from vibe_widget.utils.widget_store import capture_caller_var_name
         var_name = capture_caller_var_name(depth=2)
-        
-        data, outputs, inputs, _ = _normalize_api_inputs(
+
+        data, outputs, inputs, actions, action_params, _ = _normalize_api_inputs(
             data=data,
             outputs=outputs,
             inputs=inputs,
+            actions=actions,
         )
         return edit(
             description=description,
@@ -802,6 +844,7 @@ class VibeWidget(anywidget.AnyWidget):
             data=data,
             outputs=outputs,
             inputs=inputs,
+            actions=actions,
             theme=theme,
             config=config,
             display=display,
@@ -1268,6 +1311,13 @@ class VibeWidget(anywidget.AnyWidget):
         return self._outputs_namespace
 
     @property
+    def actions(self) -> _ActionsNamespace:
+        """Namespace accessor for widget actions."""
+        if self._actions_namespace is None:
+            self._actions_namespace = _ActionsNamespace(self)
+        return self._actions_namespace
+
+    @property
     def component(self) -> _ComponentNamespace:
         """Namespace accessor for widget components."""
         if self._component_namespace is None:
@@ -1366,14 +1416,14 @@ class VibeWidget(anywidget.AnyWidget):
         return widget
 
     def __dir__(self):
-        """Return list of attributes including outputs/component helpers for autocomplete."""
+        """Return list of attributes including outputs/actions/component helpers for autocomplete."""
         # Get default attributes
         default_attrs = object.__dir__(self)
         export_attrs: list[str] = []
-        
+
         if hasattr(self, "_exports") and self._exports:
             export_attrs = list(self._exports.keys())
-        return list(set(default_attrs + export_attrs + ["outputs", "component"]))
+        return list(set(default_attrs + export_attrs + ["outputs", "actions", "component"]))
     
     def __getattr__(self, name: str):
         """
@@ -1682,11 +1732,14 @@ def _normalize_api_inputs(
     data: Any,
     outputs: dict[str, str] | OutputBundle | None,
     inputs: dict[str, Any] | InputsBundle | None,
-) -> tuple[Any, dict[str, str] | None, dict[str, Any] | None, str | None]:
-    """Allow flexible ordering/wrapping for outputs/inputs/data."""
+    actions: dict[str, str] | ActionBundle | None = None,
+) -> tuple[Any, dict[str, str] | None, dict[str, Any] | None, dict[str, str] | None, dict[str, dict[str, str] | None] | None, str | None]:
+    """Allow flexible ordering/wrapping for outputs/inputs/actions/data."""
     normalized_data = data
     normalized_inputs = inputs
     normalized_outputs = outputs
+    normalized_actions = actions
+    normalized_action_params = None
     var_name: str | None = None
 
     # Data can be passed as an InputsBundle to keep everything together
@@ -1712,34 +1765,40 @@ def _normalize_api_inputs(
         else:
             normalized_inputs = bundle_inputs
 
-    return normalized_data, normalized_outputs, normalized_inputs, var_name
+    if isinstance(normalized_actions, ActionBundle):
+        normalized_action_params = normalized_actions.params
+        normalized_actions = normalized_actions.actions
+
+    return normalized_data, normalized_outputs, normalized_inputs, normalized_actions, normalized_action_params, var_name
 
 
 def create(
     description: str,
     data: pd.DataFrame | str | Path | None = None,
-    outputs: dict[str, str] | None = None,
-    inputs: dict[str, Any] | None = None,
+    outputs: dict[str, str] | OutputBundle | None = None,
+    inputs: dict[str, Any] | InputsBundle | None = None,
+    actions: dict[str, str] | ActionBundle | None = None,
     theme: Theme | str | None = None,
     config: Config | None = None,
     display: bool = True,
     cache: bool = True,
 ) -> VibeWidget:
     """Create a VibeWidget visualization with automatic data processing.
-    
+
     Args:
         description: Natural language description of the visualization
         data: DataFrame, file path, or URL to visualize
         outputs: Dict of {trait_name: description} for exposed state
         inputs: Dict of {trait_name: source} for consumed state
+        actions: Dict of {action_name: description} for interactive callbacks
         theme: Theme object, theme name, or prompt string
         config: Optional Config object with model settings (deprecated; call vw.config instead)
         display: Whether to display the widget immediately (IPython environments only)
         cache: If False, bypass cache and regenerate widget/theme
-    
+
     Returns:
         VibeWidget instance
-    
+
     Examples:
         >>> scatter_plot = create("show temperature trends", df)
         >>> sales_chart = create("visualize sales data", "sales.csv")
@@ -1749,10 +1808,11 @@ def create(
     from vibe_widget.utils.widget_store import capture_caller_var_name
     var_name = capture_caller_var_name(depth=2)
 
-    data, outputs, inputs, _var_name = _normalize_api_inputs(
+    data, outputs, inputs, actions, action_params, _var_name = _normalize_api_inputs(
         data=data,
         outputs=outputs,
         inputs=inputs,
+        actions=actions,
     )
     model, resolved_config = _resolve_model(config_override=config)
     df = load_data(data)
@@ -1775,8 +1835,10 @@ def create(
         cache=cache,
         execution_mode=resolved_config.execution if resolved_config else "auto",
         execution_approved=None,
+        actions=actions,
+        action_params=action_params,
     )
-    
+
     _link_imports(widget, inputs)
     # Store recipe for convenient reruns/clones
     widget._set_recipe(
@@ -1881,6 +1943,7 @@ def edit(
     data: pd.DataFrame | str | Path | None = None,
     outputs: dict[str, str] | OutputBundle | None = None,
     inputs: dict[str, Any] | InputsBundle | None = None,
+    actions: dict[str, str] | ActionBundle | None = None,
     theme: Theme | str | None = None,
     config: Config | None = None,
     display: bool = True,
@@ -1888,20 +1951,21 @@ def edit(
     _var_name: str | None = None,
 ) -> "VibeWidget":
     """Edit a widget by building upon existing code.
-    
+
     Args:
         description: Natural language description of changes
         source: Widget (including component widgets), widget ID, or file path
         data: DataFrame to visualize (uses source data if None)
         outputs: Dict of {trait_name: description} for new/modified outputs
         inputs: Dict of {trait_name: source} for new/modified inputs
+        actions: Dict of {action_name: description} for new/modified actions
         theme: Theme object, theme name, or prompt string
         config: Optional Config object with model settings (deprecated; call vw.config instead)
         cache: If False, bypass cache and regenerate widget/theme
-    
+
     Returns:
         New VibeWidget instance with edited code
-    
+
     Examples:
         >>> scatter2 = edit("add hover tooltips", scatter)
         >>> legend = edit("make legend horizontal", scatter.component.color_legend)
@@ -1912,11 +1976,12 @@ def edit(
         var_name = capture_caller_var_name(depth=2)
     else:
         var_name = _var_name
-    
-    data, outputs, inputs, _ = _normalize_api_inputs(
+
+    data, outputs, inputs, actions, action_params, _ = _normalize_api_inputs(
         data=data,
         outputs=outputs,
         inputs=inputs,
+        actions=actions,
     )
     store = WidgetStore()
     source_info = _resolve_source(source, store)
@@ -1950,8 +2015,10 @@ def edit(
         display_widget=display,
         execution_mode=resolved_config.execution if resolved_config else "auto",
         execution_approved=None,
+        actions=actions,
+        action_params=action_params,
     )
-    
+
     _link_imports(widget, inputs)
     widget._set_recipe(
         description=description,  # Store original description in recipe
@@ -1966,7 +2033,7 @@ def edit(
         base_components=source_info.components,
         base_widget_id=base_cache_key,
     )
-    
+
     return widget
 
 
