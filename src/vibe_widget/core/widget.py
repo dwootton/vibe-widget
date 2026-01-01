@@ -108,26 +108,15 @@ logger = get_logger(__name__)
 
 class VibeWidget(anywidget.AnyWidget):
     data = traitlets.List([]).tag(sync=True)
-    description = traitlets.Unicode("").tag(sync=True)
     status = traitlets.Unicode("idle").tag(sync=True)
     logs = traitlets.List([]).tag(sync=True)
     code = traitlets.Unicode("").tag(sync=True)
     error_message = traitlets.Unicode("").tag(sync=True)
     retry_count = traitlets.Int(0).tag(sync=True)
     grab_edit_request = traitlets.Dict({}).tag(sync=True)
-    edit_in_progress = traitlets.Bool(False).tag(sync=True)
     action_event = traitlets.Dict({}).tag(sync=True)
-    audit_request = traitlets.Dict({}).tag(sync=True)
-    audit_response = traitlets.Dict({}).tag(sync=True)
-    audit_status = traitlets.Unicode("idle").tag(sync=True)
-    audit_error = traitlets.Unicode("").tag(sync=True)
-    audit_apply_request = traitlets.Dict({}).tag(sync=True)
-    audit_apply_response = traitlets.Dict({}).tag(sync=True)
-    audit_apply_status = traitlets.Unicode("idle").tag(sync=True)
-    audit_apply_error = traitlets.Unicode("").tag(sync=True)
-    execution_mode = traitlets.Unicode("auto").tag(sync=True)
-    execution_approved = traitlets.Bool(True).tag(sync=True)
-    execution_approved_hash = traitlets.Unicode("").tag(sync=True)
+    audit_state = traitlets.Dict({}).tag(sync=True)
+    execution_state = traitlets.Dict({}).tag(sync=True)
 
     def _ipython_display_(self) -> None:
         """Ensure rich display works in environments that skip mimebundle reprs."""
@@ -267,6 +256,7 @@ class VibeWidget(anywidget.AnyWidget):
             **kwargs: Additional widget parameters
         """
         parser = CodeStreamParser()
+        self.description = description
         self._exports = exports or {}
         self._imports = imports or {}
         self._actions = kwargs.pop("actions", None) or {}
@@ -301,26 +291,33 @@ class VibeWidget(anywidget.AnyWidget):
             execution_approved = execution_mode != "approve"
         if execution_approved_hash is None:
             execution_approved_hash = ""
+        audit_state = {
+            "status": "idle",
+            "response": {},
+            "error": "",
+            "request": {},
+            "apply": {
+                "status": "idle",
+                "response": {},
+                "error": "",
+            },
+            "apply_request": {},
+        }
+        execution_state = {
+            "mode": execution_mode,
+            "approved": execution_approved,
+            "approved_hash": execution_approved_hash,
+        }
 
         super().__init__(
             data=data_json,
-            description=description,
             status="generating",
             logs=[],
             code="",
             error_message="",
             retry_count=0,
-            audit_request={},
-            audit_response={},
-            audit_status="idle",
-            audit_error="",
-            audit_apply_request={},
-            audit_apply_response={},
-            audit_apply_status="idle",
-            audit_apply_error="",
-            execution_mode=execution_mode,
-            execution_approved=execution_approved,
-            execution_approved_hash=execution_approved_hash,
+            audit_state=audit_state,
+            execution_state=execution_state,
             **kwargs
         )
 
@@ -329,10 +326,9 @@ class VibeWidget(anywidget.AnyWidget):
         
         self.observe(self._on_error, names='error_message')
         self.observe(self._on_grab_edit, names='grab_edit_request')
-        self.observe(self._on_audit_request, names='audit_request')
-        self.observe(self._on_audit_apply_request, names='audit_apply_request')
+        self.observe(self._on_audit_state, names='audit_state')
         self.observe(self._on_code_change, names='code')
-        self.observe(self._on_execution_approved, names='execution_approved')
+        self.observe(self._on_execution_state, names='execution_state')
         
         try:
             input_count = len(self._imports or {})
@@ -547,6 +543,128 @@ class VibeWidget(anywidget.AnyWidget):
                 # Fall back to default lookup for early init or missing attrs
                 pass
         return super().__getattribute__(name)
+
+    def _normalize_audit_state(self, state: dict[str, Any] | None) -> dict[str, Any]:
+        base = {
+            "status": "idle",
+            "response": {},
+            "error": "",
+            "request": {},
+            "apply": {
+                "status": "idle",
+                "response": {},
+                "error": "",
+            },
+            "apply_request": {},
+        }
+        if not isinstance(state, dict):
+            return base
+        merged = dict(base)
+        merged.update(state)
+        apply_state = dict(base["apply"])
+        if isinstance(state.get("apply"), dict):
+            apply_state.update(state["apply"])
+        merged["apply"] = apply_state
+        return merged
+
+    def _update_audit_state(self, **updates: Any) -> None:
+        state = self._normalize_audit_state(self.audit_state)
+        apply_updates = updates.pop("apply", None)
+        if isinstance(apply_updates, dict):
+            apply_state = dict(state.get("apply", {}))
+            apply_state.update(apply_updates)
+            state["apply"] = apply_state
+        state.update(updates)
+        self.audit_state = state
+
+    def _normalize_execution_state(self, state: dict[str, Any] | None) -> dict[str, Any]:
+        base = {
+            "mode": "auto",
+            "approved": True,
+            "approved_hash": "",
+        }
+        if not isinstance(state, dict):
+            return base
+        merged = dict(base)
+        merged.update(state)
+        return merged
+
+    def _update_execution_state(self, **updates: Any) -> None:
+        state = self._normalize_execution_state(self.execution_state)
+        state.update(updates)
+        self.execution_state = state
+
+    @property
+    def audit_status(self) -> str:
+        return self._normalize_audit_state(self.audit_state).get("status", "idle")
+
+    @audit_status.setter
+    def audit_status(self, value: str) -> None:
+        self._update_audit_state(status=value)
+
+    @property
+    def audit_response(self) -> dict[str, Any]:
+        return self._normalize_audit_state(self.audit_state).get("response", {})
+
+    @audit_response.setter
+    def audit_response(self, value: dict[str, Any]) -> None:
+        self._update_audit_state(response=value)
+
+    @property
+    def audit_error(self) -> str:
+        return self._normalize_audit_state(self.audit_state).get("error", "")
+
+    @audit_error.setter
+    def audit_error(self, value: str) -> None:
+        self._update_audit_state(error=value)
+
+    @property
+    def audit_apply_status(self) -> str:
+        return self._normalize_audit_state(self.audit_state).get("apply", {}).get("status", "idle")
+
+    @audit_apply_status.setter
+    def audit_apply_status(self, value: str) -> None:
+        self._update_audit_state(apply={"status": value})
+
+    @property
+    def audit_apply_response(self) -> dict[str, Any]:
+        return self._normalize_audit_state(self.audit_state).get("apply", {}).get("response", {})
+
+    @audit_apply_response.setter
+    def audit_apply_response(self, value: dict[str, Any]) -> None:
+        self._update_audit_state(apply={"response": value})
+
+    @property
+    def audit_apply_error(self) -> str:
+        return self._normalize_audit_state(self.audit_state).get("apply", {}).get("error", "")
+
+    @audit_apply_error.setter
+    def audit_apply_error(self, value: str) -> None:
+        self._update_audit_state(apply={"error": value})
+
+    @property
+    def execution_mode(self) -> str:
+        return self._normalize_execution_state(self.execution_state).get("mode", "auto")
+
+    @execution_mode.setter
+    def execution_mode(self, value: str) -> None:
+        self._update_execution_state(mode=value)
+
+    @property
+    def execution_approved(self) -> bool:
+        return bool(self._normalize_execution_state(self.execution_state).get("approved", True))
+
+    @execution_approved.setter
+    def execution_approved(self, value: bool) -> None:
+        self._update_execution_state(approved=bool(value))
+
+    @property
+    def execution_approved_hash(self) -> str:
+        return self._normalize_execution_state(self.execution_state).get("approved_hash", "")
+
+    @execution_approved_hash.setter
+    def execution_approved_hash(self, value: str) -> None:
+        self._update_execution_state(approved_hash=value or "")
 
     # --- Convenience rerun API ---
     def _store_creation_params(
@@ -917,11 +1035,21 @@ class VibeWidget(anywidget.AnyWidget):
                 print(result["report_yaml"])
         return result
 
-    def _on_audit_request(self, change):
+    def _on_audit_state(self, change):
+        """Handle audit requests embedded in audit_state."""
+        new_state = self._normalize_audit_state(change.get("new"))
+        old_state = self._normalize_audit_state(change.get("old"))
+
+        request = new_state.get("request") or {}
+        if request and request != (old_state.get("request") or {}):
+            self._handle_audit_request(request)
+
+        apply_request = new_state.get("apply_request") or {}
+        if apply_request and apply_request != (old_state.get("apply_request") or {}):
+            self._handle_audit_apply_request(apply_request)
+
+    def _handle_audit_request(self, request: dict[str, Any]) -> None:
         """Handle audit requests from the frontend."""
-        request = change.get("new") or {}
-        if not request:
-            return
         if self.audit_status == "running":
             return
         level = str(request.get("level", "fast")).lower()
@@ -934,11 +1062,10 @@ class VibeWidget(anywidget.AnyWidget):
             self.audit_error = str(exc)
             self.audit_response = {"error": str(exc), "level": level}
         finally:
-            self.audit_request = {}
+            self._update_audit_state(request={})
 
-    def _on_audit_apply_request(self, change):
+    def _handle_audit_apply_request(self, request: dict[str, Any]) -> None:
         """Apply audit-driven changes via the LLM."""
-        request = change.get("new") or {}
         if not request:
             return
         if self.audit_apply_status == "running":
@@ -946,7 +1073,7 @@ class VibeWidget(anywidget.AnyWidget):
         if self._generation_service is None:
             self.audit_apply_error = "No LLM service available to apply changes."
             self.audit_apply_status = "error"
-            self.audit_apply_request = {}
+            self._update_audit_state(apply_request={})
             return
 
         changes = request.get("changes", [])
@@ -954,7 +1081,7 @@ class VibeWidget(anywidget.AnyWidget):
         if not base_code:
             self.audit_apply_error = "No source code available to apply changes."
             self.audit_apply_status = "error"
-            self.audit_apply_request = {}
+            self._update_audit_state(apply_request={})
             return
 
         self.audit_apply_status = "running"
@@ -1004,7 +1131,7 @@ class VibeWidget(anywidget.AnyWidget):
             self.audit_apply_response = {"success": False, "error": str(exc)}
             self.status = "ready"
         finally:
-            self.audit_apply_request = {}
+            self._update_audit_state(apply_request={})
     
     def _on_error(self, change):
         """Called when frontend reports a runtime error."""
@@ -1368,11 +1495,20 @@ Find this element in the code and apply the requested change. The element should
             if self.execution_approved:
                 self.execution_approved = False
 
-    def _on_execution_approved(self, change):
+    def _on_execution_state(self, change):
         """Persist approval hash when user approves the current code."""
-        if not change.get("new"):
+        new_state = self._normalize_execution_state(change.get("new"))
+        old_state = self._normalize_execution_state(change.get("old"))
+        if not new_state.get("approved"):
             return
-        self.execution_approved_hash = compute_code_hash(self.code or "")
+        current_hash = compute_code_hash(self.code or "")
+        if new_state.get("approved_hash") == current_hash:
+            return
+        if old_state.get("approved") and old_state.get("approved_hash") == current_hash:
+            return
+        updated = dict(new_state)
+        updated["approved_hash"] = current_hash
+        self.execution_state = updated
 
 
 ComponentReference = VibeWidget

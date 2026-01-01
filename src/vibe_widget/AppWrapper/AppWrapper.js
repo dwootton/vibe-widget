@@ -33,8 +33,10 @@ function AppWrapper({ model }) {
     auditApplyStatus,
     auditApplyResponse,
     auditApplyError,
+    auditState,
     executionMode,
-    executionApproved
+    executionApproved,
+    executionState
   } = useModelSync(model);
   const [isMenuOpen, setMenuOpen] = React.useState(false);
   const [grabMode, setGrabMode] = React.useState(null);
@@ -199,9 +201,13 @@ function AppWrapper({ model }) {
 
   const handleApplySource = (payload) => {
     if (payload && payload.type === "audit_apply") {
-      model.set("audit_apply_request", {
-        changes: payload.changes || [],
-        base_code: payload.baseCode || ""
+      const currentState = model.get("audit_state") || {};
+      model.set("audit_state", {
+        ...currentState,
+        apply_request: {
+          changes: payload.changes || [],
+          base_code: payload.baseCode || ""
+        }
       });
       model.save_changes();
       setShowSource(false);
@@ -220,15 +226,23 @@ function AppWrapper({ model }) {
   };
 
   const handleAuditRequest = (level) => {
-    model.set("audit_request", {
-      level: level || "fast",
-      request_id: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    const currentState = model.get("audit_state") || {};
+    model.set("audit_state", {
+      ...currentState,
+      request: {
+        level: level || "fast",
+        request_id: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+      }
     });
     model.save_changes();
   };
 
   const handleApproveRun = () => {
-    model.set("execution_approved", true);
+    const currentState = model.get("execution_state") || {};
+    model.set("execution_state", {
+      ...currentState,
+      approved: true
+    });
     model.save_changes();
     setShowSource(false);
     setShowAudit(false);

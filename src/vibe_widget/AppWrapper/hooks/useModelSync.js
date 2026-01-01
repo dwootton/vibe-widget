@@ -7,14 +7,8 @@ export default function useModelSync(model) {
   const [code, setCode] = React.useState(model.get("code"));
   const [errorMessage, setErrorMessage] = React.useState(model.get("error_message"));
   const [retryCount, setRetryCount] = React.useState(model.get("retry_count"));
-  const [auditStatus, setAuditStatus] = React.useState(model.get("audit_status"));
-  const [auditResponse, setAuditResponse] = React.useState(model.get("audit_response"));
-  const [auditError, setAuditError] = React.useState(model.get("audit_error"));
-  const [auditApplyStatus, setAuditApplyStatus] = React.useState(model.get("audit_apply_status"));
-  const [auditApplyResponse, setAuditApplyResponse] = React.useState(model.get("audit_apply_response"));
-  const [auditApplyError, setAuditApplyError] = React.useState(model.get("audit_apply_error"));
-  const [executionMode, setExecutionMode] = React.useState(model.get("execution_mode"));
-  const [executionApproved, setExecutionApproved] = React.useState(model.get("execution_approved"));
+  const [auditState, setAuditState] = React.useState(model.get("audit_state") || {});
+  const [executionState, setExecutionState] = React.useState(model.get("execution_state") || {});
 
   React.useEffect(() => {
     const onStatusChange = () => setStatus(model.get("status"));
@@ -22,28 +16,16 @@ export default function useModelSync(model) {
     const onCodeChange = () => setCode(model.get("code"));
     const onErrorChange = () => setErrorMessage(model.get("error_message"));
     const onRetryCountChange = () => setRetryCount(model.get("retry_count"));
-    const onAuditStatusChange = () => setAuditStatus(model.get("audit_status"));
-    const onAuditResponseChange = () => setAuditResponse(model.get("audit_response"));
-    const onAuditErrorChange = () => setAuditError(model.get("audit_error"));
-    const onAuditApplyStatusChange = () => setAuditApplyStatus(model.get("audit_apply_status"));
-    const onAuditApplyResponseChange = () => setAuditApplyResponse(model.get("audit_apply_response"));
-    const onAuditApplyErrorChange = () => setAuditApplyError(model.get("audit_apply_error"));
-    const onExecutionModeChange = () => setExecutionMode(model.get("execution_mode"));
-    const onExecutionApprovedChange = () => setExecutionApproved(model.get("execution_approved"));
+    const onAuditStateChange = () => setAuditState(model.get("audit_state") || {});
+    const onExecutionStateChange = () => setExecutionState(model.get("execution_state") || {});
 
     model.on("change:status", onStatusChange);
     model.on("change:logs", onLogsChange);
     model.on("change:code", onCodeChange);
     model.on("change:error_message", onErrorChange);
     model.on("change:retry_count", onRetryCountChange);
-    model.on("change:audit_status", onAuditStatusChange);
-    model.on("change:audit_response", onAuditResponseChange);
-    model.on("change:audit_error", onAuditErrorChange);
-    model.on("change:audit_apply_status", onAuditApplyStatusChange);
-    model.on("change:audit_apply_response", onAuditApplyResponseChange);
-    model.on("change:audit_apply_error", onAuditApplyErrorChange);
-    model.on("change:execution_mode", onExecutionModeChange);
-    model.on("change:execution_approved", onExecutionApprovedChange);
+    model.on("change:audit_state", onAuditStateChange);
+    model.on("change:execution_state", onExecutionStateChange);
 
     return () => {
       model.off("change:status", onStatusChange);
@@ -51,16 +33,22 @@ export default function useModelSync(model) {
       model.off("change:code", onCodeChange);
       model.off("change:error_message", onErrorChange);
       model.off("change:retry_count", onRetryCountChange);
-      model.off("change:audit_status", onAuditStatusChange);
-      model.off("change:audit_response", onAuditResponseChange);
-      model.off("change:audit_error", onAuditErrorChange);
-      model.off("change:audit_apply_status", onAuditApplyStatusChange);
-      model.off("change:audit_apply_response", onAuditApplyResponseChange);
-      model.off("change:audit_apply_error", onAuditApplyErrorChange);
-      model.off("change:execution_mode", onExecutionModeChange);
-      model.off("change:execution_approved", onExecutionApprovedChange);
+      model.off("change:audit_state", onAuditStateChange);
+      model.off("change:execution_state", onExecutionStateChange);
     };
   }, [model]);
+
+  const auditApply = auditState.apply || {};
+
+  const auditStatus = auditState.status || "idle";
+  const auditResponse = auditState.response || {};
+  const auditError = auditState.error || "";
+  const auditApplyStatus = auditApply.status || "idle";
+  const auditApplyResponse = auditApply.response || {};
+  const auditApplyError = auditApply.error || "";
+
+  const executionMode = executionState.mode || "auto";
+  const executionApproved = executionState.approved !== false;
 
   return {
     status,
@@ -68,12 +56,14 @@ export default function useModelSync(model) {
     code,
     errorMessage,
     retryCount,
+    auditState,
     auditStatus,
     auditResponse,
     auditError,
     auditApplyStatus,
     auditApplyResponse,
     auditApplyError,
+    executionState,
     executionMode,
     executionApproved
   };
