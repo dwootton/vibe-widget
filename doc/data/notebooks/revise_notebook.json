@@ -1,0 +1,63 @@
+{
+  "id": "edit",
+  "title": "Widget Editing",
+  "description": "Iteratively refine widgets with vw.edit()",
+  "widgets": {
+    "line_chart": {
+      "url": "/widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js",
+      "match": ["line", "chart", "confirmed", "deaths"]
+    },
+    "line_chart_hover": {
+      "url": "/widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js",
+      "match": ["hover", "dashed", "vertical"]
+    }
+  },
+  "dataFiles": [{ "url": "/testdata/day_wise.csv", "varName": "covid_df" }],
+  "cells": [
+    {
+      "type": "markdown",
+      "content": "\n      <h2>Widget Editing Demo</h2>\n      <p class=\"text-lg text-slate/70\">\n        Start with a basic chart, then refine it iteratively using <code>vw.edit()</code>.\n        Watch how we add interactive features step by step!\n      </p>\n    "
+    },
+    {
+      "type": "code",
+      "content": "import vibe_widget as vw\nimport pandas as pd\n\nvw.models()",
+      "defaultCollapsed": true,
+      "label": "Setup"
+    },
+    {
+      "type": "code",
+      "content": "# Configure (demo mode)\nvw.config(\n    model=\"google/gemini-3-flash-preview\",\n    api_key=\"demo-key\"\n)",
+      "defaultCollapsed": true,
+      "label": "Config"
+    },
+    {
+      "type": "code",
+      "content": "# Load COVID-19 data\nprint(f\"COVID-19 data loaded: {len(covid_df)} days\")\nprint(f\"Columns: {list(covid_df.columns)}\")\ncovid_df.head(3)",
+      "defaultCollapsed": true,
+      "label": "Load Data"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>Step 1: Basic Line Chart</h3>\n      <p>Create a simple line chart showing COVID-19 trends over time.</p>\n    "
+    },
+    {
+      "type": "code",
+      "content": "# Create basic line chart\ntimeline = vw.create(\n    \"line chart showing confirmed, deaths, recovered over time\",\n    data=covid_df\n)\n\ntimeline",
+      "label": "Basic Chart"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>Step 2: Add Interactive Hover</h3>\n      <p>Use <code>vw.edit()</code> to add a vertical dashed line when hovering.</p>\n    "
+    },
+    {
+      "type": "code",
+      "content": "# Edit to add interactive hover crosshair\ntimeline_v2 = vw.edit(\n    \"add vertical dashed line when user hovering, highlight crossed data points\",\n    timeline,\n    data=covid_df\n)\n\ntimeline_v2",
+      "label": "Enhanced Chart"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>How Editing Works</h3>\n      <pre class=\"bg-slate/5 p-4 rounded-lg overflow-x-auto text-sm\"><code># Create initial widget\nchart = vw.create(\"scatter plot of data\", df)\n\n# Refine it with edit()\nchart_v2 = vw.edit(\n    \"add hover tooltips and color by category\",\n    chart,  # Pass the original widget\n    data=df  # Optionally pass updated data\n)\n\n# Keep refining!\nchart_v3 = vw.edit(\n    \"add zoom and pan controls\",\n    chart_v2\n)\n      </code></pre>\n      <p class=\"mt-4\">\n        Each edit builds on the previous version, maintaining context\n        while adding new features. This allows for rapid iterative development!\n      </p>\n    ",
+      "defaultCollapsed": true
+    }
+  ]
+}

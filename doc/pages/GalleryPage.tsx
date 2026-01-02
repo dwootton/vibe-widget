@@ -1,16 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { EXAMPLES, Category } from '../data/examples';
-import {
-    CROSS_WIDGET_NOTEBOOK,
-    TICTACTOE_NOTEBOOK,
-    PDF_WEB_NOTEBOOK,
-    REVISE_NOTEBOOK,
-    WEATHER_DATA_FILES,
-    TICTACTOE_DATA_FILES,
-    PDF_WEB_DATA_FILES,
-    REVISE_DATA_FILES,
-} from '../data/pyodideNotebooks';
+import { NOTEBOOK_REGISTRY } from '../data/pyodideNotebooks';
 import PyodideNotebook from '../components/PyodideNotebook';
 import DynamicWidget from '../components/DynamicWidget';
 import { createWidgetModel } from '../utils/exampleDataLoader';
@@ -24,13 +15,16 @@ const CATEGORIES: { label: Category; icon: any }[] = [
     { label: '3D', icon: Box },
 ];
 
-const NOTEBOOK_MAP: Record<string, any> = {
-    'tic-tac-toe': { cells: TICTACTOE_NOTEBOOK, dataFiles: TICTACTOE_DATA_FILES },
-    'weather-scatter': { cells: CROSS_WIDGET_NOTEBOOK, dataFiles: WEATHER_DATA_FILES },
-    'weather-bars': { cells: CROSS_WIDGET_NOTEBOOK, dataFiles: WEATHER_DATA_FILES },
-    'solar-system': { cells: PDF_WEB_NOTEBOOK, dataFiles: PDF_WEB_DATA_FILES },
-    'hn-clone': { cells: PDF_WEB_NOTEBOOK, dataFiles: PDF_WEB_DATA_FILES },
-    'covid-trends': { cells: REVISE_NOTEBOOK, dataFiles: REVISE_DATA_FILES },
+// Map example IDs to notebook registry IDs
+const EXAMPLE_TO_NOTEBOOK: Record<string, string> = {
+    'tic-tac-toe': 'tictactoe',
+    'weather-scatter': 'cross-widget',
+    'weather-bars': 'cross-widget',
+    'solar-system': 'pdf-web',
+    'hn-clone': 'pdf-web',
+    'covid-trends': 'edit',
+    'mnist-recognition': 'mnist',
+    'chi25-papers': 'chi-papers',
 };
 
 const GalleryPage = () => {
@@ -355,10 +349,11 @@ const GalleryPage = () => {
                                     </div>
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
-                                    {focusedExample && NOTEBOOK_MAP[focusedExample.id] ? (
+                                    {focusedExample && EXAMPLE_TO_NOTEBOOK[focusedExample.id] && NOTEBOOK_REGISTRY[EXAMPLE_TO_NOTEBOOK[focusedExample.id]] ? (
                                         <PyodideNotebook
-                                            cells={NOTEBOOK_MAP[focusedExample.id].cells}
-                                            dataFiles={NOTEBOOK_MAP[focusedExample.id].dataFiles}
+                                            cells={NOTEBOOK_REGISTRY[EXAMPLE_TO_NOTEBOOK[focusedExample.id]].cells}
+                                            dataFiles={NOTEBOOK_REGISTRY[EXAMPLE_TO_NOTEBOOK[focusedExample.id]].dataFiles}
+                                            widgetConfig={NOTEBOOK_REGISTRY[EXAMPLE_TO_NOTEBOOK[focusedExample.id]].widgets}
                                             notebookKey={focusedExample.id}
                                         />
                                     ) : (
@@ -384,7 +379,7 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
         large: 'md:col-span-4 md:row-span-2',
     };
 
-    const hasNotebook = !!NOTEBOOK_MAP[example.id];
+    const hasNotebook = !!EXAMPLE_TO_NOTEBOOK[example.id] && !!NOTEBOOK_REGISTRY[EXAMPLE_TO_NOTEBOOK[example.id]];
 
     return (
         <motion.div
@@ -398,7 +393,7 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
                 ${hasNotebook ? 'cursor-pointer' : 'cursor-default'}
                 ${sizeClasses[example.size as keyof typeof sizeClasses] || 'md:col-span-1 md:row-span-1'}
             `}
-            onClick={hasNotebook ? onOpen : undefined}
+            // onClick={hasNotebook ? onOpen : undefined}
             onKeyDown={(event) => {
                 if (!hasNotebook) return;
                 if (event.key === 'Enter' || event.key === ' ') {
@@ -411,19 +406,15 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
         >
             {/* Preview Area */}
             <div className="absolute inset-0 bg-slate/5 group-hover:bg-orange/5 transition-colors overflow-hidden">
-                {example.gifUrl ? (
-                    <img src={example.gifUrl} alt={example.label} className="w-full h-full object-cover" />
-                ) : (
-                    <div className="w-full h-full p-4">
-                        <DynamicWidget
-                            moduleUrl={example.moduleUrl}
-                            model={model}
-                            exampleId={example.id}
-                            dataUrl={example.dataUrl}
-                            dataType={example.dataType}
-                        />
-                    </div>
-                )}
+                <div className="w-full h-full p-4">
+                    <DynamicWidget
+                        moduleUrl={example.moduleUrl}
+                        model={model}
+                        exampleId={example.id}
+                        dataUrl={example.dataUrl}
+                        dataType={example.dataType}
+                    />
+                </div>
 
                 {/* Hover Overlay for Navigation */}
                 <div className="absolute inset-0 pointer-events-none">

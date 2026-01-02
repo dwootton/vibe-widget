@@ -1,0 +1,72 @@
+{
+  "id": "pdf-web",
+  "title": "PDF & Web Extraction",
+  "description": "Extract and visualize data from PDFs and websites",
+  "widgets": {
+    "solar_system": {
+      "url": "/widgets/3d_solar_system_using_three_js_showing_p__0ef429f27d__v1.js",
+      "match": ["solar", "system", "3d", "planet"]
+    },
+    "hacker_news": {
+      "url": "/widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js",
+      "match": ["hacker", "news", "clone"]
+    }
+  },
+  "dataFiles": [
+    { "url": "/testdata/planets.csv", "varName": "planets_df" },
+    { "url": "/testdata/hn_stories.json", "varName": "hn_df", "type": "json" }
+  ],
+  "cells": [
+    {
+      "type": "markdown",
+      "content": "\n      <h2>PDF & Web Data Extraction</h2>\n      <p class=\"text-lg text-slate/70\">\n        Vibe Widget can extract data from PDFs and web pages, then create interactive visualizations.\n        This demo shows two examples: a 3D solar system from PDF data and a Hacker News clone from web scraping.\n      </p>\n    "
+    },
+    {
+      "type": "code",
+      "content": "import vibe_widget as vw\nimport pandas as pd\n\nvw.models()",
+      "defaultCollapsed": true,
+      "label": "Setup"
+    },
+    {
+      "type": "code",
+      "content": "# Configure (demo mode - no actual LLM calls)\nvw.config(\n    model=\"google/gemini-3-flash-preview\",\n    api_key=\"demo-key\"\n)",
+      "defaultCollapsed": true,
+      "label": "Config"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>3D Solar System (from PDF)</h3>\n      <p>\n        This visualization was generated from a PDF containing planetary data.\n        Vibe Widget extracted the table data and created an interactive 3D model.\n      </p>\n    "
+    },
+    {
+      "type": "code",
+      "content": "# Load planets data (extracted from PDF)\nprint(f\"Planets data: {len(planets_df)} planets\")\nprint(f\"Columns: {list(planets_df.columns)}\")\nplanets_df.head()",
+      "defaultCollapsed": true,
+      "label": "Planets Data"
+    },
+    {
+      "type": "code",
+      "content": "# Create 3D solar system visualization\nsolar_system = vw.create(\n    \"3D solar system using Three.js showing planets orbiting with realistic relative sizes and orbital periods\",\n    data=planets_df,\n    outputs=vw.outputs(\n        selected_planet=\"Currently selected planet name\"\n    ),\n)\n\nsolar_system",
+      "label": "Solar System"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>Hacker News Clone (from Web)</h3>\n      <p>\n        This widget shows stories scraped from Hacker News.\n        Vibe Widget can fetch and parse web content to create custom visualizations.\n      </p>\n    "
+    },
+    {
+      "type": "code",
+      "content": "# Load Hacker News stories (scraped from website)\nprint(f\"HN stories: {len(hn_df)} stories\")\nhn_df.head(3)",
+      "defaultCollapsed": true,
+      "label": "HN Data"
+    },
+    {
+      "type": "code",
+      "content": "# Create interactive Hacker News clone\nhn_clone = vw.create(\n    \"Interactive Hacker News clone widget with story list, upvotes, and comment counts\",\n    data=hn_df,\n)\n\nhn_clone",
+      "label": "HN Clone"
+    },
+    {
+      "type": "markdown",
+      "content": "\n      <h3>How It Works</h3>\n      <pre class=\"bg-material-dark/5 p-4 rounded-lg overflow-x-auto\"><code class=\"text-sm\"># PDF Extraction\nsolar_system = vw.create(\n    description=\"3D visualization...\",\n    data=\"../testdata/planets.pdf\",  # PDF path\n    outputs=vw.outputs(\n        selected_planet=\"selected planet name\"\n    )\n)\n\n# Web Scraping\nhn_clone = vw.create(\n    description=\"Hacker News clone...\",\n    data=\"https://news.ycombinator.com\",  # URL\n)\n      </code></pre>\n      <p class=\"mt-4\">\n        Vibe Widget automatically detects the data type (PDF, URL, CSV, etc.) and\n        handles extraction, parsing, and visualization generation!\n      </p>\n    ",
+      "defaultCollapsed": true
+    }
+  ]
+}

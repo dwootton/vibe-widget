@@ -52,6 +52,7 @@ interface PyodideNotebookProps {
   cells: NotebookCell[];
   title?: string;
   dataFiles?: { url: string; varName: string; type?: string }[];
+  widgetConfig?: Record<string, { url: string; match: string[] }>;
   notebookKey?: string; // Unique key to identify the notebook for data loading
 }
 
@@ -66,7 +67,7 @@ interface WithKey { key?: Key; }
  * - Cross-widget reactivity via traitlets simulation
  * - Pre-generated widgets load from /examples
  */
-export default function PyodideNotebook({ cells, title, dataFiles = [], notebookKey }: PyodideNotebookProps) {
+export default function PyodideNotebook({ cells, title, dataFiles = [], widgetConfig = {}, notebookKey }: PyodideNotebookProps) {
   const [pyodideState, setPyodideState] = useState<PyodideState>({
     ready: false,
     loading: false,
@@ -141,6 +142,13 @@ export default function PyodideNotebook({ cells, title, dataFiles = [], notebook
       })
     ).catch(console.error);
   }, [dataFiles, isMobile, notebookKey, pyodideState.ready]);
+
+  // Set widget configuration when notebook changes or Pyodide becomes ready
+  useEffect(() => {
+    if (isMobile || !pyodideState.ready || Object.keys(widgetConfig).length === 0) return;
+    
+    pyodideRuntime.setWidgetConfig(widgetConfig).catch(console.error);
+  }, [widgetConfig, isMobile, pyodideState.ready, notebookKey]);
 
   const runCell = useCallback(async (index: number) => {
     if (isMobile) return;
