@@ -13,7 +13,7 @@ import {
     PDF_WEB_DATA_FILES,
     REVISE_DATA_FILES,
     MNIST_DATA_FILES,
-    CHI_PAPERS_DATA_FILES,
+    CHI_PAPERS_LOCAL_DATA_FILES,
 } from '../data/pyodideNotebooks';
 import PyodideNotebook from '../components/PyodideNotebook';
 import DynamicWidget from '../components/DynamicWidget';
@@ -35,8 +35,8 @@ const NOTEBOOK_MAP: Record<string, any> = {
     'solar-system': { cells: PDF_WEB_NOTEBOOK, dataFiles: PDF_WEB_DATA_FILES },
     'hn-clone': { cells: PDF_WEB_NOTEBOOK, dataFiles: PDF_WEB_DATA_FILES },
     'covid-trends': { cells: REVISE_NOTEBOOK, dataFiles: REVISE_DATA_FILES },
-    'mnist-recognition': { cells: MNIST_NOTEBOOK, dataFiles: MNIST_DATA_FILES },
-    'chi25-papers': { cells: CHI_PAPERS_NOTEBOOK, dataFiles: CHI_PAPERS_DATA_FILES },
+    'mnist-recognition': { cells: MNIST_NOTEBOOK, dataFiles: [] },
+    'chi25-papers': { cells: CHI_PAPERS_NOTEBOOK, dataFiles: [] },
 };
 
 const GalleryPage = () => {
@@ -404,7 +404,7 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
                 ${hasNotebook ? 'cursor-pointer' : 'cursor-default'}
                 ${sizeClasses[example.size as keyof typeof sizeClasses] || 'md:col-span-1 md:row-span-1'}
             `}
-            onClick={hasNotebook ? onOpen : undefined}
+            // onClick={hasNotebook ? onOpen : undefined}
             onKeyDown={(event) => {
                 if (!hasNotebook) return;
                 if (event.key === 'Enter' || event.key === ' ') {

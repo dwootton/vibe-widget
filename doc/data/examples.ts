@@ -95,7 +95,7 @@ export const EXAMPLES = [
     description: 'Explore CHI 2025 papers using semantic search with animated wave visualization. Type queries to find similar papers with real-time similarity-based highlighting and interactive node exploration.',
     categories: ['Featured', 'Data Visualization', 'Reactive'] as Category[],
     size: 'large' as const,
-    dataUrl: 'https://github.com/dwootton/vibe-widget/releases/download/v0.2.3/CHI_2025_papers_2D.csv',
+    dataUrl: '/testdata/CHI_2025_papers_2D.csv',
     dataType: 'csv' as const,
   },
 ];

@@ -97,12 +97,12 @@ export const PaperCard = ({ paper, html }) => {
   };
 
   // Format authors if they are objects
-  const authorText = Array.isArray(paper.authors) 
+  const authorText = Array.isArray(paper.authors)
     ? paper.authors.map(a => typeof a === 'string' ? a : (a.name || 'Unknown')).join(', ')
     : paper.authors || 'N/A';
 
   return html`
-    <div style=${cardStyle} class="paper-card-hover">
+    <div style=${cardStyle} className="paper-card-hover">
       <div style=${sessionStyle}>${paper.session || 'General Session'}</div>
       <h3 style=${titleStyle} title=${paper.title}>${paper.title}</h3>
       <div style=${authorStyle}>${authorText}</div>
@@ -196,10 +196,10 @@ export default function PaperCardsWidget({ model, html, React }) {
 
       <div style=${wrapperStyle} ref=${containerRef}>
         <div style=${listStyle}>
-          ${papers.length === 0 
-            ? [1, 2, 3, 4, 5].map(() => html`<${SkeletonCard} html=${html} />`)
-            : papers.map((paper, i) => html`<${PaperCard} key=${paper.index || i} paper=${paper} html=${html} />`)
-          }
+          ${papers.length === 0
+      ? [1, 2, 3, 4, 5].map(() => html`<${SkeletonCard} html=${html} />`)
+      : papers.map((paper, i) => html`<${PaperCard} key=${paper.index || i} paper=${paper} html=${html} />`)
+    }
         </div>
       </div>
     </div>

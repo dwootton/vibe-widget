@@ -12,7 +12,7 @@
     },
     {
       "type": "code",
-      "content": "# Load CHI 2025 papers data with pre-computed 2D embeddings from GitHub releases\nfrom pyodide.http import pyfetch\nimport io\n\nasync def load_papers_data():\n    data_url = \"https://github.com/dwootton/vibe-widget/releases/download/v0.2.3/CHI_2025_papers_2D.csv\"\n    print(f\"Loading CHI papers data from: {data_url}\")\n    \n    response = await pyfetch(data_url)\n    csv_text = await response.string()\n    \n    df = pd.read_csv(io.StringIO(csv_text))\n    print(f\"Loaded {len(df)} papers\")\n    return df\n\npapers_df = await load_papers_data()\npapers_df.head(3)",
+      "content": "# Load CHI 2025 papers data with pre-computed 2D embeddings\nfrom pyodide.http import pyfetch\nimport io\n\nasync def load_papers_data():\n    data_url = \"/testdata/CHI_2025_papers_2D.csv\"\n    print(f\"Loading CHI papers data from: {data_url}\")\n    \n    response = await pyfetch(data_url)\n    csv_text = await response.string()\n    \n    df = pd.read_csv(io.StringIO(csv_text))\n    \n    # Clean data: replace NaN values with empty strings to avoid JSON serialization issues\n    df = df.fillna('')\n    \n    print(f\"Loaded {len(df)} papers\")\n    return df\n\npapers_df = await load_papers_data()\npapers_df.head(3)",
       "defaultCollapsed": true,
       "label": "Load Data"
     },
@@ -28,12 +28,12 @@
     },
     {
       "type": "code",
-      "content": "# Create the papers explorer widget using pre-built JS module\npapers_explorer = vw.Widget(\n    module_url=\"/widgets/papers_explorer_interactive_chi_20260101_134322_ccc97fc18c.js\",\n    data=papers_df,\n    outputs={\n        \"query_text\": \"user's search query string\",\n        \"submit_count\": \"integer counter incremented on each query submission\",\n        \"related_papers\": \"list of top 5 related papers with info: {index, title, abstract, authors, session}\"\n    },\n    inputs={\n        \"similarity_scores\": \"array of similarity scores (0-1) for each paper\"\n    }\n)\n\npapers_explorer",
+      "content": "# Create the papers explorer widget\npapers_explorer = vw.create(\"\"\"Interactive CHI Papers Explorer Dashabord with query-driven visualization:\n    First Component: Search input box at top with \"Search papers...\" placeholder and Submit button\n    Second Component: Large interactive scatter plot showing all paper embeddings as circles\n    - Each circle represents one paper\n    \n    When user submits a query:\n    1. Receive similarity_scores array (one value per paper, 0-1 range)\n    2. Find the paper with highest similarity (closest point)\n    3. Propagate color change outward in concentric waves\n       - then Create WAVE ANIMATION radiating from that point:\n        - Gray out all nodes first\n       - Start with the closest point glowing Orange, with larger dots\n       - Propagate color change outward in concentric waves, slowly and whenever being colored, bounce\n       - Color each node based on its similarity score:\n         * High similarity: bright light blue (#4FC3F7)\n         * Medium similarity: medium blue (#64B5F6)\n         * Low similarity: soft blue (#90CAF9)\n         * Very low: lightest blue\n        - the threshould for each category dependes on the list, sometimes the closest might only have 0.45, etc...\n       - Wave should expand smoothly over 2 seconds\n       - Use easing function for smooth propagation (ease-out)\n    \n\n    TECHNICAL DETAILS:\n    - Export query_text as string when Submit button is clicked\n    - Export submit_count as integer that increments each submit\n    - Import similarity_scores as array of numbers (0-1, one per paper)\n    \"\"\",\n    data=papers_df,\n    outputs={\n        \"query_text\": \"user's search query string\",\n        \"submit_count\": \"integer counter incremented on each query submission\",\n        \"related_papers\": \"list of indices of top 5 related papers, with info: {index, title, abstract, authors}\"\n    },\n    inputs={\n        \"similarity_scores\": \"array of similarity scores (0-1) for each paper\"\n    }\n)\n\npapers_explorer",
       "label": "Paper Explorer"
     },
     {
       "type": "code",
-      "content": "# Create the paper cards widget for displaying related papers\npaper_cards = vw.Widget(\n    module_url=\"/widgets/paper_cards_horizontal_list_20260101_134456_fcab3175e1.js\",\n    data=papers_df,\n    inputs={\n        \"related_papers\": papers_explorer.outputs.related_papers\n    }\n)\n\npaper_cards",
+      "content": "# Create the paper cards widget for displaying related papers\npaper_cards = vw.create(\n    \"A Horizontal list of paper cards with title, authors, and abstract summary; start with skeleton loaders\",\n    data=papers_df,\n    inputs={\n        \"related_papers\": papers_explorer.outputs.related_papers\n    }\n)\n\npaper_cards",
       "label": "Related Papers"
     },
     {
@@ -43,24 +43,17 @@
     },
     {
       "type": "markdown",
-      "content": "\n      <h3>How Cross-Widget Reactivity Works</h3>\n      <pre class=\"bg-slate/5 p-4 rounded-lg overflow-x-auto text-sm\"><code># Explorer widget outputs related papers\npapers_explorer = vw.Widget(\n    module_url=\"/widgets/explorer.js\",\n    outputs={\n        \"query_text\": \"search query\",\n        \"related_papers\": \"top matches\"\n    },\n    inputs={\n        \"similarity_scores\": \"search results\"\n    }\n)\n\n# Cards widget inputs from explorer\npaper_cards = vw.Widget(\n    module_url=\"/widgets/cards.js\",\n    inputs={\n        \"related_papers\": papers_explorer.outputs.related_papers\n    }\n)\n\n# Python bridges the search computation\ndef search(change):\n    query = explorer.outputs.query_text.value\n    scores = compute_similarity(query)\n    explorer.similarity_scores = scores  # Triggers wave animation\n\nexplorer.observe(search, names=['submit_count'])\n      </code></pre>\n      <p class=\"mt-4\">\n        Multiple widgets share state through traitlets-style bindings.\n        The explorer outputs <code>related_papers</code>, which the cards widget inputs.\n        Python computes similarity scores that flow back to trigger visualizations!\n      </p>\n    ",
+      "content": "\n      <h3>How Cross-Widget Reactivity Works</h3>\n      <pre class=\"bg-slate/5 p-4 rounded-lg overflow-x-auto text-sm\"><code># Explorer widget outputs related papers\npapers_explorer = vw.create(\n    module_url=\"/widgets/explorer.js\",\n    outputs={\n        \"query_text\": \"search query\",\n        \"related_papers\": \"top matches\"\n    },\n    inputs={\n        \"similarity_scores\": \"search results\"\n    }\n)\n\n# Cards widget inputs from explorer\npaper_cards = vw.create(\n    module_url=\"/widgets/cards.js\",\n    inputs={\n        \"related_papers\": papers_explorer.outputs.related_papers\n    }\n)\n\n# Python bridges the search computation\ndef search(change):\n    query = explorer.outputs.query_text.value\n    scores = compute_similarity(query)\n    explorer.similarity_scores = scores  # Triggers wave animation\n\nexplorer.observe(search, names=['submit_count'])\n      </code></pre>\n      <p class=\"mt-4\">\n        Multiple widgets share state through traitlets-style bindings.\n        The explorer outputs <code>related_papers</code>, which the cards widget inputs.\n        Python computes similarity scores that flow back to trigger visualizations!\n      </p>\n    ",
       "defaultCollapsed": true
     }
   ],
   "dataFiles": [],
-  "remoteDataFiles": [
+  "remoteDataFiles": [],
+  "localDataFiles": [
     {
-      "url": "https://github.com/dwootton/vibe-widget/releases/download/v0.2.3/CHI_2025_papers_2D.csv",
+      "url": "/testdata/CHI_2025_papers_2D.csv",
       "varName": "papers_df",
       "type": "csv"
-    }
-  ],
-  "preloadWidgets": [
-    {
-      "url": "/widgets/papers_explorer_interactive_chi_20260101_134322_ccc97fc18c.js"
-    },
-    {
-      "url": "/widgets/paper_cards_horizontal_list_20260101_134456_fcab3175e1.js"
     }
   ]
 }

@@ -12,7 +12,7 @@
     },
     {
       "type": "code",
-      "content": "# Load the pre-trained MNIST model from GitHub releases\nimport js\nfrom pyodide.http import pyfetch\nimport asyncio\n\nasync def load_model():\n    # Download model from GitHub releases\n    model_url = \"https://github.com/dwootton/vibe-widget/releases/download/v0.2.3/mnist_model.h5\"\n    print(f\"Loading MNIST model from: {model_url}\")\n    \n    response = await pyfetch(model_url)\n    model_bytes = await response.bytes()\n    \n    # Save to virtual filesystem\n    with open(\"/tmp/mnist_model.h5\", \"wb\") as f:\n        f.write(model_bytes)\n    \n    print(f\"Model loaded: {len(model_bytes)} bytes\")\n    return \"/tmp/mnist_model.h5\"\n\nmodel_path = await load_model()",
+      "content": "# Load the pre-trained MNIST model\nimport js\nfrom pyodide.http import pyfetch\nimport asyncio\n\nasync def load_model():\n    # Download model from local server\n    model_url = \"/testdata/mnist_model.h5\"\n    print(f\"Loading MNIST model from: {model_url}\")\n    \n    response = await pyfetch(model_url)\n    model_bytes = await response.bytes()\n    \n    # Save to virtual filesystem\n    with open(\"/tmp/mnist_model.h5\", \"wb\") as f:\n        f.write(model_bytes)\n    \n    print(f\"Model loaded: {len(model_bytes)} bytes\")\n    return \"/tmp/mnist_model.h5\"\n\nmodel_path = await load_model()",
       "defaultCollapsed": true,
       "label": "Load Model"
     },
@@ -28,7 +28,7 @@
     },
     {
       "type": "code",
-      "content": "# Create the combined MNIST widget using pre-built JS module\ncombined_widget = vw.Widget(\n    module_url=\"/widgets/combined_widget_mnist_digit_20260101_134827_059414e7a5.js\",\n    outputs={\n        \"image_data\": \"array of 784 numbers (0-255) representing 28x28 grayscale image\",\n        \"submit_count\": \"integer counter incremented on each submit\"\n    },\n    inputs={\n        \"prediction_result\": \"prediction results from model: {digit, confidence, probabilities}\"\n    }\n)\n\ncombined_widget",
+      "content": "# Create the combined MNIST widget\ncombined_widget = vw.create(\"\"\"Create a MNIST digit recognition widget with two-column layout:\n    LEFT SIDE is a Drawing Canvas:\n    - 28x28 drawing canvas scaled to 280x280px for visibility\n    - Mouse drag to draw with thick brush (5px)\n    - Clear and submit button\n    \n    RIGHT SIDE is a Prediction Display:\n    - Large predicted digit display (e.g., \"Predicted: 7\")\n    - Confidence percentage\n    - Horizontal bar chart showing all 10 digit probabilities (0-9)\n    - Highlight predicted digit's bar with percentage labels\n    \n    \"\"\",\n    data=None,\n    outputs={\n        \"image_data\": \"array of 784 numbers (0-255) representing 28x28 grayscale image\",\n        \"submit_count\": \"integer counter incremented on each submit\"\n    },\n    inputs={\n        \"prediction_result\": \"prediction results from model: {digit, confidence, probabilities}\"\n    }\n)\n\ncombined_widget",
       "label": "MNIST Widget"
     },
     {
@@ -38,14 +38,9 @@
     },
     {
       "type": "markdown",
-      "content": "\n      <h3>How It Works</h3>\n      <pre class=\"bg-slate/5 p-4 rounded-lg overflow-x-auto text-sm\"><code># Widget outputs drawing data\ncombined_widget = vw.Widget(\n    module_url=\"/widgets/mnist_widget.js\",\n    outputs={\n        \"image_data\": \"784 pixel values\",\n        \"submit_count\": \"click counter\"\n    },\n    inputs={\n        \"prediction_result\": \"model predictions\"\n    }\n)\n\n# Python observes changes and runs inference\ndef predict(change):\n    img = widget.outputs.image_data.value\n    probs = model.predict(img)\n    widget.prediction_result = {\"digit\": ..., \"probabilities\": probs}\n\nwidget.observe(predict, names=['submit_count'])\n      </code></pre>\n      <p class=\"mt-4\">\n        The widget and Python communicate through traitlets-style bindings.\n        When you click \"Recognize\", the widget exports image data, Python runs inference,\n        and results flow back to update the display - all reactively!\n      </p>\n    ",
+      "content": "\n      <h3>How It Works</h3>\n      <pre class=\"bg-slate/5 p-4 rounded-lg overflow-x-auto text-sm\"><code># Widget outputs drawing data\ncombined_widget = vw.create(\n    module_url=\"/widgets/mnist_widget.js\",\n    outputs={\n        \"image_data\": \"784 pixel values\",\n        \"submit_count\": \"click counter\"\n    },\n    inputs={\n        \"prediction_result\": \"model predictions\"\n    }\n)\n\n# Python observes changes and runs inference\ndef predict(change):\n    img = widget.outputs.image_data.value\n    probs = model.predict(img)\n    widget.prediction_result = {\"digit\": ..., \"probabilities\": probs}\n\nwidget.observe(predict, names=['submit_count'])\n      </code></pre>\n      <p class=\"mt-4\">\n        The widget and Python communicate through traitlets-style bindings.\n        When you click \"Recognize\", the widget exports image data, Python runs inference,\n        and results flow back to update the display - all reactively!\n      </p>\n    ",
       "defaultCollapsed": true
     }
   ],
-  "dataFiles": [],
-  "preloadWidgets": [
-    {
-      "url": "/widgets/combined_widget_mnist_digit_20260101_134827_059414e7a5.js"
-    }
-  ]
+  "dataFiles": []
 }

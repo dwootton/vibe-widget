@@ -129,19 +129,18 @@ export const REVISE_DATA_FILES: DataFile[] = [
 /**
  * MNIST notebook uses remote data from GitHub releases
  */
-export const MNIST_DATA_FILES: DataFile[] = [];
+export const MNIST_DATA_FILES: DataFile[] = [
+  { url: '/testdata/mnist_model.h5', varName: 'mnist_model', type: 'binary' },
+];
 export const MNIST_REMOTE_DATA_FILES: RemoteDataFile[] = [];
 
 /**
  * CHI Papers notebook loads data from GitHub releases
  */
 export const CHI_PAPERS_DATA_FILES: DataFile[] = [];
-export const CHI_PAPERS_REMOTE_DATA_FILES: RemoteDataFile[] = [
-  {
-    url: 'https://github.com/dwootton/vibe-widget/releases/download/v0.2.3/CHI_2025_papers_2D.csv',
-    varName: 'papers_df',
-    type: 'csv'
-  }
+export const CHI_PAPERS_REMOTE_DATA_FILES: RemoteDataFile[] = [];
+export const CHI_PAPERS_LOCAL_DATA_FILES: DataFile[] = [
+  { url: '/testdata/CHI_2025_papers_2D.csv', varName: 'papers_df', type: 'csv' }
 ];
 
 // ============================================================================
@@ -191,8 +190,7 @@ export const NOTEBOOK_REGISTRY: Record<string, {
   },
   'chi-papers': {
     cells: CHI_PAPERS_NOTEBOOK,
-    dataFiles: CHI_PAPERS_DATA_FILES,
-    remoteDataFiles: CHI_PAPERS_REMOTE_DATA_FILES,
+    dataFiles: [...CHI_PAPERS_DATA_FILES, ...CHI_PAPERS_LOCAL_DATA_FILES],
     title: 'CHI 2025 Paper Explorer',
     description: 'Semantic similarity search across research papers'
   }

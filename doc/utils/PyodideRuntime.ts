@@ -37,6 +37,7 @@ class PyodideRuntimeManager {
   private stateListeners: Set<(state: PyodideState) => void> = new Set();
   private widgetModels: Map<string, WidgetModel> = new Map();
   private widgetHandler: WidgetHandler | null = null;
+  private notifyingTraits: Set<string> = new Set(); // Prevent re-entrancy
 
   /**
    * Subscribe to state changes
@@ -73,18 +74,34 @@ class PyodideRuntimeManager {
    * Notify all widgets when a shared trait changes
    */
   notifyTraitChange(sourceId: string, traitName: string, value: any) {
-    // Notify all other JS widget models
-    this.widgetModels.forEach((model, id) => {
-      if (id !== sourceId) {
-        model.notifyChange(traitName, value);
-      }
-    });
+    // Prevent re-entrancy: if we're already processing this trait for this widget, skip
+    const notifyKey = `${sourceId}:${traitName}`;
+    if (this.notifyingTraits.has(notifyKey)) {
+      return;
+    }
+    this.notifyingTraits.add(notifyKey);
 
-    // Notify Python side if pyodide is ready
-    if (this.pyodide) {
-      try {
-        const valueJson = JSON.stringify(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
-        this.pyodide.runPythonAsync(`
+    try {
+      // Update the source widget model (for Python-to-widget updates)
+      // This allows the browser widget to react when Python sets a trait
+      const sourceModel = this.widgetModels.get(sourceId);
+      if (sourceModel) {
+        // Use setFromPython to avoid triggering save_changes cycle
+        sourceModel.setFromPython(traitName, value);
+      }
+
+      // Notify all other JS widget models about the change
+      this.widgetModels.forEach((model, id) => {
+        if (id !== sourceId) {
+          model.notifyChange(traitName, value);
+        }
+      });
+
+      // Notify Python side if pyodide is ready
+      if (this.pyodide) {
+        try {
+          const valueJson = JSON.stringify(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+          this.pyodide.runPythonAsync(`
 import json
 import vibe_widget as vw
 _source_id = "${sourceId}"
@@ -117,9 +134,12 @@ for _wid, _widget in vw._widgets.items():
                 except Exception as _e:
                     print(f"Observer error: {_e}")
 `).catch((e: any) => console.error('Python trait notification error:', e));
-      } catch (e) {
-        console.error('Failed to notify Python of trait change:', e);
+        } catch (e) {
+          console.error('Failed to notify Python of trait change:', e);
+        }
       }
+    } finally {
+      this.notifyingTraits.delete(notifyKey);
     }
   }
 
@@ -353,26 +373,52 @@ _WIDGET_URLS = {
     'hacker_news': '/widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js',
     'line_chart': '/widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js',
     'line_chart_hover': '/widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js',
+    'mnist': '/widgets/combined_widget_mnist_digit_20260101_134827_059414e7a5.js',
+    'chi_papers_explorer': '/widgets/papers_explorer_interactive_chi_20260101_134322_ccc97fc18c.js',
+    'chi_papers_cards': '/widgets/paper_cards_horizontal_list_20260101_134456_fcab3175e1.js',
 }
 
 def _match_widget(description):
     """Match description to pre-generated widget"""
     desc_lower = description.lower()
-    if 'scatter' in desc_lower or 'temperature' in desc_lower:
+    
+    # MNIST digit recognition
+    if ('mnist' in desc_lower or 'digit' in desc_lower) and ('recogni' in desc_lower or 'canvas' in desc_lower or 'drawing' in desc_lower):
+        return 'mnist', _WIDGET_URLS['mnist']
+    
+    # CHI Papers Explorer
+    if 'chi' in desc_lower and 'paper' in desc_lower:
+        return 'chi_papers_explorer', _WIDGET_URLS['chi_papers_explorer']
+    if 'card' in desc_lower or 'horizontal' in desc_lower and 'list' in desc_lower:
+        return 'chi_papers_cards', _WIDGET_URLS['chi_papers_cards']
+    
+    # Weather scatter plot
+    if 'scatter' in desc_lower or ('temperature' in desc_lower and 'seattle' in desc_lower):
         return 'scatter', _WIDGET_URLS['scatter']
+    
+    # Bar chart
     elif 'bar' in desc_lower or 'histogram' in desc_lower:
         return 'bars', _WIDGET_URLS['bars']
+    
+    # Tic-tac-toe
     elif 'tic' in desc_lower or 'tac' in desc_lower:
         return 'tictactoe', _WIDGET_URLS['tictactoe']
-    elif 'solar' in desc_lower or '3d' in desc_lower and 'planet' in desc_lower:
+    
+    # Solar system
+    elif 'solar' in desc_lower or ('3d' in desc_lower and 'planet' in desc_lower):
         return 'solar_system', _WIDGET_URLS['solar_system']
-    elif 'hacker' in desc_lower or 'news' in desc_lower and 'clone' in desc_lower:
+    
+    # Hacker News
+    elif 'hacker' in desc_lower or ('news' in desc_lower and 'clone' in desc_lower):
         return 'hacker_news', _WIDGET_URLS['hacker_news']
+    
+    # Line chart
     elif 'line' in desc_lower and 'chart' in desc_lower:
         # Check if it's the hover version
         if 'hover' in desc_lower or 'dashed' in desc_lower or 'vertical' in desc_lower:
             return 'line_chart_hover', _WIDGET_URLS['line_chart_hover']
         return 'line_chart', _WIDGET_URLS['line_chart']
+    
     return None, None
 
 def create(description, data=None, outputs=None, inputs=None):
@@ -672,6 +718,25 @@ export class WidgetModel {
     this.traits.set(key, value);
 
     // Notify local listeners
+    const listeners = this.listeners.get(key);
+    if (listeners) {
+      const change = { name: key, old: oldValue, new: value };
+      listeners.forEach(fn => {
+        try { fn(change); } catch (e) { console.error(e); }
+      });
+    }
+  }
+
+  /**
+   * Set a trait value from Python without triggering save_changes cycle.
+   * This is used when Python sets a trait and we need to update the JS model
+   * so the widget can react, but we don't want to propagate back to Python.
+   */
+  setFromPython(key: string, value: any): void {
+    const oldValue = this.traits.get(key);
+    this.traits.set(key, value);
+
+    // Notify local listeners (widget handlers like handleSimilarityUpdate)
     const listeners = this.listeners.get(key);
     if (listeners) {
       const change = { name: key, old: oldValue, new: value };

@@ -38,12 +38,12 @@ const ExampleNotebook = ({ exampleId, title }: { exampleId: string; title?: stri
         },
         mnist: {
           cells: mod.MNIST_NOTEBOOK,
-          dataFiles: mod.MNIST_DATA_FILES,
+          dataFiles: [],
           title: 'MNIST Digit Recognition',
         },
         'chi-papers': {
           cells: mod.CHI_PAPERS_NOTEBOOK,
-          dataFiles: mod.CHI_PAPERS_DATA_FILES,
+          dataFiles: [],
           title: 'CHI 2025 Paper Explorer',
         },
       };
