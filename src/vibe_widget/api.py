@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from typing import Any
 import inspect
 
+from vibe_widget.utils.logging import get_logger
+
+_logger = get_logger(__name__)
 
 @dataclass
 class OutputDefinition:
@@ -67,6 +70,35 @@ class ExportHandle:
     def __init__(self, widget: Any, name: str):
         self.widget = widget
         self.name = name
+        self._observer_wrappers: dict[Any, Any] = {}
+
+    def _wrap_observer(self, handler):
+        def wrapper(change):
+            try:
+                return handler(change)
+            except Exception as exc:
+                _logger.error(
+                    "Observer error for %s.%s: %s",
+                    getattr(self.widget, "description", "widget"),
+                    self.name,
+                    exc,
+                )
+                try:
+                    import traceback
+
+                    traceback.print_exc()
+                except Exception:
+                    pass
+                if hasattr(self.widget, "_append_widget_log"):
+                    try:
+                        self.widget._append_widget_log(
+                            f"Observer error for {self.name}: {exc}",
+                            level="error",
+                            source="python",
+                        )
+                    except Exception:
+                        pass
+        return wrapper
 
     def __call__(self):
         getter = getattr(self.widget, "_get_export_value", None)
@@ -75,6 +107,10 @@ class ExportHandle:
     @property
     def value(self):
         return self()
+
+    @value.setter
+    def value(self, new_value):
+        setattr(self.widget, self.name, new_value)
 
     def observe(self, handler, names=None, type='change'):
         """
@@ -89,7 +125,9 @@ class ExportHandle:
             None
         """
         # Delegate to the widget's observe method with this export's name
-        return self.widget.observe(handler, names=self.name, type=type)
+        wrapper = self._wrap_observer(handler)
+        self._observer_wrappers[handler] = wrapper
+        return self.widget.observe(wrapper, names=self.name, type=type)
 
     def unobserve(self, handler, names=None, type='change'):
         """
@@ -103,7 +141,8 @@ class ExportHandle:
         Returns:
             None
         """
-        return self.widget.unobserve(handler, names=self.name, type=type)
+        wrapper = self._observer_wrappers.pop(handler, None)
+        return self.widget.unobserve(wrapper or handler, names=self.name, type=type)
 
     def __repr__(self) -> str:
         metadata = getattr(self.widget, "_widget_metadata", {}) or {}

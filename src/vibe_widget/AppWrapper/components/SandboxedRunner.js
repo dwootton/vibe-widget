@@ -18,8 +18,68 @@ function getErrorSuggestion(errMessage) {
 
 export default function SandboxedRunner({ code, model }) {
   const [error, setError] = React.useState(null);
+  const [lastError, setLastError] = React.useState("");
   const [GuestWidget, setGuestWidget] = React.useState(null);
   const [isRetrying, setIsRetrying] = React.useState(false);
+  const [refreshKey, setRefreshKey] = React.useState(0);
+  const logQueueRef = React.useRef([]);
+  const flushTimerRef = React.useRef(null);
+
+  const flushLogs = React.useCallback(() => {
+    if (!logQueueRef.current.length) return;
+    const existing = model.get("widget_logs") || [];
+    const next = existing.concat(logQueueRef.current).slice(-200);
+    logQueueRef.current = [];
+    model.set("widget_logs", next);
+    model.save_changes();
+  }, [model]);
+
+  const enqueueLog = React.useCallback((level, message) => {
+    logQueueRef.current.push({
+      timestamp: Date.now(),
+      message,
+      level,
+      source: "js",
+    });
+    if (!flushTimerRef.current) {
+      flushTimerRef.current = setTimeout(() => {
+        flushTimerRef.current = null;
+        flushLogs();
+      }, 200);
+    }
+  }, [flushLogs]);
+
+  React.useEffect(() => {
+    const original = {
+      log: console.log,
+      warn: console.warn,
+      error: console.error,
+    };
+
+    console.log = (...args) => {
+      enqueueLog("info", args.map(String).join(" "));
+      original.log(...args);
+    };
+    console.warn = (...args) => {
+      enqueueLog("warn", args.map(String).join(" "));
+      original.warn(...args);
+    };
+    console.error = (...args) => {
+      enqueueLog("error", args.map(String).join(" "));
+      original.error(...args);
+    };
+
+    return () => {
+      console.log = original.log;
+      console.warn = original.warn;
+      console.error = original.error;
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      flushLogs();
+    };
+  }, [enqueueLog, flushLogs]);
 
   const handleRuntimeError = React.useCallback((err, extraStack = "") => {
     console.error("Code execution error:", err);
@@ -28,16 +88,22 @@ export default function SandboxedRunner({ code, model }) {
     const baseMessage = err instanceof Error ? err.toString() : String(err);
     const stack = err instanceof Error && err.stack ? err.stack : "No stack trace";
     const errorDetails = `${baseMessage}\n\nStack:\n${stack}${extraStack}`;
+    setLastError(errorDetails);
 
     if (retryCount < 2) {
       setIsRetrying(true);
       model.set("error_message", errorDetails);
+      model.set("widget_error", errorDetails);
       model.save_changes();
       return;
     }
 
     const suggestion = getErrorSuggestion(baseMessage);
-    setError(suggestion ? `${baseMessage}\n\nSuggestion: ${suggestion}` : baseMessage);
+    const finalError = suggestion ? `${baseMessage}\n\nSuggestion: ${suggestion}` : baseMessage;
+    setError(finalError);
+    setIsRetrying(false);
+    model.set("widget_error", finalError);
+    model.save_changes();
   }, [model]);
 
   React.useEffect(() => {
@@ -57,6 +123,7 @@ export default function SandboxedRunner({ code, model }) {
           setGuestWidget(() => module.default);
           setError(null);
           model.set("error_message", "");
+          model.set("widget_error", "");
           model.set("retry_count", 0);
           model.save_changes();
         } else {
@@ -68,12 +135,20 @@ export default function SandboxedRunner({ code, model }) {
     };
 
     executeCode();
-  }, [code, model, handleRuntimeError]);
+  }, [code, model, handleRuntimeError, refreshKey]);
 
   if (isRetrying) {
     return html`
       <div style=${{ padding: "20px", color: "#ffa07a", fontSize: "14px" }}>
-        Error detected. Asking LLM to fix...
+        <div>Error detected. Asking LLM to fix...</div>
+        ${lastError ? html`
+          <pre style=${{
+            marginTop: "10px",
+            whiteSpace: "pre-wrap",
+            fontSize: "12px",
+            color: "#ffd6a5",
+          }}>${lastError}</pre>
+        ` : null}
       </div>
     `;
   }
@@ -89,6 +164,30 @@ export default function SandboxedRunner({ code, model }) {
         whiteSpace: "pre-wrap",
       }}>
         <strong>Error (after 2 retry attempts):</strong> ${error}
+        <div style=${{ marginTop: "12px" }}>
+          <button
+            style=${{
+              background: "transparent",
+              color: "#ff6b6b",
+              border: "1px solid #ff6b6b",
+              borderRadius: "4px",
+              padding: "6px 10px",
+              cursor: "pointer",
+              fontSize: "12px",
+            }}
+            onClick=${() => {
+              setError(null);
+              setIsRetrying(false);
+              model.set("error_message", "");
+              model.set("widget_error", "");
+              model.set("retry_count", 0);
+              model.save_changes();
+              setRefreshKey((key) => key + 1);
+            }}
+          >
+            Retry
+          </button>
+        </div>
         <div style=${{ marginTop: "16px", fontSize: "12px", color: "#ffa07a" }}>
           Check browser console for full stack trace
         </div>

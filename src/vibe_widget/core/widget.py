@@ -8,6 +8,7 @@ import json
 import warnings
 import inspect
 import sys
+import time
 
 import anywidget
 import pandas as pd
@@ -112,6 +113,8 @@ class VibeWidget(anywidget.AnyWidget):
     logs = traitlets.List([]).tag(sync=True)
     code = traitlets.Unicode("").tag(sync=True)
     error_message = traitlets.Unicode("").tag(sync=True)
+    widget_error = traitlets.Unicode("").tag(sync=True)
+    widget_logs = traitlets.List([]).tag(sync=True)
     retry_count = traitlets.Int(0).tag(sync=True)
     grab_edit_request = traitlets.Dict({}).tag(sync=True)
     action_event = traitlets.Dict({}).tag(sync=True)
@@ -315,6 +318,8 @@ class VibeWidget(anywidget.AnyWidget):
             logs=[],
             code="",
             error_message="",
+            widget_error="",
+            widget_logs=[],
             retry_count=0,
             audit_state=audit_state,
             execution_state=execution_state,
@@ -325,6 +330,7 @@ class VibeWidget(anywidget.AnyWidget):
             _display_widget(self)
         
         self.observe(self._on_error, names='error_message')
+        self.observe(self._on_widget_error, names='widget_error')
         self.observe(self._on_grab_edit, names='grab_edit_request')
         self.observe(self._on_audit_state, names='audit_state')
         self.observe(self._on_code_change, names='code')
@@ -1185,6 +1191,31 @@ class VibeWidget(anywidget.AnyWidget):
             self.status = "error"
             self.logs = self.logs + [f"Fix attempt failed: {str(e)}"]
             self.error_message = ""
+
+    def _append_widget_log(self, message: str, *, level: str = "info", source: str = "python") -> None:
+        logs = list(self.widget_logs or [])
+        logs.append(
+            {
+                "timestamp": time.time(),
+                "message": message,
+                "level": level,
+                "source": source,
+            }
+        )
+        if len(logs) > 200:
+            logs = logs[-200:]
+        self.widget_logs = logs
+
+    def _on_widget_error(self, change):
+        """Surface widget errors coming from the frontend."""
+        error_msg = change.get("new") or ""
+        if not error_msg:
+            return
+        logger.error("Widget runtime error:\n%s", error_msg)
+        try:
+            self._append_widget_log(f"Widget error: {error_msg}", level="error", source="js")
+        except Exception:
+            pass
     
     @property
     def outputs(self):

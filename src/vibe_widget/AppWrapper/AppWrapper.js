@@ -26,6 +26,8 @@ function AppWrapper({ model }) {
     logs,
     code,
     errorMessage,
+    widgetError,
+    widgetLogs,
     retryCount,
     auditStatus,
     auditResponse,
@@ -106,6 +108,7 @@ function AppWrapper({ model }) {
   const approvalMode = executionMode === "approve";
   const isApproved = executionApproved || !approvalMode;
   const shouldRenderWidget = hasCode && isApproved;
+  const recentWidgetLogs = Array.isArray(widgetLogs) ? widgetLogs.slice(-3) : [];
 
   useKeyboardShortcuts({ isLoading, hasCode, grabMode, onGrabStart: handleGrabStart });
   React.useEffect(() => {
@@ -274,6 +277,27 @@ function AppWrapper({ model }) {
         minHeight: minHeight ? `${minHeight}px` : "220px"
       }}
     >
+      ${widgetError ? html`
+        <div style=${{
+          padding: "12px 16px",
+          marginBottom: "12px",
+          borderRadius: "8px",
+          background: "#3c1f1f",
+          color: "#ffd6d6",
+          fontFamily: "monospace",
+          whiteSpace: "pre-wrap",
+        }}>
+          <strong>Widget Error:</strong> ${widgetError}
+          ${recentWidgetLogs.length ? html`
+            <div style=${{ marginTop: "8px", fontSize: "12px", color: "#ffa07a" }}>
+              Recent logs:
+              <ul style=${{ margin: "6px 0 0 16px", padding: 0 }}>
+                ${recentWidgetLogs.map((entry) => html`<li>${entry.message}</li>`)}
+              </ul>
+            </div>
+          ` : null}
+        </div>
+      ` : null}
       ${shouldRenderWidget && html`
         <div style=${{
           opacity: isLoading ? 0.4 : 1,
