@@ -1,4 +1,14 @@
 {
+  "id": "mnist",
+  "title": "MNIST Digit Recognition",
+  "description": "Draw digits and watch neural network predictions",
+  "widgets": {
+    "mnist": {
+      "url": "/widgets/combined_widget_mnist_digit_20260101_134827_059414e7a5.js",
+      "match": ["mnist", "digit", "recognition", "canvas", "drawing"]
+    }
+  },
+  "dataFiles": [],
   "cells": [
     {
       "type": "markdown",
@@ -41,6 +51,5 @@
       "content": "\n      <h3>How It Works</h3>\n      <pre class=\"bg-slate/5 p-4 rounded-lg overflow-x-auto text-sm\"><code># Widget outputs drawing data\ncombined_widget = vw.create(\n    module_url=\"/widgets/mnist_widget.js\",\n    outputs={\n        \"image_data\": \"784 pixel values\",\n        \"submit_count\": \"click counter\"\n    },\n    inputs={\n        \"prediction_result\": \"model predictions\"\n    }\n)\n\n# Python observes changes and runs inference\ndef predict(change):\n    img = widget.outputs.image_data.value\n    probs = model.predict(img)\n    widget.prediction_result = {\"digit\": ..., \"probabilities\": probs}\n\nwidget.observe(predict, names=['submit_count'])\n      </code></pre>\n      <p class=\"mt-4\">\n        The widget and Python communicate through traitlets-style bindings.\n        When you click \"Recognize\", the widget exports image data, Python runs inference,\n        and results flow back to update the display - all reactively!\n      </p>\n    ",
       "defaultCollapsed": true
     }
-  ],
-  "dataFiles": []
+  ]
 }

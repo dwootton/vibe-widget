@@ -1,4 +1,18 @@
 {
+  "id": "cross-widget",
+  "title": "Cross-Widget Interactions",
+  "description": "Traitlets-based reactivity between widgets",
+  "widgets": {
+    "scatter": {
+      "url": "/widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js",
+      "match": ["scatter", "temperature", "seattle"]
+    },
+    "bars": {
+      "url": "/widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js",
+      "match": ["bar", "histogram", "weather conditions"]
+    }
+  },
+  "dataFiles": [{ "url": "/testdata/seattle-weather.csv", "varName": "data" }],
   "cells": [
     {
       "type": "markdown",
@@ -47,6 +61,5 @@
       "content": "\n      <h3>How It Works</h3>\n      <pre class=\"bg-material-dark/5 p-4 rounded-lg overflow-x-auto\"><code class=\"text-sm\"># Widget A outputs a trait\nscatter = vw.create(\n    ...,\n    outputs=vw.outputs(\n        selected_indices=\"description\"\n    )\n)\n\n# Widget B inputs that trait\nbars = vw.create(\n    ...,\n    vw.inputs(\n        df,\n        selected_indices=scatter.outputs.selected_indices\n    )\n)\n    </code></pre>\n    <p class=\"mt-4\">\n        Vibe Widget automatically creates bidirectional links using traitlets,\n        so changes flow between widgets in real-time!\n      </p>\n    ",
       "defaultCollapsed": true
     }
-  ],
-  "dataFiles": [{ "url": "/testdata/seattle-weather.csv", "varName": "data" }]
+  ]
 }

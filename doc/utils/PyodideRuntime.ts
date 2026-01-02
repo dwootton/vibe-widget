@@ -364,60 +364,43 @@ def config(model=None, api_key=None):
     print(f"[Demo Mode] Config set - model: {model}")
     print("[Demo Mode] Using pre-generated widgets, no LLM calls needed")
 
-# Widget URL mapping (pre-generated widgets)
-_WIDGET_URLS = {
-    'scatter': '/widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js',
-    'bars': '/widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js',
-    'tictactoe': '/widgets/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js',
-    'solar_system': '/widgets/3d_solar_system_using_three_js_showing_p__0ef429f27d__v1.js',
-    'hacker_news': '/widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js',
-    'line_chart': '/widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js',
-    'line_chart_hover': '/widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js',
-    'mnist': '/widgets/combined_widget_mnist_digit_20260101_134827_059414e7a5.js',
-    'chi_papers_explorer': '/widgets/papers_explorer_interactive_chi_20260101_134322_ccc97fc18c.js',
-    'chi_papers_cards': '/widgets/paper_cards_horizontal_list_20260101_134456_fcab3175e1.js',
-}
+# Widget configuration - dynamically set per notebook
+# Format: { widget_name: { 'url': '/widgets/...js', 'match': ['keyword1', 'keyword2'] } }
+_WIDGET_CONFIG = {}
+
+def _set_widget_config(config_json):
+    """Set widget configuration from JSON (called from JS)"""
+    global _WIDGET_CONFIG
+    _WIDGET_CONFIG = json.loads(config_json)
+    print(f"[Demo] Loaded {len(_WIDGET_CONFIG)} widget configurations")
 
 def _match_widget(description):
-    """Match description to pre-generated widget"""
+    """Match description to pre-generated widget using keyword matching"""
+    if not _WIDGET_CONFIG:
+        print("[Warning] No widget configuration loaded")
+        return None, None
+    
     desc_lower = description.lower()
     
-    # MNIST digit recognition
-    if ('mnist' in desc_lower or 'digit' in desc_lower) and ('recogni' in desc_lower or 'canvas' in desc_lower or 'drawing' in desc_lower):
-        return 'mnist', _WIDGET_URLS['mnist']
+    # Score each widget by counting how many match keywords appear in the description
+    best_widget = None
+    best_score = 0
+    best_url = None
     
-    # CHI Papers Explorer
-    if 'chi' in desc_lower and 'paper' in desc_lower:
-        return 'chi_papers_explorer', _WIDGET_URLS['chi_papers_explorer']
-    if 'card' in desc_lower or 'horizontal' in desc_lower and 'list' in desc_lower:
-        return 'chi_papers_cards', _WIDGET_URLS['chi_papers_cards']
+    for widget_name, config in _WIDGET_CONFIG.items():
+        match_keywords = config.get('match', [])
+        url = config.get('url', '')
+        
+        # Count matching keywords
+        score = sum(1 for kw in match_keywords if kw.lower() in desc_lower)
+        
+        if score > best_score:
+            best_score = score
+            best_widget = widget_name
+            best_url = url
     
-    # Weather scatter plot
-    if 'scatter' in desc_lower or ('temperature' in desc_lower and 'seattle' in desc_lower):
-        return 'scatter', _WIDGET_URLS['scatter']
-    
-    # Bar chart
-    elif 'bar' in desc_lower or 'histogram' in desc_lower:
-        return 'bars', _WIDGET_URLS['bars']
-    
-    # Tic-tac-toe
-    elif 'tic' in desc_lower or 'tac' in desc_lower:
-        return 'tictactoe', _WIDGET_URLS['tictactoe']
-    
-    # Solar system
-    elif 'solar' in desc_lower or ('3d' in desc_lower and 'planet' in desc_lower):
-        return 'solar_system', _WIDGET_URLS['solar_system']
-    
-    # Hacker News
-    elif 'hacker' in desc_lower or ('news' in desc_lower and 'clone' in desc_lower):
-        return 'hacker_news', _WIDGET_URLS['hacker_news']
-    
-    # Line chart
-    elif 'line' in desc_lower and 'chart' in desc_lower:
-        # Check if it's the hover version
-        if 'hover' in desc_lower or 'dashed' in desc_lower or 'vertical' in desc_lower:
-            return 'line_chart_hover', _WIDGET_URLS['line_chart_hover']
-        return 'line_chart', _WIDGET_URLS['line_chart']
+    if best_score > 0:
+        return best_widget, best_url
     
     return None, None
 
@@ -437,7 +420,10 @@ def create(description, data=None, outputs=None, inputs=None):
     if module_url is None:
         print(f"[Demo] No matching widget for: {description[:50]}...")
         widget_type = f"widget_{_widget_counter}"
-        module_url = _WIDGET_URLS.get('scatter')  # Default
+        # Use first available widget as fallback
+        if _WIDGET_CONFIG:
+            first_widget = next(iter(_WIDGET_CONFIG.values()), {})
+            module_url = first_widget.get('url', '')
     
     widget_id = f"{widget_type}_{_widget_counter}"
     widget = WidgetProxy(widget_id, module_url, outputs, inputs)
@@ -496,20 +482,16 @@ def edit(description, base_widget, data=None, outputs=None, inputs=None):
         inputs = data.get('_inputs', {})
         data = actual_data
     
-    # Match edit description to appropriate widget
-    # For demo, check what kind of edit is requested
-    desc_lower = description.lower()
-    
     # Start with base widget type
     base_type = base_widget._widget_id.split('_')[0]
     widget_type = base_type
     module_url = base_widget._module_url
     
-    # Check if this is a specific edit we support
-    if 'hover' in desc_lower or 'dashed' in desc_lower or 'vertical' in desc_lower:
-        if 'line' in base_type or 'chart' in base_type:
-            widget_type = 'line_chart_hover'
-            module_url = _WIDGET_URLS.get('line_chart_hover', module_url)
+    # Try to match edit description to a new widget
+    matched_type, matched_url = _match_widget(description)
+    if matched_url:
+        widget_type = matched_type
+        module_url = matched_url
     
     widget_id = f"{widget_type}_v{_widget_counter}"
     widget = WidgetProxy(widget_id, module_url, outputs or base_widget._outputs, inputs)
@@ -563,6 +545,8 @@ vw.create = create
 vw.edit = edit
 vw.WidgetProxy = WidgetProxy
 vw._widgets = _widgets
+vw._set_widget_config = _set_widget_config
+vw._WIDGET_CONFIG = _WIDGET_CONFIG
 `);
 
     // Set up JS bridge functions
@@ -682,6 +666,22 @@ del _json_data
       return this.loadJSON(url, varName);
     }
     return this.loadCSV(url, varName);
+  }
+
+  /**
+   * Set widget configuration for the current notebook
+   * This tells the Python _match_widget function which widgets are available
+   */
+  async setWidgetConfig(widgets: Record<string, { url: string; match: string[] }>): Promise<void> {
+    if (!this.pyodide) {
+      console.warn('Pyodide not ready, cannot set widget config');
+      return;
+    }
+    const configJson = JSON.stringify(widgets).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    await this.pyodide.runPythonAsync(`
+import vibe_widget as vw
+vw._set_widget_config('${configJson}')
+`);
   }
 
   /**

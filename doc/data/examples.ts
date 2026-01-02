@@ -1,12 +1,21 @@
-const TICTACTOE_URL = '/widgets/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js';
-const SCATTER_URL = '/widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js';
-const BARS_URL = '/widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js';
-const SOLAR_SYSTEM_URL = '/widgets/3d_solar_system_using_three_js_showing_p__0ef429f27d__v1.js';
-const HN_CLONE_URL = '/widgets/create_interactive_hacker_news_clone_wid__d763f3d4a1__v2.js';
-const COVID_TRENDS_URL = '/widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js';
-const COVID_TRENDS_2_URL = '/widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js';
-const CHI25_EMBEDDING_URL = '/widgets/papers_explorer_interactive_chi_20260101_134322_ccc97fc18c.js';
-const MNIST_RECOG_URL = '/widgets/combined_widget_mnist_digit_20260101_134827_059414e7a5.js';
+// Import notebook data to get widget URLs (single source of truth)
+import tictactoeNotebook from './notebooks/tictactoe_notebook.json';
+import crossWidgetNotebook from './notebooks/cross_widget_notebook.json';
+import pdfWebNotebook from './notebooks/pdf_web_notebook.json';
+import reviseNotebook from './notebooks/revise_notebook.json';
+import mnistNotebook from './notebooks/mnist_notebook.json';
+import chiPapersNotebook from './notebooks/chi_papers_notebook.json';
+
+// Extract widget URLs from notebook definitions
+const TICTACTOE_URL = tictactoeNotebook.widgets.tictactoe.url;
+const SCATTER_URL = crossWidgetNotebook.widgets.scatter.url;
+const BARS_URL = crossWidgetNotebook.widgets.bars.url;
+const SOLAR_SYSTEM_URL = pdfWebNotebook.widgets.solar_system.url;
+const HN_CLONE_URL = pdfWebNotebook.widgets.hacker_news.url;
+const COVID_TRENDS_URL = reviseNotebook.widgets.line_chart.url;
+const COVID_TRENDS_2_URL = reviseNotebook.widgets.line_chart_hover.url;
+const CHI25_EMBEDDING_URL = chiPapersNotebook.widgets.chi_papers_explorer.url;
+const MNIST_RECOG_URL = mnistNotebook.widgets.mnist.url;
 
 
 export type Category = 'Featured' | 'Data Visualization' | 'Reactive' | '3D';

@@ -1,55 +1,18 @@
 import React, { useEffect, useState, Suspense } from 'react';
+import type { NotebookData } from '../data/pyodideNotebooks';
 
 const PyodideNotebook = React.lazy(() => import('./PyodideNotebook'));
 
-type NotebookConfig = {
-  cells: any[];
-  dataFiles: { url: string; varName: string; type?: string }[];
-  title: string;
-};
-
 const ExampleNotebook = ({ exampleId, title }: { exampleId: string; title?: string }) => {
-  const [config, setConfig] = useState<NotebookConfig | null>(null);
+  const [notebook, setNotebook] = useState<NotebookData | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
     import('../data/pyodideNotebooks').then((mod) => {
-      const notebooks: Record<string, NotebookConfig> = {
-        'cross-widget': {
-          cells: mod.CROSS_WIDGET_NOTEBOOK,
-          dataFiles: mod.WEATHER_DATA_FILES,
-          title: 'Cross-Widget Interactions',
-        },
-        tictactoe: {
-          cells: mod.TICTACTOE_NOTEBOOK,
-          dataFiles: mod.TICTACTOE_DATA_FILES,
-          title: 'Tic-Tac-Toe AI',
-        },
-        'pdf-web': {
-          cells: mod.PDF_WEB_NOTEBOOK,
-          dataFiles: mod.PDF_WEB_DATA_FILES,
-          title: 'PDF & Web Data Extraction',
-        },
-        edit: {
-          cells: mod.REVISE_NOTEBOOK,
-          dataFiles: mod.REVISE_DATA_FILES,
-          title: 'Widget Editing',
-        },
-        mnist: {
-          cells: mod.MNIST_NOTEBOOK,
-          dataFiles: [],
-          title: 'MNIST Digit Recognition',
-        },
-        'chi-papers': {
-          cells: mod.CHI_PAPERS_NOTEBOOK,
-          dataFiles: [],
-          title: 'CHI 2025 Paper Explorer',
-        },
-      };
-
       if (mounted) {
-        setConfig(notebooks[exampleId] || null);
+        // Look up notebook directly from registry
+        setNotebook(mod.NOTEBOOK_REGISTRY[exampleId] || null);
       }
     });
 
@@ -58,7 +21,7 @@ const ExampleNotebook = ({ exampleId, title }: { exampleId: string; title?: stri
     };
   }, [exampleId]);
 
-  if (!config) {
+  if (!notebook) {
     return (
       <div className="bg-white border-2 border-slate rounded-2xl p-6 shadow-hard-sm">
         <p className="text-sm text-slate/70 font-mono">Loading notebook...</p>
@@ -75,9 +38,10 @@ const ExampleNotebook = ({ exampleId, title }: { exampleId: string; title?: stri
       )}
     >
       <PyodideNotebook
-        cells={config.cells}
-        title={title || config.title}
-        dataFiles={config.dataFiles}
+        cells={notebook.cells}
+        title={title || notebook.title}
+        dataFiles={notebook.dataFiles}
+        widgetConfig={notebook.widgets}
         notebookKey={exampleId}
       />
     </Suspense>

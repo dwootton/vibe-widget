@@ -1,4 +1,17 @@
 {
+  "id": "tictactoe",
+  "title": "Tic-Tac-Toe AI",
+  "description": "Play against ML-powered AI",
+  "widgets": {
+    "tictactoe": {
+      "url": "/widgets/interactive_tic_tac_toe_game_board_follo__ef3388891e__v1.js",
+      "match": ["tic", "tac", "toe", "game board"]
+    }
+  },
+  "dataFiles": [
+    { "url": "/testdata/X_moves.csv", "varName": "x_moves_df" },
+    { "url": "/testdata/O_moves.csv", "varName": "o_moves_df" }
+  ],
   "cells": [
     {
       "type": "markdown",
@@ -47,9 +60,5 @@
       "content": "# Create AI controller widget that computes moves\nimport time\n\n# This widget receives board state and computes AI moves\nai_controller = vw.create(\n    \"\"\"AI Move Controller\n    - Inputs board_state and current_turn from game board\n    - Computes optimal AI move using ML model\n    - Outputs ai_move to trigger board update\n    \"\"\",\n    outputs=vw.outputs(\n        ai_move=\"object {row: number, col: number}\"\n    ),\n)\n\ndef make_ai_move(change):\n    \"\"\"Called when board_state or current_turn changes\"\"\"\n    # Wait a bit for better UX\n    time.sleep(0.3)\n    \n    try:\n        board_state = game_board.outputs.board_state.value\n        current_turn = game_board.outputs.current_turn.value\n        game_over = game_board.outputs.game_over.value\n        \n        # Only make move if it's O's turn and game is not over\n        if current_turn != 'o' or game_over or not board_state:\n            return\n        \n        # Convert board_state to list if needed\n        if isinstance(board_state, str):\n            import ast\n            board_state = ast.literal_eval(board_state)\n        \n        # Ensure it's a list\n        board_list = list(board_state)\n        \n        # Validate board format (should be 9 elements)\n        if len(board_list) != 9:\n            print(f\"Invalid board state length: {len(board_list)}, expected 9\")\n            return\n        \n        # The board widget outputs in row-major order: [00,01,02,10,11,12,20,21,22]\n        # Our predict_best_move expects the same format\n        move = predict_best_move(board_list, player='o')\n        \n        if move:\n            print(f\"AI (O) plays at position ({move[0]}, {move[1]})\")\n            # Send move to AI controller which will notify game board\n            ai_controller.ai_move = {\"row\": int(move[0]), \"col\": int(move[1])}\n        else:\n            print(\"No valid move found\")\n            \n    except Exception as e:\n        print(f\"Error in AI move: {e}\")\n        import traceback\n        traceback.print_exc()\n\n# Observe changes to trigger AI moves\ngame_board.observe(make_ai_move, names=['current_turn'])\n\n# Link AI controller output to game board input\ngame_board_linked = vw.create(\n    \"\"\"Game board with AI integration\n    - Same as game_board but inputs ai_move from AI controller\n    \"\"\",\n    outputs=vw.outputs(\n        board_state=\"9-element array\",\n        game_over=\"boolean\",\n        current_turn=\"'x' or 'o'\"\n    ),\n    inputs=vw.inputs(\n        ai_move=ai_controller\n    ),\n)\n\nprint(\"AI controller linked to game board!\")\ngame_board",
       "label": "AI Controller"
     }
-  ],
-  "dataFiles": [
-    { "url": "/testdata/X_moves.csv", "varName": "x_moves_df" },
-    { "url": "/testdata/O_moves.csv", "varName": "o_moves_df" }
   ]
 }

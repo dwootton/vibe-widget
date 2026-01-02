@@ -1,4 +1,18 @@
 {
+  "id": "edit",
+  "title": "Widget Editing",
+  "description": "Iteratively refine widgets with vw.edit()",
+  "widgets": {
+    "line_chart": {
+      "url": "/widgets/line_chart_showing_confirmed_deaths_reco__be99ed8976__v1.js",
+      "match": ["line", "chart", "confirmed", "deaths"]
+    },
+    "line_chart_hover": {
+      "url": "/widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js",
+      "match": ["hover", "dashed", "vertical"]
+    }
+  },
+  "dataFiles": [{ "url": "/testdata/day_wise.csv", "varName": "covid_df" }],
   "cells": [
     {
       "type": "markdown",
@@ -45,6 +59,5 @@
       "content": "\n      <h3>How Editing Works</h3>\n      <pre class=\"bg-slate/5 p-4 rounded-lg overflow-x-auto text-sm\"><code># Create initial widget\nchart = vw.create(\"scatter plot of data\", df)\n\n# Refine it with edit()\nchart_v2 = vw.edit(\n    \"add hover tooltips and color by category\",\n    chart,  # Pass the original widget\n    data=df  # Optionally pass updated data\n)\n\n# Keep refining!\nchart_v3 = vw.edit(\n    \"add zoom and pan controls\",\n    chart_v2\n)\n      </code></pre>\n      <p class=\"mt-4\">\n        Each edit builds on the previous version, maintaining context\n        while adding new features. This allows for rapid iterative development!\n      </p>\n    ",
       "defaultCollapsed": true
     }
-  ],
-  "dataFiles": [{ "url": "/testdata/day_wise.csv", "varName": "covid_df" }]
+  ]
 }

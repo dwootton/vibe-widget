@@ -1,4 +1,23 @@
 {
+  "id": "chi-papers",
+  "title": "CHI 2025 Paper Explorer",
+  "description": "Explore CHI 2025 research papers through semantic similarity search with beautiful wave animations.",
+  "widgets": {
+    "chi_papers_explorer": {
+      "url": "/widgets/papers_explorer_interactive_chi_20260101_134322_ccc97fc18c.js",
+      "match": ["papers_explorer", "chi", "explorer", "semantic", "search"]
+    },
+    "chi_papers_cards": {
+      "url": "/widgets/paper_cards_horizontal_list_20260101_134456_fcab3175e1.js",
+      "match": ["paper_cards", "cards", "horizontal", "list"]
+    }
+  },
+  "dataFiles": [
+    {
+      "url": "/testdata/CHI_2025_papers_2D.csv",
+      "varName": "papers_df"
+    }
+  ],
   "cells": [
     {
       "type": "markdown",
@@ -40,20 +59,6 @@
       "type": "code",
       "content": "# Connect semantic search to the explorer widget\ndef search_papers(change):\n    \"\"\"Compute similarity scores when user submits a query\"\"\"\n    try:\n        query_text = papers_explorer.outputs.query_text.value\n        submit_count = papers_explorer.outputs.submit_count.value\n        \n        if not query_text or submit_count == 0:\n            return\n        \n        print(f\"🔍 Searching for: '{query_text}'\")\n        \n        # Transform query using same vectorizer\n        query_vec = vectorizer.transform([query_text])\n        \n        # Calculate cosine similarity\n        similarities = cosine_similarity(query_vec, tfidf_matrix)[0]\n        \n        # Clip to 0-1 range\n        similarities = np.clip(similarities, 0, 1)\n        \n        # Find most similar paper\n        most_similar_idx = np.argmax(similarities)\n        most_similar_score = similarities[most_similar_idx]\n        most_similar_title = papers_df.iloc[most_similar_idx]['title']\n        \n        print(f\"✓ Most similar: '{most_similar_title[:50]}...'\")\n        print(f\"  Score: {most_similar_score:.2%}\")\n        \n        # Send similarity scores to widget (triggers wave animation)\n        papers_explorer.similarity_scores = similarities.tolist()\n        \n    except Exception as e:\n        print(f\"Error in search: {e}\")\n        import traceback\n        traceback.print_exc()\n\n# Observe query submissions with traitlets-style binding\npapers_explorer.observe(search_papers, names=['submit_count'])\nprint(\"Search connected! Try searching for 'accessibility', 'machine learning', or 'collaboration'\")",
       "label": "Connect Search"
-    },
-    {
-      "type": "markdown",
-      "content": "\n      <h3>How Cross-Widget Reactivity Works</h3>\n      <pre class=\"bg-slate/5 p-4 rounded-lg overflow-x-auto text-sm\"><code># Explorer widget outputs related papers\npapers_explorer = vw.create(\n    module_url=\"/widgets/explorer.js\",\n    outputs={\n        \"query_text\": \"search query\",\n        \"related_papers\": \"top matches\"\n    },\n    inputs={\n        \"similarity_scores\": \"search results\"\n    }\n)\n\n# Cards widget inputs from explorer\npaper_cards = vw.create(\n    module_url=\"/widgets/cards.js\",\n    inputs={\n        \"related_papers\": papers_explorer.outputs.related_papers\n    }\n)\n\n# Python bridges the search computation\ndef search(change):\n    query = explorer.outputs.query_text.value\n    scores = compute_similarity(query)\n    explorer.similarity_scores = scores  # Triggers wave animation\n\nexplorer.observe(search, names=['submit_count'])\n      </code></pre>\n      <p class=\"mt-4\">\n        Multiple widgets share state through traitlets-style bindings.\n        The explorer outputs <code>related_papers</code>, which the cards widget inputs.\n        Python computes similarity scores that flow back to trigger visualizations!\n      </p>\n    ",
-      "defaultCollapsed": true
-    }
-  ],
-  "dataFiles": [],
-  "remoteDataFiles": [],
-  "localDataFiles": [
-    {
-      "url": "/testdata/CHI_2025_papers_2D.csv",
-      "varName": "papers_df",
-      "type": "csv"
     }
   ]
 }
