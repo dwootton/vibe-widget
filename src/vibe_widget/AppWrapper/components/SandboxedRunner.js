@@ -2,6 +2,7 @@ import * as React from "react";
 import htm from "htm";
 
 const html = htm.bind(React.createElement);
+const FORBIDDEN_REACT_IMPORT = /from\s+["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']|require\(\s*["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']\s*\)|from\s+["']https?:\/\/[^"']*react[^"']*["']/;
 
 function getErrorSuggestion(errMessage) {
   if (errMessage.includes("is not a function") || errMessage.includes("Cannot read")) {
@@ -16,7 +17,7 @@ function getErrorSuggestion(errMessage) {
   return "";
 }
 
-export default function SandboxedRunner({ code, model }) {
+function SandboxedRunner({ code, model }) {
   const [error, setError] = React.useState(null);
   const [lastError, setLastError] = React.useState("");
   const [GuestWidget, setGuestWidget] = React.useState(null);
@@ -113,6 +114,11 @@ export default function SandboxedRunner({ code, model }) {
       try {
         setIsRetrying(false);
         setError(null);
+        if (FORBIDDEN_REACT_IMPORT.test(code)) {
+          throw new Error(
+            "Generated code must not import React/ReactDOM or react/jsx-runtime. Use the React and html props provided by the host."
+          );
+        }
         const blob = new Blob([code], { type: "text/javascript" });
         const url = URL.createObjectURL(blob);
 
@@ -247,3 +253,8 @@ export default function SandboxedRunner({ code, model }) {
     </${RuntimeErrorBoundary}>
   `;
 }
+
+export default React.memo(
+  SandboxedRunner,
+  (prevProps, nextProps) => prevProps.code === nextProps.code && prevProps.model === nextProps.model
+);

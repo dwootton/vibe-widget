@@ -63,10 +63,7 @@ def prepare_input_for_widget(
             df = df.sample(max_rows)
         return clean_for_json(df.to_dict(orient="records"))
     if isinstance(value, (str, Path)):
-        path = Path(value)
-        if path.exists():
-            df = load_data(path, max_rows=max_rows if sample else None)
-            return clean_for_json(df.to_dict(orient="records"))
+        return clean_for_json(value)
     return clean_for_json(value)
 
 

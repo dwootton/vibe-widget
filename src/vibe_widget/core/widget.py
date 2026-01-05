@@ -1962,62 +1962,130 @@ def edit(
 
 
 def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeWidget:
-    """Load a widget bundle from disk."""
+    """Load a widget bundle or cached widget file from disk."""
     target = Path(path)
-    with open(target, "r", encoding="utf-8") as handle:
-        payload = json.load(handle)
 
-    description = payload.get("description") or "Loaded widget"
-    code = payload.get("code") or ""
-    outputs = payload.get("outputs") or {}
-    inputs_signature = payload.get("inputs_signature") or {}
-    theme_payload = payload.get("theme") or {}
-    components = payload.get("components") or []
-    save_inputs = payload.get("save_inputs") or {}
-    embedded = bool(save_inputs.get("embedded"))
-    input_values = save_inputs.get("values") if isinstance(save_inputs.get("values"), dict) else {}
+    payload: dict[str, Any] | None = None
+    cached_entry: dict[str, Any] | None = None
+    code = ""
 
-    data_rows = []
-    if embedded and isinstance(input_values, dict):
-        data_rows = input_values.pop("data", [])
+    if target.suffix == ".vw":
+        with open(target, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    else:
+        if target.is_dir():
+            raise ValueError("vw.load expects a .vw bundle or cached widget file, not a directory.")
 
-    df = pd.DataFrame(data_rows) if isinstance(data_rows, list) else pd.DataFrame()
+        store = WidgetStore()
+        widgets_dict = store.index.get("widgets", {})
+        for var_name, widgets in widgets_dict.items():
+            for idx, widget in enumerate(widgets):
+                file_name = widget.get("file_name")
+                if not file_name:
+                    continue
+                store_path = (store.widgets_dir / file_name).resolve()
+                if store_path == target.resolve():
+                    cached_entry = dict(widget)
+                    cached_entry["var_name"] = var_name
+                    cached_entry["_index"] = idx
+                    break
+            if cached_entry:
+                break
 
-    imports: dict[str, Any] = {}
-    if isinstance(inputs_signature, dict):
-        for name in inputs_signature.keys():
-            if name == "data":
-                continue
-            imports[name] = None
-    if isinstance(input_values, dict):
-        for name, value in input_values.items():
-            if name == "data":
-                continue
-            if isinstance(value, dict) and value.get("type") == "export_handle":
+        if cached_entry:
+            code = target.read_text(encoding="utf-8")
+        else:
+            cached = store.load_from_file(target)
+            if cached:
+                cached_entry, code = cached
+
+    if payload is None and cached_entry is None:
+        raise FileNotFoundError(f"Widget file not found: {target}")
+
+    if payload is not None:
+        description = payload.get("description") or "Loaded widget"
+        code = payload.get("code") or ""
+        outputs = payload.get("outputs") or {}
+        inputs_signature = payload.get("inputs_signature") or {}
+        theme_payload = payload.get("theme") or {}
+        components = payload.get("components") or []
+        save_inputs = payload.get("save_inputs") or {}
+        embedded = bool(save_inputs.get("embedded"))
+        input_values = save_inputs.get("values") if isinstance(save_inputs.get("values"), dict) else {}
+
+        data_rows = []
+        if embedded and isinstance(input_values, dict):
+            data_rows = input_values.pop("data", [])
+
+        df = pd.DataFrame(data_rows) if isinstance(data_rows, list) else pd.DataFrame()
+
+        imports: dict[str, Any] = {}
+        if isinstance(inputs_signature, dict):
+            for name in inputs_signature.keys():
+                if name == "data":
+                    continue
                 imports[name] = None
-            else:
-                imports[name] = value
+        if isinstance(input_values, dict):
+            for name, value in input_values.items():
+                if name == "data":
+                    continue
+                if isinstance(value, dict) and value.get("type") == "export_handle":
+                    imports[name] = None
+                else:
+                    imports[name] = value
 
-    theme = None
-    if isinstance(theme_payload, dict) and (theme_payload.get("name") or theme_payload.get("description")):
-        theme = Theme(
-            description=theme_payload.get("description") or "",
-            name=theme_payload.get("name"),
-        )
+        theme = None
+        if isinstance(theme_payload, dict) and (theme_payload.get("name") or theme_payload.get("description")):
+            theme = Theme(
+                description=theme_payload.get("description") or "",
+                name=theme_payload.get("name"),
+            )
 
-    metadata = {
-        "description": description,
-        "components": components,
-        "model": payload.get("model"),
-        "theme_name": theme_payload.get("name") if isinstance(theme_payload, dict) else None,
-        "theme_description": theme_payload.get("description") if isinstance(theme_payload, dict) else None,
-        "inputs_signature": inputs_signature,
-        "outputs": outputs,
-        "source_path": str(target.resolve()),
-        "version": payload.get("version"),
-        "created_at": payload.get("created_at"),
-        "audit": payload.get("audit"),
-    }
+        metadata = {
+            "description": description,
+            "components": components,
+            "model": payload.get("model"),
+            "theme_name": theme_payload.get("name") if isinstance(theme_payload, dict) else None,
+            "theme_description": theme_payload.get("description") if isinstance(theme_payload, dict) else None,
+            "inputs_signature": inputs_signature,
+            "outputs": outputs,
+            "source_path": str(target.resolve()),
+            "version": payload.get("version"),
+            "created_at": payload.get("created_at"),
+            "audit": payload.get("audit"),
+        }
+        model = payload.get("model") or DEFAULT_MODEL
+        data_rows_embedded = data_rows if embedded else None
+    else:
+        description = cached_entry.get("description") or "Loaded widget"
+        outputs = {}
+        imports = {}
+        df = pd.DataFrame()
+        components = cached_entry.get("components") or WidgetStore().extract_components(code)
+        theme_name = cached_entry.get("theme_name")
+        theme_description = cached_entry.get("theme_description")
+        theme = None
+        if theme_name or theme_description:
+            theme = Theme(
+                description=theme_description or "",
+                name=theme_name,
+            )
+
+        metadata = {
+            "description": description,
+            "components": components,
+            "model": cached_entry.get("model"),
+            "theme_name": theme_name,
+            "theme_description": theme_description,
+            "source_path": str(target.resolve()),
+            "created_at": cached_entry.get("created_at"),
+            "cache_key": cached_entry.get("cache_key"),
+            "var_name": cached_entry.get("var_name"),
+            "revision_parent": cached_entry.get("revision_parent"),
+        }
+        model = cached_entry.get("model") or DEFAULT_MODEL
+        data_rows_embedded = None
+        input_values = {}
 
     execution_mode = "approve" if approval else "auto"
     execution_approved = not approval
@@ -2026,7 +2094,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
     widget = VibeWidget._create_with_dynamic_traits(
         description=description,
         df=df,
-        model=payload.get("model") or DEFAULT_MODEL,
+        model=model,
         exports=outputs,
         imports=imports,
         theme=theme,
@@ -2040,7 +2108,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
         execution_approved_hash=approved_hash,
     )
 
-    if isinstance(input_values, dict):
+    if payload is not None and isinstance(input_values, dict):
         for name, value in input_values.items():
             if name == "data":
                 continue
@@ -2053,12 +2121,12 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
 
     widget._store_creation_params(
         description=description,
-        data_source=data_rows if embedded else None,
-        data_type=type(data_rows) if embedded else None,
+        data_source=data_rows_embedded,
+        data_type=type(data_rows_embedded) if data_rows_embedded is not None else None,
         data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
         exports=outputs,
         imports=imports,
-        model=payload.get("model") or DEFAULT_MODEL,
+        model=model,
         theme=theme,
     )
 

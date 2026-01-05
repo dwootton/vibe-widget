@@ -98,6 +98,19 @@ class CodeValidateTool(Tool):
             if "ReactDOM.render" in code:
                 issues.append("ReactDOM.render not allowed - use html templates")
 
+            react_import_pattern = re.compile(
+                r"""(
+                    from\s+["'](?:react(?:/jsx-runtime)?|react-dom(?:/client)?)["']|
+                    require\(\s*["'](?:react(?:/jsx-runtime)?|react-dom(?:/client)?)["']\s*\)|
+                    from\s+["']https?://[^"']*react[^"']*["']
+                )""",
+                re.VERBOSE,
+            )
+            if react_import_pattern.search(code):
+                issues.append(
+                    "Do not import React/ReactDOM or react/jsx-runtime; use the React prop provided by the host."
+                )
+
             if "className=" in code and "html`" in code:
                 warnings.append("Use 'class=' not 'className=' in htm templates")
 
