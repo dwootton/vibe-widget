@@ -222,9 +222,9 @@ class AuditStore:
         source_widget_id: str | None,
     ) -> dict[str, Any]:
         widget_metadata = widget_metadata or {}
-        widget_id = widget_metadata.get("id") or f"unsaved-{code_hash[:8]}"
-        widget_slug = widget_metadata.get("slug") or "widget"
-        widget_version = widget_metadata.get("version")
+        widget_id = widget_metadata.get("cache_key") or f"unsaved-{code_hash[:8]}"
+        widget_slug = widget_metadata.get("var_name") or "widget"
+        widget_version = None
 
         existing_versions = [
             entry["version"]

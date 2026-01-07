@@ -5,9 +5,9 @@ Clean, robust widget generation without legacy profile logic.
 from pathlib import Path
 from typing import Any, Union
 import json
-import warnings
 import inspect
 import sys
+import time
 
 import anywidget
 import pandas as pd
@@ -18,10 +18,8 @@ from vibe_widget.api import (
     OutputBundle,
     InputsBundle,
     ActionBundle,
-    _build_inputs_bundle,
 )
 from vibe_widget.utils.code_parser import CodeStreamParser, RevisionStreamParser
-from vibe_widget.llm.agentic import AgenticOrchestrator
 from vibe_widget.llm.providers.base import LLMProvider
 from vibe_widget.config import (
     DEFAULT_MODEL,
@@ -29,20 +27,11 @@ from vibe_widget.config import (
     PREMIUM_MODELS,
     STANDARD_MODELS,
     get_global_config,
-    set_global_config,
 )
 from vibe_widget.llm.providers.openrouter_provider import OpenRouterProvider
 
 from vibe_widget.utils.widget_store import WidgetStore
-from vibe_widget.utils.audit_store import (
-    AuditStore,
-    compute_code_hash,
-    compute_line_hashes,
-    render_numbered_code,
-    format_audit_yaml,
-    strip_internal_fields,
-    normalize_location,
-)
+from vibe_widget.utils.audit_store import AuditStore, compute_code_hash
 from vibe_widget.utils.util import (
     clean_for_json,
     initial_import_value,
@@ -50,7 +39,14 @@ from vibe_widget.utils.util import (
     prepare_input_for_widget,
     summarize_for_prompt,
 )
-from vibe_widget.themes import Theme, resolve_theme_for_request, clear_theme_cache
+from vibe_widget.themes import Theme, clear_theme_cache
+from vibe_widget.core.state import StateManager
+from vibe_widget.core.lifecycle import WidgetLifecycle
+from vibe_widget.services.audit import AuditService
+from vibe_widget.services.generation import GenerationService
+from vibe_widget.services.repair import RepairService
+from vibe_widget.services.theme import ThemeService
+from vibe_widget.utils.logging import get_logger
 
 
 def _export_to_json_value(value: Any, widget: Any) -> Any:
@@ -73,161 +69,53 @@ def _import_to_json_value(value: Any, widget: Any) -> Any:
     return value
 
 
-# ComponentReference is deprecated - component access now returns VibeWidget directly
-# For backwards compatibility, we keep this as an alias
-ComponentReference = None  # Will be set to VibeWidget after class definition
+_CLASS_CACHE: dict[frozenset[str], type] = {}
 
 
-class _ComponentNamespace:
-    """
-    Namespace for accessing components on a widget.
-    
-    Component access returns full VibeWidget instances, lazily created and cached.
-    Each component widget renders only that specific component and has all standard
-    VibeWidget methods including display(), edit(), audit(), etc.
-    
-    Examples:
-        >>> widget.component.scatter_chart         # Get component as VibeWidget
-        >>> widget.component.scatter_chart.edit("change colors")  # Edit component
-        >>> list(widget.component)                 # Get list of component names
-    """
-
-    def __init__(self, widget: "VibeWidget"):
-        object.__setattr__(self, "_widget", widget)
-        object.__setattr__(self, "_cache", {})  # Cache for component widgets
-
-    def __getattr__(self, name: str) -> "VibeWidget":
-        """Get a component as a standalone VibeWidget."""
-        # Return from cache if already created
-        cache = object.__getattribute__(self, "_cache")
-        if name in cache:
-            return cache[name]
-        
-        widget = object.__getattribute__(self, "_widget")
-        
-        # Resolve python attr name to original component name
-        component_name = widget._resolve_component_name(name)
-        if component_name is None:
-            available = widget._component_attr_names()
-            hint = f" Available: {', '.join(available)}" if available else ""
-            raise AttributeError(
-                f"'{type(widget).__name__}.component' has no attribute '{name}'.{hint}"
+def _get_widget_class(
+    base_cls: type,
+    exports: dict[str, Any],
+    imports: dict[str, Any],
+) -> type:
+    """Return a cached widget subclass for the given trait signature."""
+    signature = frozenset(set(exports.keys()) | set(imports.keys()))
+    if not signature:
+        return base_cls
+    cached = _CLASS_CACHE.get(signature)
+    if cached is not None:
+        return cached
+    dynamic_traits: dict[str, traitlets.TraitType] = {}
+    for export_name in exports.keys():
+        dynamic_traits[export_name] = traitlets.Any(default_value=None).tag(
+            sync=True, to_json=_export_to_json_value
+        )
+    for import_name in imports.keys():
+        if import_name not in dynamic_traits:
+            dynamic_traits[import_name] = traitlets.Any(default_value=None).tag(
+                sync=True, to_json=_import_to_json_value
             )
-        
-        # Create component widget
-        component_widget = widget._create_component_widget(component_name)
-        cache[name] = component_widget
-        return component_widget
-
-    def __dir__(self) -> list[str]:
-        widget = object.__getattribute__(self, "_widget")
-        return widget._component_attr_names() + ["list", "names"]
-    
-    def __iter__(self):
-        """Iterate over component names."""
-        widget = object.__getattribute__(self, "_widget")
-        return iter(widget._component_attr_names())
-    
-    def __len__(self) -> int:
-        """Return number of components."""
-        widget = object.__getattribute__(self, "_widget")
-        return len(widget._component_attr_names())
-    
-    @property
-    def names(self) -> list[str]:
-        """Get list of component names (snake_case for Python access)."""
-        widget = object.__getattribute__(self, "_widget")
-        return widget._component_attr_names()
-
-class _OutputsNamespace:
-    """Namespace for accessing outputs on a widget."""
-
-    def __init__(self, widget: "VibeWidget"):
-        object.__setattr__(self, "_widget", widget)
-
-    def __getattr__(self, name: str) -> ExportHandle:
-        exports = getattr(self._widget, "_exports", {}) or {}
-        if name in exports:
-            accessors = getattr(self._widget, "_export_accessors", {})
-            if name not in accessors:
-                accessors[name] = ExportHandle(self._widget, name)
-            return accessors[name]
-        raise AttributeError(f"'{type(self._widget).__name__}.outputs' has no attribute '{name}'")
-
-    def __dir__(self) -> list[str]:
-        exports = getattr(self._widget, "_exports", {}) or {}
-        return list(exports.keys())
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name.startswith("_"):
-            object.__setattr__(self, name, value)
-            return
-        exports = getattr(self._widget, "_exports", {}) or {}
-        if name in exports:
-            setattr(self._widget, name, value)
-            return
-        raise AttributeError(f"'{type(self._widget).__name__}.outputs' has no attribute '{name}'")
+    class_name = f"VibeWidget_{abs(hash(signature))}"
+    widget_class = type(class_name, (base_cls,), dynamic_traits)
+    _CLASS_CACHE[signature] = widget_class
+    return widget_class
 
 
-class _ActionsNamespace:
-    """Namespace for calling actions on a widget."""
-
-    def __init__(self, widget: "VibeWidget"):
-        object.__setattr__(self, "_widget", widget)
-
-    def __getattr__(self, name: str):
-        """Return a callable that triggers the action."""
-        actions = getattr(self._widget, "_actions", {}) or {}
-        if name in actions:
-            action_params = getattr(self._widget, "_action_params", {}) or {}
-            params_schema = action_params.get(name)
-
-            def action_caller(**kwargs):
-                """Callable that sends action event to the widget."""
-                import time
-                # Send action event to frontend via synced trait
-                action_event = {
-                    "action": name,
-                    "params": kwargs,
-                    "timestamp": time.time(),
-                }
-                # Update the action_event trait which will sync to the frontend
-                self._widget.action_event = action_event
-                return None
-
-            action_caller.__name__ = name
-            action_caller.__doc__ = actions[name]
-            return action_caller
-
-        raise AttributeError(f"'{type(self._widget).__name__}.actions' has no attribute '{name}'")
-
-    def __dir__(self) -> list[str]:
-        actions = getattr(self._widget, "_actions", {}) or {}
-        return list(actions.keys())
+logger = get_logger(__name__)
 
 
 class VibeWidget(anywidget.AnyWidget):
     data = traitlets.List([]).tag(sync=True)
-    description = traitlets.Unicode("").tag(sync=True)
     status = traitlets.Unicode("idle").tag(sync=True)
     logs = traitlets.List([]).tag(sync=True)
     code = traitlets.Unicode("").tag(sync=True)
     error_message = traitlets.Unicode("").tag(sync=True)
+    widget_error = traitlets.Unicode("").tag(sync=True)
+    widget_logs = traitlets.List([]).tag(sync=True)
     retry_count = traitlets.Int(0).tag(sync=True)
     grab_edit_request = traitlets.Dict({}).tag(sync=True)
-    edit_in_progress = traitlets.Bool(False).tag(sync=True)
     action_event = traitlets.Dict({}).tag(sync=True)
-    audit_request = traitlets.Dict({}).tag(sync=True)
-    audit_response = traitlets.Dict({}).tag(sync=True)
-    audit_status = traitlets.Unicode("idle").tag(sync=True)
-    audit_error = traitlets.Unicode("").tag(sync=True)
-    audit_apply_request = traitlets.Dict({}).tag(sync=True)
-    audit_apply_response = traitlets.Dict({}).tag(sync=True)
-    audit_apply_status = traitlets.Unicode("idle").tag(sync=True)
-    audit_apply_error = traitlets.Unicode("").tag(sync=True)
-    execution_mode = traitlets.Unicode("auto").tag(sync=True)
-    execution_approved = traitlets.Bool(True).tag(sync=True)
-    execution_approved_hash = traitlets.Unicode("").tag(sync=True)
+    audit_state = traitlets.Dict({}).tag(sync=True)
+    execution_state = traitlets.Dict({}).tag(sync=True)
 
     def _ipython_display_(self) -> None:
         """Ensure rich display works in environments that skip mimebundle reprs."""
@@ -292,16 +180,7 @@ class VibeWidget(anywidget.AnyWidget):
         exports = exports or {}
         imports = imports or {}
 
-        dynamic_traits: dict[str, traitlets.TraitType] = {}
-        for export_name in exports.keys():
-            dynamic_traits[export_name] = traitlets.Any(default_value=None).tag(sync=True, to_json=_export_to_json_value)
-        for import_name in imports.keys():
-            if import_name not in dynamic_traits:
-                dynamic_traits[import_name] = traitlets.Any(default_value=None).tag(sync=True, to_json=_import_to_json_value)
-
-        widget_class = (
-            type("DynamicVibeWidget", (cls,), dynamic_traits) if dynamic_traits else cls
-        )
+        widget_class = _get_widget_class(cls, exports, imports)
 
         init_values: dict[str, Any] = {}
         for export_name in exports.keys():
@@ -376,6 +255,7 @@ class VibeWidget(anywidget.AnyWidget):
             **kwargs: Additional widget parameters
         """
         parser = CodeStreamParser()
+        self.description = description
         self._exports = exports or {}
         self._imports = imports or {}
         self._actions = kwargs.pop("actions", None) or {}
@@ -383,16 +263,19 @@ class VibeWidget(anywidget.AnyWidget):
         self._input_summaries = kwargs.pop("input_summaries", None)
         self._input_sampling = input_sampling
         self._export_accessors: dict[str, ExportHandle] = {}
-        self._outputs_namespace: _OutputsNamespace | None = None
-        self._actions_namespace: _ActionsNamespace | None = None
-        self._component_namespace: _ComponentNamespace | None = None
+        self._state = StateManager(self)
         self._widget_metadata = None
         self._theme = theme
         self._base_code = base_code
         self._base_components = base_components or []
         self._base_widget_id = base_widget_id
+        self._creation_params: dict[str, Any] = {}
+        self._llm_provider = None
+        self._generation_service: GenerationService | None = None
+        self._audit_service: AuditService | None = None
+        self._repair_service: RepairService | None = None
         
-        app_wrapper_dir = Path(__file__).parent
+        app_wrapper_dir = Path(__file__).resolve().parents[1]
         app_wrapper_path = app_wrapper_dir / "AppWrapper.bundle.js"
         if not app_wrapper_path.exists():
             # Fallback for older builds
@@ -408,38 +291,49 @@ class VibeWidget(anywidget.AnyWidget):
             execution_approved = execution_mode != "approve"
         if execution_approved_hash is None:
             execution_approved_hash = ""
+        audit_state = {
+            "status": "idle",
+            "response": {},
+            "error": "",
+            "request": {},
+            "apply": {
+                "status": "idle",
+                "response": {},
+                "error": "",
+            },
+            "apply_request": {},
+        }
+        execution_state = {
+            "mode": execution_mode,
+            "approved": execution_approved,
+            "approved_hash": execution_approved_hash,
+        }
 
         super().__init__(
             data=data_json,
-            description=description,
             status="generating",
             logs=[],
             code="",
             error_message="",
+            widget_error="",
+            widget_logs=[],
             retry_count=0,
-            audit_request={},
-            audit_response={},
-            audit_status="idle",
-            audit_error="",
-            audit_apply_request={},
-            audit_apply_response={},
-            audit_apply_status="idle",
-            audit_apply_error="",
-            execution_mode=execution_mode,
-            execution_approved=execution_approved,
-            execution_approved_hash=execution_approved_hash,
+            audit_state=audit_state,
+            execution_state=execution_state,
             **kwargs
         )
+
+        self._lifecycle = WidgetLifecycle(self)
 
         if display_widget:
             _display_widget(self)
         
         self.observe(self._on_error, names='error_message')
+        self.observe(self._on_widget_error, names='widget_error')
         self.observe(self._on_grab_edit, names='grab_edit_request')
-        self.observe(self._on_audit_request, names='audit_request')
-        self.observe(self._on_audit_apply_request, names='audit_apply_request')
+        self.observe(self._on_audit_state, names='audit_state')
         self.observe(self._on_code_change, names='code')
-        self.observe(self._on_execution_approved, names='execution_approved')
+        self.observe(self._on_execution_state, names='execution_state')
         
         try:
             input_count = len(self._imports or {})
@@ -447,6 +341,11 @@ class VibeWidget(anywidget.AnyWidget):
             
             resolved_model, config = _resolve_model(model)
             provider = OpenRouterProvider(resolved_model, config.api_key)
+            self._generation_service = GenerationService(provider)
+            self._audit_service = AuditService()
+            self._llm_provider = provider
+            self.orchestrator = self._generation_service.orchestrator
+            self._repair_service = RepairService(self._generation_service.orchestrator)
             inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
             if df is not None and isinstance(df, pd.DataFrame) and "data" not in inputs_for_prompt:
                 try:
@@ -457,7 +356,7 @@ class VibeWidget(anywidget.AnyWidget):
             if existing_code is not None:
                 self.logs = self.logs + ["Reusing existing widget code"]
                 self.code = existing_code
-                self.status = "ready"
+                self._set_status("ready")
                 self.description = description
                 self._widget_metadata = existing_metadata or {}
                 if self._theme and "theme_description" not in self._widget_metadata:
@@ -497,7 +396,7 @@ class VibeWidget(anywidget.AnyWidget):
             else:
                 self.logs = self.logs + ["Skipping cache (cache=False)"]
             
-            self.orchestrator = AgenticOrchestrator(provider=provider)
+            # Generation/audit services are already initialized.
             
             if cached_widget:
                 self.logs = self.logs + ["✓ Found cached widget"]
@@ -505,7 +404,7 @@ class VibeWidget(anywidget.AnyWidget):
                 self.logs = self.logs + [f"  Created: {cached_widget['created_at'][:10]}"]
                 widget_code = store.load_widget_code(cached_widget)
                 self.code = widget_code
-                self.status = "ready"
+                self._set_status("ready")
                 self.description = description
                 self._widget_metadata = cached_widget
                 if self._theme is None and cached_widget.get("theme_description"):
@@ -578,7 +477,7 @@ class VibeWidget(anywidget.AnyWidget):
                     self.logs = current_logs
             
             # Generate code using the agentic orchestrator
-            widget_code, _ = self.orchestrator.generate(
+            widget_code, _ = self._generation_service.generate(
                 description=description,
                 outputs=self._exports,
                 inputs=self._imports,
@@ -614,7 +513,7 @@ class VibeWidget(anywidget.AnyWidget):
             self.logs = self.logs + [f"Widget saved: {widget_entry.get('var_name', 'widget')}"]
             self.logs = self.logs + [f"Location: .vibewidget/widgets/{widget_entry['file_name']}"]
             self.code = widget_code
-            self.status = "ready"
+            self._set_status("ready")
             self.description = description
             self._widget_metadata = widget_entry
             
@@ -628,7 +527,7 @@ class VibeWidget(anywidget.AnyWidget):
             )
             
         except Exception as e:
-            self.status = "error"
+            self._set_status("error")
             self.logs = self.logs + [f"Error: {str(e)}"]
             raise
 
@@ -651,8 +550,138 @@ class VibeWidget(anywidget.AnyWidget):
                 pass
         return super().__getattribute__(name)
 
+    def _set_status(self, status: str, *, force: bool = False) -> None:
+        """Update widget lifecycle status through the lifecycle manager."""
+        lifecycle = getattr(self, "_lifecycle", None)
+        if lifecycle is None:
+            self.status = status
+            return
+        lifecycle.transition(status, force=force)
+
+    def _normalize_audit_state(self, state: dict[str, Any] | None) -> dict[str, Any]:
+        base = {
+            "status": "idle",
+            "response": {},
+            "error": "",
+            "request": {},
+            "apply": {
+                "status": "idle",
+                "response": {},
+                "error": "",
+            },
+            "apply_request": {},
+        }
+        if not isinstance(state, dict):
+            return base
+        merged = dict(base)
+        merged.update(state)
+        apply_state = dict(base["apply"])
+        if isinstance(state.get("apply"), dict):
+            apply_state.update(state["apply"])
+        merged["apply"] = apply_state
+        return merged
+
+    def _update_audit_state(self, **updates: Any) -> None:
+        state = self._normalize_audit_state(self.audit_state)
+        apply_updates = updates.pop("apply", None)
+        if isinstance(apply_updates, dict):
+            apply_state = dict(state.get("apply", {}))
+            apply_state.update(apply_updates)
+            state["apply"] = apply_state
+        state.update(updates)
+        self.audit_state = state
+
+    def _normalize_execution_state(self, state: dict[str, Any] | None) -> dict[str, Any]:
+        base = {
+            "mode": "auto",
+            "approved": True,
+            "approved_hash": "",
+        }
+        if not isinstance(state, dict):
+            return base
+        merged = dict(base)
+        merged.update(state)
+        return merged
+
+    def _update_execution_state(self, **updates: Any) -> None:
+        state = self._normalize_execution_state(self.execution_state)
+        state.update(updates)
+        self.execution_state = state
+
+    @property
+    def audit_status(self) -> str:
+        return self._normalize_audit_state(self.audit_state).get("status", "idle")
+
+    @audit_status.setter
+    def audit_status(self, value: str) -> None:
+        self._update_audit_state(status=value)
+
+    @property
+    def audit_response(self) -> dict[str, Any]:
+        return self._normalize_audit_state(self.audit_state).get("response", {})
+
+    @audit_response.setter
+    def audit_response(self, value: dict[str, Any]) -> None:
+        self._update_audit_state(response=value)
+
+    @property
+    def audit_error(self) -> str:
+        return self._normalize_audit_state(self.audit_state).get("error", "")
+
+    @audit_error.setter
+    def audit_error(self, value: str) -> None:
+        self._update_audit_state(error=value)
+
+    @property
+    def audit_apply_status(self) -> str:
+        return self._normalize_audit_state(self.audit_state).get("apply", {}).get("status", "idle")
+
+    @audit_apply_status.setter
+    def audit_apply_status(self, value: str) -> None:
+        self._update_audit_state(apply={"status": value})
+
+    @property
+    def audit_apply_response(self) -> dict[str, Any]:
+        return self._normalize_audit_state(self.audit_state).get("apply", {}).get("response", {})
+
+    @audit_apply_response.setter
+    def audit_apply_response(self, value: dict[str, Any]) -> None:
+        self._update_audit_state(apply={"response": value})
+
+    @property
+    def audit_apply_error(self) -> str:
+        return self._normalize_audit_state(self.audit_state).get("apply", {}).get("error", "")
+
+    @audit_apply_error.setter
+    def audit_apply_error(self, value: str) -> None:
+        self._update_audit_state(apply={"error": value})
+
+    @property
+    def execution_mode(self) -> str:
+        return self._normalize_execution_state(self.execution_state).get("mode", "auto")
+
+    @execution_mode.setter
+    def execution_mode(self, value: str) -> None:
+        self._update_execution_state(mode=value)
+
+    @property
+    def execution_approved(self) -> bool:
+        return bool(self._normalize_execution_state(self.execution_state).get("approved", True))
+
+    @execution_approved.setter
+    def execution_approved(self, value: bool) -> None:
+        self._update_execution_state(approved=bool(value))
+
+    @property
+    def execution_approved_hash(self) -> str:
+        return self._normalize_execution_state(self.execution_state).get("approved_hash", "")
+
+    @execution_approved_hash.setter
+    def execution_approved_hash(self, value: str) -> None:
+        self._update_execution_state(approved_hash=value or "")
+
     # --- Convenience rerun API ---
-    def _set_recipe(
+    def _store_creation_params(
         self,
         *,
         description: str,
@@ -667,18 +696,20 @@ class VibeWidget(anywidget.AnyWidget):
         base_components: list[str] | None = None,
         base_widget_id: str | None = None,
     ) -> None:
-        self._recipe_description = description
-        self._recipe_data_source = data_source
-        self._recipe_data_type = data_type
-        self._recipe_data_columns = data_columns
-        self._recipe_exports = exports
-        self._recipe_imports = imports
-        self._recipe_model = model
-        self._recipe_model_resolved = model
-        self._recipe_theme = theme
-        self._recipe_base_code = base_code
-        self._recipe_base_components = base_components
-        self._recipe_base_widget_id = base_widget_id
+        self._creation_params = {
+            "description": description,
+            "data_source": data_source,
+            "data_type": data_type,
+            "data_columns": data_columns,
+            "exports": exports,
+            "imports": imports,
+            "model": model,
+            "model_resolved": model,
+            "theme": theme,
+            "base_code": base_code,
+            "base_components": base_components,
+            "base_widget_id": base_widget_id,
+        }
 
     def __call__(self, *args, **kwargs):
         """Create a new widget instance, swapping data/inputs heuristically."""
@@ -734,9 +765,10 @@ class VibeWidget(anywidget.AnyWidget):
         return target
 
     def _rerun_with(self, *args, **kwargs) -> "VibeWidget":
-        if not hasattr(self, "_recipe_description"):
+        if not self._creation_params:
             raise ValueError("This widget was created before rerun support was added.")
 
+        params = self._creation_params
         display = kwargs.pop("display", True)
         candidate_data = kwargs.pop("data", None)
         candidate_inputs = kwargs.pop("inputs", None)
@@ -757,19 +789,19 @@ class VibeWidget(anywidget.AnyWidget):
                 bundle_data = arg.data if arg.data is not None else candidate_data
                 bundle_inputs = arg.inputs
                 candidate_data = bundle_data
-                merged = dict(self._recipe_imports or {})
+                merged = dict(params.get("imports") or {})
                 merged.update(bundle_inputs or {})
                 candidate_imports = merged
             else:
                 matched = False
-                if self._recipe_data_type and isinstance(arg, self._recipe_data_type):
+                if params.get("data_type") and isinstance(arg, params.get("data_type")):
                     candidate_data = arg
                     matched = True
                 if not matched:
                     # Try to swap an import with the same type
-                    for name, source in (self._recipe_imports or {}).items():
+                    for name, source in (params.get("imports") or {}).items():
                         if source is not None and isinstance(arg, type(source)):
-                            merged = dict(self._recipe_imports or {})
+                            merged = dict(params.get("imports") or {})
                             merged[name] = arg
                             candidate_imports = merged
                             matched = True
@@ -778,14 +810,14 @@ class VibeWidget(anywidget.AnyWidget):
                     # Fallback: treat as data (covers DataFrame, str path, etc.)
                     candidate_data = arg
 
-        data = candidate_data if candidate_data is not None else self._recipe_data_source
-        imports = candidate_imports if candidate_imports is not None else self._recipe_imports
+        data = candidate_data if candidate_data is not None else params.get("data_source")
+        imports = candidate_imports if candidate_imports is not None else params.get("imports")
         df = load_data(data)
         existing_code = getattr(self, "code", None)
         existing_metadata = getattr(self, "_widget_metadata", None)
 
-        if self._recipe_data_columns and isinstance(df, pd.DataFrame):
-            missing = set(self._recipe_data_columns) - set(df.columns)
+        if params.get("data_columns") and isinstance(df, pd.DataFrame):
+            missing = set(params.get("data_columns")) - set(df.columns)
             if missing:
                 raise ValueError(
                     "The new dataset is missing required columns for this widget: "
@@ -793,16 +825,16 @@ class VibeWidget(anywidget.AnyWidget):
                 )
 
         widget = VibeWidget._create_with_dynamic_traits(
-            description=self._recipe_description,
+            description=params.get("description"),
             df=df,
-            model=self._recipe_model_resolved,
-            exports=self._recipe_exports,
+            model=params.get("model_resolved"),
+            exports=params.get("exports"),
             imports=imports,
-            theme=self._recipe_theme,
+            theme=params.get("theme"),
             var_name=None,
-            base_code=getattr(self, '_recipe_base_code', None),
-            base_components=getattr(self, '_recipe_base_components', None),
-            base_widget_id=getattr(self, '_recipe_base_widget_id', None),
+            base_code=params.get("base_code"),
+            base_components=params.get("base_components"),
+            base_widget_id=params.get("base_widget_id"),
             existing_code=existing_code,
             existing_metadata=existing_metadata,
             display_widget=display,
@@ -820,7 +852,6 @@ class VibeWidget(anywidget.AnyWidget):
         inputs: dict[str, Any] | InputsBundle | None = None,
         actions: dict[str, str] | ActionBundle | None = None,
         theme: Theme | str | None = None,
-        config: Config | None = None,
         display: bool = True,
         cache: bool = True,
     ) -> "VibeWidget":
@@ -846,7 +877,6 @@ class VibeWidget(anywidget.AnyWidget):
             inputs=inputs,
             actions=actions,
             theme=theme,
-            config=config,
             display=display,
             cache=cache,
             _var_name=var_name,
@@ -870,140 +900,6 @@ class VibeWidget(anywidget.AnyWidget):
             self.audit_error = str(exc)
             raise
 
-    def _parse_audit_json(self, raw_text: str) -> dict[str, Any]:
-        """Parse JSON from LLM output with a best-effort fallback."""
-        try:
-            return json.loads(raw_text)
-        except json.JSONDecodeError:
-            start = raw_text.find("{")
-            end = raw_text.rfind("}")
-            if start != -1 and end != -1 and end > start:
-                return json.loads(raw_text[start:end + 1])
-            raise
-
-    def _normalize_audit_report(
-        self,
-        report: dict[str, Any],
-        level: str,
-        widget_description: str,
-    ) -> dict[str, Any]:
-        root_key = "fast_audit" if level == "fast" else "full_audit"
-        alt_key = "full_audit" if root_key == "fast_audit" else "fast_audit"
-        if root_key in report:
-            payload = report.get(root_key)
-        elif alt_key in report:
-            payload = report.get(alt_key)
-        else:
-            payload = report
-        if not isinstance(payload, dict):
-            payload = {}
-        payload.setdefault("version", "1.0")
-        payload.setdefault("widget_description", widget_description)
-
-        raw_concerns = payload.get("concerns", [])
-        if not isinstance(raw_concerns, list):
-            raw_concerns = []
-
-        normalized_concerns: list[dict[str, Any]] = []
-        for concern in raw_concerns:
-            if not isinstance(concern, dict):
-                continue
-            location = normalize_location(concern.get("location", "global"))
-            impact = str(concern.get("impact", "low")).lower()
-            if level == "full" and impact not in {"high", "medium", "low"}:
-                impact = "medium"
-            if level == "fast" and impact not in {"high", "medium", "low"}:
-                impact = "low"
-
-            alternatives = concern.get("alternatives", [])
-            if not isinstance(alternatives, list):
-                alternatives = []
-            if level == "full":
-                normalized_alts = []
-                for item in alternatives:
-                    if isinstance(item, dict):
-                        normalized_alts.append({
-                            "option": str(item.get("option", "")).strip(),
-                            "when_better": str(item.get("when_better", "")).strip(),
-                            "when_worse": str(item.get("when_worse", "")).strip(),
-                        })
-                    else:
-                        normalized_alts.append({
-                            "option": str(item).strip(),
-                            "when_better": "",
-                            "when_worse": "",
-                        })
-                alternatives = normalized_alts
-
-            normalized = {
-                "id": str(concern.get("id", "")).strip() or "concern.unknown",
-                "location": location,
-                "summary": str(concern.get("summary", "")).strip(),
-                "details": str(concern.get("details", "")).strip(),
-                "technical_summary": str(concern.get("technical_summary", "")).strip(),
-                "impact": impact,
-                "default": bool(concern.get("default", False)),
-                "alternatives": alternatives,
-            }
-            if level == "full":
-                lenses = concern.get("lenses", {})
-                if not isinstance(lenses, dict):
-                    lenses = {}
-                normalized["rationale"] = str(concern.get("rationale", "")).strip()
-                normalized["lenses"] = {
-                    "impact": str(lenses.get("impact", "medium")).lower(),
-                    "uncertainty": str(lenses.get("uncertainty", "")).strip(),
-                    "reproducibility": str(lenses.get("reproducibility", "")).strip(),
-                    "edge_behavior": str(lenses.get("edge_behavior", "")).strip(),
-                    "default_vs_explicit": str(lenses.get("default_vs_explicit", "")).strip(),
-                    "appropriateness": str(lenses.get("appropriateness", "")).strip(),
-                    "safety": str(lenses.get("safety", "")).strip(),
-                }
-            normalized_concerns.append(normalized)
-
-        payload["concerns"] = normalized_concerns
-        open_questions = payload.get("open_questions", [])
-        if not isinstance(open_questions, list):
-            open_questions = []
-        payload["open_questions"] = [str(q).strip() for q in open_questions if str(q).strip()]
-        safety = payload.get("safety", {})
-        if not isinstance(safety, dict):
-            safety = {}
-        checks = safety.get("checks", {})
-        if not isinstance(checks, dict):
-            checks = {}
-        def _normalize_check(key: str) -> dict[str, str]:
-            raw = checks.get(key, {})
-            if not isinstance(raw, dict):
-                raw = {}
-            status = str(raw.get("status", "unknown")).lower()
-            if status not in {"yes", "no", "unknown"}:
-                status = "unknown"
-            return {
-                "status": status,
-                "evidence": str(raw.get("evidence", "")).strip(),
-                "notes": str(raw.get("notes", "")).strip(),
-            }
-        normalized_checks = {
-            "external_network_usage": _normalize_check("external_network_usage"),
-            "dynamic_code_execution": _normalize_check("dynamic_code_execution"),
-            "storage_writes": _normalize_check("storage_writes"),
-            "cross_origin_fetch": _normalize_check("cross_origin_fetch"),
-            "iframe_script_injection": _normalize_check("iframe_script_injection"),
-        }
-        risk_level = str(safety.get("risk_level", "unknown")).lower()
-        if risk_level not in {"low", "medium", "high", "unknown"}:
-            risk_level = "unknown"
-        caveats = safety.get("caveats", [])
-        if not isinstance(caveats, list):
-            caveats = []
-        payload["safety"] = {
-            "checks": normalized_checks,
-            "risk_level": risk_level,
-            "caveats": [str(c).strip() for c in caveats if str(c).strip()],
-        }
-        return {root_key: payload}
-
     def _run_audit(
         self,
         *,
@@ -1011,182 +907,53 @@ class VibeWidget(anywidget.AnyWidget):
         reuse: bool,
         display: bool,
     ) -> dict[str, Any]:
-        if not self.code:
-            raise ValueError("No widget code available to audit.")
-        level = level.lower()
-        if level not in {"fast", "full"}:
-            raise ValueError("Audit level must be 'fast' or 'full'.")
-
         self.audit_status = "running"
         self.audit_error = ""
 
-        code = self.code
         widget_metadata = self._widget_metadata or {}
         widget_description = self.description or widget_metadata.get("description", "Widget")
-        store = AuditStore()
-        current_code_hash = compute_code_hash(code)
-        current_line_hashes = compute_line_hashes(code)
-
-        previous_audit = None
-        if reuse and widget_metadata.get("id"):
-            previous_audit = store.load_latest_audit(widget_metadata["id"], level)
-        if not previous_audit and reuse and widget_metadata.get("base_widget_id"):
-            previous_audit = store.load_latest_audit(widget_metadata["base_widget_id"], level)
-
-        reused_concerns: list[dict[str, Any]] = []
-        stale_concerns: list[dict[str, Any]] = []
-        previous_questions: list[str] = []
-        changed_lines: list[int] | None = None
-
-        if reuse and previous_audit:
-            prev_report = previous_audit.get("report", {})
-            root_key = "fast_audit" if level == "fast" else "full_audit"
-            prev_payload = prev_report.get(root_key, {})
-            prev_concerns = prev_payload.get("concerns", []) if isinstance(prev_payload, dict) else []
-            prev_line_hashes = previous_audit.get("line_hashes", {})
-            prev_code_hash = previous_audit.get("code_hash")
-            previous_questions = prev_payload.get("open_questions", []) if isinstance(prev_payload, dict) else []
-            if not isinstance(previous_questions, list):
-                previous_questions = []
-
-            for concern in prev_concerns:
-                if not isinstance(concern, dict):
-                    continue
-                location = normalize_location(concern.get("location", "global"))
-                if location == "global":
-                    if prev_code_hash == current_code_hash:
-                        reused_concerns.append(concern)
-                    else:
-                        stale_concerns.append(concern)
-                    continue
-                line_hashes = concern.get("line_hashes", [])
-                if not isinstance(line_hashes, list) or not line_hashes or len(line_hashes) != len(location):
-                    stale_concerns.append(concern)
-                    continue
-                current_matches = []
-                for line_num, expected_hash in zip(location, line_hashes):
-                    current_matches.append(current_line_hashes.get(int(line_num)) == expected_hash)
-                if all(current_matches):
-                    reused_concerns.append(concern)
-                else:
-                    stale_concerns.append(concern)
-
-            if not stale_concerns and prev_code_hash == current_code_hash:
-                report_public = strip_internal_fields(prev_report)
-                self.audit_status = "idle"
-                result = {
-                    "level": level,
-                    "report": report_public,
-                    "report_yaml": previous_audit.get("report_yaml", ""),
-                    "saved_path": str((store.audits_dir / previous_audit["entry"]["yaml_file_name"]).resolve()),
-                    "audit_id": previous_audit["entry"]["audit_id"],
-                    "reused_count": len(reused_concerns),
-                    "updated_count": 0,
-                }
-                self.audit_response = result
-                if display:
-                    try:
-                        from IPython.display import display, Markdown
-                        display(Markdown(f"```yaml\n{result['report_yaml']}\n```"))
-                    except Exception:
-                        print(result["report_yaml"])
-                return result
-
-            prev_line_hashes_int = {int(k): v for k, v in prev_line_hashes.items()} if isinstance(prev_line_hashes, dict) else {}
-            max_line = max(max(prev_line_hashes_int.keys(), default=0), max(current_line_hashes.keys(), default=0))
-            changed = []
-            for line_num in range(1, max_line + 1):
-                if prev_line_hashes_int.get(line_num) != current_line_hashes.get(line_num):
-                    changed.append(line_num)
-            changed_lines = changed or None
-
-        clean_data_info = clean_for_json(self.data_info)
-        numbered_code = render_numbered_code(code)
-
-        provider = getattr(self, "orchestrator", None).provider if getattr(self, "orchestrator", None) else None
+        if self._audit_service is None:
+            self._audit_service = AuditService()
+        provider = self._llm_provider
         if provider is None:
             resolved_model, config = _resolve_model(widget_metadata.get("model"))
             provider = OpenRouterProvider(resolved_model, config.api_key)
 
-        raw_report = provider.generate_audit_report(
-            code=numbered_code,
-            description=widget_description,
-            data_info=clean_data_info,
+        result = self._audit_service.run_audit(
+            code=self.code,
             level=level,
-            changed_lines=changed_lines,
-        )
-        parsed = self._parse_audit_json(raw_report)
-        normalized_report = self._normalize_audit_report(parsed, level, widget_description)
-
-        root_key = "fast_audit" if level == "fast" else "full_audit"
-        payload = normalized_report[root_key]
-        new_concerns = payload.get("concerns", [])
-        filtered_concerns: list[dict[str, Any]] = []
-        for concern in new_concerns:
-            location = normalize_location(concern.get("location", "global"))
-            concern["location"] = location
-            if changed_lines and location != "global":
-                if not any(line in changed_lines for line in location):
-                    continue
-            if location != "global":
-                concern["line_hashes"] = [current_line_hashes.get(int(line)) for line in location]
-            filtered_concerns.append(concern)
-
-        merged_concerns = reused_concerns[:]
-        existing_ids = {c.get("id") for c in merged_concerns if isinstance(c, dict)}
-        for concern in filtered_concerns:
-            if concern.get("id") in existing_ids:
-                continue
-            merged_concerns.append(concern)
-
-        new_questions = payload.get("open_questions", [])
-        if not isinstance(new_questions, list):
-            new_questions = []
-        merged_questions = list(dict.fromkeys([*previous_questions, *new_questions]))
-        payload["concerns"] = merged_concerns
-        payload["open_questions"] = merged_questions
-        normalized_report[root_key] = payload
-
-        report_public = strip_internal_fields(normalized_report)
-        report_yaml = format_audit_yaml(report_public)
-
-        saved = store.save_audit(
-            level=level,
+            reuse=reuse,
             widget_metadata=widget_metadata,
-            report=normalized_report,
-            report_yaml=report_yaml,
-            code_hash=current_code_hash,
-            line_hashes=current_line_hashes,
-            reused_concerns=[c.get("id") for c in reused_concerns if isinstance(c, dict)],
-            updated_concerns=[c.get("id") for c in filtered_concerns if isinstance(c, dict)],
-            source_widget_id=widget_metadata.get("base_widget_id"),
+            widget_description=widget_description,
+            data_info=self.data_info,
+            provider=provider,
         )
-
-        result = {
-            "level": level,
-            "report": report_public,
-            "report_yaml": report_yaml,
-            "saved_path": str((store.audits_dir / saved["entry"]["yaml_file_name"]).resolve()),
-            "audit_id": saved["entry"]["audit_id"],
-            "reused_count": len(reused_concerns),
-            "updated_count": len(filtered_concerns),
-        }
 
         self.audit_status = "idle"
         self.audit_response = result
         if display:
             try:
                 from IPython.display import display, Markdown
-                display(Markdown(f"```yaml\n{report_yaml}\n```"))
+                display(Markdown(f"```yaml\n{result['report_yaml']}\n```"))
             except Exception:
-                print(report_yaml)
+                print(result["report_yaml"])
         return result
 
-    def _on_audit_request(self, change):
+    def _on_audit_state(self, change):
+        """Handle audit requests embedded in audit_state."""
+        new_state = self._normalize_audit_state(change.get("new"))
+        old_state = self._normalize_audit_state(change.get("old"))
+
+        request = new_state.get("request") or {}
+        if request and request != (old_state.get("request") or {}):
+            self._handle_audit_request(request)
+
+        apply_request = new_state.get("apply_request") or {}
+        if apply_request and apply_request != (old_state.get("apply_request") or {}):
+            self._handle_audit_apply_request(apply_request)
+
+    def _handle_audit_request(self, request: dict[str, Any]) -> None:
         """Handle audit requests from the frontend."""
-        request = change.get("new") or {}
-        if not request:
-            return
         if self.audit_status == "running":
             return
         level = str(request.get("level", "fast")).lower()
@@ -1199,14 +966,18 @@ class VibeWidget(anywidget.AnyWidget):
             self.audit_error = str(exc)
             self.audit_response = {"error": str(exc), "level": level}
         finally:
-            self.audit_request = {}
+            self._update_audit_state(request={})
 
-    def _on_audit_apply_request(self, change):
+    def _handle_audit_apply_request(self, request: dict[str, Any]) -> None:
         """Apply audit-driven changes via the LLM."""
-        request = change.get("new") or {}
         if not request:
             return
         if self.audit_apply_status == "running":
+            return
+        if self._generation_service is None:
+            self.audit_apply_error = "No LLM service available to apply changes."
+            self.audit_apply_status = "error"
+            self._update_audit_state(apply_request={})
             return
 
         changes = request.get("changes", [])
@@ -1214,12 +985,12 @@ class VibeWidget(anywidget.AnyWidget):
         if not base_code:
             self.audit_apply_error = "No source code available to apply changes."
             self.audit_apply_status = "error"
-            self.audit_apply_request = {}
+            self._update_audit_state(apply_request={})
             return
 
         self.audit_apply_status = "running"
         self.audit_apply_error = ""
-        self.status = "generating"
+        self._set_status("generating")
 
         change_lines = []
         for item in changes:
@@ -1249,80 +1020,115 @@ class VibeWidget(anywidget.AnyWidget):
         revision_request = "Apply these audit changes:\n" + "\n".join(change_lines)
 
         try:
-            clean_data_info = clean_for_json(self.data_info)
-            revised_code = self.orchestrator.revise_code(
+            revised_code = self._generation_service.revise_code(
                 code=base_code,
                 revision_request=revision_request,
-                data_info=clean_data_info,
+                data_info=self.data_info,
             )
             self.code = revised_code
-            self.status = "ready"
+            self._set_status("ready")
             self.audit_apply_status = "idle"
             self.audit_apply_response = {"success": True, "applied": len(changes)}
         except Exception as exc:
             self.audit_apply_status = "error"
             self.audit_apply_error = str(exc)
             self.audit_apply_response = {"success": False, "error": str(exc)}
-            self.status = "ready"
+            self._set_status("ready")
         finally:
-            self.audit_apply_request = {}
+            self._update_audit_state(apply_request={})
     
     def _on_error(self, change):
         """Called when frontend reports a runtime error."""
-        error_msg = change['new']
+        error_msg = change["new"]
 
         if error_msg:
-            print(f"[vibe_widget] Frontend runtime error:\n{error_msg}", file=sys.stderr)
+            logger.error("Frontend runtime error:\n%s", error_msg)
 
-        if not error_msg or self.retry_count >= 2:
+        orchestrator = getattr(self, "orchestrator", None)
+        if self._repair_service is None:
+            if orchestrator is None or not hasattr(orchestrator, "fix_runtime_error"):
+                return
+            self._repair_service = RepairService(orchestrator)
+        elif orchestrator is not None and getattr(self._repair_service, "orchestrator", None) is not orchestrator:
+            self._repair_service = RepairService(orchestrator)
+
+        if not error_msg:
             return
-        
+
+        if self.retry_count >= RepairService.MAX_RETRIES:
+            self._set_status("blocked")
+            self.logs = self.logs + ["Repair blocked: retry limit reached"]
+            self.error_message = ""
+            return
+
         self.retry_count += 1
-        self.status = 'generating'
-        
-        error_preview = error_msg.split('\n')[0][:100]
+        self._set_status("retrying")
+
+        error_preview = error_msg.split("\n")[0][:100]
         self.logs = self.logs + [f"Error detected: {error_preview}"]
         self.logs = self.logs + ["Asking LLM to fix the error"]
-        
-        try:
-            clean_data_info = clean_for_json(self.data_info)
-            
-            fixed_code = self.orchestrator.fix_runtime_error(
-                code=self.code,
-                error_message=error_msg,
-                data_info=clean_data_info,
-            )
-            
+
+        result = self._repair_service.fix_runtime_error(
+            code=self.code,
+            error_message=error_msg,
+            data_info=self.data_info,
+            retry_count=self.retry_count,
+        )
+
+        if result.applied:
             self.logs = self.logs + ["Code fixed, retrying"]
-            self.code = fixed_code
-            self.status = 'ready'
+            self.code = result.code
+            self._set_status("ready")
             self.error_message = ""
             self.retry_count = 0
-        except Exception as e:
-            self.status = "error"
-            self.logs = self.logs + [f"Fix attempt failed: {str(e)}"]
-            self.error_message = ""
+            return
+
+        self.logs = self.logs + [result.message or "Fix attempt failed"]
+        if result.retryable:
+            self._set_status("error")
+        else:
+            self._set_status("blocked")
+        self.error_message = ""
+
+    def _append_widget_log(self, message: str, *, level: str = "info", source: str = "python") -> None:
+        logs = list(self.widget_logs or [])
+        logs.append(
+            {
+                "timestamp": time.time(),
+                "message": message,
+                "level": level,
+                "source": source,
+            }
+        )
+        if len(logs) > 200:
+            logs = logs[-200:]
+        self.widget_logs = logs
+
+    def _on_widget_error(self, change):
+        """Surface widget errors coming from the frontend."""
+        error_msg = change.get("new") or ""
+        if not error_msg:
+            return
+        logger.error("Widget runtime error:\n%s", error_msg)
+        try:
+            self._append_widget_log(f"Widget error: {error_msg}", level="error", source="js")
+        except Exception:
+            pass
     
     @property
-    def outputs(self) -> _OutputsNamespace:
+    def outputs(self):
         """Namespace accessor for widget outputs."""
-        if self._outputs_namespace is None:
-            self._outputs_namespace = _OutputsNamespace(self)
-        return self._outputs_namespace
+        return self._state.outputs
 
     @property
-    def actions(self) -> _ActionsNamespace:
+    def actions(self):
         """Namespace accessor for widget actions."""
-        if self._actions_namespace is None:
-            self._actions_namespace = _ActionsNamespace(self)
-        return self._actions_namespace
+        return self._state.actions
 
     @property
-    def component(self) -> _ComponentNamespace:
+    def component(self):
         """Namespace accessor for widget components."""
-        if self._component_namespace is None:
-            self._component_namespace = _ComponentNamespace(self)
-        return self._component_namespace
+        return self._state.component
     
     @property
     def components(self) -> list[str]:
@@ -1376,17 +1182,16 @@ class VibeWidget(anywidget.AnyWidget):
         
         # Get metadata from parent widget
         parent_metadata = self._widget_metadata or {}
-        parent_slug = parent_metadata.get('slug', 'widget')
+        parent_var_name = parent_metadata.get("var_name") or "widget"
         
         # Component widget metadata
         component_metadata = {
             **parent_metadata,
             "is_component_view": True,
             "source_component": component_name,
-            "parent_widget_id": parent_metadata.get("id"),
-            "parent_slug": parent_slug,
-            # Override slug for the component
-            "slug": f"{parent_slug}:{self._to_python_attr(component_name)}",
+            "parent_cache_key": parent_metadata.get("cache_key"),
+            "parent_var_name": parent_var_name,
+            "var_name": f"{parent_var_name}:{self._to_python_attr(component_name)}",
             # Component has single component (itself)
             "components": [component_name],
         }
@@ -1397,7 +1202,7 @@ class VibeWidget(anywidget.AnyWidget):
         
         # Create the component widget
         widget = VibeWidget._create_with_dynamic_traits(
-            description=f"{component_name} (from {parent_slug})",
+            description=f"{component_name} (from {parent_var_name})",
             df=df,
             model=parent_metadata.get("model", "claude-haiku-4-5-20251001"),
             exports=None,
@@ -1459,12 +1264,16 @@ class VibeWidget(anywidget.AnyWidget):
         
         if not user_prompt:
             return
+        if self._generation_service is None:
+            self._set_status("error")
+            self.logs = ['✘ Edit failed: LLM service unavailable']
+            return
         
         old_code = self.code
         previous_metadata = self._widget_metadata
         self._pending_old_code = old_code
         self.edit_in_progress = True
-        self.status = 'generating'
+        self._set_status("generating")
         self.logs = [f"Editing: {user_prompt[:50]}{'...' if len(user_prompt) > 50 else ''}"]
         
         old_position = 0
@@ -1514,17 +1323,15 @@ class VibeWidget(anywidget.AnyWidget):
         try:
             revision_request = self._build_grab_revision_request(element_desc, user_prompt)
             
-            clean_data_info = clean_for_json(self.data_info)
-            
-            revised_code = self.orchestrator.revise_code(
+            revised_code = self._generation_service.revise_code(
                 code=self.code,
                 revision_request=revision_request,
-                data_info=clean_data_info,
+                data_info=self.data_info,
                 progress_callback=progress_callback,
             )
             
             self.code = revised_code
-            self.status = 'ready'
+            self._set_status("ready")
             self.logs = self.logs + ['✓ Edit applied']
             
             store = WidgetStore()
@@ -1556,10 +1363,10 @@ class VibeWidget(anywidget.AnyWidget):
         except Exception as e:
             if "cancelled" in str(e).lower():
                 self.code = old_code
-                self.status = 'ready'
+                self._set_status("ready")
                 self.logs = self.logs + ['✗ Edit cancelled']
             else:
-                self.status = 'error'
+                self._set_status("error")
                 self.logs = self.logs + [f'✘ Edit failed: {str(e)}']
         
         self.edit_in_progress = False
@@ -1616,11 +1423,21 @@ Find this element in the code and apply the requested change. The element should
             if self.execution_approved:
                 self.execution_approved = False
 
-    def _on_execution_approved(self, change):
+    def _on_execution_state(self, change):
         """Persist approval hash when user approves the current code."""
-        if not change.get("new"):
+        new_state = self._normalize_execution_state(change.get("new"))
+        old_state = self._normalize_execution_state(change.get("old"))
+        if not new_state.get("approved"):
             return
-        self.execution_approved_hash = compute_code_hash(self.code or "")
+        current_hash = compute_code_hash(self.code or "")
+        if new_state.get("approved_hash") == current_hash:
+            return
+        if old_state.get("approved") and old_state.get("approved_hash") == current_hash:
+            return
+        updated = dict(new_state)
+        updated["approved_hash"] = current_hash
+        self.execution_state = updated
+
 
 
 def _resolve_import_source(import_name: str, import_source: Any) -> tuple[Any | None, str | None]:
@@ -1710,17 +1527,8 @@ def _display_widget(widget: VibeWidget) -> None:
 
 def _resolve_model(
     model_override: str | None = None,
-    config_override: Config | None = None,
 ) -> tuple[str, Config]:
-    """Resolve the model using global config; config arg is deprecated shim."""
-    if config_override is not None:
-        warnings.warn(
-            "Passing `config` to create/edit is deprecated; call vw.config(...) first.",
-            DeprecationWarning,
-            stacklevel=3,
-        )
-        set_global_config(config_override)
-
+    """Resolve the model using global config."""
     config = get_global_config()
     candidate = model_override or config.model
     model_map = PREMIUM_MODELS if config.mode == "premium" else STANDARD_MODELS
@@ -1779,7 +1587,6 @@ def create(
     inputs: dict[str, Any] | InputsBundle | None = None,
     actions: dict[str, str] | ActionBundle | None = None,
     theme: Theme | str | None = None,
-    config: Config | None = None,
     display: bool = True,
     cache: bool = True,
 ) -> VibeWidget:
@@ -1792,7 +1599,6 @@ def create(
         inputs: Dict of {trait_name: source} for consumed state
         actions: Dict of {action_name: description} for interactive callbacks
         theme: Theme object, theme name, or prompt string
-        config: Optional Config object with model settings (deprecated; call vw.config instead)
         display: Whether to display the widget immediately (IPython environments only)
         cache: If False, bypass cache and regenerate widget/theme
 
@@ -1814,9 +1620,10 @@ def create(
         inputs=inputs,
         actions=actions,
     )
-    model, resolved_config = _resolve_model(config_override=config)
+    model, resolved_config = _resolve_model()
     df = load_data(data)
-    resolved_theme = resolve_theme_for_request(
+    theme_service = ThemeService()
+    resolved_theme = theme_service.resolve(
         theme,
         model=model,
         api_key=resolved_config.api_key if resolved_config else None,
@@ -1841,7 +1648,7 @@ def create(
 
     _link_imports(widget, inputs)
     # Store recipe for convenient reruns/clones
-    widget._set_recipe(
+    widget._store_creation_params(
         description=description,
         data_source=data,
         data_type=type(data) if data is not None else None,
@@ -1945,7 +1752,6 @@ def edit(
     inputs: dict[str, Any] | InputsBundle | None = None,
     actions: dict[str, str] | ActionBundle | None = None,
     theme: Theme | str | None = None,
-    config: Config | None = None,
     display: bool = True,
     cache: bool = True,
     _var_name: str | None = None,
@@ -1960,7 +1766,6 @@ def edit(
         inputs: Dict of {trait_name: source} for new/modified inputs
         actions: Dict of {action_name: description} for new/modified actions
         theme: Theme object, theme name, or prompt string
-        config: Optional Config object with model settings (deprecated; call vw.config instead)
         cache: If False, bypass cache and regenerate widget/theme
 
     Returns:
@@ -1985,11 +1790,12 @@ def edit(
     )
     store = WidgetStore()
     source_info = _resolve_source(source, store)
-    model, resolved_config = _resolve_model(config_override=config)
+    model, resolved_config = _resolve_model()
     if theme is None and source_info.theme is not None:
         resolved_theme = source_info.theme
     else:
-        resolved_theme = resolve_theme_for_request(
+        theme_service = ThemeService()
+        resolved_theme = theme_service.resolve(
             theme,
             model=model,
             api_key=resolved_config.api_key if resolved_config else None,
@@ -2020,7 +1826,7 @@ def edit(
     )
 
     _link_imports(widget, inputs)
-    widget._set_recipe(
+    widget._store_creation_params(
         description=description,  # Store original description in recipe
         data_source=data if data is not None else source_info.df,
         data_type=type(data) if data is not None else (type(source_info.df) if source_info.df is not None else None),
@@ -2038,62 +1844,130 @@ def edit(
 
 
 def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeWidget:
-    """Load a widget bundle from disk."""
+    """Load a widget bundle or cached widget file from disk."""
     target = Path(path)
-    with open(target, "r", encoding="utf-8") as handle:
-        payload = json.load(handle)
 
-    description = payload.get("description") or "Loaded widget"
-    code = payload.get("code") or ""
-    outputs = payload.get("outputs") or {}
-    inputs_signature = payload.get("inputs_signature") or {}
-    theme_payload = payload.get("theme") or {}
-    components = payload.get("components") or []
-    save_inputs = payload.get("save_inputs") or {}
-    embedded = bool(save_inputs.get("embedded"))
-    input_values = save_inputs.get("values") if isinstance(save_inputs.get("values"), dict) else {}
+    payload: dict[str, Any] | None = None
+    cached_entry: dict[str, Any] | None = None
+    code = ""
 
-    data_rows = []
-    if embedded and isinstance(input_values, dict):
-        data_rows = input_values.pop("data", [])
+    if target.suffix == ".vw":
+        with open(target, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    else:
+        if target.is_dir():
+            raise ValueError("vw.load expects a .vw bundle or cached widget file, not a directory.")
 
-    df = pd.DataFrame(data_rows) if isinstance(data_rows, list) else pd.DataFrame()
+        store = WidgetStore()
+        widgets_dict = store.index.get("widgets", {})
+        for var_name, widgets in widgets_dict.items():
+            for idx, widget in enumerate(widgets):
+                file_name = widget.get("file_name")
+                if not file_name:
+                    continue
+                store_path = (store.widgets_dir / file_name).resolve()
+                if store_path == target.resolve():
+                    cached_entry = dict(widget)
+                    cached_entry["var_name"] = var_name
+                    cached_entry["_index"] = idx
+                    break
+            if cached_entry:
+                break
 
-    imports: dict[str, Any] = {}
-    if isinstance(inputs_signature, dict):
-        for name in inputs_signature.keys():
-            if name == "data":
-                continue
-            imports[name] = None
-    if isinstance(input_values, dict):
-        for name, value in input_values.items():
-            if name == "data":
-                continue
-            if isinstance(value, dict) and value.get("type") == "export_handle":
+        if cached_entry:
+            code = target.read_text(encoding="utf-8")
+        else:
+            cached = store.load_from_file(target)
+            if cached:
+                cached_entry, code = cached
+
+    if payload is None and cached_entry is None:
+        raise FileNotFoundError(f"Widget file not found: {target}")
+
+    if payload is not None:
+        description = payload.get("description") or "Loaded widget"
+        code = payload.get("code") or ""
+        outputs = payload.get("outputs") or {}
+        inputs_signature = payload.get("inputs_signature") or {}
+        theme_payload = payload.get("theme") or {}
+        components = payload.get("components") or []
+        save_inputs = payload.get("save_inputs") or {}
+        embedded = bool(save_inputs.get("embedded"))
+        input_values = save_inputs.get("values") if isinstance(save_inputs.get("values"), dict) else {}
+
+        data_rows = []
+        if embedded and isinstance(input_values, dict):
+            data_rows = input_values.pop("data", [])
+
+        df = pd.DataFrame(data_rows) if isinstance(data_rows, list) else pd.DataFrame()
+
+        imports: dict[str, Any] = {}
+        if isinstance(inputs_signature, dict):
+            for name in inputs_signature.keys():
+                if name == "data":
+                    continue
                 imports[name] = None
-            else:
-                imports[name] = value
+        if isinstance(input_values, dict):
+            for name, value in input_values.items():
+                if name == "data":
+                    continue
+                if isinstance(value, dict) and value.get("type") == "export_handle":
+                    imports[name] = None
+                else:
+                    imports[name] = value
 
-    theme = None
-    if isinstance(theme_payload, dict) and (theme_payload.get("name") or theme_payload.get("description")):
-        theme = Theme(
-            description=theme_payload.get("description") or "",
-            name=theme_payload.get("name"),
-        )
+        theme = None
+        if isinstance(theme_payload, dict) and (theme_payload.get("name") or theme_payload.get("description")):
+            theme = Theme(
+                description=theme_payload.get("description") or "",
+                name=theme_payload.get("name"),
+            )
 
-    metadata = {
-        "description": description,
-        "components": components,
-        "model": payload.get("model"),
-        "theme_name": theme_payload.get("name") if isinstance(theme_payload, dict) else None,
-        "theme_description": theme_payload.get("description") if isinstance(theme_payload, dict) else None,
-        "inputs_signature": inputs_signature,
-        "outputs": outputs,
-        "source_path": str(target.resolve()),
-        "version": payload.get("version"),
-        "created_at": payload.get("created_at"),
-        "audit": payload.get("audit"),
-    }
+        metadata = {
+            "description": description,
+            "components": components,
+            "model": payload.get("model"),
+            "theme_name": theme_payload.get("name") if isinstance(theme_payload, dict) else None,
+            "theme_description": theme_payload.get("description") if isinstance(theme_payload, dict) else None,
+            "inputs_signature": inputs_signature,
+            "outputs": outputs,
+            "source_path": str(target.resolve()),
+            "version": payload.get("version"),
+            "created_at": payload.get("created_at"),
+            "audit": payload.get("audit"),
+        }
+        model = payload.get("model") or DEFAULT_MODEL
+        data_rows_embedded = data_rows if embedded else None
+    else:
+        description = cached_entry.get("description") or "Loaded widget"
+        outputs = {}
+        imports = {}
+        df = pd.DataFrame()
+        components = cached_entry.get("components") or WidgetStore().extract_components(code)
+        theme_name = cached_entry.get("theme_name")
+        theme_description = cached_entry.get("theme_description")
+        theme = None
+        if theme_name or theme_description:
+            theme = Theme(
+                description=theme_description or "",
+                name=theme_name,
+            )
+
+        metadata = {
+            "description": description,
+            "components": components,
+            "model": cached_entry.get("model"),
+            "theme_name": theme_name,
+            "theme_description": theme_description,
+            "source_path": str(target.resolve()),
+            "created_at": cached_entry.get("created_at"),
+            "cache_key": cached_entry.get("cache_key"),
+            "var_name": cached_entry.get("var_name"),
+            "revision_parent": cached_entry.get("revision_parent"),
+        }
+        model = cached_entry.get("model") or DEFAULT_MODEL
+        data_rows_embedded = None
+        input_values = {}
 
     execution_mode = "approve" if approval else "auto"
     execution_approved = not approval
@@ -2102,7 +1976,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
     widget = VibeWidget._create_with_dynamic_traits(
         description=description,
         df=df,
-        model=payload.get("model") or DEFAULT_MODEL,
+        model=model,
         exports=outputs,
         imports=imports,
         theme=theme,
@@ -2116,7 +1990,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
         execution_approved_hash=approved_hash,
     )
 
-    if isinstance(input_values, dict):
+    if payload is not None and isinstance(input_values, dict):
         for name, value in input_values.items():
             if name == "data":
                 continue
@@ -2127,14 +2001,14 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
             except Exception:
                 pass
 
-    widget._set_recipe(
+    widget._store_creation_params(
         description=description,
-        data_source=data_rows if embedded else None,
-        data_type=type(data_rows) if embedded else None,
+        data_source=data_rows_embedded,
+        data_type=type(data_rows_embedded) if data_rows_embedded is not None else None,
         data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
         exports=outputs,
         imports=imports,
-        model=payload.get("model") or DEFAULT_MODEL,
+        model=model,
         theme=theme,
     )
 
@@ -2147,10 +2021,10 @@ def clear(target: Union["VibeWidget", str] = "all") -> dict[str, int]:
 
     if isinstance(target, VibeWidget):
         metadata = getattr(target, "_widget_metadata", {}) or {}
-        widget_id = metadata.get("id")
-        widget_slug = metadata.get("slug")
-        results["widgets"] = WidgetStore().clear_for_widget(widget_id=widget_id, slug=widget_slug)
-        results["audits"] = AuditStore().clear_for_widget(widget_id=widget_id, widget_slug=widget_slug)
+        cache_key = metadata.get("cache_key")
+        var_name = metadata.get("var_name")
+        results["widgets"] = WidgetStore().clear_for_widget(cache_key=cache_key, var_name=var_name)
+        results["audits"] = AuditStore().clear_for_widget(widget_id=cache_key, widget_slug=var_name)
         return results
 
     if isinstance(target, str):
@@ -2170,8 +2044,8 @@ def clear(target: Union["VibeWidget", str] = "all") -> dict[str, int]:
             results["themes"] = clear_theme_cache()
             return results
 
-        results["widgets"] = WidgetStore().clear_for_widget(widget_id=target, slug=target)
-        results["audits"] = AuditStore().clear_for_widget(widget_id=target, widget_slug=target)
+        results["widgets"] = WidgetStore().clear_for_widget(var_name=target)
+        results["audits"] = AuditStore().clear_for_widget(widget_slug=target)
         return results
 
     raise TypeError("vw.clear expects a cache type string or a VibeWidget instance.")

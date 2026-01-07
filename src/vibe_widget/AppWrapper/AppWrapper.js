@@ -7,6 +7,7 @@ import SandboxedRunner from "./components/SandboxedRunner";
 import FloatingMenu from "./components/FloatingMenu";
 import LoadingOverlay from "./components/LoadingOverlay";
 import SelectionOverlay from "./components/SelectionOverlay";
+import RuntimePanel from "./components/RuntimePanel";
 import EditPromptPanel from "./components/EditPromptPanel";
 import AuditNotice from "./components/AuditNotice";
 import EditorViewer from "./components/editor/EditorViewer";
@@ -26,6 +27,8 @@ function AppWrapper({ model }) {
     logs,
     code,
     errorMessage,
+    widgetError,
+    widgetLogs,
     retryCount,
     auditStatus,
     auditResponse,
@@ -33,8 +36,10 @@ function AppWrapper({ model }) {
     auditApplyStatus,
     auditApplyResponse,
     auditApplyError,
+    auditState,
     executionMode,
-    executionApproved
+    executionApproved,
+    executionState
   } = useModelSync(model);
   const [isMenuOpen, setMenuOpen] = React.useState(false);
   const [grabMode, setGrabMode] = React.useState(null);
@@ -43,12 +48,14 @@ function AppWrapper({ model }) {
   const [sourceError, setSourceError] = React.useState("");
   const [renderCode, setRenderCode] = React.useState(code || "");
   const [lastGoodCode, setLastGoodCode] = React.useState(code || "");
+  const [runKey, setRunKey] = React.useState(0);
   const [applyState, setApplyState] = React.useState({
     pending: false,
     previousCode: "",
     nextCode: ""
   });
   const containerRef = React.useRef(null);
+  const [containerBounds, setContainerBounds] = React.useState(null);
   const [minHeight, setMinHeight] = React.useState(0);
   const [hasAuditAck, setHasAuditAck] = React.useState(() => {
     try {
@@ -65,6 +72,43 @@ function AppWrapper({ model }) {
       return false;
     }
   });
+
+  React.useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const updateBounds = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      setContainerBounds({
+        top: rect.top,
+        left: rect.left,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height
+      });
+    };
+
+    updateBounds();
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(updateBounds);
+      resizeObserver.observe(node);
+    }
+
+    window.addEventListener("resize", updateBounds);
+    window.addEventListener("scroll", updateBounds, true);
+
+    return () => {
+      window.removeEventListener("resize", updateBounds);
+      window.removeEventListener("scroll", updateBounds, true);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, []);
 
   const handleGrabStart = () => {
     setMenuOpen(false);
@@ -98,12 +142,19 @@ function AppWrapper({ model }) {
     setGrabMode(null);
   };
 
-  const isRetrying = (retryCount || 0) > 0 && (retryCount || 0) < 2;
-  const isLoading = status === "generating" || isRetrying;
+  const isLoading = status === "generating" || status === "retrying";
   const hasCode = renderCode && renderCode.length > 0;
   const approvalMode = executionMode === "approve";
   const isApproved = executionApproved || !approvalMode;
   const shouldRenderWidget = hasCode && isApproved;
+  const handleRetryRun = () => {
+    setRunKey((key) => key + 1);
+    model.set("error_message", "");
+    model.set("widget_error", "");
+    model.set("retry_count", 0);
+    model.set("status", "retrying");
+    model.save_changes();
+  };
 
   useKeyboardShortcuts({ isLoading, hasCode, grabMode, onGrabStart: handleGrabStart });
   React.useEffect(() => {
@@ -199,9 +250,13 @@ function AppWrapper({ model }) {
 
   const handleApplySource = (payload) => {
     if (payload && payload.type === "audit_apply") {
-      model.set("audit_apply_request", {
-        changes: payload.changes || [],
-        base_code: payload.baseCode || ""
+      const currentState = model.get("audit_state") || {};
+      model.set("audit_state", {
+        ...currentState,
+        apply_request: {
+          changes: payload.changes || [],
+          base_code: payload.baseCode || ""
+        }
       });
       model.save_changes();
       setShowSource(false);
@@ -220,15 +275,23 @@ function AppWrapper({ model }) {
   };
 
   const handleAuditRequest = (level) => {
-    model.set("audit_request", {
-      level: level || "fast",
-      request_id: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    const currentState = model.get("audit_state") || {};
+    model.set("audit_state", {
+      ...currentState,
+      request: {
+        level: level || "fast",
+        request_id: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+      }
     });
     model.save_changes();
   };
 
   const handleApproveRun = () => {
-    model.set("execution_approved", true);
+    const currentState = model.get("execution_state") || {};
+    model.set("execution_state", {
+      ...currentState,
+      approved: true
+    });
     model.save_changes();
     setShowSource(false);
     setShowAudit(false);
@@ -260,13 +323,20 @@ function AppWrapper({ model }) {
         minHeight: minHeight ? `${minHeight}px` : "220px"
       }}
     >
+      <${RuntimePanel}
+        status=${status}
+        errorMessage=${errorMessage}
+        widgetError=${widgetError}
+        widgetLogs=${widgetLogs}
+        onRetry=${handleRetryRun}
+      />
       ${shouldRenderWidget && html`
         <div style=${{
           opacity: isLoading ? 0.4 : 1,
           pointerEvents: isLoading ? "none" : "auto",
           transition: "opacity 0.3s ease",
         }}>
-          <${SandboxedRunner} code=${renderCode} model=${model} />
+          <${SandboxedRunner} code=${renderCode} model=${model} runKey=${runKey} />
         </div>
       `}
       
@@ -298,6 +368,7 @@ function AppWrapper({ model }) {
       ${grabMode && grabMode !== "selecting" && html`
         <${EditPromptPanel}
           elementBounds=${grabMode.bounds}
+          containerBounds=${containerBounds}
           elementDescription=${grabMode.element}
           initialPrompt=${promptCache[grabMode.elementKey] || ""}
           onSubmit=${handleEditSubmit}

@@ -148,17 +148,18 @@ CRITICAL REACT + HTM SPECIFICATION:
 MUST FOLLOW EXACTLY:
 1. Export a default function: export default function Widget({{ model, html, React }}) {{ ... }}
 2. Use html tagged templates (htm) for markup—no JSX or ReactDOM.render
-3. Access inputs with model.get("<input_name>") using names from INPUTS and treat them as immutable
-4. Append DOM nodes via refs rendered inside html templates (never touch document.body)
-5. Import libraries from ESM CDN with locked versions (d3@7, three@0.160, regl@3, etc.)
-6. Initialize outputs immediately, update them as interactions occur, and call model.save_changes() each time
-7. Subscribe to input traits with model.on("change:trait", handler) and unsubscribe in cleanup
-8. Every React.useEffect MUST return a cleanup that tears down listeners, observers, intervals, animation frames, WebGL resources, etc.
-9. Avoid 100vh/100vw—use fixed heights (360–640px) or flex layouts that respect notebook constraints
-10. Ensure high contrast for text and data marks (WCAG AA minimum) in all visual states
-11. Inline styles must be object literals: style=${{ ... }} (never style="..." or style=${"..."}).
-12. Any component that returns html`...` MUST accept `html` in its props, and you MUST pass `html=${{html}}` when using it.
-13. Never wrap the output in markdown code fences
+3. Do not import React, react-dom, or react/jsx-runtime—use the provided React and html props only
+4. Access inputs with model.get("<input_name>") using names from INPUTS and treat them as immutable
+5. Append DOM nodes via refs rendered inside html templates (never touch document.body)
+6. Import libraries from ESM CDN with locked versions (d3@7, three@0.160, regl@3, etc.)
+7. Initialize outputs immediately, update them as interactions occur, and call model.save_changes() each time
+8. Subscribe to input traits with model.on("change:trait", handler) and unsubscribe in cleanup
+9. Every React.useEffect MUST return a cleanup that tears down listeners, observers, intervals, animation frames, WebGL resources, etc.
+10. Avoid 100vh/100vw—use fixed heights (360–640px) or flex layouts that respect notebook constraints
+11. Ensure high contrast for text and data marks (WCAG AA minimum) in all visual states
+12. Inline styles must be object literals: style=${{ ... }} (never style="..." or style=${"..."}).
+13. Any component that returns html`...` MUST accept `html` in its props, and you MUST pass `html=${{html}}` when using it.
+14. Never wrap the output in markdown code fences
 
 CORRECT Template:
 ```javascript
