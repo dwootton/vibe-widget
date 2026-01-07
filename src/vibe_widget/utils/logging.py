@@ -15,15 +15,19 @@ def get_logger(name: str = "vibe_widget", level: str | None = None) -> logging.L
         level: Optional log level override (e.g., "INFO").
     """
     global _CONFIGURED
-    logger = logging.getLogger(name)
+    base_logger = logging.getLogger("vibe_widget")
 
     if not _CONFIGURED:
         handler = logging.StreamHandler()
         handler.setFormatter(logging.Formatter("[%(name)s] %(levelname)s: %(message)s"))
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
+        if not base_logger.handlers:
+            base_logger.addHandler(handler)
+        base_logger.setLevel(logging.INFO)
+        base_logger.propagate = False
         _CONFIGURED = True
 
+    logger = logging.getLogger(name)
+    logger.propagate = True
     if level is not None:
         logger.setLevel(getattr(logging, level.upper(), logging.INFO))
 
