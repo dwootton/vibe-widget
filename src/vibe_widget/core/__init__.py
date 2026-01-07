@@ -6,7 +6,6 @@ from vibe_widget.core.widget import (
     edit,
     load,
     clear,
-    ComponentReference,
     _normalize_api_inputs,
     _summarize_inputs_for_prompt,
 )
@@ -17,7 +16,6 @@ __all__ = [
     "edit",
     "load",
     "clear",
-    "ComponentReference",
     "_normalize_api_inputs",
     "_summarize_inputs_for_prompt",
 ]

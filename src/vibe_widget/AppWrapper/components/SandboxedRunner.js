@@ -4,25 +4,8 @@ import htm from "htm";
 const html = htm.bind(React.createElement);
 const FORBIDDEN_REACT_IMPORT = /from\s+["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']|require\(\s*["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']\s*\)|from\s+["']https?:\/\/[^"']*react[^"']*["']/;
 
-function getErrorSuggestion(errMessage) {
-  if (errMessage.includes("is not a function") || errMessage.includes("Cannot read")) {
-    return "Type error in data or input shape. Check that inputs match expected types.";
-  }
-  if (errMessage.includes("Failed to fetch")) {
-    return "Network error loading library. Check internet connection.";
-  }
-  if (errMessage.includes("Unexpected token")) {
-    return "Syntax error in generated code.";
-  }
-  return "";
-}
-
-function SandboxedRunner({ code, model }) {
-  const [error, setError] = React.useState(null);
-  const [lastError, setLastError] = React.useState("");
+function SandboxedRunner({ code, model, runKey }) {
   const [GuestWidget, setGuestWidget] = React.useState(null);
-  const [isRetrying, setIsRetrying] = React.useState(false);
-  const [refreshKey, setRefreshKey] = React.useState(0);
   const logQueueRef = React.useRef([]);
   const flushTimerRef = React.useRef(null);
 
@@ -85,25 +68,12 @@ function SandboxedRunner({ code, model }) {
   const handleRuntimeError = React.useCallback((err, extraStack = "") => {
     console.error("Code execution error:", err);
 
-    const retryCount = model.get("retry_count") || 0;
     const baseMessage = err instanceof Error ? err.toString() : String(err);
     const stack = err instanceof Error && err.stack ? err.stack : "No stack trace";
     const errorDetails = `${baseMessage}\n\nStack:\n${stack}${extraStack}`;
-    setLastError(errorDetails);
 
-    if (retryCount < 2) {
-      setIsRetrying(true);
-      model.set("error_message", errorDetails);
-      model.set("widget_error", errorDetails);
-      model.save_changes();
-      return;
-    }
-
-    const suggestion = getErrorSuggestion(baseMessage);
-    const finalError = suggestion ? `${baseMessage}\n\nSuggestion: ${suggestion}` : baseMessage;
-    setError(finalError);
-    setIsRetrying(false);
-    model.set("widget_error", finalError);
+    model.set("error_message", errorDetails);
+    model.set("widget_error", errorDetails);
     model.save_changes();
   }, [model]);
 
@@ -112,8 +82,7 @@ function SandboxedRunner({ code, model }) {
 
     const executeCode = async () => {
       try {
-        setIsRetrying(false);
-        setError(null);
+        setGuestWidget(null);
         if (FORBIDDEN_REACT_IMPORT.test(code)) {
           throw new Error(
             "Generated code must not import React/ReactDOM or react/jsx-runtime. Use the React and html props provided by the host."
@@ -127,10 +96,10 @@ function SandboxedRunner({ code, model }) {
 
         if (module.default && typeof module.default === "function") {
           setGuestWidget(() => module.default);
-          setError(null);
           model.set("error_message", "");
           model.set("widget_error", "");
           model.set("retry_count", 0);
+          model.set("status", "ready");
           model.save_changes();
         } else {
           throw new Error("Generated code must export a default function");
@@ -141,65 +110,7 @@ function SandboxedRunner({ code, model }) {
     };
 
     executeCode();
-  }, [code, model, handleRuntimeError, refreshKey]);
-
-  if (isRetrying) {
-    return html`
-      <div style=${{ padding: "20px", color: "#ffa07a", fontSize: "14px" }}>
-        <div>Error detected. Asking LLM to fix...</div>
-        ${lastError ? html`
-          <pre style=${{
-            marginTop: "10px",
-            whiteSpace: "pre-wrap",
-            fontSize: "12px",
-            color: "#ffd6a5",
-          }}>${lastError}</pre>
-        ` : null}
-      </div>
-    `;
-  }
-
-  if (error) {
-    return html`
-      <div style=${{
-        padding: "20px",
-        background: "#3c1f1f",
-        color: "#ff6b6b",
-        borderRadius: "6px",
-        fontFamily: "monospace",
-        whiteSpace: "pre-wrap",
-      }}>
-        <strong>Error (after 2 retry attempts):</strong> ${error}
-        <div style=${{ marginTop: "12px" }}>
-          <button
-            style=${{
-              background: "transparent",
-              color: "#ff6b6b",
-              border: "1px solid #ff6b6b",
-              borderRadius: "4px",
-              padding: "6px 10px",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}
-            onClick=${() => {
-              setError(null);
-              setIsRetrying(false);
-              model.set("error_message", "");
-              model.set("widget_error", "");
-              model.set("retry_count", 0);
-              model.save_changes();
-              setRefreshKey((key) => key + 1);
-            }}
-          >
-            Retry
-          </button>
-        </div>
-        <div style=${{ marginTop: "16px", fontSize: "12px", color: "#ffa07a" }}>
-          Check browser console for full stack trace
-        </div>
-      </div>
-    `;
-  }
+  }, [code, model, handleRuntimeError, runKey]);
 
   if (!GuestWidget) {
     return html`
@@ -238,8 +149,8 @@ function SandboxedRunner({ code, model }) {
   }
 
   const fallback = html`
-    <div style=${{ padding: "20px", color: "#ffa07a", fontSize: "14px" }}>
-      Runtime error detected. Asking LLM to fix...
+    <div style=${{ padding: "20px", color: "#f8fafc", fontSize: "14px" }}>
+      Runtime error detected. Check the panel above.
     </div>
   `;
 
@@ -256,5 +167,8 @@ function SandboxedRunner({ code, model }) {
 
 export default React.memo(
   SandboxedRunner,
-  (prevProps, nextProps) => prevProps.code === nextProps.code && prevProps.model === nextProps.model
+  (prevProps, nextProps) =>
+    prevProps.code === nextProps.code &&
+    prevProps.model === nextProps.model &&
+    prevProps.runKey === nextProps.runKey
 );

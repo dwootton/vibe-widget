@@ -285,75 +285,11 @@ class WidgetStore:
         try:
             with open(self.index_file, 'r', encoding='utf-8') as f:
                 index = json.load(f)
-                # Handle schema version upgrade if needed
-                if index.get("schema_version", 1) < SCHEMA_VERSION:
-                    return self._migrate_index(index)
+                if index.get("schema_version") != SCHEMA_VERSION:
+                    return self._empty_index()
                 return index
         except (json.JSONDecodeError, OSError):
             return self._empty_index()
-    
-    def _migrate_index(self, old_index: dict[str, Any]) -> dict[str, Any]:
-        """Migrate from v1/v2 schema to v3 (var_name-based)."""
-        new_index = self._empty_index()
-        
-        # v1/v2 had widgets as a flat list
-        old_widgets = old_index.get("widgets", [])
-        if isinstance(old_widgets, list):
-            for widget in old_widgets:
-                # Use var_name or slug as var_name, fallback to anonymous
-                var_name = widget.get("var_name") or widget.get("slug") or ANONYMOUS_VAR_NAME
-                var_name = self._sanitize_var_name(var_name)
-                
-                if var_name not in new_index["widgets"]:
-                    new_index["widgets"][var_name] = []
-                
-                # Build new widget entry
-                cache_key = widget.get("hash", "")
-                new_entry = {
-                    "created_at": widget.get("created_at"),
-                    "file_name": widget.get("file_name"),
-                    "cache_key": cache_key,
-                    "description": widget.get("description"),
-                    "data_shape": widget.get("data_shape"),
-                    "model": widget.get("model"),
-                    "exports_signature": widget.get("exports_signature"),
-                    "imports_signature": widget.get("imports_signature"),
-                    "theme_signature": widget.get("theme_signature"),
-                    "theme_name": widget.get("theme_name"),
-                    "theme_description": widget.get("theme_description"),
-                    "notebook_path": widget.get("notebook_path"),
-                    "components": widget.get("components", []),
-                    "revision_parent": widget.get("revision_parent") or widget.get("base_widget_id"),
-                    # Backwards compatibility fields for audit system
-                    "id": widget.get("id") or cache_key,
-                    "slug": widget.get("slug") or var_name,
-                    "version": widget.get("version") or 1,
-                }
-                
-                new_index["widgets"][var_name].append(new_entry)
-                
-                # Update cache_index
-                if cache_key:
-                    idx = len(new_index["widgets"][var_name]) - 1
-                    new_index["cache_index"][cache_key] = f"{var_name}/{idx}"
-        
-        # Sort each var_name group by created_at (newest first)
-        for var_name in new_index["widgets"]:
-            new_index["widgets"][var_name].sort(
-                key=lambda w: w.get("created_at") or "",
-                reverse=True
-            )
-        
-        # Rebuild cache_index after sorting
-        new_index["cache_index"] = {}
-        for var_name, widgets in new_index["widgets"].items():
-            for idx, widget in enumerate(widgets):
-                cache_key = widget.get("cache_key")
-                if cache_key:
-                    new_index["cache_index"][cache_key] = f"{var_name}/{idx}"
-        
-        self._update_metadata(new_index)
-        return new_index
     
     def _sanitize_var_name(self, name: str) -> str:
         """Sanitize a string to be a valid Python identifier."""
@@ -444,9 +380,6 @@ class WidgetStore:
         *,
         var_name: str | None = None,
         cache_key: str | None = None,
-        # Legacy support
-        widget_id: str | None = None,
-        slug: str | None = None,
     ) -> int:
         """
         Remove cached widgets by var_name or cache_key.
@@ -454,18 +387,10 @@ class WidgetStore:
         Args:
             var_name: Remove all widgets for this variable name
             cache_key: Remove widget with this specific cache key
-            widget_id: (legacy) Treated as cache_key
-            slug: (legacy) Treated as var_name
         
         Returns:
             Number of widgets removed
         """
-        # Handle legacy parameters
-        if slug and not var_name:
-            var_name = slug
-        if widget_id and not cache_key:
-            cache_key = widget_id
-        
         if not var_name and not cache_key:
             return 0
         
@@ -823,10 +748,6 @@ class WidgetStore:
             "notebook_path": notebook_path,
             "components": components,
             "revision_parent": revision_parent,
-            # Backwards compatibility fields for audit system
-            "id": cache_key,  # Use cache_key as unique identifier
-            "slug": safe_var_name,  # Use var_name as human-readable slug
-            "version": 1,  # Version within var_name group (could be computed but 1 is fine for new entries)
         }
         
         # Initialize var_name group if needed

@@ -146,8 +146,8 @@ class ExportHandle:
 
     def __repr__(self) -> str:
         metadata = getattr(self.widget, "_widget_metadata", {}) or {}
-        slug = metadata.get("slug") or getattr(self.widget, "description", None) or "widget"
-        return f"<VibeExport {slug}.{self.name}>"
+        label = metadata.get("var_name") or getattr(self.widget, "description", None) or "widget"
+        return f"<VibeExport {label}.{self.name}>"
 
 
 def _sanitize_input_name(name: str | None, fallback: str) -> str:

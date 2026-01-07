@@ -7,6 +7,7 @@ import SandboxedRunner from "./components/SandboxedRunner";
 import FloatingMenu from "./components/FloatingMenu";
 import LoadingOverlay from "./components/LoadingOverlay";
 import SelectionOverlay from "./components/SelectionOverlay";
+import RuntimePanel from "./components/RuntimePanel";
 import EditPromptPanel from "./components/EditPromptPanel";
 import AuditNotice from "./components/AuditNotice";
 import EditorViewer from "./components/editor/EditorViewer";
@@ -47,12 +48,14 @@ function AppWrapper({ model }) {
   const [sourceError, setSourceError] = React.useState("");
   const [renderCode, setRenderCode] = React.useState(code || "");
   const [lastGoodCode, setLastGoodCode] = React.useState(code || "");
+  const [runKey, setRunKey] = React.useState(0);
   const [applyState, setApplyState] = React.useState({
     pending: false,
     previousCode: "",
     nextCode: ""
   });
   const containerRef = React.useRef(null);
+  const [containerBounds, setContainerBounds] = React.useState(null);
   const [minHeight, setMinHeight] = React.useState(0);
   const [hasAuditAck, setHasAuditAck] = React.useState(() => {
     try {
@@ -69,6 +72,43 @@ function AppWrapper({ model }) {
       return false;
     }
   });
+
+  React.useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const updateBounds = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      setContainerBounds({
+        top: rect.top,
+        left: rect.left,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height
+      });
+    };
+
+    updateBounds();
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(updateBounds);
+      resizeObserver.observe(node);
+    }
+
+    window.addEventListener("resize", updateBounds);
+    window.addEventListener("scroll", updateBounds, true);
+
+    return () => {
+      window.removeEventListener("resize", updateBounds);
+      window.removeEventListener("scroll", updateBounds, true);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, []);
 
   const handleGrabStart = () => {
     setMenuOpen(false);
@@ -102,13 +142,19 @@ function AppWrapper({ model }) {
     setGrabMode(null);
   };
 
-  const isRetrying = (retryCount || 0) > 0 && (retryCount || 0) < 2;
-  const isLoading = status === "generating" || isRetrying;
+  const isLoading = status === "generating" || status === "retrying";
   const hasCode = renderCode && renderCode.length > 0;
   const approvalMode = executionMode === "approve";
   const isApproved = executionApproved || !approvalMode;
   const shouldRenderWidget = hasCode && isApproved;
-  const recentWidgetLogs = Array.isArray(widgetLogs) ? widgetLogs.slice(-3) : [];
+  const handleRetryRun = () => {
+    setRunKey((key) => key + 1);
+    model.set("error_message", "");
+    model.set("widget_error", "");
+    model.set("retry_count", 0);
+    model.set("status", "retrying");
+    model.save_changes();
+  };
 
   useKeyboardShortcuts({ isLoading, hasCode, grabMode, onGrabStart: handleGrabStart });
   React.useEffect(() => {
@@ -277,34 +323,20 @@ function AppWrapper({ model }) {
         minHeight: minHeight ? `${minHeight}px` : "220px"
       }}
     >
-      ${widgetError ? html`
-        <div style=${{
-          padding: "12px 16px",
-          marginBottom: "12px",
-          borderRadius: "8px",
-          background: "#3c1f1f",
-          color: "#ffd6d6",
-          fontFamily: "monospace",
-          whiteSpace: "pre-wrap",
-        }}>
-          <strong>Widget Error:</strong> ${widgetError}
-          ${recentWidgetLogs.length ? html`
-            <div style=${{ marginTop: "8px", fontSize: "12px", color: "#ffa07a" }}>
-              Recent logs:
-              <ul style=${{ margin: "6px 0 0 16px", padding: 0 }}>
-                ${recentWidgetLogs.map((entry) => html`<li>${entry.message}</li>`)}
-              </ul>
-            </div>
-          ` : null}
-        </div>
-      ` : null}
+      <${RuntimePanel}
+        status=${status}
+        errorMessage=${errorMessage}
+        widgetError=${widgetError}
+        widgetLogs=${widgetLogs}
+        onRetry=${handleRetryRun}
+      />
       ${shouldRenderWidget && html`
         <div style=${{
           opacity: isLoading ? 0.4 : 1,
           pointerEvents: isLoading ? "none" : "auto",
           transition: "opacity 0.3s ease",
         }}>
-          <${SandboxedRunner} code=${renderCode} model=${model} />
+          <${SandboxedRunner} code=${renderCode} model=${model} runKey=${runKey} />
         </div>
       `}
       
@@ -336,6 +368,7 @@ function AppWrapper({ model }) {
       ${grabMode && grabMode !== "selecting" && html`
         <${EditPromptPanel}
           elementBounds=${grabMode.bounds}
+          containerBounds=${containerBounds}
           elementDescription=${grabMode.element}
           initialPrompt=${promptCache[grabMode.elementKey] || ""}
           onSubmit=${handleEditSubmit}

@@ -5,7 +5,6 @@ Clean, robust widget generation without legacy profile logic.
 from pathlib import Path
 from typing import Any, Union
 import json
-import warnings
 import inspect
 import sys
 import time
@@ -28,7 +27,6 @@ from vibe_widget.config import (
     PREMIUM_MODELS,
     STANDARD_MODELS,
     get_global_config,
-    set_global_config,
 )
 from vibe_widget.llm.providers.openrouter_provider import OpenRouterProvider
 
@@ -43,8 +41,10 @@ from vibe_widget.utils.util import (
 )
 from vibe_widget.themes import Theme, clear_theme_cache
 from vibe_widget.core.state import StateManager
+from vibe_widget.core.lifecycle import WidgetLifecycle
 from vibe_widget.services.audit import AuditService
 from vibe_widget.services.generation import GenerationService
+from vibe_widget.services.repair import RepairService
 from vibe_widget.services.theme import ThemeService
 from vibe_widget.utils.logging import get_logger
 
@@ -99,10 +99,6 @@ def _get_widget_class(
     _CLASS_CACHE[signature] = widget_class
     return widget_class
 
-
-# ComponentReference is deprecated - component access now returns VibeWidget directly
-# For backwards compatibility, we keep this as an alias
-ComponentReference = None  # Will be set to VibeWidget after class definition
 
 logger = get_logger(__name__)
 
@@ -277,6 +273,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._llm_provider = None
         self._generation_service: GenerationService | None = None
         self._audit_service: AuditService | None = None
+        self._repair_service: RepairService | None = None
         
         app_wrapper_dir = Path(__file__).resolve().parents[1]
         app_wrapper_path = app_wrapper_dir / "AppWrapper.bundle.js"
@@ -326,6 +323,8 @@ class VibeWidget(anywidget.AnyWidget):
             **kwargs
         )
 
+        self._lifecycle = WidgetLifecycle(self)
+
         if display_widget:
             _display_widget(self)
         
@@ -346,6 +345,7 @@ class VibeWidget(anywidget.AnyWidget):
             self._audit_service = AuditService()
             self._llm_provider = provider
             self.orchestrator = self._generation_service.orchestrator
+            self._repair_service = RepairService(self._generation_service.orchestrator)
             inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
             if df is not None and isinstance(df, pd.DataFrame) and "data" not in inputs_for_prompt:
                 try:
@@ -356,7 +356,7 @@ class VibeWidget(anywidget.AnyWidget):
             if existing_code is not None:
                 self.logs = self.logs + ["Reusing existing widget code"]
                 self.code = existing_code
-                self.status = "ready"
+                self._set_status("ready")
                 self.description = description
                 self._widget_metadata = existing_metadata or {}
                 if self._theme and "theme_description" not in self._widget_metadata:
@@ -404,7 +404,7 @@ class VibeWidget(anywidget.AnyWidget):
                 self.logs = self.logs + [f"  Created: {cached_widget['created_at'][:10]}"]
                 widget_code = store.load_widget_code(cached_widget)
                 self.code = widget_code
-                self.status = "ready"
+                self._set_status("ready")
                 self.description = description
                 self._widget_metadata = cached_widget
                 if self._theme is None and cached_widget.get("theme_description"):
@@ -513,7 +513,7 @@ class VibeWidget(anywidget.AnyWidget):
             self.logs = self.logs + [f"Widget saved: {widget_entry.get('var_name', 'widget')}"]
             self.logs = self.logs + [f"Location: .vibewidget/widgets/{widget_entry['file_name']}"]
             self.code = widget_code
-            self.status = "ready"
+            self._set_status("ready")
             self.description = description
             self._widget_metadata = widget_entry
             
@@ -527,7 +527,7 @@ class VibeWidget(anywidget.AnyWidget):
             )
             
         except Exception as e:
-            self.status = "error"
+            self._set_status("error")
             self.logs = self.logs + [f"Error: {str(e)}"]
             raise
 
@@ -549,6 +549,14 @@ class VibeWidget(anywidget.AnyWidget):
                 # Fall back to default lookup for early init or missing attrs
                 pass
         return super().__getattribute__(name)
+
+    def _set_status(self, status: str, *, force: bool = False) -> None:
+        """Update widget lifecycle status through the lifecycle manager."""
+        lifecycle = getattr(self, "_lifecycle", None)
+        if lifecycle is None:
+            self.status = status
+            return
+        lifecycle.transition(status, force=force)
 
     def _normalize_audit_state(self, state: dict[str, Any] | None) -> dict[str, Any]:
         base = {
@@ -703,115 +711,6 @@ class VibeWidget(anywidget.AnyWidget):
             "base_widget_id": base_widget_id,
         }
 
-    def _set_recipe(self, **kwargs) -> None:
-        """Backward-compatible wrapper for storing creation parameters."""
-        self._store_creation_params(**kwargs)
-
-    def _get_creation_param(self, name: str, fallback: Any = None) -> Any:
-        if self._creation_params and name in self._creation_params:
-            return self._creation_params.get(name)
-        legacy_key = f"_recipe_{name}"
-        legacy = self.__dict__.get(legacy_key, fallback)
-        if legacy is not None:
-            return legacy
-        return fallback
-
-    @property
-    def _recipe_description(self) -> Any:
-        return self._get_creation_param("description")
-
-    @_recipe_description.setter
-    def _recipe_description(self, value: Any) -> None:
-        self._creation_params["description"] = value
-
-    @property
-    def _recipe_data_source(self) -> Any:
-        return self._get_creation_param("data_source")
-
-    @_recipe_data_source.setter
-    def _recipe_data_source(self, value: Any) -> None:
-        self._creation_params["data_source"] = value
-
-    @property
-    def _recipe_data_type(self) -> Any:
-        return self._get_creation_param("data_type")
-
-    @_recipe_data_type.setter
-    def _recipe_data_type(self, value: Any) -> None:
-        self._creation_params["data_type"] = value
-
-    @property
-    def _recipe_data_columns(self) -> Any:
-        return self._get_creation_param("data_columns")
-
-    @_recipe_data_columns.setter
-    def _recipe_data_columns(self, value: Any) -> None:
-        self._creation_params["data_columns"] = value
-
-    @property
-    def _recipe_exports(self) -> Any:
-        return self._get_creation_param("exports")
-
-    @_recipe_exports.setter
-    def _recipe_exports(self, value: Any) -> None:
-        self._creation_params["exports"] = value
-
-    @property
-    def _recipe_imports(self) -> Any:
-        return self._get_creation_param("imports")
-
-    @_recipe_imports.setter
-    def _recipe_imports(self, value: Any) -> None:
-        self._creation_params["imports"] = value
-
-    @property
-    def _recipe_model(self) -> Any:
-        return self._get_creation_param("model")
-
-    @_recipe_model.setter
-    def _recipe_model(self, value: Any) -> None:
-        self._creation_params["model"] = value
-
-    @property
-    def _recipe_model_resolved(self) -> Any:
-        return self._get_creation_param("model_resolved")
-
-    @_recipe_model_resolved.setter
-    def _recipe_model_resolved(self, value: Any) -> None:
-        self._creation_params["model_resolved"] = value
-
-    @property
-    def _recipe_theme(self) -> Any:
-        return self._get_creation_param("theme")
-
-    @_recipe_theme.setter
-    def _recipe_theme(self, value: Any) -> None:
-        self._creation_params["theme"] = value
-
-    @property
-    def _recipe_base_code(self) -> Any:
-        return self._get_creation_param("base_code")
-
-    @_recipe_base_code.setter
-    def _recipe_base_code(self, value: Any) -> None:
-        self._creation_params["base_code"] = value
-
-    @property
-    def _recipe_base_components(self) -> Any:
-        return self._get_creation_param("base_components")
-
-    @_recipe_base_components.setter
-    def _recipe_base_components(self, value: Any) -> None:
-        self._creation_params["base_components"] = value
-
-    @property
-    def _recipe_base_widget_id(self) -> Any:
-        return self._get_creation_param("base_widget_id")
-
-    @_recipe_base_widget_id.setter
-    def _recipe_base_widget_id(self, value: Any) -> None:
-        self._creation_params["base_widget_id"] = value
-
     def __call__(self, *args, **kwargs):
         """Create a new widget instance, swapping data/inputs heuristically."""
         if not args and not kwargs:
@@ -866,9 +765,10 @@ class VibeWidget(anywidget.AnyWidget):
         return target
 
     def _rerun_with(self, *args, **kwargs) -> "VibeWidget":
-        if not self._creation_params and not hasattr(self, "_recipe_description"):
+        if not self._creation_params:
             raise ValueError("This widget was created before rerun support was added.")
 
+        params = self._creation_params
         display = kwargs.pop("display", True)
         candidate_data = kwargs.pop("data", None)
         candidate_inputs = kwargs.pop("inputs", None)
@@ -889,19 +789,19 @@ class VibeWidget(anywidget.AnyWidget):
                 bundle_data = arg.data if arg.data is not None else candidate_data
                 bundle_inputs = arg.inputs
                 candidate_data = bundle_data
-                merged = dict(self._get_creation_param("imports", {}) or {})
+                merged = dict(params.get("imports") or {})
                 merged.update(bundle_inputs or {})
                 candidate_imports = merged
             else:
                 matched = False
-                if self._get_creation_param("data_type") and isinstance(arg, self._get_creation_param("data_type")):
+                if params.get("data_type") and isinstance(arg, params.get("data_type")):
                     candidate_data = arg
                     matched = True
                 if not matched:
                     # Try to swap an import with the same type
-                    for name, source in (self._get_creation_param("imports", {}) or {}).items():
+                    for name, source in (params.get("imports") or {}).items():
                         if source is not None and isinstance(arg, type(source)):
-                            merged = dict(self._get_creation_param("imports", {}) or {})
+                            merged = dict(params.get("imports") or {})
                             merged[name] = arg
                             candidate_imports = merged
                             matched = True
@@ -910,14 +810,14 @@ class VibeWidget(anywidget.AnyWidget):
                     # Fallback: treat as data (covers DataFrame, str path, etc.)
                     candidate_data = arg
 
-        data = candidate_data if candidate_data is not None else self._get_creation_param("data_source")
-        imports = candidate_imports if candidate_imports is not None else self._get_creation_param("imports")
+        data = candidate_data if candidate_data is not None else params.get("data_source")
+        imports = candidate_imports if candidate_imports is not None else params.get("imports")
         df = load_data(data)
         existing_code = getattr(self, "code", None)
         existing_metadata = getattr(self, "_widget_metadata", None)
 
-        if self._get_creation_param("data_columns") and isinstance(df, pd.DataFrame):
-            missing = set(self._get_creation_param("data_columns")) - set(df.columns)
+        if params.get("data_columns") and isinstance(df, pd.DataFrame):
+            missing = set(params.get("data_columns")) - set(df.columns)
             if missing:
                 raise ValueError(
                     "The new dataset is missing required columns for this widget: "
@@ -925,16 +825,16 @@ class VibeWidget(anywidget.AnyWidget):
                 )
 
         widget = VibeWidget._create_with_dynamic_traits(
-            description=self._get_creation_param("description"),
+            description=params.get("description"),
             df=df,
-            model=self._get_creation_param("model_resolved"),
-            exports=self._get_creation_param("exports"),
+            model=params.get("model_resolved"),
+            exports=params.get("exports"),
             imports=imports,
-            theme=self._get_creation_param("theme"),
+            theme=params.get("theme"),
             var_name=None,
-            base_code=self._get_creation_param("base_code"),
-            base_components=self._get_creation_param("base_components"),
-            base_widget_id=self._get_creation_param("base_widget_id"),
+            base_code=params.get("base_code"),
+            base_components=params.get("base_components"),
+            base_widget_id=params.get("base_widget_id"),
             existing_code=existing_code,
             existing_metadata=existing_metadata,
             display_widget=display,
@@ -952,7 +852,6 @@ class VibeWidget(anywidget.AnyWidget):
         inputs: dict[str, Any] | InputsBundle | None = None,
         actions: dict[str, str] | ActionBundle | None = None,
         theme: Theme | str | None = None,
-        config: Config | None = None,
         display: bool = True,
         cache: bool = True,
     ) -> "VibeWidget":
@@ -978,7 +877,6 @@ class VibeWidget(anywidget.AnyWidget):
             inputs=inputs,
             actions=actions,
             theme=theme,
-            config=config,
             display=display,
             cache=cache,
             _var_name=var_name,
@@ -1092,7 +990,7 @@ class VibeWidget(anywidget.AnyWidget):
 
         self.audit_apply_status = "running"
         self.audit_apply_error = ""
-        self.status = "generating"
+        self._set_status("generating")
 
         change_lines = []
         for item in changes:
@@ -1128,69 +1026,69 @@ class VibeWidget(anywidget.AnyWidget):
                 data_info=self.data_info,
             )
             self.code = revised_code
-            self.status = "ready"
+            self._set_status("ready")
             self.audit_apply_status = "idle"
             self.audit_apply_response = {"success": True, "applied": len(changes)}
         except Exception as exc:
             self.audit_apply_status = "error"
             self.audit_apply_error = str(exc)
             self.audit_apply_response = {"success": False, "error": str(exc)}
-            self.status = "ready"
+            self._set_status("ready")
         finally:
             self._update_audit_state(apply_request={})
     
     def _on_error(self, change):
         """Called when frontend reports a runtime error."""
-        error_msg = change['new']
+        error_msg = change["new"]
 
         if error_msg:
             logger.error("Frontend runtime error:\n%s", error_msg)
 
-        if self._generation_service is None:
+        orchestrator = getattr(self, "orchestrator", None)
+        if self._repair_service is None:
+            if orchestrator is None or not hasattr(orchestrator, "fix_runtime_error"):
+                return
+            self._repair_service = RepairService(orchestrator)
+        elif orchestrator is not None and getattr(self._repair_service, "orchestrator", None) is not orchestrator:
+            self._repair_service = RepairService(orchestrator)
+
+        if not error_msg:
             return
 
-        if not error_msg or self.retry_count >= 2:
+        if self.retry_count >= RepairService.MAX_RETRIES:
+            self._set_status("blocked")
+            self.logs = self.logs + ["Repair blocked: retry limit reached"]
+            self.error_message = ""
             return
-        
+
         self.retry_count += 1
-        self.status = 'generating'
-        
-        error_preview = error_msg.split('\n')[0][:100]
+        self._set_status("retrying")
+
+        error_preview = error_msg.split("\n")[0][:100]
         self.logs = self.logs + [f"Error detected: {error_preview}"]
         self.logs = self.logs + ["Asking LLM to fix the error"]
-        
-        try:
-            orchestrator = getattr(self, "orchestrator", None)
-            if orchestrator is not None and hasattr(orchestrator, "fix_runtime_error"):
-                fixed_code = orchestrator.fix_runtime_error(
-                    code=self.code,
-                    error_message=error_msg,
-                    data_info=clean_for_json(self.data_info),
-                )
-                should_retry = False
-            else:
-                fixed_code, should_retry = self._generation_service.fix_runtime_error(
-                    code=self.code,
-                    error_message=error_msg,
-                    data_info=self.data_info,
-                    retry_count=self.retry_count,
-                )
 
-            if should_retry and fixed_code == self.code:
-                self.status = "error"
-                self.logs = self.logs + ["Fix attempt failed"]
-                self.error_message = ""
-                return
+        result = self._repair_service.fix_runtime_error(
+            code=self.code,
+            error_message=error_msg,
+            data_info=self.data_info,
+            retry_count=self.retry_count,
+        )
 
+        if result.applied:
             self.logs = self.logs + ["Code fixed, retrying"]
-            self.code = fixed_code
-            self.status = 'ready'
+            self.code = result.code
+            self._set_status("ready")
             self.error_message = ""
             self.retry_count = 0
-        except Exception as e:
-            self.status = "error"
-            self.logs = self.logs + [f"Fix attempt failed: {str(e)}"]
-            self.error_message = ""
+            return
+
+        self.logs = self.logs + [result.message or "Fix attempt failed"]
+        if result.retryable:
+            self._set_status("error")
+        else:
+            self._set_status("blocked")
+        self.error_message = ""
 
     def _append_widget_log(self, message: str, *, level: str = "info", source: str = "python") -> None:
         logs = list(self.widget_logs or [])
@@ -1284,17 +1182,16 @@ class VibeWidget(anywidget.AnyWidget):
         
         # Get metadata from parent widget
         parent_metadata = self._widget_metadata or {}
-        parent_slug = parent_metadata.get('slug', 'widget')
+        parent_var_name = parent_metadata.get("var_name") or "widget"
         
         # Component widget metadata
         component_metadata = {
             **parent_metadata,
             "is_component_view": True,
             "source_component": component_name,
-            "parent_widget_id": parent_metadata.get("id"),
-            "parent_slug": parent_slug,
-            # Override slug for the component
-            "slug": f"{parent_slug}:{self._to_python_attr(component_name)}",
+            "parent_cache_key": parent_metadata.get("cache_key"),
+            "parent_var_name": parent_var_name,
+            "var_name": f"{parent_var_name}:{self._to_python_attr(component_name)}",
             # Component has single component (itself)
             "components": [component_name],
         }
@@ -1305,7 +1202,7 @@ class VibeWidget(anywidget.AnyWidget):
         
         # Create the component widget
         widget = VibeWidget._create_with_dynamic_traits(
-            description=f"{component_name} (from {parent_slug})",
+            description=f"{component_name} (from {parent_var_name})",
             df=df,
             model=parent_metadata.get("model", "claude-haiku-4-5-20251001"),
             exports=None,
@@ -1368,7 +1265,7 @@ class VibeWidget(anywidget.AnyWidget):
         if not user_prompt:
             return
         if self._generation_service is None:
-            self.status = 'error'
+            self._set_status("error")
             self.logs = ['✘ Edit failed: LLM service unavailable']
             return
         
@@ -1376,7 +1273,7 @@ class VibeWidget(anywidget.AnyWidget):
         previous_metadata = self._widget_metadata
         self._pending_old_code = old_code
         self.edit_in_progress = True
-        self.status = 'generating'
+        self._set_status("generating")
         self.logs = [f"Editing: {user_prompt[:50]}{'...' if len(user_prompt) > 50 else ''}"]
         
         old_position = 0
@@ -1434,7 +1331,7 @@ class VibeWidget(anywidget.AnyWidget):
             )
             
             self.code = revised_code
-            self.status = 'ready'
+            self._set_status("ready")
             self.logs = self.logs + ['✓ Edit applied']
             
             store = WidgetStore()
@@ -1466,10 +1363,10 @@ class VibeWidget(anywidget.AnyWidget):
         except Exception as e:
             if "cancelled" in str(e).lower():
                 self.code = old_code
-                self.status = 'ready'
+                self._set_status("ready")
                 self.logs = self.logs + ['✗ Edit cancelled']
             else:
-                self.status = 'error'
+                self._set_status("error")
                 self.logs = self.logs + [f'✘ Edit failed: {str(e)}']
         
         self.edit_in_progress = False
@@ -1541,8 +1438,6 @@ Find this element in the code and apply the requested change. The element should
         updated["approved_hash"] = current_hash
         self.execution_state = updated
 
-
-ComponentReference = VibeWidget
 
 
 def _resolve_import_source(import_name: str, import_source: Any) -> tuple[Any | None, str | None]:
@@ -1632,17 +1527,8 @@ def _display_widget(widget: VibeWidget) -> None:
 
 def _resolve_model(
     model_override: str | None = None,
-    config_override: Config | None = None,
 ) -> tuple[str, Config]:
-    """Resolve the model using global config; config arg is deprecated shim."""
-    if config_override is not None:
-        warnings.warn(
-            "Passing `config` to create/edit is deprecated; call vw.config(...) first.",
-            DeprecationWarning,
-            stacklevel=3,
-        )
-        set_global_config(config_override)
-
+    """Resolve the model using global config."""
     config = get_global_config()
     candidate = model_override or config.model
     model_map = PREMIUM_MODELS if config.mode == "premium" else STANDARD_MODELS
@@ -1701,7 +1587,6 @@ def create(
     inputs: dict[str, Any] | InputsBundle | None = None,
     actions: dict[str, str] | ActionBundle | None = None,
     theme: Theme | str | None = None,
-    config: Config | None = None,
     display: bool = True,
     cache: bool = True,
 ) -> VibeWidget:
@@ -1714,7 +1599,6 @@ def create(
         inputs: Dict of {trait_name: source} for consumed state
         actions: Dict of {action_name: description} for interactive callbacks
         theme: Theme object, theme name, or prompt string
-        config: Optional Config object with model settings (deprecated; call vw.config instead)
         display: Whether to display the widget immediately (IPython environments only)
         cache: If False, bypass cache and regenerate widget/theme
 
@@ -1736,7 +1620,7 @@ def create(
         inputs=inputs,
         actions=actions,
     )
-    model, resolved_config = _resolve_model(config_override=config)
+    model, resolved_config = _resolve_model()
     df = load_data(data)
     theme_service = ThemeService()
     resolved_theme = theme_service.resolve(
@@ -1868,7 +1752,6 @@ def edit(
     inputs: dict[str, Any] | InputsBundle | None = None,
     actions: dict[str, str] | ActionBundle | None = None,
     theme: Theme | str | None = None,
-    config: Config | None = None,
     display: bool = True,
     cache: bool = True,
     _var_name: str | None = None,
@@ -1883,7 +1766,6 @@ def edit(
         inputs: Dict of {trait_name: source} for new/modified inputs
         actions: Dict of {action_name: description} for new/modified actions
         theme: Theme object, theme name, or prompt string
-        config: Optional Config object with model settings (deprecated; call vw.config instead)
         cache: If False, bypass cache and regenerate widget/theme
 
     Returns:
@@ -1908,7 +1790,7 @@ def edit(
     )
     store = WidgetStore()
     source_info = _resolve_source(source, store)
-    model, resolved_config = _resolve_model(config_override=config)
+    model, resolved_config = _resolve_model()
     if theme is None and source_info.theme is not None:
         resolved_theme = source_info.theme
     else:
@@ -2139,10 +2021,10 @@ def clear(target: Union["VibeWidget", str] = "all") -> dict[str, int]:
 
     if isinstance(target, VibeWidget):
         metadata = getattr(target, "_widget_metadata", {}) or {}
-        widget_id = metadata.get("id")
-        widget_slug = metadata.get("slug")
-        results["widgets"] = WidgetStore().clear_for_widget(widget_id=widget_id, slug=widget_slug)
-        results["audits"] = AuditStore().clear_for_widget(widget_id=widget_id, widget_slug=widget_slug)
+        cache_key = metadata.get("cache_key")
+        var_name = metadata.get("var_name")
+        results["widgets"] = WidgetStore().clear_for_widget(cache_key=cache_key, var_name=var_name)
+        results["audits"] = AuditStore().clear_for_widget(widget_id=cache_key, widget_slug=var_name)
         return results
 
     if isinstance(target, str):
@@ -2162,8 +2044,8 @@ def clear(target: Union["VibeWidget", str] = "all") -> dict[str, int]:
             results["themes"] = clear_theme_cache()
             return results
 
-        results["widgets"] = WidgetStore().clear_for_widget(widget_id=target, slug=target)
-        results["audits"] = AuditStore().clear_for_widget(widget_id=target, widget_slug=target)
+        results["widgets"] = WidgetStore().clear_for_widget(var_name=target)
+        results["audits"] = AuditStore().clear_for_widget(widget_slug=target)
         return results
 
     raise TypeError("vw.clear expects a cache type string or a VibeWidget instance.")

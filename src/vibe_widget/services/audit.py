@@ -188,8 +188,8 @@ class AuditService:
         current_line_hashes = compute_line_hashes(code)
 
         previous_audit = None
-        if reuse and widget_metadata.get("id"):
-            previous_audit = store.load_latest_audit(widget_metadata["id"], level)
+        if reuse and widget_metadata.get("cache_key"):
+            previous_audit = store.load_latest_audit(widget_metadata["cache_key"], level)
         if not previous_audit and reuse and widget_metadata.get("base_widget_id"):
             previous_audit = store.load_latest_audit(widget_metadata["base_widget_id"], level)
 

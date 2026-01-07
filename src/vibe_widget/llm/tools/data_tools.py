@@ -51,6 +51,24 @@ class DataLoadTool(Tool):
                 data = df if df is not None else source
             # 2. Path or string
             elif isinstance(source, (str, Path)):
+                source_path = Path(source) if isinstance(source, (str, Path)) else None
+                if source_path and source_path.exists() and source_path.is_dir():
+                    supported_exts = (
+                        ".csv", ".tsv", ".json", ".geojson", ".parquet",
+                        ".nc", ".nc4", ".netcdf", ".xml", ".isf",
+                        ".xlsx", ".xls", ".pdf", ".txt",
+                    )
+                    candidates = [
+                        path for path in sorted(source_path.iterdir())
+                        if path.is_file() and path.suffix.lower() in supported_exts
+                    ]
+                    if not candidates:
+                        return ToolResult(
+                            success=False,
+                            output={},
+                            error=f"No supported data files found in directory: {source}",
+                        )
+                    source = candidates[0]
                 source_str = str(source).lower()
                 if source_str.startswith(('http://', 'https://')):
                     data = self._load_web(source)

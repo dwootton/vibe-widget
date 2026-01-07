@@ -126,8 +126,6 @@ def _build_model_maps() -> tuple[dict, dict]:
 
 PREMIUM_MODELS, STANDARD_MODELS = _build_model_maps()
 
-# Keep LATEST_MODELS for backward compatibility (tracks the default standard choice)
-LATEST_MODELS = {"openrouter": STANDARD_MODELS.get("openrouter") or PREMIUM_MODELS.get("openrouter")}
 
 
 @dataclass
