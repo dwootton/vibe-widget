@@ -163,6 +163,17 @@ function SandboxedRunner({ code, model, runKey }) {
       model.save_changes = guardCall(originalSave);
     }
 
+    const handleWindowError = (event) => {
+      if (!event) return;
+      const err = event.error || event.reason || event.message || event;
+      handleRuntimeError(err);
+    };
+
+    window.addEventListener("error", handleWindowError);
+    window.addEventListener("unhandledrejection", handleWindowError);
+    trackDisposer(() => window.removeEventListener("error", handleWindowError));
+    trackDisposer(() => window.removeEventListener("unhandledrejection", handleWindowError));
+
     const executeCode = async () => {
       try {
         setGuestWidget(null);
@@ -178,6 +189,7 @@ function SandboxedRunner({ code, model, runKey }) {
         URL.revokeObjectURL(url);
 
         if (module.default && typeof module.default === "function") {
+          console.debug("[vibe][runtime] module loaded successfully");
           setGuestWidget(() => module.default);
           model.set("error_message", "");
           model.set("widget_error", "");
@@ -188,6 +200,7 @@ function SandboxedRunner({ code, model, runKey }) {
           throw new Error("Generated code must export a default function");
         }
       } catch (err) {
+        console.error("[vibe][runtime] executeCode failed", err);
         handleRuntimeError(err);
         teardown();
       }
@@ -215,6 +228,7 @@ function SandboxedRunner({ code, model, runKey }) {
     }
 
     componentDidCatch(err, info) {
+      console.error("[vibe][runtime][boundary] render error", err, info?.componentStack);
       const componentStack = info && info.componentStack ? `\n\nComponent stack:\n${info.componentStack}` : "";
       this.setState({ error: err });
       if (this.props.onError) {
@@ -242,13 +256,23 @@ function SandboxedRunner({ code, model, runKey }) {
     </div>
   `;
 
+  const GuardedGuest = (props) => {
+    try {
+      return html`<${GuestWidget} ...${props} />`;
+    } catch (err) {
+      console.error("[vibe][runtime] render threw synchronously", err);
+      handleRuntimeError(err);
+      return fallback;
+    }
+  };
+
   return html`
     <${RuntimeErrorBoundary}
       resetKey=${code}
       onError=${handleRuntimeError}
       fallback=${fallback}
     >
-      <${GuestWidget} model=${model} html=${html} React=${React} />
+      <${GuardedGuest} model=${model} html=${html} React=${React} />
     </${RuntimeErrorBoundary}>
   `;
 }

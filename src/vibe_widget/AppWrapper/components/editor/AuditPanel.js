@@ -29,6 +29,13 @@ export default function AuditPanel({
         .audit-panel {
           font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
             Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          color: #f2f0e9;
+        }
+        .audit-panel a {
+          color: #f97316;
+        }
+        .audit-panel a:hover {
+          color: #fb923c;
         }
         .audit-panel-header {
           font-size: 11px;
@@ -73,7 +80,7 @@ export default function AuditPanel({
         .audit-run-link {
           background: none;
           border: none;
-          color: #f6b089;
+          color: #f97316;
           text-decoration: underline;
           cursor: pointer;
           font-size: 11px;

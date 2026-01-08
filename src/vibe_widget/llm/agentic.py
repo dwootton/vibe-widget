@@ -47,6 +47,9 @@ class AgenticOrchestrator:
         """
 
         def css_to_object(css: str) -> Optional[str]:
+            # Skip styles that already look dynamic/template-driven to avoid mangling valid HTM/React objects.
+            if "`" in css or "${" in css:
+                return None
             entries = []
             for part in css.split(";"):
                 part = part.strip()
@@ -67,29 +70,16 @@ class AgenticOrchestrator:
         # Allow inner quotes (e.g., font-family: 'Geograph', sans-serif) by separating outer quotes.
         # Apply only on lines that look like markup to avoid mangling arbitrary JS strings.
         literal_style_double = re.compile(
-            r'style\s*=\s*"([^"{}$]*)"',
+            r'style\s*=\s*"([^"{}$`]*)"',
             re.IGNORECASE,
         )
         literal_style_single = re.compile(
-            r"style\s*=\s*'([^'{}$]*)'",
-            re.IGNORECASE,
-        )
-        templated_style_double = re.compile(
-            r'style\s*=\s*\$\s*\{\s*"([^"{}$]*)"\s*\}',
-            re.IGNORECASE,
-        )
-        templated_style_single = re.compile(
-            r"style\s*=\s*\$\s*\{\s*'([^'{}$]*)'\s*\}",
+            r"style\s*=\s*'([^'{}$`]*)'",
             re.IGNORECASE,
         )
         markup_hint = re.compile(r"<[a-zA-Z]", re.IGNORECASE)
 
         def literal_replacer(match: re.Match[str]) -> str:
-            css = match.group(1)
-            converted = css_to_object(css)
-            return f"style={converted}" if converted else match.group(0)
-
-        def templated_replacer(match: re.Match[str]) -> str:
             css = match.group(1)
             converted = css_to_object(css)
             return f"style={converted}" if converted else match.group(0)
@@ -102,8 +92,6 @@ class AgenticOrchestrator:
                     continue
                 line = literal_style_double.sub(literal_replacer, line)
                 line = literal_style_single.sub(literal_replacer, line)
-                line = templated_style_double.sub(templated_replacer, line)
-                line = templated_style_single.sub(templated_replacer, line)
                 lines[i] = line
             return "\n".join(lines)
         except Exception:

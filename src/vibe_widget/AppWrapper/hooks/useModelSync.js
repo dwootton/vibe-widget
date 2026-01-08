@@ -31,7 +31,11 @@ export default function useModelSync(model) {
     const onLastRuntimeErrorChange = () => setLastRuntimeError(model.get("last_runtime_error"));
     const onWidgetLogsChange = () => setWidgetLogs(model.get("widget_logs"));
     const onRetryCountChange = () => setRetryCount(model.get("retry_count"));
-    const onAuditStateChange = () => setAuditState(model.get("audit_state") || {});
+    const onAuditStateChange = () => {
+      const nextAudit = model.get("audit_state") || {};
+      console.debug("[vibe][audit] audit_state changed", nextAudit);
+      setAuditState(nextAudit);
+    };
     const onExecutionStateChange = () => setExecutionState(model.get("execution_state") || {});
 
     model.on("change:status", onStatusChange);

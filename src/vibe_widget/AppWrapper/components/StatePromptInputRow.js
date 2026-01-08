@@ -90,7 +90,7 @@ export default function StatePromptInputRow({
           padding: 0;
           border: none;
           border-radius: 2px;
-          margin-left: 12px;
+          margin-left: 4px;
         }
         .log-entry--input .log-icon {
           margin-left: 0;
@@ -102,10 +102,10 @@ export default function StatePromptInputRow({
           }
         .state-input {
           width: 100%;
-          background: #0f0f0f;
+          background: transparent;
           color: #f2f0e9;
-          border: 1px solid #2a2a2a;
-          padding: 4px 6px;
+          border: none;
+          padding: 0;
           margin: 0;
           box-shadow: none;
           outline: none;
@@ -132,7 +132,7 @@ export default function StatePromptInputRow({
           visibility: hidden;
           white-space: pre-wrap;
           word-break: break-word;
-          padding: 4px 6px;
+          padding: 0;
           margin: 0;
             font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
               Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;

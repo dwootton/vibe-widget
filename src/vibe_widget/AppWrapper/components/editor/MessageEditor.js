@@ -25,6 +25,126 @@ export default function MessageEditor({
 
   return html`
     <div class="audit-changes-strip ${pendingCount === 0 ? "compact" : ""}">
+      <style>
+        .audit-changes-strip {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .audit-changes-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .audit-changes-items {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .audit-change-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #0b0b0b;
+          border: 1px solid #4b5563;
+          border-radius: 6px;
+          padding: 6px 10px;
+          color: #e5e7eb;
+          font-size: 11px;
+          max-width: 220px;
+          position: relative;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .audit-change-pill span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .audit-change-remove {
+          border: none;
+          background: transparent;
+          color: #9aa4b2;
+          cursor: pointer;
+          font-size: 12px;
+          line-height: 1;
+        }
+        .audit-change-remove:hover {
+          color: #f87171;
+        }
+        .audit-bubble-editor {
+          position: absolute;
+          bottom: 130%;
+          left: 0;
+          width: 240px;
+          background: #0f141a;
+          border: 1px solid rgba(71, 85, 105, 0.6);
+          border-radius: 10px;
+          padding: 8px;
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+          z-index: 10;
+        }
+        .audit-bubble-editor textarea {
+          width: 100%;
+          min-height: 80px;
+          background: #12141d;
+          color: #e5e7eb;
+          border: 1px solid rgba(71, 85, 105, 0.6);
+          border-radius: 8px;
+          padding: 6px;
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 11px;
+          resize: vertical;
+        }
+        .audit-bubble-editor-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 6px;
+          margin-top: 6px;
+        }
+        .audit-bubble-editor button {
+          background: rgba(239, 125, 69, 0.9);
+          color: #0b0b0b;
+          border: none;
+          border-radius: 6px;
+          padding: 4px 8px;
+          font-size: 10px;
+          cursor: pointer;
+        }
+        .audit-changes-input {
+          flex: 1;
+          min-height: 60px;
+          background: #0b0b0b;
+          color: #e5e7eb;
+          border: 1px solid #4b5563;
+          border-radius: 6px;
+          padding: 8px;
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 12px;
+          resize: vertical;
+        }
+        .audit-send-button {
+          align-self: flex-start;
+          background: rgba(239, 125, 69, 0.9);
+          color: #0b0b0b;
+          border: none;
+          border-radius: 8px;
+          padding: 8px 10px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+        .audit-send-button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+      </style>
       <div class="audit-changes-row">
         <div class="audit-changes-items">
           ${pendingChanges.map((item) => {

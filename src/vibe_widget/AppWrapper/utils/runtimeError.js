@@ -22,9 +22,13 @@ export function captureRuntimeError({ model, enqueueLog, err, extraStack = "" })
     return;
   }
   enqueueLog("error", errorDetails);
+  console.debug?.("[vibe][runtime-error]", { errorDetails });
   try {
+    // Force an error state so the UI shows the repair panel instead of trying to render the broken widget.
+    model.set("status", "error");
     model.set("error_message", errorDetails);
     model.set("widget_error", errorDetails);
+    model.set("last_runtime_error", errorDetails);
     model.save_changes();
   } catch (sendErr) {
     const msg = sendErr instanceof Error ? sendErr.message : String(sendErr || "");

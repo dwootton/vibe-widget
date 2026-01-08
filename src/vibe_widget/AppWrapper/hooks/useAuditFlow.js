@@ -65,8 +65,9 @@ export default function useAuditFlow({
   }, []);
 
   const handleRequestAudit = React.useCallback((level) => {
+    console.debug("[vibe][audit] requestAudit", { level, status, codePresent: !!code });
     requestAudit(model, level);
-  }, [model]);
+  }, [model, status, code]);
 
   return {
     showAudit,

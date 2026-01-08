@@ -71,7 +71,9 @@ function AppWrapper({ model }) {
   const { containerRef, containerBounds, minHeight } = useContainerMetrics(renderCode);
   const hasCode = renderCode && renderCode.length > 0;
   const isApproved = executionApproved || !approvalMode;
-  const shouldRenderWidget = hasCode && isApproved;
+  const hasRuntimeError = !!(widgetError || lastRuntimeError);
+  const shouldRenderWidget = hasCode && isApproved && !hasRuntimeError;
+  const viewerStatus = hasRuntimeError && status === "ready" ? "error" : status;
   const {
     showAudit,
     setShowAudit,
@@ -129,7 +131,20 @@ function AppWrapper({ model }) {
 
       ${status !== "ready" && html`
         <${StateViewer}
-          status=${status}
+          status=${viewerStatus}
+          logs=${logs}
+          widgetLogs=${widgetLogs}
+          errorMessage=${errorMessage}
+          widgetError=${widgetError}
+          lastRuntimeError=${lastRuntimeError}
+          retryCount=${retryCount}
+          hideOuterStatus=${true}
+          onSubmitPrompt=${handleStatePrompt}
+        />
+      `}
+      ${status === "ready" && hasRuntimeError && html`
+        <${StateViewer}
+          status=${viewerStatus}
           logs=${logs}
           widgetLogs=${widgetLogs}
           errorMessage=${errorMessage}

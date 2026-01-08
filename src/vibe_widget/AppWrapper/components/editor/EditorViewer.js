@@ -50,9 +50,20 @@ export default function EditorViewer({
   const [codeChangeRanges, setCodeChangeRanges] = React.useState([]);
   const [lastClearSnapshot, setLastClearSnapshot] = React.useState(null);
   const [terminalPrompt, setTerminalPrompt] = React.useState("");
-  const [terminalExpanded, setTerminalExpanded] = React.useState(false);
   const lastAppliedChangesRef = React.useRef(null);
   const bubbleEditorRef = React.useRef(null);
+  const workspaceRef = React.useRef(null);
+  const mainAreaRef = React.useRef(null);
+  const [workspaceSplit, setWorkspaceSplit] = React.useState(0.65);
+  const [panelSplit, setPanelSplit] = React.useState(0.62);
+  const [panelOrientation, setPanelOrientation] = React.useState("horizontal");
+
+  React.useEffect(() => {
+    console.debug("[vibe][audit] EditorViewer auditStatus", auditStatus, {
+      hasAuditPayload: !!(auditData?.fast_audit || auditData?.full_audit),
+      auditError
+    });
+  }, [auditStatus, auditData, auditError]);
 
   const hasAuditReport = auditReport && auditReport.length > 0;
   const auditPayload = auditData?.fast_audit || auditData?.full_audit || null;
@@ -263,6 +274,86 @@ export default function EditorViewer({
     setCodeChangeRanges(computeChangedRanges(draftCode, code || ""));
   }, [draftCode, code]);
 
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  const getPointerPoint = (event) => {
+    if (event.touches && event.touches[0]) {
+      return event.touches[0];
+    }
+    return event;
+  };
+
+  const startWorkspaceResize = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const workspaceNode = workspaceRef.current;
+    if (!workspaceNode) return;
+    const { top, height } = workspaceNode.getBoundingClientRect();
+    const handleMove = (moveEvent) => {
+      moveEvent.preventDefault();
+      const point = getPointerPoint(moveEvent);
+      if (!point) return;
+      const ratio = clamp((point.clientY - top) / height, 0.28, 0.86);
+      setWorkspaceSplit(ratio);
+    };
+    const handleUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleUp);
+    };
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("touchmove", handleMove, { passive: false });
+    window.addEventListener("touchend", handleUp);
+  };
+
+  const startPanelResize = (event) => {
+    if (!showAuditPanel) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const mainNode = mainAreaRef.current;
+    if (!mainNode) return;
+    const rect = mainNode.getBoundingClientRect();
+    const isHorizontal = panelOrientation === "horizontal";
+    const size = isHorizontal ? rect.width : rect.height;
+    const offset = isHorizontal ? rect.left : rect.top;
+    const handleMove = (moveEvent) => {
+      moveEvent.preventDefault();
+      const point = getPointerPoint(moveEvent);
+      if (!point || size <= 0) return;
+      const position = isHorizontal ? point.clientX : point.clientY;
+      const ratio = clamp((position - offset) / size, 0.2, 0.8);
+      setPanelSplit(ratio);
+    };
+    const handleUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleUp);
+    };
+    document.body.style.cursor = isHorizontal ? "col-resize" : "row-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("touchmove", handleMove, { passive: false });
+    window.addEventListener("touchend", handleUp);
+  };
+
+  const togglePanelOrientation = () => {
+    setPanelOrientation((prev) => (prev === "horizontal" ? "vertical" : "horizontal"));
+  };
+
+  const ensureConsoleSpace = () => {
+    setWorkspaceSplit((prev) => clamp(prev - 0.08, 0.28, 0.86));
+  };
+
   const toggleExpanded = (cardId) => {
     setExpandedCards((prev) => ({ ...prev, [cardId]: !prev[cardId] }));
   };
@@ -415,14 +506,37 @@ export default function EditorViewer({
     if (hasAttachments) {
       handleSend(trimmed);
       setTerminalPrompt("");
-      setTerminalExpanded(true);
+      ensureConsoleSpace();
       return;
     }
     if (!trimmed || !canPrompt || !onSubmitPrompt) return;
     onSubmitPrompt(trimmed);
     setTerminalPrompt("");
-    setTerminalExpanded(true);
+    ensureConsoleSpace();
   };
+
+  const workspaceRows = React.useMemo(() => {
+    const topPercent = Math.round(workspaceSplit * 1000) / 10;
+    const bottomPercent = Math.max(0, Math.round((100 - topPercent) * 10) / 10);
+    return `minmax(200px, ${topPercent}%) 10px minmax(120px, ${bottomPercent}%)`;
+  }, [workspaceSplit]);
+
+  const mainGridStyle = React.useMemo(() => {
+    if (!showAuditPanel) {
+      return { gridTemplateColumns: "minmax(0, 1fr)" };
+    }
+    const codePercent = Math.round(panelSplit * 1000) / 10;
+    const auditPercent = Math.max(0, Math.round((100 - codePercent) * 10) / 10);
+    if (panelOrientation === "horizontal") {
+      return {
+        gridTemplateColumns: `minmax(0, ${codePercent}%) 10px minmax(0, ${auditPercent}%)`
+      };
+    }
+    return {
+      gridTemplateRows: `minmax(0, ${codePercent}%) 10px minmax(0, ${auditPercent}%)`,
+      gridTemplateColumns: "1fr"
+    };
+  }, [panelOrientation, panelSplit, showAuditPanel]);
 
   return html`
     <div
@@ -510,6 +624,29 @@ export default function EditorViewer({
           flex-direction: column;
           gap: 10px;
         }
+        .source-viewer-workspace {
+          flex: 1;
+          min-height: 0;
+          display: grid;
+          grid-template-rows: 65% 10px 35%;
+          gap: 0;
+        }
+        .workspace-splitter {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: row-resize;
+          background: transparent;
+          padding: 4px 0;
+          user-select: none;
+          touch-action: none;
+        }
+        .workspace-splitter-line {
+          width: 100%;
+          height: 1px;
+          background: #3f3f46;
+          border-radius: 0;
+        }
         .source-debug-banner {
           border: 1px solid rgba(242, 240, 233, 0.35);
           background: rgba(26, 26, 26, 0.7);
@@ -523,17 +660,43 @@ export default function EditorViewer({
           white-space: pre-wrap;
         }
         .source-viewer-main {
-          flex: 1;
           display: grid;
-          grid-template-columns: ${showAuditPanel ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)"};
-          gap: 12px;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0;
           overflow: hidden;
           min-height: 0;
         }
+        .source-viewer-main--stacked {
+          grid-template-columns: 1fr;
+        }
+        .panel-splitter {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(17, 17, 17, 0.8);
+          cursor: col-resize;
+          user-select: none;
+          touch-action: none;
+        }
+        .panel-splitter--horizontal {
+          cursor: row-resize;
+        }
+        .panel-splitter-line {
+          background: #4b5563;
+          border-radius: 0;
+        }
+        .panel-splitter--vertical .panel-splitter-line {
+          width: 1px;
+          height: 100%;
+        }
+        .panel-splitter--horizontal .panel-splitter-line {
+          width: 100%;
+          height: 1px;
+        }
         .source-viewer-terminal {
-          flex: 0 0 auto;
-          min-height: 120px;
-          transition: height 240ms ease;
+          min-height: 140px;
+          overflow: hidden;
+          height: 100%;
         }
         .audit-panel {
           border: 1px solid rgba(242, 240, 233, 0.35);
@@ -752,7 +915,7 @@ export default function EditorViewer({
         }
         .source-viewer-editor {
           border: 1px solid rgba(242, 240, 233, 0.3);
-          border-radius: 10px;
+          border-radius: 0;
           background: #1a1a1a;
           flex: 1;
           min-height: 0;
@@ -870,58 +1033,82 @@ export default function EditorViewer({
               Apply failed: ${auditApplyError}
             </div>
           `}
-          <div class="source-viewer-main">
-            <${CodeEditor} ref=${editorRef} value=${draftCode} onChange=${setDraftCode} />
-            ${showAuditPanel && html`
-              <${AuditPanel}
-                hasAuditPayload=${hasAuditPayload}
-                visibleConcerns=${visibleConcerns}
-                dismissedConcerns=${dismissedConcerns}
-                showDismissed=${showDismissed}
-                onToggleDismissed=${() => setShowDismissed(!showDismissed)}
-                onRestoreDismissed=${restoreDismissed}
-                expandedCards=${expandedCards}
-                technicalCards=${technicalCards}
-                hoveredCardId=${hoveredCardId}
-                onHoverCard=${setHoveredCardId}
-                onToggleExpanded=${toggleExpanded}
-                onToggleTechnical=${toggleTechnical}
-                onAddPendingChange=${addPendingChange}
-                onDismissConcern=${dismissConcern}
-                onScrollToLines=${scrollToLines}
-                onRunAudit=${() => {
-                  setShowAuditPanel(true);
-                  onAudit("fast");
+          <div
+            class="source-viewer-workspace"
+            ref=${workspaceRef}
+            style=${{ gridTemplateRows: workspaceRows }}
+          >
+            <div
+              class=${`source-viewer-main ${panelOrientation === "vertical" ? "source-viewer-main--stacked" : ""}`}
+              ref=${mainAreaRef}
+              style=${mainGridStyle}
+            >
+              <${CodeEditor} ref=${editorRef} value=${draftCode} onChange=${setDraftCode} />
+              ${showAuditPanel && html`
+                <div
+                  class=${`panel-splitter ${panelOrientation === "horizontal" ? "panel-splitter--vertical" : "panel-splitter--horizontal"}`}
+                  onMouseDown=${startPanelResize}
+                  onTouchStart=${startPanelResize}
+                  onDoubleClick=${togglePanelOrientation}
+                  title="Drag to resize code and audit panels. Double-click to flip orientation."
+                >
+                  <span class="panel-splitter-line"></span>
+                </div>
+                <${AuditPanel}
+                  hasAuditPayload=${hasAuditPayload}
+                  visibleConcerns=${visibleConcerns}
+                  dismissedConcerns=${dismissedConcerns}
+                  showDismissed=${showDismissed}
+                  onToggleDismissed=${() => setShowDismissed(!showDismissed)}
+                  onRestoreDismissed=${restoreDismissed}
+                  expandedCards=${expandedCards}
+                  technicalCards=${technicalCards}
+                  hoveredCardId=${hoveredCardId}
+                  onHoverCard=${setHoveredCardId}
+                  onToggleExpanded=${toggleExpanded}
+                  onToggleTechnical=${toggleTechnical}
+                  onAddPendingChange=${addPendingChange}
+                  onDismissConcern=${dismissConcern}
+                  onScrollToLines=${scrollToLines}
+                  onRunAudit=${() => {
+                    setShowAuditPanel(true);
+                    onAudit("fast");
+                  }}
+                />
+              `}
+            </div>
+            <div
+              class="workspace-splitter"
+              onMouseDown=${startWorkspaceResize}
+              onTouchStart=${startWorkspaceResize}
+              title="Drag to resize the console"
+            >
+              <span class="workspace-splitter-line"></span>
+            </div>
+            <div class="source-viewer-terminal">
+              <${TerminalViewer}
+                logs=${displayLogs}
+                status=${status || "ready"}
+                heading=${null}
+                promptValue=${terminalPrompt}
+                onPromptChange=${setTerminalPrompt}
+                onPromptSubmit=${handleTerminalSubmit}
+                promptDisabled=${!canPrompt}
+                attachments=${{
+                  pendingChanges,
+                  codeChangeRanges,
+                  isDirty: isDirtyRef.current,
+                  editingBubbleId,
+                  editingText,
+                  onStartEdit: startEditingBubble,
+                  onEditingTextChange: setEditingText,
+                  onSaveEdit: saveBubbleEdit,
+                  onRemovePending: removePendingChange,
+                  onHoverCard: setHoveredCardId,
+                  bubbleEditorRef
                 }}
               />
-            `}
-          </div>
-          <div
-            class="source-viewer-terminal"
-            style=${{ height: terminalExpanded ? "200px" : "140px" }}
-          >
-            <${TerminalViewer}
-              logs=${displayLogs}
-              status=${status || "ready"}
-              heading=${null}
-              promptValue=${terminalPrompt}
-              onPromptChange=${setTerminalPrompt}
-              onPromptSubmit=${handleTerminalSubmit}
-              promptDisabled=${!canPrompt}
-              attachments=${{
-                pendingChanges,
-                codeChangeRanges,
-                isDirty: isDirtyRef.current,
-                editingBubbleId,
-                editingText,
-                onStartEdit: startEditingBubble,
-                onEditingTextChange: setEditingText,
-                onSaveEdit: saveBubbleEdit,
-                onRemovePending: removePendingChange,
-                onHoverCard: setHoveredCardId,
-                bubbleEditorRef
-              }}
-            />
+            </div>
           </div>
         </div>
       </div>

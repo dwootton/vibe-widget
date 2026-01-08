@@ -32,6 +32,14 @@ export default function TerminalViewer({
           gap: 8px;
         }
       </style>
+      <${StatePromptInputRow}
+        value=${promptValue}
+        onChange=${onPromptChange}
+        onSubmit=${onPromptSubmit}
+        disabled=${promptDisabled}
+        blink=${promptBlink}
+        maxHeight=${200}
+      />
       ${hasAttachments && html`
         <${AttachmentStrip}
           pendingChanges=${attachments.pendingChanges}
@@ -46,14 +54,6 @@ export default function TerminalViewer({
           bubbleEditorRef=${attachments.bubbleEditorRef}
         />
       `}
-      <${StatePromptInputRow}
-        value=${promptValue}
-        onChange=${onPromptChange}
-        onSubmit=${onPromptSubmit}
-        disabled=${promptDisabled}
-        blink=${promptBlink}
-        maxHeight=${200}
-      />
     </div>
   `;
 

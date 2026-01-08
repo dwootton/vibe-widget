@@ -41,9 +41,9 @@ export default function AttachmentStrip({
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          background: rgba(17, 24, 39, 0.8);
-          border: 1px solid rgba(71, 85, 105, 0.5);
-          border-radius: 8px;
+          background: #0b0b0b;
+          border: 1px solid #4b5563;
+          border-radius: 6px;
           padding: 6px 10px;
           color: #e5e7eb;
           font-size: 11px;
