@@ -143,30 +143,27 @@ Input summaries:
 
 {theme_section}{composition_section}{outputs_inputs_section}
 
-CRITICAL REACT + HTM SPECIFICATION:
+CRITICAL RENDERING SPECIFICATION (JSX + PREACT-COMPAT):
 
 MUST FOLLOW EXACTLY:
-1. Export a default function: export default function Widget({{ model, html, React }}) {{ ... }}
-2. Use html tagged templates (htm) for markup—no JSX or ReactDOM.render
-3. Do not import React, react-dom, or react/jsx-runtime—use the provided React and html props only
-4. Access inputs with model.get("<input_name>") using names from INPUTS and treat them as immutable
-5. Append DOM nodes via refs rendered inside html templates (never touch document.body)
-6. Import libraries from ESM CDN with locked versions (d3@7, three@0.160, regl@3, etc.)
-7. Initialize outputs immediately, update them as interactions occur, and call model.save_changes() each time
-8. Subscribe to input traits with model.on("change:trait", handler) and unsubscribe in cleanup
-9. Every React.useEffect MUST return a cleanup that tears down listeners, observers, intervals, animation frames, WebGL resources, etc.
+1. Export a default function: export default function Widget({{ model, React }}) {{ ... }}
+2. Return JSX (no html tagged templates, no ReactDOM.render/createRoot)
+3. Do not import React, react-dom, preact, or react/jsx-runtime—the host injects a React-compatible runtime
+4. Access inputs with model.get("<input_name>") using names from INPUTS; treat them as immutable
+5. Initialize outputs immediately via model.set(...) and model.save_changes(); update + save_changes() on every change
+6. Subscribe to input traits with model.on("change:trait", handler) and unsubscribe in cleanup
+7. Every React.useEffect MUST return a cleanup tearing down listeners, timers, raf, observers, map controls, WebGL resources, etc.
+8. Import libraries from ESM CDN with locked versions (d3@7, three@0.160, regl@3, etc.)
+9. Avoid document.body manipulation—render inside provided refs only
 10. Avoid 100vh/100vw—use fixed heights (360–640px) or flex layouts that respect notebook constraints
-11. Ensure high contrast for text and data marks (WCAG AA minimum) in all visual states
-12. Inline styles must be object literals: style=${{ ... }} (never style="..." or style=${"..."}).
-    If you start with CSS strings, convert them to an object with camelCased keys and quoted values before emitting.
-13. Any component that returns html`...` MUST accept `html` in its props, and you MUST pass `html=${{html}}` when using it.
-14. Never wrap the output in markdown code fences
+11. Use style objects (style={{{{ ... }}}}) and className in JSX
+12. Never wrap the output in markdown code fences
 
 CORRECT Template:
 ```javascript
 import * as d3 from "https://esm.sh/d3@7";
 
-export default function VisualizationWidget({{ model, html, React }}) {{
+export default function VisualizationWidget({{ model, React }}) {{
   const data = model.get("input_name") || [];
   const [selectedItem, setSelectedItem] = React.useState(null);
   const containerRef = React.useRef(null);
@@ -183,58 +180,62 @@ export default function VisualizationWidget({{ model, html, React }}) {{
     return () => svg.remove();
   }}, [data]);
 
-  return html`
-    <section class="viz-shell" style=${{{{ padding: '24px', height: '480px' }}}}>
-      <h2 class="viz-title">Experience</h2>
-      <div ref=${{containerRef}} class="viz-canvas"></div>
-      ${{selectedItem && html`<p class="viz-meta">Selected: ${{selectedItem}}</p>`}}
+  return (
+    <section className="viz-shell" style={{{{ padding: 24, height: 480 }}}}>
+      <h2 className="viz-title">Experience</h2>
+      <div ref={{containerRef}} className="viz-canvas" />
+      {{selectedItem && <p className="viz-meta">Selected: {{selectedItem}}</p>}}
     </section>
-  `;
+  );
 }}
 ```
 
 Key Syntax Rules:
-- Use html`<div>...</div>` NOT <div>...</div>
-- Use class= NOT className=
-- Event props: onClick=${{handler}} NOT onClick={{handler}}
-- Style objects: style=${{{{ padding: '20px' }}}}
-- Conditionals: ${{condition && html`...`}}
+- JSX only; do NOT use html`...` tagged templates
+- Use className (not class) and style objects (not CSS strings)
+- Event props: onClick={{handler}}, onChange={{handler}}
 
 MODULARITY & STANDALONE COMPONENTS:
 
 For reusable UI components (sliders, legends, tooltips, controls, charts, panels), export them as NAMED EXPORTS that are FULLY STANDALONE:
 ```javascript
 // Each exported component MUST be fully self-contained and independently renderable
-export const Slider = ({{ value, onChange, min, max, html }}) => {{
-  return html`<input type="range" value=${{value}} onInput=${{onChange}} min=${{min}} max=${{max}} />`;
-}};
+export const Slider = ({{ value, onChange, min, max }}) => (
+  <input type="range" value={{value}} onInput={{onChange}} min={{min}} max={{max}} />
+);
 
-export const ColorLegend = ({{ colors, labels, html }}) => {{
-  return html`<div class="legend">${{labels.map((label, i) => html`<span style=${{{{ background: colors[i], padding: '4px 8px' }}}}>${{label}}</span>`)}}</div>`;
-}};
+export const ColorLegend = ({{ colors, labels }}) => (
+  <div className="legend">
+    {{labels.map((label, i) => (
+      <span key={{label}} style={{{{ background: colors[i], padding: "4px 8px" }}}}>
+        {{label}}
+      </span>
+    ))}}
+  </div>
+);
 
 // For chart components that need data access, accept model as prop
-export const ScatterChart = ({{ model, html, React, width = 400, height = 300 }}) => {{
+export const ScatterChart = ({{ model, React, width = 400, height = 300 }}) => {{
   const data = model.get("data") || [];
   const containerRef = React.useRef(null);
   // ... full chart implementation with proper cleanup ...
-  return html`<div ref=${{containerRef}} style=${{{{ width: width + 'px', height: height + 'px' }}}}></div>`;
+  return <div ref={{containerRef}} style={{{{ width, height }}}} />;
 }};
 
-export default function Widget({{ model, html, React }}) {{
-  // Compose using standalone components
-  return html`
+// Usage inside Widget
+export default function Widget({{ model, React }}) {{
+  return (
     <div>
-      <${{ScatterChart}} model=${{model}} html=${{html}} React=${{React}} width=${{600}} height=${{400}} />
-      <${{ColorLegend}} colors=${{['#f00', '#0f0']}} labels=${{['A', 'B']}} html=${{html}} />
+      <ScatterChart model={{model}} React={{React}} width={{600}} height={{400}} />
+      <ColorLegend colors={{["#f00", "#0f0"]}} labels={{["A", "B"]}} />
     </div>
-  `;
+  );
 }}
 ```
 
 STANDALONE COMPONENT REQUIREMENTS:
 1. Each named export component MUST be renderable independently
-2. Pass html, React, and model as props when the component needs them
+2. Pass React and model as props when the component needs them
 3. Include all required state, effects, and cleanup within the component
 4. Do NOT rely on shared state from parent scope - receive everything via props
 5. For data-driven components, accept model as prop to access model.get("data")
@@ -313,12 +314,12 @@ CURRENT CODE:
 {outputs_inputs_section}
 
 Follow the SAME constraints as generation:
-- export default function Widget({{ model, html, React }})
-- html tagged templates only (no JSX)
+- export default function Widget({{ model, React }})
+- JSX only (no html tagged templates)
 - ESM CDN imports with locked versions
 - Thorough cleanup in every React.useEffect
-- Inline styles must be object literals (style=${{ ... }}), never strings; convert any CSS strings to an object with camelCased keys.
-- Export reusable components as named exports when appropriate
+- Inline styles must be object literals (style={{{{ ... }}}}), never strings; convert any CSS strings to an object with camelCased keys.
+- Export reusable components as named exports when appropriate (JSX components)
 
 Focus on making ONLY the requested changes. Reuse existing code structure where possible.
 
@@ -371,13 +372,13 @@ Input summaries:
 {theme_section}{outputs_inputs_section}
 
 MANDATORY FIX RULES:
-1. Export default function Widget({{ model, html, React }})
-2. Use html tagged templates (htm) instead of JSX
+1. Export default function Widget({{ model, React }})
+2. JSX only (no html tagged templates)
 3. Guard every model.get payload before iterating
 4. Keep CDN imports version-pinned
 5. Restore all cleanup handlers
 6. Initialize outputs and call model.save_changes()
-7. Inline styles must be object literals (style=${{ ... }}); convert any string-based style to an object with camelCased keys and quoted values.
+7. Inline styles must be object literals (style={{{{ ... }}}}); convert any string-based style to an object with camelCased keys and quoted values.
 
 Return ONLY the corrected JavaScript code."""
 

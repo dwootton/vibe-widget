@@ -1,7 +1,4 @@
-import * as React from "react";
-import htm from "htm";
-
-const html = htm.bind(React.createElement);
+import React from "react";
 
 export default function AttachmentStrip({
   pendingChanges,
@@ -17,9 +14,9 @@ export default function AttachmentStrip({
 }) {
   const pendingCount = pendingChanges.length;
 
-  return html`
+  return (
     <div class="terminal-attachments">
-      <style>
+      <style>{`
         .terminal-attachments {
           display: flex;
           flex-direction: column;
@@ -108,66 +105,72 @@ export default function AttachmentStrip({
           font-size: 10px;
           cursor: pointer;
         }
-      </style>
+      `}</style>
       <div class="terminal-attachments-row">
-        ${pendingChanges.map((item) => {
+        {pendingChanges.map((item) => {
           const isEditing = editingBubbleId === item.itemId;
-          return html`
+          return (
             <div
               class="audit-change-pill"
-              onMouseEnter=${() => onHoverCard(item.cardId)}
-              onMouseLeave=${() => onHoverCard(null)}
-              onClick=${() => onStartEdit(item)}
+              onMouseEnter={() => onHoverCard(item.cardId)}
+              onMouseLeave={() => onHoverCard(null)}
+              onClick={() => onStartEdit(item)}
             >
-              <span title=${item.label}>${item.label}</span>
+              <span title={item.label}>{item.label}</span>
               <button
                 class="audit-change-remove"
                 title="Remove"
-                onClick=${(event) => {
+                onClick={(event) => {
                   event.stopPropagation();
                   onRemovePending(item.itemId);
                 }}
               >
                 ×
               </button>
-              ${isEditing && html`
-                <div class="audit-bubble-editor" ref=${bubbleEditorRef}>
+              {isEditing && (
+                <div class="audit-bubble-editor" ref={bubbleEditorRef}>
                   <textarea
-                    value=${editingText}
-                    onInput=${(event) => onEditingTextChange(event.target.value)}
+                    value={editingText}
+                    onInput={(event) => onEditingTextChange(event.target.value)}
                     placeholder="Edit what will be sent..."
                   ></textarea>
                   <div class="audit-bubble-editor-actions">
-                    <button onClick=${(event) => {
-                      event.stopPropagation();
-                      onSaveEdit();
-                    }}>
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSaveEdit();
+                      }}
+                    >
                       Save
                     </button>
                   </div>
                 </div>
-              `}
+              )}
             </div>
-          `;
+          );
         })}
-        ${codeChangeRanges.length >= 3 ? html`
+        {codeChangeRanges.length >= 3 ? (
           <div
             class="audit-change-pill"
-            title=${`Changed: ${codeChangeRanges.map((range) => range[0] === range[1] ? `Line ${range[0]}` : `Lines ${range[0]}-${range[1]}`).join(", ")}`}
+            title={`Changed: ${codeChangeRanges
+              .map((range) =>
+                range[0] === range[1] ? `Line ${range[0]}` : `Lines ${range[0]}-${range[1]}`
+              )
+              .join(", ")}`}
           >
-            <span>Code changes (${codeChangeRanges.length})</span>
+            <span>Code changes ({codeChangeRanges.length})</span>
           </div>
-        ` : codeChangeRanges.map((range) => {
-          const label = range[0] === range[1]
-            ? `Line ${range[0]}`
-            : `Lines ${range[0]}-${range[1]}`;
-          return html`
-            <div class="audit-change-pill" title="Source code edits">
-              <span>${label}</span>
-            </div>
-          `;
-        })}
+        ) : (
+          codeChangeRanges.map((range) => {
+            const label = range[0] === range[1] ? `Line ${range[0]}` : `Lines ${range[0]}-${range[1]}`;
+            return (
+              <div class="audit-change-pill" title="Source code edits">
+                <span>{label}</span>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
-  `;
+  );
 }

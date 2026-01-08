@@ -1871,7 +1871,7 @@ def create(
     theme: Theme | str | None = None,
     display: bool = True,
     cache: bool = True,
-) -> VibeWidget:
+) -> "WidgetHandle":
     """Create a VibeWidget visualization with automatic data processing.
 
     Args:
@@ -1885,7 +1885,7 @@ def create(
         cache: If False, bypass cache and regenerate widget/theme
 
     Returns:
-        VibeWidget instance
+        WidgetHandle for re-running and inspecting the widget
 
     Examples:
         >>> scatter_plot = create("show temperature trends", df)
@@ -1941,7 +1941,7 @@ def create(
         theme=resolved_theme,
     )
 
-    return widget
+    return WidgetHandle(widget)
 
 
 class _SourceInfo:
@@ -1964,11 +1964,44 @@ class _SourceInfo:
         self.target_component = target_component
 
 
+class WidgetHandle:
+    """Callable handle that renders widgets without displaying itself."""
+
+    __vibe_widget_handle__ = True
+
+    def __init__(self, widget: "VibeWidget"):
+        self._widget = widget
+
+    @property
+    def widget(self) -> "VibeWidget":
+        return self._widget
+
+    def __call__(self, *args, **kwargs) -> "VibeWidget":
+        widget = self._widget._rerun_with(*args, **kwargs)
+        self._widget = widget
+        return widget
+
+    def __getattr__(self, name: str):
+        return getattr(self._widget, name)
+
+    def __repr__(self) -> str:
+        metadata = getattr(self._widget, "_widget_metadata", {}) or {}
+        label = metadata.get("var_name") or getattr(self._widget, "description", None) or "widget"
+        status = getattr(self._widget, "status", "unknown")
+        return f"<VibeWidgetHandle {label} status={status}>"
+
+    def _repr_mimebundle_(self, **kwargs):  # pragma: no cover - display hook
+        return {"text/plain": repr(self)}, {}
+
+
 def _resolve_source(
-    source: "VibeWidget | str | Path",
+    source: "VibeWidget | WidgetHandle | str | Path",
     store: WidgetStore
 ) -> _SourceInfo:
     """Resolve source widget to code, metadata, components, and data."""
+    if isinstance(source, WidgetHandle):
+        source = source.widget
+
     if isinstance(source, VibeWidget):
         # Check if this is a component widget (has _source_component)
         source_component = getattr(source, "_source_component", None)
@@ -2028,7 +2061,7 @@ def _resolve_source(
 
 def edit(
     description: str,
-    source: "VibeWidget | str | Path",
+    source: "VibeWidget | WidgetHandle | str | Path",
     data: pd.DataFrame | str | Path | None = None,
     outputs: dict[str, str] | OutputBundle | None = None,
     inputs: dict[str, Any] | InputsBundle | None = None,
@@ -2037,7 +2070,7 @@ def edit(
     display: bool = True,
     cache: bool = True,
     _var_name: str | None = None,
-) -> "VibeWidget":
+) -> "WidgetHandle":
     """Edit a widget by building upon existing code.
 
     Args:
@@ -2051,7 +2084,7 @@ def edit(
         cache: If False, bypass cache and regenerate widget/theme
 
     Returns:
-        New VibeWidget instance with edited code
+        WidgetHandle for the edited widget
 
     Examples:
         >>> scatter2 = edit("add hover tooltips", scatter)
@@ -2122,11 +2155,15 @@ def edit(
         base_widget_id=base_cache_key,
     )
 
-    return widget
+    return WidgetHandle(widget)
 
 
-def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeWidget:
-    """Load a widget bundle or cached widget file from disk."""
+def load(path: str | Path, approval: bool = True, display: bool = True) -> "WidgetHandle":
+    """Load a widget bundle or cached widget file from disk.
+
+    Returns:
+        WidgetHandle for the loaded widget
+    """
     target = Path(path)
 
     payload: dict[str, Any] | None = None
@@ -2294,12 +2331,15 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> VibeW
         theme=theme,
     )
 
-    return widget
+    return WidgetHandle(widget)
 
 
-def clear(target: Union["VibeWidget", str] = "all") -> dict[str, int]:
+def clear(target: Union["VibeWidget", "WidgetHandle", str] = "all") -> dict[str, int]:
     """Clear cached widgets, themes, audits, or a specific widget's cache."""
     results = {"widgets": 0, "themes": 0, "audits": 0}
+
+    if isinstance(target, WidgetHandle):
+        target = target.widget
 
     if isinstance(target, VibeWidget):
         metadata = getattr(target, "_widget_metadata", {}) or {}

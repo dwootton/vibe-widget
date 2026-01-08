@@ -46,138 +46,66 @@ class CodeValidateTool(Tool):
         expected_imports: list[str] | None = None,
     ) -> ToolResult:
         """Validate widget code."""
-        issues = []
-        warnings = []
+        issues: list[str] = []
+        warnings: list[str] = []
 
         try:
-            def _html_template_spans(text: str) -> list[tuple[int, int]]:
-                spans: list[tuple[int, int]] = []
-                i = 0
-                n = len(text)
-                while i < n:
-                    idx = text.find("html`", i)
-                    if idx == -1:
-                        break
-                    start = idx + 5
-                    i = start
-                    brace_depth = 0
-                    while i < n:
-                        ch = text[i]
-                        if ch == "\\":
-                            i += 2
-                            continue
-                        if ch == "$" and i + 1 < n and text[i + 1] == "{":
-                            brace_depth += 1
-                            i += 2
-                            continue
-                        if ch == "}" and brace_depth > 0:
-                            brace_depth -= 1
-                            i += 1
-                            continue
-                        if ch == "`" and brace_depth == 0:
-                            spans.append((start, i))
-                            i += 1
-                            break
-                        i += 1
-                return spans
-
-            def _line_overlaps_spans(line_start: int, line_end: int, spans: list[tuple[int, int]]) -> bool:
-                for start, end in spans:
-                    if line_start <= end and line_end >= start:
-                        return True
-                return False
-
             # Check 1: Default export exists
             if "export default function" not in code:
                 issues.append("Missing 'export default function' declaration")
 
-            # Check 2: Widget function signature
+            # Check 2: Widget function signature includes model
             if "export default function" in code:
-                match = re.search(r"export default function \w+\s*\(([^)]*)\)", code)
+                match = re.search(r"export default function\s+\w*\s*\(([^)]*)\)", code)
                 if match:
                     params = match.group(1)
-                    if ("model" not in params or "html" not in params or "React" not in params) and not re.search(r"export default function \w+\s*\(\s*\{[^}]*\bmodel\b[^}]*\}", code, re.DOTALL):
-                        issues.append(
-                            "Widget function must accept parameters { model, html, React }"
-                        )
+                    if "model" not in params:
+                        issues.append("Widget function must accept the model parameter")
                 else:
                     issues.append("Malformed widget function declaration")
 
-
-            # Check 3: html template usage
-            if "html`" not in code:
-                warnings.append("No html template usage found - are you using htm correctly?")
-
-
-            # Check 4: Export lifecycle (if exports expected)
+            # Check 3: Export lifecycle (if exports expected)
             if expected_exports:
                 for export_name in expected_exports:
-                    #? Error: Export 'Widget' never set with model.set(); Missing model.save_changes() call for exports
                     if export_name[0].isupper():
                         continue
-                    # Check for model.set
                     if f'model.set("{export_name}"' not in code and f"model.set('{export_name}'" not in code:
                         issues.append(f"Export '{export_name}' never set with model.set()")
-                    # Check for model.save_changes
-                    if code.count("model.save_changes()") == 0:
-                        issues.append("Missing model.save_changes() call for exports")
+                if "model.save_changes()" not in code:
+                    issues.append("Missing model.save_changes() call for exports")
 
-            # Check 5: Import subscription (if imports expected)
+            # Check 4: Import subscription (if imports expected)
             if expected_imports:
                 for import_name in expected_imports:
-                    # Check for model.on
                     if f'model.on("change:{import_name}"' not in code and f"model.on('change:{import_name}'" not in code:
                         warnings.append(f"Import '{import_name}' not subscribed with model.on()")
 
             if "document.body" in code:
-                issues.append("Direct document.body manipulation detected - use refs instead")
+                issues.append("Direct document.body manipulation detected - render inside the provided container")
 
-            if "ReactDOM.render" in code:
-                issues.append("ReactDOM.render not allowed - use html templates")
+            if "ReactDOM.render" in code or "createRoot(" in code:
+                issues.append("Do not call ReactDOM.render/createRoot; just return JSX from the widget function")
 
             react_import_pattern = re.compile(
                 r"""(
                     from\s+["'](?:react(?:/jsx-runtime)?|react-dom(?:/client)?)["']|
                     require\(\s*["'](?:react(?:/jsx-runtime)?|react-dom(?:/client)?)["']\s*\)|
-                    from\s+["']https?://[^"']*react[^"']*["']
+                    from\s+["']https?://[^"']*react[^"']*["']|
+                    from\s+["'](?:preact|preact/compat|preact/hooks)["']
                 )""",
                 re.VERBOSE,
             )
             if react_import_pattern.search(code):
                 issues.append(
-                    "Do not import React/ReactDOM or react/jsx-runtime; use the React prop provided by the host."
+                    "Do not import React/ReactDOM/Preact; the host injects a React-compatible runtime for you."
                 )
-
-            if "className=" in code and "html`" in code:
-                warnings.append("Use 'class=' not 'className=' in htm templates")
-
-            # Inline style checks (case-insensitive), but only inside html`...` templates.
-            style_literal_pattern = re.compile(r"style\s*=\s*['\"]([^\"']+)['\"]", re.IGNORECASE)
-            style_template_pattern = re.compile(r"style\s*=\s*\$\{\s*['\"]([^\"']+)['\"]\s*\}", re.IGNORECASE)
-            html_spans = _html_template_spans(code)
-
-            lines = code.splitlines()
-            cursor = 0
-            for idx, line in enumerate(lines, start=1):
-                line_start = cursor
-                line_end = cursor + len(line)
-                cursor = line_end + 1
-                if not _line_overlaps_spans(line_start, line_end, html_spans):
-                    continue
-                if style_literal_pattern.search(line) or style_template_pattern.search(line):
-                    snippet = line.strip()
-                    issues.append(
-                        f"Inline style must be an object literal at line {idx}: {snippet[:120]}"
-                    )
 
             cdn_imports = re.findall(r'from\s+["\']https://esm\.sh/([^"\']+)["\']', code)
             for imp in cdn_imports:
                 if "@" not in imp:
                     warnings.append(f"CDN import '{imp}' missing version - should pin version (e.g., d3@7)")
 
-            # Determine success
             success = len(issues) == 0
-
             validation_result = {
                 "valid": success,
                 "issues": issues,

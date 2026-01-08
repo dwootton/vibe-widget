@@ -1,7 +1,4 @@
-import * as React from "react";
-import htm from "htm";
-
-const html = htm.bind(React.createElement);
+import React, { useMemo } from "react";
 
 export default function FloatingMenu({
   isOpen,
@@ -11,9 +8,23 @@ export default function FloatingMenu({
   highAuditCount,
   isEditMode
 }) {
-  return html`
+  const badge = highAuditCount > 0 ? (
+    <div class="menu-badge" title="High impact audit items">
+      {highAuditCount}
+    </div>
+  ) : null;
+
+  const options = useMemo(() => (
+    <div class="menu-options">
+      <div class="menu-option" onClick={onGrabModeStart}>Edit Element</div>
+      <div class="menu-option" onClick={onViewSource}>Edit Code</div>
+      <div class="menu-option disabled">Export (TBD)</div>
+    </div>
+  ), [onGrabModeStart, onViewSource]);
+
+  return (
     <div class="floating-menu-container">
-      <style>
+      <style>{`
         .floating-menu-container {
           position: absolute;
           top: 12px;
@@ -107,26 +118,16 @@ export default function FloatingMenu({
           color: #6b7280;
           cursor: not-allowed;
         }
-      </style>
-      
+      `}</style>
+
       <div class="menu-dot-wrapper">
-        <div class="menu-dot ${isEditMode ? "spinning" : ""}" onClick=${onToggle}>
+        <div class={`menu-dot ${isEditMode ? "spinning" : ""}`} onClick={onToggle}>
           <div class="menu-dot-inner"></div>
         </div>
-        ${highAuditCount > 0 && html`
-          <div class="menu-badge" title="High impact audit items">
-            ${highAuditCount}
-          </div>
-        `}
+        {badge}
       </div>
-      
-      ${isOpen && html`
-        <div class="menu-options">
-          <div class="menu-option" onClick=${onGrabModeStart}>Edit Element</div>
-          <div class="menu-option" onClick=${onViewSource}>Edit Code</div>
-          <div class="menu-option disabled">Export (TBD)</div>
-        </div>
-      `}
+
+      {isOpen ? options : null}
     </div>
-  `;
+  );
 }

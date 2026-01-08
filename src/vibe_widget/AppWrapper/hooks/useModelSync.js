@@ -1,4 +1,5 @@
 import * as React from "react";
+import { debugLog } from "../utils/debug";
 
 // Syncs status/logs/code from the traitlets model with cleanup.
 export default function useModelSync(model) {
@@ -33,7 +34,7 @@ export default function useModelSync(model) {
     const onRetryCountChange = () => setRetryCount(model.get("retry_count"));
     const onAuditStateChange = () => {
       const nextAudit = model.get("audit_state") || {};
-      console.debug("[vibe][audit] audit_state changed", nextAudit);
+      debugLog(model, "[vibe][audit] audit_state changed", nextAudit);
       setAuditState(nextAudit);
     };
     const onExecutionStateChange = () => setExecutionState(model.get("execution_state") || {});

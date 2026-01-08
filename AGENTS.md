@@ -221,12 +221,11 @@ examples/                    # Example Jupyter notebooks
 
 ### JavaScript/React Style
 
-1. **HTM instead of JSX**: Use `htm` for template literals
+1. **JSX with host React (Preact compat)**: Write plain JSX; the runtime injects `React` (no imports).
    ```javascript
-   import htm from "htm";
-   const html = htm.bind(React.createElement);
-   
-   return html`<div>${content}</div>`;
+   export default function Widget({ model, React }) {
+     return <div className="shell">Hello</div>;
+   }
    ```
 
 2. **React Hooks**: Prefer functional components with hooks
@@ -252,19 +251,19 @@ examples/                    # Example Jupyter notebooks
 
 1. **Widget Code Format**: Generated code must export a default function
    ```javascript
-   export default function Widget({ model, html, React }) {
+   export default function Widget({ model, React }) {
      // Set outputs
      model.set("outputName", value);
      model.save_changes();
      
-     return html`<div>widget content</div>`;
+     return <div>widget content</div>;
    }
    ```
 
 2. **Optional Named Exports**: For reusable components
    ```javascript
-   export const MiniChart = ({ model, html, React }) => {
-     return html`<div>mini chart</div>`;
+   export const MiniChart = ({ model, React }) => {
+     return <div>mini chart</div>;
    };
    ```
 

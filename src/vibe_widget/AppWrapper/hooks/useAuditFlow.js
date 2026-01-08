@@ -1,5 +1,6 @@
 import * as React from "react";
 import { requestAudit } from "../actions/modelActions";
+import { debugLog } from "../utils/debug";
 
 const AUDIT_ACK_KEY = "vibe_widget_audit_ack";
 const AUDIT_AUTORUN_KEY = "vibe_widget_audit_autorun";
@@ -65,7 +66,7 @@ export default function useAuditFlow({
   }, []);
 
   const handleRequestAudit = React.useCallback((level) => {
-    console.debug("[vibe][audit] requestAudit", { level, status, codePresent: !!code });
+    debugLog(model, "[vibe][audit] requestAudit", { level, status, codePresent: !!code });
     requestAudit(model, level);
   }, [model, status, code]);
 

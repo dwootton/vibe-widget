@@ -1,6 +1,6 @@
 import * as d3 from "https://esm.sh/d3@7";
 
-export default function PaperEmbeddingWidget({ model, html, React }) {
+export default function PaperEmbeddingWidget({ model, React }) {
   const containerRef = React.useRef(null);
   const tooltipRef = React.useRef(null);
   const [hoveredPaper, setHoveredPaper] = React.useState(null);
@@ -132,57 +132,70 @@ export default function PaperEmbeddingWidget({ model, html, React }) {
     };
   }, [model]);
 
-  return html`
-    <div style=${{ position: 'relative', fontFamily: 'system-ui' }}>
-      <div ref=${containerRef}></div>
-      
-      ${hoveredPaper && html`
-        <div style=${{
-          position: 'absolute',
-          top: '10px',
-          right: '10px',
-          width: '240px',
-          background: 'rgba(255, 255, 255, 0.95)',
-          padding: '12px',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          fontSize: '12px',
-          pointerEvents: 'none',
-          border: '1px solid #eee',
-          zIndex: 100
-        }}>
-          <div style=${{ fontWeight: 'bold', marginBottom: '4px', color: '#333' }}>${hoveredPaper.title}</div>
-          <div style=${{ color: '#666', fontSize: '11px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-            ${hoveredPaper.abstract}
-          </div>
-          <div style=${{ marginTop: '6px', fontSize: '10px', color: '#888' }}>
-            Session: ${hoveredPaper.session}
-          </div>
-        </div>
-      `}
+  return (
+    <div style={{ position: "relative", fontFamily: "system-ui" }}>
+      <div ref={containerRef}></div>
 
-      <div style=${{ 
-        position: 'absolute', 
-        bottom: '10px', 
-        left: '10px', 
-        fontSize: '10px', 
-        background: 'white', 
-        padding: '5px', 
-        borderRadius: '4px',
-        display: 'flex',
-        gap: '10px',
-        border: '1px solid #ddd'
-      }}>
-        <div style=${{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div style=${{ width: '8px', height: '8px', borderRadius: '50%', background: '#4FC3F7' }}></div> High
+      {hoveredPaper && (
+        <div
+          style={{
+            position: "absolute",
+            top: "10px",
+            right: "10px",
+            width: "240px",
+            background: "rgba(255, 255, 255, 0.95)",
+            padding: "12px",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            fontSize: "12px",
+            pointerEvents: "none",
+            border: "1px solid #eee",
+            zIndex: 100,
+          }}
+        >
+          <div style={{ fontWeight: "bold", marginBottom: "4px", color: "#333" }}>{hoveredPaper.title}</div>
+          <div
+            style={{
+              color: "#666",
+              fontSize: "11px",
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+            }}
+          >
+            {hoveredPaper.abstract}
+          </div>
+          <div style={{ marginTop: "6px", fontSize: "10px", color: "#888" }}>
+            Session: {hoveredPaper.session}
+          </div>
         </div>
-        <div style=${{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div style=${{ width: '8px', height: '8px', borderRadius: '50%', background: '#90CAF9' }}></div> Low
+      )}
+
+      <div
+        style={{
+          position: "absolute",
+          bottom: "10px",
+          left: "10px",
+          fontSize: "10px",
+          background: "white",
+          padding: "5px",
+          borderRadius: "4px",
+          display: "flex",
+          gap: "10px",
+          border: "1px solid #ddd",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#4FC3F7" }}></div> High
         </div>
-        <div style=${{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div style=${{ width: '8px', height: '8px', borderRadius: '50%', background: orangeGlow }}></div> Match
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#90CAF9" }}></div> Low
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: orangeGlow }}></div> Match
         </div>
       </div>
     </div>
-  `;
+  );
 }

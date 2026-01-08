@@ -1,20 +1,26 @@
-import * as React from "preact/compat";
-import { render as preactRender } from "preact";
-import htm from "htm";
+import * as React from "react";
+import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import * as Babel from "@babel/standalone";
-import ReactCompat from "preact/compat";
 import { appendWidgetLogs } from "../actions/modelActions";
 import { captureRuntimeError } from "../utils/runtimeError";
+import { debugLog } from "../utils/debug";
 
-const html = htm.bind(React.createElement);
-const FORBIDDEN_REACT_IMPORT = /from\s+["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']|require\(\s*["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']\s*\)|from\s+["']https?:\/\/[^"']*react[^"']*["']/;
+const FORBIDDEN_REACT_IMPORT =
+  /from\s+["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?|preact(?:\/compat)?|preact\/hooks)["']|require\(\s*["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?|preact(?:\/compat)?|preact\/hooks)["']\s*\)|from\s+["']https?:\/\/[^"']*react[^"']*["']/;
 
-// Expose a stable React-compatible runtime for transformed widgets.
+// Expose a stable React runtime for transformed widgets.
+// Use the full namespace import (React) which includes all hooks.
 if (typeof globalThis !== "undefined") {
-  globalThis.__VIBE_PREACT_COMPAT = ReactCompat;
+  globalThis.__VIBE_REACT = React;
 }
 
+let sandboxInstanceCounter = 0;
+
 function SandboxedRunner({ code, model, runKey }) {
+  const instanceId = React.useRef(++sandboxInstanceCounter).current;
+  debugLog(model, "[vibe][debug] SandboxedRunner render", { instanceId, codeLen: code?.length, runKey });
+
   const [GuestWidget, setGuestWidget] = React.useState(null);
   const logQueueRef = React.useRef([]);
   const flushTimerRef = React.useRef(null);
@@ -78,7 +84,10 @@ function SandboxedRunner({ code, model, runKey }) {
   }, [model, enqueueLog]);
 
   React.useEffect(() => {
+    debugLog(model, "[vibe][debug] SandboxedRunner useEffect running", { instanceId, codeLen: code?.length });
     if (!code) return;
+
+    debugLog(model, "[vibe][debug] SandboxedRunner useEffect has code, setting up", { instanceId });
 
     const guardState = { closed: false };
     const disposers = [];
@@ -96,6 +105,7 @@ function SandboxedRunner({ code, model, runKey }) {
     };
 
     const teardown = () => {
+      debugLog(model, "[vibe][debug] teardown called", { instanceId, alreadyClosed: guardState.closed });
       if (guardState.closed) return;
       guardState.closed = true;
       while (disposers.length) {
@@ -183,7 +193,7 @@ function SandboxedRunner({ code, model, runKey }) {
     trackDisposer(() => window.removeEventListener("unhandledrejection", handleWindowError));
 
     const transformWidgetCode = (source) => {
-      const wrapped = `const React = globalThis.__VIBE_PREACT_COMPAT;\n${source}`;
+      const wrapped = `const React = globalThis.__VIBE_REACT;\n${source}`;
       const result = Babel.transform(wrapped, {
         presets: [["react", { runtime: "classic", pragma: "React.createElement", pragmaFrag: "React.Fragment" }]],
         sourceType: "module",
@@ -193,11 +203,12 @@ function SandboxedRunner({ code, model, runKey }) {
     };
 
     const executeCode = async () => {
+      debugLog(model, "[vibe][debug] executeCode called", { instanceId });
       try {
         setGuestWidget(null);
         if (FORBIDDEN_REACT_IMPORT.test(code)) {
           throw new Error(
-            "Generated code must not import React/ReactDOM or react/jsx-runtime. Use the React and html props provided by the host."
+            "Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead."
           );
         }
         const transformed = transformWidgetCode(code);
@@ -208,13 +219,16 @@ function SandboxedRunner({ code, model, runKey }) {
         URL.revokeObjectURL(url);
 
         if (module.default && typeof module.default === "function") {
-          console.debug("[vibe][runtime] module loaded successfully");
+          debugLog(model, "[vibe][runtime] module loaded successfully");
           // Pre-mount guard: attempt a fast render into a detached node to catch synchronous throws.
           try {
             const probeContainer = document.createElement("div");
-            const Element = ReactCompat.createElement(module.default, { model, html, React });
-            preactRender(Element, probeContainer);
-            preactRender(null, probeContainer);
+            const Element = React.createElement(module.default, { model, React });
+            const probeRoot = createRoot(probeContainer);
+            flushSync(() => {
+              probeRoot.render(Element);
+            });
+            probeRoot.unmount();
           } catch (err) {
             handleRuntimeError(err);
             return;
@@ -238,16 +252,17 @@ function SandboxedRunner({ code, model, runKey }) {
     executeCode();
 
     return () => {
+      debugLog(model, "[vibe][debug] useEffect cleanup called", { instanceId });
       teardown();
     };
   }, [code, model, handleRuntimeError, runKey]);
 
   if (!GuestWidget) {
-    return html`
-      <div style=${{ padding: "20px", color: "#8b949e" }}>
+    return (
+      <div style={{ padding: "20px", color: "#8b949e" }}>
         Loading widget...
       </div>
-    `;
+    );
   }
 
   class RuntimeErrorBoundary extends React.Component {
@@ -279,15 +294,15 @@ function SandboxedRunner({ code, model, runKey }) {
     }
   }
 
-  const fallback = html`
-    <div style=${{ padding: "20px", color: "#f8fafc", fontSize: "14px" }}>
+  const fallback = (
+    <div style={{ padding: "20px", color: "#f8fafc", fontSize: "14px" }}>
       Runtime error detected. Check the panel above.
     </div>
-  `;
+  );
 
   const GuardedGuest = (props) => {
     try {
-      return html`<${GuestWidget} ...${props} />`;
+      return <GuestWidget {...props} />;
     } catch (err) {
       console.error("[vibe][runtime] render threw synchronously", err);
       handleRuntimeError(err);
@@ -295,15 +310,11 @@ function SandboxedRunner({ code, model, runKey }) {
     }
   };
 
-  return html`
-    <${RuntimeErrorBoundary}
-      resetKey=${code}
-      onError=${handleRuntimeError}
-      fallback=${fallback}
-    >
-      <${GuardedGuest} model=${model} html=${html} React=${React} />
-    </${RuntimeErrorBoundary}>
-  `;
+  return (
+    <RuntimeErrorBoundary resetKey={code} onError={handleRuntimeError} fallback={fallback}>
+      <GuardedGuest model={model} React={React} />
+    </RuntimeErrorBoundary>
+  );
 }
 
 export default React.memo(

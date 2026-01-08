@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, ReactNode, Key, useMemo } from 'react';
 // @ts-ignore
-import { html } from 'htm/react/index.js';
 import { pyodideRuntime, PyodideState, WidgetModel } from '../utils/PyodideRuntime';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { materialLight, materialDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
@@ -625,5 +624,5 @@ function WidgetRenderer({ moduleUrl, model }: { moduleUrl: string; model: Widget
     );
   }
 
-  return <Widget model={model} html={html} React={React} />;
+  return <Widget model={model} React={React} />;
 }

@@ -1,100 +1,129 @@
-// import htm from "https://esm.sh/htm";
-
-// const html = htm.bind(React.createElement);
-
 /**
  * Reusable UI Components
  */
-export const StoryCard = ({ story, html, React }) => {
+export const StoryCard = ({ story, React }) => {
   const isTopStory = story.score > 100;
   const domain = story.url ? new URL(story.url).hostname.replace('www.', '') : null;
 
-  return html`
-    <div style=${{
-      padding: '12px 16px',
-      borderBottom: '1px solid #eee',
-      backgroundColor: isTopStory ? '#fffdfa' : '#fff',
-      borderLeft: isTopStory ? '4px solid #ff6600' : '4px solid transparent',
-      transition: 'background-color 0.2s ease'
-    }} className="story-card">
-      <div style=${{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '4px' }}>
-        <a href=${story.url} target="_blank" style=${{
-          color: '#000',
-          textDecoration: 'none',
-          fontWeight: '500',
-          fontSize: '15px'
-        }}>${story.title}</a>
-        ${domain && html`<span style=${{ color: '#828282', fontSize: '12px' }}>(${domain})</span>`}
+  return (
+    <div
+      style={{
+        padding: "12px 16px",
+        borderBottom: "1px solid #eee",
+        backgroundColor: isTopStory ? "#fffdfa" : "#fff",
+        borderLeft: isTopStory ? "4px solid #ff6600" : "4px solid transparent",
+        transition: "background-color 0.2s ease",
+      }}
+      className="story-card"
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "4px" }}>
+        <a
+          href={story.url}
+          target="_blank"
+          style={{
+            color: "#000",
+            textDecoration: "none",
+            fontWeight: "500",
+            fontSize: "15px",
+          }}
+        >
+          {story.title}
+        </a>
+        {domain && <span style={{ color: "#828282", fontSize: "12px" }}>({domain})</span>}
       </div>
-      <div style=${{ color: '#828282', fontSize: '12px', display: 'flex', gap: '12px' }}>
-        <span>${story.score} points by ${story.by}</span>
-        <span>${new Date(story.time * 1000).toLocaleString()}</span>
-        <span style=${{ cursor: 'pointer' }}>${story.descendants || 0} comments</span>
+      <div style={{ color: "#828282", fontSize: "12px", display: "flex", gap: "12px" }}>
+        <span>{story.score} points by {story.by}</span>
+        <span>{new Date(story.time * 1000).toLocaleString()}</span>
+        <span style={{ cursor: "pointer" }}>{story.descendants || 0} comments</span>
       </div>
     </div>
-  `;
+  );
 };
 
-export const Header = ({ html, React, filter, setFilter, minScore, setMinScore, sortBy, setSortBy }) => {
-  return html`
-    <header style=${{
-      backgroundColor: '#ff6600',
-      padding: '8px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px',
-      position: 'sticky',
-      top: 0,
-      zIndex: 10
-    }}>
-      <div style=${{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style=${{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style=${{ border: '1px solid white', padding: '2px 6px', fontWeight: 'bold', color: 'white' }}>Y</div>
-          <h1 style=${{ fontSize: '16px', margin: 0, color: '#000', fontWeight: 'bold' }}>Hacker News</h1>
+export const Header = ({ filter, setFilter, minScore, setMinScore, sortBy, setSortBy }) => {
+  return (
+    <header
+      style={{
+        backgroundColor: "#ff6600",
+        padding: "8px 16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div style={{ border: "1px solid white", padding: "2px 6px", fontWeight: "bold", color: "white" }}>Y</div>
+          <h1 style={{ fontSize: "16px", margin: 0, color: "#000", fontWeight: "bold" }}>Hacker News</h1>
         </div>
-        <div style=${{ display: 'flex', gap: '10px' }}>
-             <button 
-                onClick=${() => setSortBy('score')}
-                style=${{ 
-                    background: sortBy === 'score' ? '#000' : 'transparent',
-                    color: sortBy === 'score' ? '#fff' : '#000',
-                    border: 'none', padding: '2px 8px', cursor: 'pointer', fontSize: '12px'
-                }}>Top</button>
-             <button 
-                onClick=${() => setSortBy('time')}
-                style=${{ 
-                    background: sortBy === 'time' ? '#000' : 'transparent',
-                    color: sortBy === 'time' ? '#fff' : '#000',
-                    border: 'none', padding: '2px 8px', cursor: 'pointer', fontSize: '12px'
-                }}>New</button>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            onClick={() => setSortBy("score")}
+            style={{
+              background: sortBy === "score" ? "#000" : "transparent",
+              color: sortBy === "score" ? "#fff" : "#000",
+              border: "none",
+              padding: "2px 8px",
+              cursor: "pointer",
+              fontSize: "12px",
+            }}
+          >
+            Top
+          </button>
+          <button
+            onClick={() => setSortBy("time")}
+            style={{
+              background: sortBy === "time" ? "#000" : "transparent",
+              color: sortBy === "time" ? "#fff" : "#000",
+              border: "none",
+              padding: "2px 8px",
+              cursor: "pointer",
+              fontSize: "12px",
+            }}
+          >
+            New
+          </button>
         </div>
       </div>
-      
-      <div style=${{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', backgroundColor: '#f6f6ef', padding: '6px 12px', borderRadius: '2px' }}>
-        <input 
-          type="text" 
-          placeholder="Search stories..." 
-          value=${filter}
-          onInput=${(e) => setFilter(e.target.value)}
-          style=${{ border: '1px solid #ccc', padding: '2px 6px', fontSize: '12px', flex: 1 }}
+
+      <div
+        style={{
+          display: "flex",
+          gap: "16px",
+          alignItems: "center",
+          flexWrap: "wrap",
+          backgroundColor: "#f6f6ef",
+          padding: "6px 12px",
+          borderRadius: "2px",
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Search stories..."
+          value={filter}
+          onInput={(e) => setFilter(e.target.value)}
+          style={{ border: "1px solid #ccc", padding: "2px 6px", fontSize: "12px", flex: 1 }}
         />
-        <div style=${{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-          <span>Min Score: ${minScore}</span>
-          <input 
-            type="range" 
-            min="0" 
-            max="500" 
-            value=${minScore} 
-            onInput=${(e) => setMinScore(parseInt(e.target.value))}
-            style=${{ accentColor: '#ff6600' }}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+          <span>Min Score: {minScore}</span>
+          <input
+            type="range"
+            min="0"
+            max="500"
+            value={minScore}
+            onInput={(e) => setMinScore(parseInt(e.target.value))}
+            style={{ accentColor: "#ff6600" }}
           />
         </div>
       </div>
     </header>
-  `;
+  );
 };
 
-export default function HackerNewsWidget({ model, html, React }) {
+export default function HackerNewsWidget({ model, React }) {
   // Use model data or provide fallback mock data for the demo
   const rawData = model.get("data");
   const [stories, setStories] = React.useState([]);
@@ -130,56 +159,56 @@ export default function HackerNewsWidget({ model, html, React }) {
       });
   }, [stories, filter, minScore, sortBy]);
 
-  return html`
-    <div style=${{ 
-      height: '500px', 
-      display: 'flex', 
-      flexDirection: 'column', 
-      backgroundColor: '#f6f6ef',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-      overflow: 'hidden',
-      border: '1px solid #ddd',
-      borderRadius: '4px'
-    }}>
-      <${Header} 
-        filter=${filter} 
-        setFilter=${setFilter} 
-        minScore=${minScore} 
-        setMinScore=${setMinScore}
-        sortBy=${sortBy}
-        setSortBy=${setSortBy}
-        html=${html}
-        React=${React}
+  return (
+    <div
+      style={{
+        height: "500px",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "#f6f6ef",
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        overflow: "hidden",
+        border: "1px solid #ddd",
+        borderRadius: "4px",
+      }}
+    >
+      <Header
+        filter={filter}
+        setFilter={setFilter}
+        minScore={minScore}
+        setMinScore={setMinScore}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
       />
-      
-      <div style=${{ 
-        flex: 1, 
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
-        ${filteredStories.length > 0 
-          ? filteredStories.map(story => html`
-              <${StoryCard} 
-                key=${story.id} 
-                story=${story} 
-                html=${html} 
-                React=${React} 
-              />
-            `)
-          : html`<div style=${{ padding: '40px', textAlign: 'center', color: '#828282' }}>No stories match your filters.</div>`
-        }
+
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {filteredStories.length > 0 ? (
+          filteredStories.map((story) => <StoryCard key={story.id} story={story} React={React} />)
+        ) : (
+          <div style={{ padding: "40px", textAlign: "center", color: "#828282" }}>
+            No stories match your filters.
+          </div>
+        )}
       </div>
-      
-      <footer style=${{ 
-        padding: '12px', 
-        borderTop: '2px solid #ff6600', 
-        fontSize: '11px', 
-        textAlign: 'center',
-        color: '#828282'
-      }}>
+
+      <footer
+        style={{
+          padding: "12px",
+          borderTop: "2px solid #ff6600",
+          fontSize: "11px",
+          textAlign: "center",
+          color: "#828282",
+        }}
+      >
         Guidelines | FAQ | Lists | API | Security | Legal | Apply to YC | Contact
       </footer>
     </div>
-  `;
+  );
 }

@@ -1,7 +1,4 @@
-import * as React from "react";
-import htm from "htm";
-
-const html = htm.bind(React.createElement);
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export default function StatePromptInputRow({
   value,
@@ -11,26 +8,26 @@ export default function StatePromptInputRow({
   maxHeight = 200,
   blink = true
 }) {
-  const textareaRef = React.useRef(null);
-  const markerRef = React.useRef(null);
-  const mirrorRef = React.useRef(null);
-  const wrapperRef = React.useRef(null);
-  const [caretIndex, setCaretIndex] = React.useState(0);
-  const [caretStyle, setCaretStyle] = React.useState({ left: 0, top: 0, height: 14 });
+  const textareaRef = useRef(null);
+  const markerRef = useRef(null);
+  const mirrorRef = useRef(null);
+  const wrapperRef = useRef(null);
+  const [caretIndex, setCaretIndex] = useState(0);
+  const [caretStyle, setCaretStyle] = useState({ left: 0, top: 0, height: 14 });
 
   const normalizedValue = (value || "").replace(/\r\n/g, "\n");
   const safeCaretIndex = Math.min(caretIndex, normalizedValue.length);
   const beforeCaret = normalizedValue.slice(0, safeCaretIndex);
   const afterCaret = normalizedValue.slice(safeCaretIndex);
 
-  const updateCaretIndex = React.useCallback(() => {
+  const updateCaretIndex = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     const nextIndex = textarea.selectionStart ?? 0;
     setCaretIndex(nextIndex);
   }, []);
 
-  const updateCaretPosition = React.useCallback(() => {
+  const updateCaretPosition = useCallback(() => {
     const marker = markerRef.current;
     const textarea = textareaRef.current;
     if (!marker || !textarea) return;
@@ -45,7 +42,7 @@ export default function StatePromptInputRow({
     });
   }, []);
 
-  const autoResize = React.useCallback(() => {
+  const autoResize = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
@@ -54,25 +51,25 @@ export default function StatePromptInputRow({
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [maxHeight]);
 
-  React.useLayoutEffect(() => {
+  useLayoutEffect(() => {
     autoResize();
     updateCaretPosition();
   }, [normalizedValue, safeCaretIndex, autoResize, updateCaretPosition]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleResize = () => updateCaretPosition();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [updateCaretPosition]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     updateCaretIndex();
   }, [normalizedValue, updateCaretIndex]);
 
-  return html`
+  return (
     <div class="state-input-row">
       <div class="log-entry log-entry--active log-entry--input">
-        <style>
+        <style>{`
         .state-input-row {
           border-top: 1px solid rgba(242, 240, 233, 0.25);
           margin: 8px 8px 0;
@@ -154,40 +151,40 @@ export default function StatePromptInputRow({
             0%, 49% { opacity: 1; }
             50%, 100% { opacity: 0; }
           }
-        </style>
-        <span class="log-icon log-icon--active">${">"}</span>
+        `}</style>
+        <span class="log-icon log-icon--active">{">"}</span>
         <span class="log-text">
-          <span class="state-input-wrapper" ref=${wrapperRef}>
+          <span class="state-input-wrapper" ref={wrapperRef}>
             <textarea
-              ref=${textareaRef}
+              ref={textareaRef}
               class="state-input"
-              value=${normalizedValue}
-              disabled=${disabled}
-              rows=${1}
-              onInput=${(event) => {
+              value={normalizedValue}
+              disabled={disabled}
+              rows={1}
+              onInput={(event) => {
                 onChange(event.target.value);
                 updateCaretIndex();
                 autoResize();
               }}
-              onKeyDown=${(event) => {
+              onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
                   onSubmit();
                 }
               }}
-              onClick=${updateCaretIndex}
-              onKeyUp=${updateCaretIndex}
-              onSelect=${updateCaretIndex}
-              onScroll=${updateCaretPosition}
+              onClick={updateCaretIndex}
+              onKeyUp={updateCaretIndex}
+              onSelect={updateCaretIndex}
+              onScroll={updateCaretPosition}
             ></textarea>
-            <div class="state-input-mirror" ref=${mirrorRef} aria-hidden="true">
-              ${beforeCaret}
-              <span ref=${markerRef}>&#8203;</span>
-              ${afterCaret}
+            <div class="state-input-mirror" ref={mirrorRef} aria-hidden="true">
+              {beforeCaret}
+              <span ref={markerRef}>&#8203;</span>
+              {afterCaret}
             </div>
             <span
-              class=${`state-input-caret ${blink ? "is-blinking" : ""}`}
-              style=${{
+              class={`state-input-caret ${blink ? "is-blinking" : ""}`}
+              style={{
                 transform: `translate(${caretStyle.left}px, ${caretStyle.top}px)`,
                 height: `${caretStyle.height}px`
               }}
@@ -196,5 +193,5 @@ export default function StatePromptInputRow({
         </span>
       </div>
     </div>
-  `;
+  );
 }

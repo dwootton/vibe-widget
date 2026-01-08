@@ -1,9 +1,6 @@
-import * as React from "react";
-import htm from "htm";
+import React, { useMemo, useState } from "react";
 import TerminalViewer from "./TerminalViewer";
 import { buildStackSummary } from "../utils/stackSummary";
-
-const html = htm.bind(React.createElement);
 
 function buildStatusLabel(status) {
   if (status === "retrying") return "Repairing widget";
@@ -24,13 +21,13 @@ export default function StateViewer({
   hideOuterStatus = false,
   onSubmitPrompt
 }) {
-  const [prompt, setPrompt] = React.useState("");
+  const [prompt, setPrompt] = useState("");
   const isGenerating = status === "generating";
   const isRepairing = status === "retrying";
   const isRepairState = status === "error" || status === "blocked";
   const canPrompt = (isGenerating || isRepairState) && !isRepairing;
 
-  const displayLogs = React.useMemo(() => {
+  const displayLogs = useMemo(() => {
     const next = Array.isArray(logs) ? logs.slice() : [];
     if (errorMessage) {
       next.push(`Generation error:\n${errorMessage}`);
@@ -55,9 +52,10 @@ export default function StateViewer({
           }
         });
     }
-    const isRepairing = status === "retrying"
-      || (Array.isArray(logs) && logs.some((entry) => String(entry).toLowerCase().includes("repairing code")));
-    if (isRepairing) {
+    const isRepairingFlag =
+      status === "retrying" ||
+      (Array.isArray(logs) && logs.some((entry) => String(entry).toLowerCase().includes("repairing code")));
+    if (isRepairingFlag) {
       const summaryLines = buildStackSummary({
         errorMessage,
         widgetError,
@@ -89,9 +87,9 @@ export default function StateViewer({
     setPrompt("");
   };
 
-  return html`
+  return (
     <div class="state-viewer">
-      <style>
+      <style>{`
         .state-viewer {
           width: 100%;
           height: 100%;
@@ -136,25 +134,25 @@ export default function StateViewer({
           border-radius: 6px;
           white-space: pre-wrap;
         }
-      </style>
-      ${!hideOuterStatus && html`
+      `}</style>
+      {!hideOuterStatus && (
         <div class="state-viewer-header">
-          <span class="state-viewer-status">${buildStatusLabel(status)}</span>
-          <span class="state-viewer-meta">Retries: ${retryCount ?? 0}</span>
+          <span class="state-viewer-status">{buildStatusLabel(status)}</span>
+          <span class="state-viewer-meta">Retries: {retryCount ?? 0}</span>
         </div>
-      `}
+      )}
       <div class="state-viewer-body">
-        <${TerminalViewer}
-          logs=${displayLogs}
-          status=${status}
-          heading=${`Status: ${buildStatusLabel(status)} • Retries: ${retryCount ?? 0}`}
-          promptValue=${prompt}
-          onPromptChange=${setPrompt}
-          onPromptSubmit=${handleSubmit}
-          promptDisabled=${!canPrompt}
-          promptBlink=${true}
+        <TerminalViewer
+          logs={displayLogs}
+          status={status}
+          heading={`Status: ${buildStatusLabel(status)} • Retries: ${retryCount ?? 0}`}
+          promptValue={prompt}
+          onPromptChange={setPrompt}
+          onPromptSubmit={handleSubmit}
+          promptDisabled={!canPrompt}
+          promptBlink={true}
         />
       </div>
     </div>
-  `;
+  );
 }

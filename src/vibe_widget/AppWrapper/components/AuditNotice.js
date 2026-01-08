@@ -1,12 +1,9 @@
-import * as React from "react";
-import htm from "htm";
-
-const html = htm.bind(React.createElement);
+import React from "react";
 
 export default function AuditNotice({ onAccept }) {
-  return html`
+  return (
     <div class="audit-overlay">
-      <style>
+      <style>{`
         .audit-overlay {
           position: absolute;
           inset: 0;
@@ -62,7 +59,7 @@ export default function AuditNotice({ onAccept }) {
         .audit-accept:hover {
           background: #fb923c;
         }
-      </style>
+      `}</style>
       <div class="audit-card" role="dialog" aria-live="polite">
         <div class="audit-title">Audit Required</div>
         <div class="audit-body">
@@ -71,11 +68,11 @@ export default function AuditNotice({ onAccept }) {
           By continuing, you acknowledge the need to audit outputs.
         </div>
         <div class="audit-actions">
-          <button class="audit-accept" onClick=${onAccept}>
+          <button class="audit-accept" onClick={onAccept}>
             I Understand
           </button>
         </div>
       </div>
     </div>
-  `;
+  );
 }

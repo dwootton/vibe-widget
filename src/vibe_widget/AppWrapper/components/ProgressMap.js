@@ -1,122 +1,68 @@
-import * as React from "react";
-import htm from "htm";
+import React from "react";
 
-const html = htm.bind(React.createElement);
-const SPINNER_FRAMES = ["/", "-", "\\", "|"];
-const SPINNER_INTERVAL_MS = 120;
+export default function ProgressMap({ logs = [], status = "ready", fullHeight = false, heading = null, footer = null }) {
+  const isActive = status !== "ready" && status !== "error";
+  const isDone = status === "ready";
 
-export default function ProgressMap({
-  logs,
-  status = "generating",
-  fullHeight = false,
-  footer = null,
-  heading = "Welcome to Vibe Widgets!"
-}) {
-  const logListRef = React.useRef(null);
-  const shouldAutoScrollRef = React.useRef(true);
-  const prevScrollHeightRef = React.useRef(0);
-  const [spinnerFrame, setSpinnerFrame] = React.useState(0);
-  const isTerminal = status === "blocked" || status === "error" || status === "ready";
-  const shouldSpin = Array.isArray(logs) && logs.length > 0 && !isTerminal;
-
-  React.useLayoutEffect(() => {
-    const node = logListRef.current;
-    if (!node) return;
-    const prevHeight = prevScrollHeightRef.current || 0;
-    const nextHeight = node.scrollHeight;
-    const heightDelta = nextHeight - prevHeight;
-    const raf = requestAnimationFrame(() => {
-      if (shouldAutoScrollRef.current) {
-        node.scrollTop = node.scrollHeight;
-      } else if (heightDelta) {
-        node.scrollTop = node.scrollTop + heightDelta;
-      }
-      prevScrollHeightRef.current = node.scrollHeight;
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [logs]);
-
-  React.useEffect(() => {
-    if (!shouldSpin) return;
-    const interval = setInterval(() => {
-      setSpinnerFrame((f) => (f + 1) % SPINNER_FRAMES.length);
-    }, SPINNER_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [shouldSpin]);
-
-  const sanitizeLogText = (log) => {
-    const upper = String(log ?? "").toUpperCase();
-    return upper.replace(/[.\u2026]+$/g, "").trimEnd();
-  };
-
-  return html`
-    <div class=${`progress-wrapper ${fullHeight ? "progress-wrapper--full" : ""}`}>
-      <style>
-        .progress-wrapper {
-          position: relative;
-          padding: 12px;
-          background: transparent;
-          height: 300px;
-        }
-        .progress-wrapper--full {
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-        }
-        
+  return (
+    <div class="progress-bezel">
+      <style>{`
         .progress-bezel {
-          border-radius: 6px;
-          background: #1A1A1A;
-          border: 3px solid #F2F0E9;
-          box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.5);
-        }
-        .progress-wrapper--full .progress-bezel {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          min-height: 0;
-        }
-        
-        .progress-heading {
-          padding: 10px 12px 0;
-          color: #F2F0E9;
-          font-family: "Inter", "JetBrains Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 13px;
-          letter-spacing: 0.02em;
-        }
-        
-        .progress-body {
-          flex: 1;
-          min-height: 0;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .progress-log-list {
           width: 100%;
+          height: 100%;
+          box-sizing: border-box;
+          color: #e2e8f0;
+          background: #0b0b0b;
+          border: 1px solid rgba(242, 240, 233, 0.08);
+          border-radius: 4px;
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 8px 24px rgba(0, 0, 0, 0.25);
           padding: 10px 12px;
-          background: transparent;
-          color: #F2F0E9;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .progress-heading {
+          display: flex;
+          align-items: center;
+          gap: 8px;
           font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
             Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
           font-size: 12px;
-          line-height: 1.4;
-          overflow-y: auto;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: #f2f0e9;
+        }
+        .progress-heading .dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          background: ${isDone ? "#22c55e" : "#f97316"};
+          box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
+        }
+        .progress-log-container {
           flex: 1;
-          min-height: 0;
+          min-height: ${fullHeight ? "100%" : "120px"};
+          max-height: ${fullHeight ? "100%" : "240px"};
+          overflow: auto;
+          background: linear-gradient(180deg, rgba(18, 18, 18, 0.9), rgba(18, 18, 18, 0.6));
+          border: 1px solid rgba(242, 240, 233, 0.12);
+          border-radius: 4px;
+          padding: 10px;
         }
-        .progress-footer {
-          padding: 4px 12px 12px;
-          flex: 0 0 auto;
+        .progress-log-list {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 12px;
         }
-        
         .progress-log-list::-webkit-scrollbar {
           width: 4px;
-        }
-        
-        .progress-log-list::-webkit-scrollbar-track {
-          background: transparent;
+          height: 4px;
         }
         
         .progress-log-list::-webkit-scrollbar-thumb {
@@ -193,53 +139,40 @@ export default function ProgressMap({
             opacity: 1;
           }
         }
-      </style>
-      <div class="progress-bezel">
-        ${heading ? html`
-          <div class="progress-heading">
-            ${heading}
-          </div>
-        ` : null}
-        <div class="progress-body">
-          <div
-            class="progress-log-list"
-            ref=${logListRef}
-            onScroll=${(event) => {
-              const node = event.currentTarget;
-              const remaining = node.scrollHeight - node.scrollTop - node.clientHeight;
-              shouldAutoScrollRef.current = remaining <= 4;
-              prevScrollHeightRef.current = node.scrollHeight;
-            }}
-          >
-            ${logs.map((log, idx) => {
-              const isActive = idx === logs.length - 1;
-              const isLive = isActive && !isTerminal;
-              const icon = isLive ? SPINNER_FRAMES[spinnerFrame] : "\u25A0";
-              const text = sanitizeLogText(log);
-              const entryClass = isLive
-                ? "log-entry--active"
-                : isActive
-                  ? "log-entry--terminal"
-                  : "log-entry--done";
-              return html`
-                <div
-                  key=${idx}
-                  class=${`log-entry ${entryClass}`}
-                  style=${{ "--entry-index": idx }}
-                >
-                  <span class=${`log-icon ${isLive ? "log-icon--active" : isActive ? "log-icon--terminal" : ""}`}>
-                    ${icon}
-                  </span>
-                  <span class="log-text">
-                    ${text}${isLive && html`<span class="cursor">█</span>`}
-                  </span>
-                </div>
-              `;
-            })}
-          </div>
-          ${footer && html`<div class="progress-footer">${footer}</div>`}
+      `}</style>
+      {heading && (
+        <div class="progress-heading">
+          <span class="dot" aria-hidden="true"></span>
+          <span>{heading}</span>
         </div>
+      )}
+      <div class="progress-log-container">
+        <ul class="progress-log-list">
+          {logs.map((entry, idx) => {
+            const text = typeof entry === "string" ? entry : String(entry);
+            const isTerminal = text.toLowerCase().includes("runtime error");
+            const isLive = idx === logs.length - 1 && isActive;
+            const classes = [
+              "log-entry",
+              isDone ? "log-entry--done" : "",
+              isActive && !isTerminal ? "log-entry--active" : "",
+              isTerminal ? "log-entry--terminal" : ""
+            ].filter(Boolean).join(" ");
+            return (
+              <li key={idx} class={classes} style={{ "--entry-index": idx }}>
+                <span class={`log-icon ${isLive ? "log-icon--active" : isTerminal ? "log-icon--terminal" : ""}`}>
+                  {isTerminal ? "!" : ">"} 
+                </span>
+                <span class="log-text">
+                  {text}
+                  {isLive && <span class="cursor">█</span>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       </div>
+      {footer && <div class="progress-footer">{footer}</div>}
     </div>
-  `;
+  );
 }

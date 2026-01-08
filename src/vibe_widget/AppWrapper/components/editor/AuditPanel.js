@@ -1,7 +1,4 @@
-import * as React from "react";
-import htm from "htm";
-
-const html = htm.bind(React.createElement);
+import React from "react";
 
 export default function AuditPanel({
   hasAuditPayload,
@@ -23,24 +20,23 @@ export default function AuditPanel({
 }) {
   const showEmpty = visibleConcerns.length === 0;
   const concernCountLabel = hasAuditPayload ? `${visibleConcerns.length} concerns` : "No audit yet";
-  return html`
+  return (
     <div class="audit-panel">
-      <style>
+      <style>{`
         .audit-panel {
           font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
             Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
           color: #f2f0e9;
         }
-        .audit-panel a {
-          color: #f97316;
-        }
-        .audit-panel a:hover {
-          color: #fb923c;
-        }
+        .audit-panel a { color: #f97316; }
+        .audit-panel a:hover { color: #fb923c; }
         .audit-panel-header {
           font-size: 11px;
           letter-spacing: 0.08em;
           text-transform: uppercase;
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 8px;
         }
         .audit-card {
           border-bottom: 1px solid rgba(242, 240, 233, 0.2);
@@ -49,6 +45,20 @@ export default function AuditPanel({
         .audit-card-title {
           font-size: 10px;
           text-transform: uppercase;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .impact-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          display: inline-block;
+        }
+        .audit-card-actions {
+          display: flex;
+          gap: 6px;
+          margin: 6px 0;
         }
         .audit-card-actions button {
           border-radius: 2px;
@@ -59,9 +69,7 @@ export default function AuditPanel({
           width: 20px;
           height: 20px;
         }
-        .audit-card-actions button:hover {
-          background: #1a1a1a;
-        }
+        .audit-card-actions button:hover { background: #1a1a1a; }
         .audit-line-link {
           border: 1px solid rgba(242, 240, 233, 0.2);
           border-radius: 2px;
@@ -91,23 +99,20 @@ export default function AuditPanel({
           border-radius: 2px;
           background: #0f0f0f;
           font-size: 11px;
+          padding: 10px;
         }
-      </style>
+      `}</style>
       <div class="audit-panel-header">
         <span>Audit Overview</span>
-        <span>${concernCountLabel}</span>
+        <span>{concernCountLabel}</span>
       </div>
-      ${!showEmpty ? html`
+      {!showEmpty ? (
         <div class="audit-grid">
-          ${visibleConcerns.map(({ concern, cardId, index }) => {
+          {visibleConcerns.map(({ concern, cardId, index }) => {
             const isExpanded = !!expandedCards[cardId];
             const showTechnical = !!technicalCards[cardId];
             const impact = (concern.impact || "low").toLowerCase();
-            const impactColor = impact === "high"
-              ? "#f87171"
-              : impact === "medium"
-                ? "#f59e0b"
-                : "#34d399";
+            const impactColor = impact === "high" ? "#f87171" : impact === "medium" ? "#f59e0b" : "#34d399";
             const location = Array.isArray(concern.location) ? concern.location : [];
             const lineLabel = location.length > 0
               ? `LINES ${Math.min(...location)}-${Math.max(...location)}`
@@ -119,20 +124,20 @@ export default function AuditPanel({
             const descriptionText = showTechnical && canToggleTechnical ? technicalSummary : plainSummary;
             const isDimmed = hoveredCardId && hoveredCardId !== cardId;
             const isHighlighted = hoveredCardId === cardId;
-            return html`
+            return (
               <div
-                class="audit-card ${isDimmed ? "dimmed" : ""} ${isHighlighted ? "highlight" : ""}"
-                onClick=${() => onToggleExpanded(cardId)}
+                class={`audit-card ${isDimmed ? "dimmed" : ""} ${isHighlighted ? "highlight" : ""}`}
+                onClick={() => onToggleExpanded(cardId)}
               >
-                <div class="audit-card-title" title=${`Impact: ${impact}`}>
-                  <span class="impact-dot" style=${{ background: impactColor }}></span>
-                  <span>${concern.id || "concern"}</span>
+                <div class="audit-card-title" title={`Impact: ${impact}`}>
+                  <span class="impact-dot" style={{ background: impactColor }}></span>
+                  <span>{concern.id || "concern"}</span>
                 </div>
                 <div class="audit-card-actions">
                   <button
                     class="audit-add-button"
                     title="Add to Changes"
-                    onClick=${(event) => {
+                    onClick={(event) => {
                       event.stopPropagation();
                       onAddPendingChange(concern, cardId, { itemId: `${cardId}-base`, source: "base" });
                     }}
@@ -142,7 +147,7 @@ export default function AuditPanel({
                   <button
                     class="audit-dismiss-button"
                     title="Dismiss"
-                    onClick=${(event) => {
+                    onClick={(event) => {
                       event.stopPropagation();
                       onDismissConcern(cardId, concern.id || "concern");
                     }}
@@ -153,100 +158,106 @@ export default function AuditPanel({
                 <div class="audit-card-meta">
                   <button
                     class="audit-line-link"
-                    onClick=${(event) => {
+                    onClick={(event) => {
                       event.stopPropagation();
                       if (location.length > 0) {
                         onScrollToLines(location);
                       }
                     }}
                   >
-                    ${lineLabel}
+                    {lineLabel}
                   </button>
                 </div>
                 <div
                   class="audit-card-summary"
-                  onClick=${(event) => {
+                  onClick={(event) => {
                     if (!canToggleTechnical) return;
                     event.stopPropagation();
                     onToggleTechnical(cardId);
                   }}
-                  title=${canToggleTechnical ? "Click to toggle technical note" : ""}
+                  title={canToggleTechnical ? "Click to toggle technical note" : ""}
                 >
-                  ${descriptionText}
+                  {descriptionText}
                 </div>
-                ${isExpanded && detailText && html`
-                  <div class="audit-card-detail">${detailText}</div>
-                `}
-                ${isExpanded && concern.alternatives && concern.alternatives.length > 0 && html`
+                {isExpanded && detailText && (
+                  <div class="audit-card-detail">{detailText}</div>
+                )}
+                {isExpanded && concern.alternatives && concern.alternatives.length > 0 && (
                   <div class="audit-card-list">
-                    Recommendations: ${Array.isArray(concern.alternatives) ? concern.alternatives.map((alt, altIndex) => {
-                      const altText = alt.option || alt;
-                      const isLast = altIndex === concern.alternatives.length - 1;
-                      return html`
-                        <span>
-                          <span
-                            class="audit-alternative"
-                            role="button"
-                            tabindex="0"
-                            onClick=${(event) => {
-                              event.stopPropagation();
-                              onAddPendingChange(concern, cardId, {
-                                itemId: `${cardId}-alt-${altIndex}`,
-                                label: `Recommendation: ${altText}`,
-                                source: "recommendation",
-                                alternative: altText
-                              });
-                            }}
-                            onKeyDown=${(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                onAddPendingChange(concern, cardId, {
-                                  itemId: `${cardId}-alt-${altIndex}`,
-                                  label: `Recommendation: ${altText}`,
-                                  source: "recommendation",
-                                  alternative: altText
-                                });
-                              }
-                            }}
-                          >
-                            ${altText}
-                          </span>${!isLast ? ", " : ""}
-                        </span>
-                      `;
-                    }) : ""}
+                    Recommendations:{" "}
+                    {Array.isArray(concern.alternatives)
+                      ? concern.alternatives.map((alt, altIndex) => {
+                          const altText = alt.option || alt;
+                          const isLast = altIndex === concern.alternatives.length - 1;
+                          return (
+                            <span>
+                              <span
+                                class="audit-alternative"
+                                role="button"
+                                tabIndex="0"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onAddPendingChange(concern, cardId, {
+                                    itemId: `${cardId}-alt-${altIndex}`,
+                                    label: `Recommendation: ${altText}`,
+                                    source: "recommendation",
+                                    alternative: altText
+                                  });
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    onAddPendingChange(concern, cardId, {
+                                      itemId: `${cardId}-alt-${altIndex}`,
+                                      label: `Recommendation: ${altText}`,
+                                      source: "recommendation",
+                                      alternative: altText
+                                    });
+                                  }
+                                }}
+                              >
+                                {altText}
+                              </span>
+                              {!isLast ? ", " : ""}
+                            </span>
+                          );
+                        })
+                      : ""}
                   </div>
-                `}
+                )}
               </div>
-            `;
+            );
           })}
         </div>
-      ` : html`
+      ) : (
         <div class="audit-empty">
-          ${hasAuditPayload
+          {hasAuditPayload
             ? "All audits resolved."
-            : html`Run an audit to see findings. ${onRunAudit && html`<button class="audit-run-link" onClick=${onRunAudit}>Run an audit</button>`}`
+            : (
+              <>Run an audit to see findings. {onRunAudit && <button class="audit-run-link" onClick={onRunAudit}>Run an audit</button>}</>
+            )
           }
-          ${Object.keys(dismissedConcerns).length > 0 && html`
+          {Object.keys(dismissedConcerns).length > 0 && (
             <div>
-              <button onClick=${onToggleDismissed}>
-                ${showDismissed ? "Hide dismissed" : "Show dismissed"}
+              <button onClick={onToggleDismissed}>
+                {showDismissed ? "Hide dismissed" : "Show dismissed"}
               </button>
+              {showDismissed && (
+                <div class="audit-dismissed-list">
+                  {Object.entries(dismissedConcerns).map(([cardId, label]) => (
+                    <div class="audit-dismissed-item">
+                      <span>{label}</span>
+                      <button onClick={() => onRestoreDismissed(cardId)}>
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            ${showDismissed && html`
-              <div class="audit-dismissed-list">
-                ${Object.entries(dismissedConcerns).map(([cardId, label]) => html`
-                  <div class="audit-dismissed-item">
-                    <span>${label}</span>
-                    <button onClick=${() => onRestoreDismissed(cardId)}>
-                      Restore
-                    </button>
-                  </div>
-                `)}
-              </div>
-            `}
-          `}
+          )}
         </div>
-      `}
+      )}
     </div>
-  `;
+  );
 }

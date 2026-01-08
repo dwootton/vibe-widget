@@ -25,12 +25,12 @@ class CodeStreamParser:
             r'React\.(?:useState|useEffect|useRef|useMemo|useCallback)',
             "Setting up React hooks..."
         ),
-        "html_template": (
-            r'html`',
+        "jsx_return": (
+            r'return\s*<|return\s*\(',
             "Building UI components..."
         ),
         "style_object": (
-            r'style=\$\{\{',
+            r'style=\{\{',
             "Applying styles..."
         ),
         "data_map": (
@@ -70,12 +70,8 @@ class CodeStreamParser:
             "Adding interactivity..."
         ),
         "conditional_render": (
-            r'\$\{[^}]*&&[^}]*html`',
+            r'\{[^}]*&&\s*<',
             "Adding conditional rendering..."
-        ),
-        "return_statement": (
-            r'return\s+html`',
-            "Finalizing component..."
         ),
     }
     
@@ -175,7 +171,7 @@ class RevisionStreamParser:
             "Adjusting stroke"
         ),
         "style_change": (
-            r'style=\$\{\{[^}]*(?:color|background|font|border|padding|margin)',
+            r'style=\{\{[^}]*(?:color|background|font|border|padding|margin)',
             "Applying style changes"
         ),
         "attr_update": (
@@ -394,8 +390,8 @@ def generate_standalone_wrapper(full_code: str, component_name: str) -> str:
         return full_code + f"""
 
 // Standalone wrapper for {component_name}
-export default function Widget({{ model, html, React }}) {{
-  return html`<${{{component_name}}} model=${{model}} html=${{html}} React=${{React}} />`;
+export default function Widget({{ model, React }}) {{
+  return <{component_name} model={{model}} React={{React}} />;
 }}
 """
     
@@ -435,8 +431,8 @@ export default function Widget({{ model, html, React }}) {{
     post_default = full_code[end:] if end < len(full_code) else ""
     
     new_default = f"""// Standalone wrapper for {component_name}
-export default function Widget({{ model, html, React }}) {{
-  return html`<${{{component_name}}} model=${{model}} html=${{html}} React=${{React}} />`;
+export default function Widget({{ model, React }}) {{
+  return <{component_name} model={{model}} React={{React}} />;
 }}"""
     
     return pre_default + new_default + post_default

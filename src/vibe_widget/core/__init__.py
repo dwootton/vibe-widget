@@ -2,6 +2,7 @@
 
 from vibe_widget.core.widget import (
     VibeWidget,
+    WidgetHandle,
     create,
     edit,
     load,
@@ -12,6 +13,7 @@ from vibe_widget.core.widget import (
 
 __all__ = [
     "VibeWidget",
+    "WidgetHandle",
     "create",
     "edit",
     "load",

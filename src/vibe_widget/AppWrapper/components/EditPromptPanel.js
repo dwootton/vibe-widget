@@ -1,7 +1,4 @@
-import * as React from "react";
-import htm from "htm";
-
-const html = htm.bind(React.createElement);
+import React, { useEffect, useRef, useState } from "react";
 
 export default function EditPromptPanel({
   elementBounds,
@@ -11,229 +8,148 @@ export default function EditPromptPanel({
   onSubmit,
   onCancel
 }) {
-  const [prompt, setPrompt] = React.useState(initialPrompt || "");
-  const panelRef = React.useRef(null);
-  const textareaRef = React.useRef(null);
-  const [position, setPosition] = React.useState({ top: 0, left: 0 });
-  const [textareaHeight, setTextareaHeight] = React.useState(40);
-  const [panelHovered, setPanelHovered] = React.useState(false);
-  const [buttonHovered, setButtonHovered] = React.useState(false);
+  const [prompt, setPrompt] = useState(initialPrompt || "");
+  const textareaRef = useRef(null);
 
-  const PANEL_WIDTH = 320;
-  const MIN_TEXTAREA_HEIGHT = 40;
-  const MAX_TEXTAREA_HEIGHT = 288;
-  const LINE_HEIGHT = 24;
-  const PADDING = 12;
-  const GAP = 8;
-  
-  const getButtonOpacity = () => {
-    if (buttonHovered) return 1;
-    if (panelHovered) return 0.3;
-    return 0.1;
+  useEffect(() => {
+    setPrompt(initialPrompt || "");
+  }, [initialPrompt]);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  const handleSubmit = () => {
+    const trimmed = prompt.trim();
+    if (!trimmed) return;
+    onSubmit(trimmed);
   };
 
-  React.useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) {
-        onCancel(prompt);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onCancel, prompt]);
+  const width = Math.max(260, Math.min(380, containerBounds?.width || 320));
+  const left = containerBounds?.left || 0;
+  const top = containerBounds?.top || 0;
+  const bounds = elementBounds || { top: 0, left: 0, width: 0, height: 0 };
 
-  React.useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = MIN_TEXTAREA_HEIGHT + "px";
-      const scrollHeight = textareaRef.current.scrollHeight;
-      const newHeight = Math.min(Math.max(scrollHeight, MIN_TEXTAREA_HEIGHT), MAX_TEXTAREA_HEIGHT);
-      setTextareaHeight(newHeight);
-      textareaRef.current.style.height = newHeight + "px";
-    }
-  }, [prompt]);
-
-  React.useEffect(() => {
-    if (!elementBounds) return;
-
-    const viewport = {
-      top: 0,
-      left: 0,
-      right: window.innerWidth,
-      bottom: window.innerHeight,
-      width: window.innerWidth,
-      height: window.innerHeight,
-    };
-    const bounds = containerBounds || viewport;
-    const insetBounds = {
-      top: bounds.top + PADDING,
-      left: bounds.left + PADDING,
-      right: bounds.right - PADDING,
-      bottom: bounds.bottom - PADDING,
-    };
-
-    const panelHeight = textareaHeight + 56;
-
-    const elCenterX = elementBounds.left + elementBounds.width / 2;
-
-    let top = elementBounds.bottom + GAP;
-    let left = elCenterX - PANEL_WIDTH / 2;
-
-    if (top + panelHeight > insetBounds.bottom) {
-      top = insetBounds.bottom - panelHeight;
-    }
-
-    top = Math.max(insetBounds.top, Math.min(top, insetBounds.bottom - panelHeight));
-    left = Math.max(insetBounds.left, Math.min(left, insetBounds.right - PANEL_WIDTH));
-
-    setPosition({ top, left });
-  }, [elementBounds, textareaHeight, containerBounds]);
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      if (e.shiftKey) {
-        e.stopPropagation();
-      } else if (prompt.trim()) {
-        e.preventDefault();
-        e.stopPropagation();
-        onSubmit(prompt);
-      }
-    } else if (e.key === "Escape") {
-      onCancel(prompt);
-    }
-  };
-
-  return html`
-    <div>
-      ${elementBounds && html`
-        <div class="selected-element-highlight" style=${{
-          position: "fixed",
-          left: elementBounds.left + "px",
-          top: elementBounds.top + "px",
-          width: elementBounds.width + "px",
-          height: elementBounds.height + "px",
-          outline: "2px solid #f97316",
-          outlineOffset: "0px",
-          background: "rgba(249, 115, 22, 0.1)",
-          borderRadius: "2px",
-          pointerEvents: "none",
-          zIndex: 10000,
-          boxSizing: "border-box",
-        }}>
-          ${elementDescription?.tag && html`
-            <div style=${{
-              position: "absolute",
-              top: "-18px",
-              left: "-2px",
-              background: "#f97316",
-              color: "white",
-              fontSize: "10px",
-              fontWeight: 600,
-              padding: "1px 5px",
-              borderRadius: "3px 3px 0 0",
-              whiteSpace: "nowrap",
-              fontFamily: "ui-monospace, monospace",
-            }}>
-              ${elementDescription.tag.toLowerCase()}
-            </div>
-          `}
-        </div>
-      `}
-      <div 
-        ref=${panelRef}
-        class="edit-panel" 
-        onMouseEnter=${() => setPanelHovered(true)}
-        onMouseLeave=${() => setPanelHovered(false)}
-        style=${{
-        position: "fixed",
-        top: position.top + "px",
-        left: position.left + "px",
-        width: PANEL_WIDTH + "px",
-        background: "rgba(26, 26, 26, 0.95)",
-        border: "1px solid rgba(255, 255, 255, 0.15)",
-        borderRadius: "10px",
-        padding: "8px",
-        zIndex: 10001,
-        backdropFilter: "blur(8px)",
-        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4)",
-        display: "flex",
-        flexDirection: "column",
-        gap: "6px",
+  return (
+    <div
+      class="edit-prompt-panel"
+      style={{
+        position: "absolute",
+        left: `${left + bounds.left}px`,
+        top: `${top + bounds.bottom + 10}px`,
+        width: `${width}px`,
+        zIndex: 1000
       }}
-      >
-        <div style=${{ position: "relative", width: "100%" }}>
-          <textarea
-            ref=${textareaRef}
-            value=${prompt}
-            onInput=${(e) => setPrompt(e.target.value)}
-            onKeyDown=${handleKeyDown}
-            placeholder="What would you like to change?"
-            rows="1"
-            style=${{
-          width: "100%",
-          minHeight: MIN_TEXTAREA_HEIGHT + "px",
-          maxHeight: MAX_TEXTAREA_HEIGHT + "px",
-          padding: "10px 50px 10px 12px",
-          borderRadius: "6px",
-          border: "1px solid rgba(255,255,255,0.1)",
-          background: "rgba(255,255,255,0.05)",
-          color: "white",
-          fontSize: "13px",
-          lineHeight: "20px",
-          outline: "none",
-          resize: "none",
-          overflowY: textareaHeight >= MAX_TEXTAREA_HEIGHT ? "auto" : "hidden",
-          boxSizing: "border-box",
-          fontFamily: "inherit",
-        }}
-          />
-          <button 
-            onClick=${() => prompt.trim() ? onSubmit(prompt) : onCancel(prompt)} 
-            onMouseEnter=${() => setButtonHovered(true)}
-            onMouseLeave=${() => setButtonHovered(false)}
-            style=${{
-          position: "absolute",
-          top: "6px",
-          right: textareaHeight >= MAX_TEXTAREA_HEIGHT ? "16px" : "8px",
-          width: "28px",
-          height: "28px",
-          borderRadius: "6px",
-          background: prompt.trim()
-            ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-            : "rgba(255,255,255,0.15)",
-          color: "white",
-          border: "none",
-          cursor: "pointer",
-          fontSize: "14px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          transition: "opacity 0.2s, background 0.2s",
-          padding: 0,
-          opacity: getButtonOpacity(),
-        }}
-            title=${prompt.trim() ? "Send (Enter)" : "Cancel (Esc)"}
-          >
-            ${prompt.trim() ? html`
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="19" x2="12" y2="5"></line>
-                <polyline points="5 12 12 5 19 12"></polyline>
-              </svg>
-            ` : html`
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            `}
-          </button>
+    >
+      <style>{`
+        .edit-panel {
+          background: rgba(0, 0, 0, 0.9);
+          color: #f2f0e9;
+          border: 1px solid rgba(242, 240, 233, 0.2);
+          border-radius: 6px;
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+          padding: 12px;
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 12px;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .edit-panel-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+        .edit-panel-title {
+          font-size: 11px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #f97316;
+        }
+        .edit-panel-body {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .edit-panel-tags {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .edit-panel-tag {
+          background: rgba(249, 115, 22, 0.1);
+          color: #f97316;
+          border: 1px solid rgba(249, 115, 22, 0.4);
+          border-radius: 4px;
+          padding: 4px 6px;
+          font-size: 11px;
+        }
+        .edit-panel textarea {
+          width: 100%;
+          min-height: 80px;
+          background: transparent;
+          color: #f2f0e9;
+          border: 1px solid rgba(242, 240, 233, 0.2);
+          border-radius: 4px;
+          padding: 8px;
+          resize: vertical;
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 12px;
+        }
+        .edit-panel-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+        }
+        .edit-btn {
+          background: #f97316;
+          color: #0b0b0b;
+          border: none;
+          border-radius: 6px;
+          padding: 8px 10px;
+          font-size: 11px;
+          cursor: pointer;
+        }
+        .edit-btn.secondary {
+          background: transparent;
+          color: #e2e8f0;
+          border: 1px solid rgba(242, 240, 233, 0.2);
+        }
+        .edit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+      `}</style>
+      <div class="edit-panel">
+        <div class="edit-panel-header">
+          <div class="edit-panel-title">Edit Element</div>
+          {elementDescription?.tag && (
+            <div class="edit-panel-tag">{elementDescription.tag}</div>
+          )}
         </div>
-        <div style=${{
-          fontSize: "11px",
-          color: "rgba(255,255,255,0.4)",
-          paddingLeft: "4px",
-        }}>
-          Enter to send, Shift+Enter for new line
+        <div class="edit-panel-body">
+          <textarea
+            ref={textareaRef}
+            value={prompt}
+            onInput={(e) => setPrompt(e.target.value)}
+            placeholder="Describe the change you want..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && e.metaKey) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+          ></textarea>
+        </div>
+        <div class="edit-panel-footer">
+          <button class="edit-btn secondary" onClick={onCancel}>Cancel</button>
+          <button class="edit-btn" onClick={handleSubmit} disabled={!prompt.trim()}>
+            Apply Change
+          </button>
         </div>
       </div>
     </div>
-  `;
+  );
 }

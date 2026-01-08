@@ -1,6 +1,4 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-// @ts-ignore
-import { html } from 'htm/react/index.js';
 import { loadDataFile, createWidgetModel, EXAMPLE_DATA_CONFIG, isDataCached, getCachedData } from '../utils/exampleDataLoader';
 
 interface DynamicWidgetProps {
@@ -201,7 +199,7 @@ export default function DynamicWidget({
       )}
 
       {Loaded && canRenderWidget ? (
-        <Loaded model={widgetModel} html={html} React={React} />
+        <Loaded model={widgetModel} React={React} />
       ) : (
         <div className="p-4 text-slate/50 font-mono text-xs flex items-center justify-center h-full">
           {isDataLoading ? 'Loading data…' : 'Loading widget…'}

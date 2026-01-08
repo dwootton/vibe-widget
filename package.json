@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "build-app-wrapper": "npm run build-app-wrapper:core && npm run build-app-wrapper:editor",
-    "build-app-wrapper:core": "esbuild src/vibe_widget/AppWrapper/AppWrapper.js --bundle --format=esm --platform=browser --target=es2020 --minify --define:process.env.NODE_ENV=\\\"production\\\" --outfile=src/vibe_widget/AppWrapper.bundle.js",
-    "build-app-wrapper:editor": "esbuild src/vibe_widget/AppWrapper/editor/EditorBundleEntry.js --bundle --format=esm --platform=browser --target=es2020 --minify --define:process.env.NODE_ENV=\\\"production\\\" --outfile=src/vibe_widget/AppWrapper/AppWrapper.editor.bundle.js",
+    "build-app-wrapper:core": "esbuild src/vibe_widget/AppWrapper/AppWrapper.js --bundle --format=esm --platform=browser --target=es2020 --minify --define:process.env.NODE_ENV=\\\"production\\\" --jsx=automatic --jsx-import-source=react --loader:.js=jsx --outfile=src/vibe_widget/AppWrapper.bundle.js",
+    "build-app-wrapper:editor": "esbuild src/vibe_widget/AppWrapper/editor/EditorBundleEntry.js --bundle --format=esm --platform=browser --target=es2020 --minify --define:process.env.NODE_ENV=\\\"production\\\" --jsx=automatic --jsx-import-source=react --loader:.js=jsx --outfile=src/vibe_widget/AppWrapper/AppWrapper.editor.bundle.js",
     "watch-app-wrapper": "sh -c \"npm run build-app-wrapper:core -- --watch & npm run build-app-wrapper:editor -- --watch\"",
     "test:ui": "node --test tests/mocked_notebook/*.mjs"
   },
@@ -16,9 +16,7 @@
     "@codemirror/view": "^6.26.3",
     "@lezer/highlight": "^1.2.0",
     "codemirror": "^6.0.1",
-    "htm": "^3.1.1",
     "@babel/standalone": "^7.26.0",
-    "preact": "^10.22.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },
