@@ -3,6 +3,26 @@ import React from "react";
 export default function ProgressMap({ logs = [], status = "ready", fullHeight = false, heading = null, footer = null }) {
   const isActive = status !== "ready" && status !== "error";
   const isDone = status === "ready";
+  const [spinnerIndex, setSpinnerIndex] = React.useState(0);
+  const spinnerFrames = ["|", "/", "-", "\\"];
+  const logContainerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const el = logContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 24) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [logs]);
+
+  React.useEffect(() => {
+    if (!isActive) return;
+    const timer = setInterval(() => {
+      setSpinnerIndex((prev) => (prev + 1) % spinnerFrames.length);
+    }, 140);
+    return () => clearInterval(timer);
+  }, [isActive, spinnerFrames.length]);
 
   return (
     <div class="progress-bezel">
@@ -12,10 +32,10 @@ export default function ProgressMap({ logs = [], status = "ready", fullHeight = 
           height: 100%;
           box-sizing: border-box;
           color: #e2e8f0;
-          background: #0b0b0b;
-          border: 1px solid rgba(242, 240, 233, 0.08);
-          border-radius: 4px;
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 8px 24px rgba(0, 0, 0, 0.25);
+          background: #050505;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 0;
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
           padding: 10px 12px;
           display: flex;
           flex-direction: column;
@@ -31,23 +51,25 @@ export default function ProgressMap({ logs = [], status = "ready", fullHeight = 
           letter-spacing: 0.05em;
           text-transform: uppercase;
           color: #f2f0e9;
+          padding-left: 9px;
         }
         .progress-heading .dot {
           width: 8px;
           height: 8px;
-          border-radius: 999px;
+          border-radius: 0;
           background: ${isDone ? "#22c55e" : "#f97316"};
-          box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
+          box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.12);
         }
         .progress-log-container {
           flex: 1;
-          min-height: ${fullHeight ? "100%" : "120px"};
-          max-height: ${fullHeight ? "100%" : "240px"};
+          min-height: 0;
+          ${fullHeight ? "" : "max-height: 240px;"}
           overflow: auto;
-          background: linear-gradient(180deg, rgba(18, 18, 18, 0.9), rgba(18, 18, 18, 0.6));
-          border: 1px solid rgba(242, 240, 233, 0.12);
-          border-radius: 4px;
-          padding: 10px;
+          background: transparent;
+          border: 0;
+          border-radius: 0;
+          padding: 6px 0 0;
+          box-shadow: none;
         }
         .progress-log-list {
           list-style: none;
@@ -59,6 +81,7 @@ export default function ProgressMap({ logs = [], status = "ready", fullHeight = 
           font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
             Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
           font-size: 12px;
+          text-transform: uppercase;
         }
         .progress-log-list::-webkit-scrollbar {
           width: 4px;
@@ -73,54 +96,56 @@ export default function ProgressMap({ logs = [], status = "ready", fullHeight = 
         .progress-log-list::-webkit-scrollbar-thumb:hover {
           background: rgba(243, 119, 38, 0.5);
         }
+
+        .progress-footer {
+          padding-top: 8px;
+        }
         
         .log-entry {
           display: flex;
           align-items: baseline;
           gap: 4px;
           padding: 2px 0;
-          color: #D1D5DB;
+          color: #94a3b8;
           opacity: 0;
           animation: fadeIn 0.3s ease-out forwards;
           animation-delay: calc(var(--entry-index) * 0.03s);
           white-space: pre-wrap;
           word-break: break-word;
+          text-transform: uppercase;
         }
 
         .log-icon {
           width: 10px;
           flex: 0 0 10px;
-          color: #6B7280;
           margin-left: 8px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
 
-        .log-icon--active {
+        .log-icon-block {
+          width: 6px;
+          height: 6px;
+          border-radius: 0;
+          background: rgba(148, 163, 184, 0.6);
+        }
+
+        .log-entry--live .log-text {
+          color: #f97316;
+          text-transform: uppercase;
+        }
+
+        .log-entry--live .log-icon {
           color: #f97316;
         }
 
         .log-entry--done .log-text {
-          text-transform: uppercase;
-          color: #D1D5DB;
-        }
-
-        .log-entry--active .log-text {
-          background: #f97316;
-          color: #000000;
-          padding: 1px 4px;
-          text-transform: uppercase;
-          display: inline-block;
+          color: #94a3b8;
         }
 
         .log-entry--terminal .log-text {
-          background: #334155;
-          color: #e2e8f0;
-          padding: 1px 4px;
-          text-transform: uppercase;
-          display: inline-block;
-        }
-
-        .log-icon--terminal {
-          color: #9ca3af;
+          color: #cbd5e1;
         }
 
         .cursor {
@@ -146,7 +171,7 @@ export default function ProgressMap({ logs = [], status = "ready", fullHeight = 
           <span>{heading}</span>
         </div>
       )}
-      <div class="progress-log-container">
+      <div class="progress-log-container" ref={logContainerRef}>
         <ul class="progress-log-list">
           {logs.map((entry, idx) => {
             const text = typeof entry === "string" ? entry : String(entry);
@@ -155,17 +180,16 @@ export default function ProgressMap({ logs = [], status = "ready", fullHeight = 
             const classes = [
               "log-entry",
               isDone ? "log-entry--done" : "",
-              isActive && !isTerminal ? "log-entry--active" : "",
+              isLive ? "log-entry--live" : "",
               isTerminal ? "log-entry--terminal" : ""
             ].filter(Boolean).join(" ");
             return (
               <li key={idx} class={classes} style={{ "--entry-index": idx }}>
-                <span class={`log-icon ${isLive ? "log-icon--active" : isTerminal ? "log-icon--terminal" : ""}`}>
-                  {isTerminal ? "!" : ">"} 
+                <span class="log-icon">
+                  {isLive ? spinnerFrames[spinnerIndex] : <span class="log-icon-block" />}
                 </span>
                 <span class="log-text">
                   {text}
-                  {isLive && <span class="cursor">█</span>}
                 </span>
               </li>
             );

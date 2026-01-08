@@ -109,14 +109,18 @@ export default function StateViewer({
           font-size: 12px;
           letter-spacing: 0.06em;
           text-transform: uppercase;
+          width: 100%;
+          padding: 0 8px;
         }
         .state-viewer-status {
           color: ${status === "blocked" ? "#fca5a5" : "#f8fafc"};
+          flex: 1;
         }
         .state-viewer-meta {
           font-size: 11px;
-          color: #94a3b8;
+          color: #9ca3af;
           text-transform: none;
+          text-align: right;
         }
         .state-viewer-body {
           flex: 1;

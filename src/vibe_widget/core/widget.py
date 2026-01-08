@@ -1981,6 +1981,12 @@ class WidgetHandle:
         self._widget = widget
         return widget
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "_widget":
+            super().__setattr__(name, value)
+            return
+        setattr(self._widget, name, value)
+
     def __getattr__(self, name: str):
         return getattr(self._widget, name)
 

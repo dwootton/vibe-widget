@@ -68,6 +68,8 @@ class ExportHandle:
     __vibe_export__ = True
 
     def __init__(self, widget: Any, name: str):
+        if getattr(widget, "__vibe_widget_handle__", False):
+            widget = getattr(widget, "widget", widget)
         self.widget = widget
         self.name = name
         self._observer_wrappers: dict[Any, Any] = {}
