@@ -28,15 +28,17 @@ function extractStackLines(text) {
     .map((line) => line.trimEnd())
     .filter((line) => line.trim().length > 0);
   if (lines.length === 0) return [];
-  const jsErrorIndex = lines.findIndex((line) => /\bError:\b/.test(line));
+  const jsErrorIndex = lines.findIndex((line) => /(^|\b)Error:/i.test(line));
   if (jsErrorIndex >= 0) {
     const jsLines = lines.slice(jsErrorIndex, jsErrorIndex + 8);
-    const filtered = jsLines.filter((line, idx) => idx === 0 || /^\s*at\s+/.test(line));
-    return filtered.length > 0 ? filtered : jsLines;
+    const filtered = jsLines
+      .filter((line, idx) => idx === 0 || /^\s*at\s+/.test(line))
+      .map((line, idx) => (idx === 0 ? line : line.trimStart()));
+    return filtered.length > 0 ? filtered : jsLines.map((line, idx) => (idx === 0 ? line : line.trimStart()));
   }
   const traceIndex = lines.findIndex((line) => line.toLowerCase().includes("traceback"));
   if (traceIndex >= 0) {
     return lines.slice(traceIndex).slice(-8);
   }
-  return lines.slice(-6);
+  return [];
 }

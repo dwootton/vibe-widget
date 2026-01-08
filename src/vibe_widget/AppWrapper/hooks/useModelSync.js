@@ -7,17 +7,28 @@ export default function useModelSync(model) {
   const [code, setCode] = React.useState(model.get("code"));
   const [errorMessage, setErrorMessage] = React.useState(model.get("error_message"));
   const [widgetError, setWidgetError] = React.useState(model.get("widget_error"));
+  const [lastRuntimeError, setLastRuntimeError] = React.useState(model.get("last_runtime_error"));
   const [widgetLogs, setWidgetLogs] = React.useState(model.get("widget_logs"));
   const [retryCount, setRetryCount] = React.useState(model.get("retry_count"));
   const [auditState, setAuditState] = React.useState(model.get("audit_state") || {});
   const [executionState, setExecutionState] = React.useState(model.get("execution_state") || {});
 
   React.useEffect(() => {
-    const onStatusChange = () => setStatus(model.get("status"));
+    const onStatusChange = () => {
+      setStatus(model.get("status"));
+      setLastRuntimeError(model.get("last_runtime_error"));
+    };
     const onLogsChange = () => setLogs(model.get("logs"));
     const onCodeChange = () => setCode(model.get("code"));
-    const onErrorChange = () => setErrorMessage(model.get("error_message"));
-    const onWidgetErrorChange = () => setWidgetError(model.get("widget_error"));
+    const onErrorChange = () => {
+      setErrorMessage(model.get("error_message"));
+      setLastRuntimeError(model.get("last_runtime_error"));
+    };
+    const onWidgetErrorChange = () => {
+      setWidgetError(model.get("widget_error"));
+      setLastRuntimeError(model.get("last_runtime_error"));
+    };
+    const onLastRuntimeErrorChange = () => setLastRuntimeError(model.get("last_runtime_error"));
     const onWidgetLogsChange = () => setWidgetLogs(model.get("widget_logs"));
     const onRetryCountChange = () => setRetryCount(model.get("retry_count"));
     const onAuditStateChange = () => setAuditState(model.get("audit_state") || {});
@@ -28,6 +39,7 @@ export default function useModelSync(model) {
     model.on("change:code", onCodeChange);
     model.on("change:error_message", onErrorChange);
     model.on("change:widget_error", onWidgetErrorChange);
+    model.on("change:last_runtime_error", onLastRuntimeErrorChange);
     model.on("change:widget_logs", onWidgetLogsChange);
     model.on("change:retry_count", onRetryCountChange);
     model.on("change:audit_state", onAuditStateChange);
@@ -39,6 +51,7 @@ export default function useModelSync(model) {
       model.off("change:code", onCodeChange);
       model.off("change:error_message", onErrorChange);
       model.off("change:widget_error", onWidgetErrorChange);
+      model.off("change:last_runtime_error", onLastRuntimeErrorChange);
       model.off("change:widget_logs", onWidgetLogsChange);
       model.off("change:retry_count", onRetryCountChange);
       model.off("change:audit_state", onAuditStateChange);
@@ -64,6 +77,7 @@ export default function useModelSync(model) {
     code,
     errorMessage,
     widgetError,
+    lastRuntimeError,
     widgetLogs,
     retryCount,
     auditState,

@@ -2,8 +2,10 @@
   "name": "vibe-widgets-sundai",
   "private": true,
   "scripts": {
-    "build-app-wrapper": "esbuild src/vibe_widget/AppWrapper/AppWrapper.js --bundle --format=esm --platform=browser --target=es2020 --outfile=src/vibe_widget/AppWrapper.bundle.js",
-    "watch-app-wrapper": "npm run build-app-wrapper -- --watch",
+    "build-app-wrapper": "npm run build-app-wrapper:core && npm run build-app-wrapper:editor",
+    "build-app-wrapper:core": "esbuild src/vibe_widget/AppWrapper/AppWrapper.js --bundle --format=esm --platform=browser --target=es2020 --minify --define:process.env.NODE_ENV=\\\"production\\\" --outfile=src/vibe_widget/AppWrapper.bundle.js",
+    "build-app-wrapper:editor": "esbuild src/vibe_widget/AppWrapper/editor/EditorBundleEntry.js --bundle --format=esm --platform=browser --target=es2020 --minify --define:process.env.NODE_ENV=\\\"production\\\" --outfile=src/vibe_widget/AppWrapper/AppWrapper.editor.bundle.js",
+    "watch-app-wrapper": "sh -c \"npm run build-app-wrapper:core -- --watch & npm run build-app-wrapper:editor -- --watch\"",
     "test:ui": "node --test tests/mocked_notebook/*.mjs"
   },
   "dependencies": {

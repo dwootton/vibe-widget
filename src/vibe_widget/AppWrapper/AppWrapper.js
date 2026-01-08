@@ -6,7 +6,7 @@ import { ensureGlobalStyles } from "./utils/styles";
 import AuditNotice from "./components/AuditNotice";
 import StateViewer from "./components/StateViewer";
 import WidgetViewer from "./components/WidgetViewer";
-import EditorViewer from "./components/editor/EditorViewer";
+import { loadEditorModule } from "./editor/editorBundleLoader";
 import useAuditFlow from "./hooks/useAuditFlow";
 import useCodeFlow from "./hooks/useCodeFlow";
 import useContainerMetrics from "./hooks/useContainerMetrics";
@@ -18,12 +18,25 @@ const html = htm.bind(React.createElement);
 ensureGlobalStyles();
 
 function AppWrapper({ model }) {
+  React.useEffect(() => {
+    return () => {
+      try {
+        if (model && typeof model.close === "function") {
+          model.close();
+        }
+      } catch (err) {
+        // Ignore teardown failures during output clear.
+      }
+    };
+  }, [model]);
+
   const {
     status,
     logs,
     code,
     errorMessage,
     widgetError,
+    lastRuntimeError,
     widgetLogs,
     retryCount,
     auditStatus,
@@ -59,6 +72,10 @@ function AppWrapper({ model }) {
   const hasCode = renderCode && renderCode.length > 0;
   const isApproved = executionApproved || !approvalMode;
   const shouldRenderWidget = hasCode && isApproved;
+  const EditorViewer = React.useMemo(
+    () => React.lazy(() => loadEditorModule(model)),
+    [model]
+  );
   
   const {
     showAudit,
@@ -122,6 +139,7 @@ function AppWrapper({ model }) {
           widgetLogs=${widgetLogs}
           errorMessage=${errorMessage}
           widgetError=${widgetError}
+          lastRuntimeError=${lastRuntimeError}
           retryCount=${retryCount}
           onSubmitPrompt=${handleStatePrompt}
         />
@@ -140,6 +158,7 @@ function AppWrapper({ model }) {
       
 
       ${showSource && html`
+        <${React.Suspense} fallback=${html`<div class="editor-loading">Loading editor...</div>`}>
         <${EditorViewer}
           code=${code}
           errorMessage=${sourceError}
@@ -148,25 +167,27 @@ function AppWrapper({ model }) {
           widgetLogs=${widgetLogs}
           stateErrorMessage=${errorMessage}
           stateWidgetError=${widgetError}
-          auditStatus=${auditStatus}
-          auditReport=${auditReport}
-          auditError=${auditError || auditResponse?.error}
-          auditMeta=${auditMeta}
-          auditData=${auditData}
-          auditApplyStatus=${auditApplyStatus}
-          auditApplyResponse=${auditApplyResponse}
-          auditApplyError=${auditApplyError}
-          onAudit=${requestAudit}
-          onApply=${handleApplySource}
-          onClose=${() => setShowSource(false)}
-          onSubmitPrompt=${handleStatePrompt}
-          approvalMode=${approvalMode}
-          isApproved=${isApproved}
-          onApprove=${() => {
-            handleApproveRun();
-            setShowAudit(false);
-          }}
-        />
+          lastRuntimeError=${lastRuntimeError}
+            auditStatus=${auditStatus}
+            auditReport=${auditReport}
+            auditError=${auditError || auditResponse?.error}
+            auditMeta=${auditMeta}
+            auditData=${auditData}
+            auditApplyStatus=${auditApplyStatus}
+            auditApplyResponse=${auditApplyResponse}
+            auditApplyError=${auditApplyError}
+            onAudit=${requestAudit}
+            onApply=${handleApplySource}
+            onClose=${() => setShowSource(false)}
+            onSubmitPrompt=${handleStatePrompt}
+            approvalMode=${approvalMode}
+            isApproved=${isApproved}
+            onApprove=${() => {
+              handleApproveRun();
+              setShowAudit(false);
+            }}
+          />
+        </${React.Suspense}>
       `}
     </div>
   `;

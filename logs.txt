@@ -1,0 +1,884 @@
+2026-01-08T03:01:15Z | progress_log_reset | Analyzing inputs: 0
+2026-01-08T03:01:15Z | progress_log_append | Skipping cache (cache=False)
+2026-01-08T03:01:15Z | progress_log_append | Generating widget code
+2026-01-08T03:01:15Z | progress_log_append | Analyzing data
+2026-01-08T03:01:15Z | progress_log_append | Inputs: 1
+2026-01-08T03:01:15Z | progress_log_append | Generating widget code...
+2026-01-08T03:01:16Z | progress_log_append | Importing d3...
+2026-01-08T03:01:17Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:01:18Z | progress_log_append | Creating SVG canvas...
+2026-01-08T03:01:18Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:01:18Z | progress_log_append | Setting up scales...
+2026-01-08T03:01:19Z | progress_log_append | Binding data to elements...
+2026-01-08T03:01:20Z | progress_log_append | Creating axes...
+2026-01-08T03:01:21Z | progress_log_append | Building UI components...
+2026-01-08T03:01:21Z | progress_log_append | Applying styles...
+2026-01-08T03:01:21Z | progress_log_append | Finalizing component...
+2026-01-08T03:01:22Z | progress_log_append | Creating widget component...
+2026-01-08T03:01:22Z | progress_log_append | Setting up reactivity...
+2026-01-08T03:01:31Z | progress_log_append | Validating code
+2026-01-08T03:01:31Z | progress_log_append | Testing runtime
+2026-01-08T03:01:31Z | progress_log_append | ✓ Widget generation complete
+2026-01-08T03:01:31Z | progress_log_append | Code generated: 7990 characters
+2026-01-08T03:01:31Z | progress_log_extend | Widget saved: map_these_earthquakes
+2026-01-08T03:01:31Z | progress_log_extend | Location: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_030131_703c9bcdac.js
+2026-01-08T03:01:31Z | status_transition | generating -> ready
+2026-01-08T03:02:12Z | progress_log_reset | Analyzing inputs: 0
+2026-01-08T03:02:12Z | progress_log_append | Skipping cache (cache=False)
+2026-01-08T03:02:12Z | progress_log_append | Generating widget code
+2026-01-08T03:02:12Z | progress_log_append | Analyzing data
+2026-01-08T03:02:12Z | progress_log_append | Inputs: 1
+2026-01-08T03:02:12Z | progress_log_append | Generating widget code...
+2026-01-08T03:02:14Z | progress_log_append | Importing d3...
+2026-01-08T03:02:15Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:02:16Z | progress_log_append | Creating SVG canvas...
+2026-01-08T03:02:16Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:02:16Z | progress_log_append | Setting up scales...
+2026-01-08T03:02:17Z | progress_log_append | Binding data to elements...
+2026-01-08T03:02:18Z | progress_log_append | Creating axes...
+2026-01-08T03:02:19Z | status_transition | generating -> generating
+2026-01-08T03:02:19Z | progress_log_extend | USER INPUT: make my cursor a cat!
+2026-01-08T03:02:19Z | progress_log_extend | Regenerating: make my cursor a cat!
+2026-01-08T03:02:19Z | progress_log_append | Analyzing data
+2026-01-08T03:02:19Z | progress_log_append | Inputs: 1
+2026-01-08T03:02:19Z | progress_log_append | Generating widget code...
+2026-01-08T03:02:21Z | progress_log_append | Importing d3...
+2026-01-08T03:02:21Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:02:22Z | progress_log_append | Creating SVG canvas...
+2026-01-08T03:02:22Z | progress_log_append | Setting up scales...
+2026-01-08T03:02:23Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:02:23Z | progress_log_append | Binding data to elements...
+2026-01-08T03:02:24Z | progress_log_append | Creating axes...
+2026-01-08T03:02:26Z | progress_log_append | Building UI components...
+2026-01-08T03:02:26Z | progress_log_append | Applying styles...
+2026-01-08T03:02:26Z | progress_log_append | Finalizing component...
+2026-01-08T03:02:26Z | progress_log_append | Creating widget component...
+2026-01-08T03:02:34Z | progress_log_append | Validating code
+2026-01-08T03:02:34Z | progress_log_append | Testing runtime
+2026-01-08T03:02:34Z | progress_log_append | Issues found: Inline style must be an object literal: use style=${{ ... }} not a string
+2026-01-08T03:02:34Z | progress_log_append | Repairing code (attempt 1)...
+2026-01-08T03:02:47Z | progress_log_append | Issues found: Inline style must be an object literal: use style=${{ ... }} not a string
+2026-01-08T03:02:47Z | progress_log_append | Repairing code (attempt 2)...
+2026-01-08T03:02:59Z | progress_log_append | Issues found: Inline style must be an object literal: use style=${{ ... }} not a string
+2026-01-08T03:02:59Z | progress_log_append | Repairing code (attempt 3)...
+2026-01-08T03:03:10Z | progress_log_append | ✓ Widget generation complete
+2026-01-08T03:03:10Z | progress_log_append | Code generated: 7148 characters
+2026-01-08T03:03:10Z | progress_log_extend | Widget saved: map_these_earthquakes
+2026-01-08T03:03:10Z | progress_log_extend | Location: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_030310_703c9bcdac.js
+2026-01-08T03:03:10Z | status_transition | generating -> ready
+2026-01-08T03:03:10Z | runtime_error_hook | status=ready retry=0 max=2 has_error=True
+2026-01-08T03:03:10Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:03:10Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:03:10.541Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:10Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:03:10.541Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:03:10Z | status_transition | ready -> retrying
+2026-01-08T03:03:10Z | repair_attempt_start | retry=1
+2026-01-08T03:03:10Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:03:10.541Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:03:10Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:03:10.541Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:10Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:03:10Z | runtime_error_logs_extended | retry=1 logs=45
+2026-01-08T03:03:22Z | repair_result | applied=True retryable=False
+2026-01-08T03:03:22Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:03:22Z | status_transition | retrying -> ready
+2026-01-08T03:03:22Z | runtime_error_hook | status=ready retry=1 max=2 has_error=False
+2026-01-08T03:03:22Z | runtime_error_empty | no error message to handle
+2026-01-08T03:03:22Z | runtime_error_fixed | status=ready
+2026-01-08T03:03:22Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:03:10.541Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:22Z | widget_logs_update | count=1 last=error:Widget error: [js_runtime_error_ts=2026-01-08T03:03:10.541Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error levels=error:1 runtime_capture=False
+2026-01-08T03:03:22Z | widget_logs_update | count=3 last=error:[js_runtime_error_ts=2026-01-08T03:03:10.541Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime erro levels=error:2,warn:1 runtime_capture=True
+2026-01-08T03:03:22Z | runtime_error_hook | status=ready retry=0 max=2 has_error=True
+2026-01-08T03:03:22Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:03:22Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:03:22.039Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:22Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:03:22.039Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:03:22Z | status_transition | ready -> retrying
+2026-01-08T03:03:22Z | repair_attempt_start | retry=1
+2026-01-08T03:03:22Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:03:22.039Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:03:22Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:03:22.039Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:22Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:03:22Z | runtime_error_logs_extended | retry=1 logs=50
+2026-01-08T03:03:36Z | repair_result | applied=True retryable=False
+2026-01-08T03:03:36Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:03:36Z | status_transition | retrying -> ready
+2026-01-08T03:03:36Z | runtime_error_hook | status=ready retry=1 max=2 has_error=False
+2026-01-08T03:03:36Z | runtime_error_empty | no error message to handle
+2026-01-08T03:03:36Z | runtime_error_fixed | status=ready
+2026-01-08T03:03:36Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:03:22.039Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:36Z | widget_logs_update | count=4 last=error:Widget error: [js_runtime_error_ts=2026-01-08T03:03:22.039Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error levels=error:3,warn:1 runtime_capture=True
+2026-01-08T03:03:36Z | widget_logs_update | count=9 last=error:[js_runtime_error_ts=2026-01-08T03:03:22.039Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime erro levels=error:6,warn:3 runtime_capture=True
+2026-01-08T03:03:36Z | runtime_error_hook | status=ready retry=0 max=2 has_error=True
+2026-01-08T03:03:36Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:03:36Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:03:36.419Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:36Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:03:36.419Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:03:36Z | status_transition | ready -> retrying
+2026-01-08T03:03:36Z | repair_attempt_start | retry=1
+2026-01-08T03:03:36Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:03:36.419Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:03:36Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:03:36.419Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:36Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:03:36Z | runtime_error_logs_extended | retry=1 logs=55
+2026-01-08T03:03:49Z | repair_result | applied=True retryable=False
+2026-01-08T03:03:49Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:03:49Z | status_transition | retrying -> ready
+2026-01-08T03:03:49Z | runtime_error_hook | status=ready retry=1 max=2 has_error=False
+2026-01-08T03:03:49Z | runtime_error_empty | no error message to handle
+2026-01-08T03:03:49Z | runtime_error_fixed | status=ready
+2026-01-08T03:03:49Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:03:36.419Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:49Z | widget_logs_update | count=10 last=error:Widget error: [js_runtime_error_ts=2026-01-08T03:03:36.419Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error levels=error:7,warn:3 runtime_capture=True
+2026-01-08T03:03:49Z | widget_logs_update | count=15 last=error:[js_runtime_error_ts=2026-01-08T03:03:36.419Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime erro levels=error:10,warn:5 runtime_capture=True
+2026-01-08T03:03:49Z | runtime_error_hook | status=ready retry=0 max=2 has_error=True
+2026-01-08T03:03:49Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:03:49Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:03:49.237Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:49Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:03:49.237Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:03:49Z | status_transition | ready -> retrying
+2026-01-08T03:03:49Z | repair_attempt_start | retry=1
+2026-01-08T03:03:49Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:03:49.237Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:03:49Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:03:49.237Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/83f2742e-6c18-43dd-9c23-f7e926b8d09f:641:1927
+2026-01-08T03:03:49Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:03:49Z | runtime_error_logs_extended | retry=1 logs=60
+2026-01-08T03:14:54Z | progress_log_reset | Analyzing inputs: 0
+2026-01-08T03:14:54Z | progress_log_append | Skipping cache (cache=False)
+2026-01-08T03:14:54Z | progress_log_append | Generating widget code
+2026-01-08T03:14:54Z | progress_log_append | Analyzing data
+2026-01-08T03:14:54Z | progress_log_append | Inputs: 1
+2026-01-08T03:14:54Z | progress_log_append | Generating widget code...
+2026-01-08T03:14:55Z | progress_log_append | Importing d3...
+2026-01-08T03:14:56Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:14:56Z | progress_log_append | Setting up scales...
+2026-01-08T03:14:56Z | progress_log_append | Binding data to elements...
+2026-01-08T03:14:57Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:14:58Z | progress_log_append | Creating axes...
+2026-01-08T03:14:59Z | progress_log_append | Building UI components...
+2026-01-08T03:14:59Z | progress_log_append | Applying styles...
+2026-01-08T03:14:59Z | progress_log_append | Finalizing component...
+2026-01-08T03:15:00Z | progress_log_append | Creating widget component...
+2026-01-08T03:15:04Z | status_transition | generating -> generating
+2026-01-08T03:15:04Z | progress_log_extend | USER INPUT: Make my cursor a cat
+2026-01-08T03:15:04Z | progress_log_extend | Regenerating: Make my cursor a cat
+2026-01-08T03:15:04Z | progress_log_append | Analyzing data
+2026-01-08T03:15:04Z | progress_log_append | Inputs: 1
+2026-01-08T03:15:04Z | progress_log_append | Generating widget code...
+2026-01-08T03:15:05Z | progress_log_append | Importing d3...
+2026-01-08T03:15:05Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:15:06Z | progress_log_append | Creating SVG canvas...
+2026-01-08T03:15:06Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:15:06Z | progress_log_append | Setting up scales...
+2026-01-08T03:15:07Z | progress_log_append | Binding data to elements...
+2026-01-08T03:15:07Z | progress_log_append | Creating axes...
+2026-01-08T03:15:09Z | progress_log_append | Building UI components...
+2026-01-08T03:15:09Z | progress_log_append | Applying styles...
+2026-01-08T03:15:09Z | progress_log_append | Finalizing component...
+2026-01-08T03:15:09Z | progress_log_append | Creating widget component...
+2026-01-08T03:15:16Z | progress_log_append | Validating code
+2026-01-08T03:15:16Z | progress_log_append | Testing runtime
+2026-01-08T03:15:16Z | progress_log_append | ✓ Widget generation complete
+2026-01-08T03:15:16Z | progress_log_append | Code generated: 6425 characters
+2026-01-08T03:15:16Z | progress_log_extend | Widget saved: map_these_earthquakes
+2026-01-08T03:15:16Z | progress_log_extend | Location: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_031516_703c9bcdac.js
+2026-01-08T03:15:16Z | status_transition | generating -> ready
+2026-01-08T03:15:16Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:15:16Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:15:16.116Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/806b405f-6eb9-4188-90fa-292da2f5d445:641:1927
+2026-01-08T03:15:16Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:15:16.116Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:15:16Z | status_transition | ready -> retrying
+2026-01-08T03:15:16Z | repair_attempt_start | retry=1
+2026-01-08T03:15:16Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:15:16.116Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:15:16Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:15:16.116Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/806b405f-6eb9-4188-90fa-292da2f5d445:641:1927
+2026-01-08T03:15:16Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:15:27Z | repair_result | applied=True retryable=False
+2026-01-08T03:15:27Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:15:27Z | status_transition | retrying -> ready
+2026-01-08T03:15:27Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:15:16.116Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/806b405f-6eb9-4188-90fa-292da2f5d445:641:1927
+2026-01-08T03:15:27Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:15:27Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:15:27.571Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/806b405f-6eb9-4188-90fa-292da2f5d445:641:1927
+2026-01-08T03:15:27Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:15:27.571Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:15:27Z | status_transition | ready -> retrying
+2026-01-08T03:15:27Z | repair_attempt_start | retry=1
+2026-01-08T03:15:27Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:15:27.571Z] Error: Runtime error diagnostic: always throw
+2026-01-08T03:15:27Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:15:27.571Z] Error: Runtime error diagnostic: always throw
+
+Stack:
+Error: Runtime error diagnostic: always throw
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/806b405f-6eb9-4188-90fa-292da2f5d445:641:1927
+2026-01-08T03:15:27Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:15:36Z | progress_log_reset | Analyzing inputs: 0
+2026-01-08T03:15:36Z | progress_log_append | Skipping cache (cache=False)
+2026-01-08T03:15:36Z | progress_log_append | Generating widget code
+2026-01-08T03:15:36Z | progress_log_append | Analyzing data
+2026-01-08T03:15:36Z | progress_log_append | Inputs: 1
+2026-01-08T03:15:36Z | progress_log_append | Generating widget code...
+2026-01-08T03:15:38Z | progress_log_append | Importing d3...
+2026-01-08T03:15:38Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:15:39Z | progress_log_append | Setting up scales...
+2026-01-08T03:15:39Z | progress_log_append | Binding data to elements...
+2026-01-08T03:15:40Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:15:41Z | status_transition | generating -> generating
+2026-01-08T03:15:41Z | progress_log_extend | USER INPUT: Make my cursor a cat
+2026-01-08T03:15:41Z | progress_log_extend | Regenerating: Make my cursor a cat
+2026-01-08T03:15:41Z | progress_log_append | Analyzing data
+2026-01-08T03:15:41Z | progress_log_append | Inputs: 1
+2026-01-08T03:15:41Z | progress_log_append | Generating widget code...
+2026-01-08T03:15:42Z | progress_log_append | Importing d3...
+2026-01-08T03:15:43Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:15:44Z | progress_log_append | Creating SVG canvas...
+2026-01-08T03:15:44Z | progress_log_append | Setting up scales...
+2026-01-08T03:15:45Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:15:45Z | progress_log_append | Binding data to elements...
+2026-01-08T03:15:46Z | progress_log_append | Creating axes...
+2026-01-08T03:15:47Z | progress_log_append | Building UI components...
+2026-01-08T03:15:47Z | progress_log_append | Applying styles...
+2026-01-08T03:15:47Z | progress_log_append | Finalizing component...
+2026-01-08T03:15:48Z | progress_log_append | Creating widget component...
+2026-01-08T03:15:56Z | progress_log_append | Validating code
+2026-01-08T03:15:56Z | progress_log_append | Testing runtime
+2026-01-08T03:15:56Z | progress_log_append | ✓ Widget generation complete
+2026-01-08T03:15:56Z | progress_log_append | Code generated: 7524 characters
+2026-01-08T03:15:56Z | progress_log_extend | Widget saved: map_these_earthquakes
+2026-01-08T03:15:56Z | progress_log_extend | Location: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_031556_703c9bcdac.js
+2026-01-08T03:15:56Z | status_transition | generating -> ready
+2026-01-08T03:18:37Z | progress_log_reset | Analyzing inputs: 0
+2026-01-08T03:18:37Z | progress_log_append | Skipping cache (cache=False)
+2026-01-08T03:18:37Z | progress_log_append | Generating widget code
+2026-01-08T03:18:37Z | progress_log_append | Analyzing data
+2026-01-08T03:18:37Z | progress_log_append | Inputs: 1
+2026-01-08T03:18:37Z | progress_log_append | Generating widget code...
+2026-01-08T03:18:38Z | progress_log_append | Importing d3...
+2026-01-08T03:18:39Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:18:40Z | progress_log_append | Setting up scales...
+2026-01-08T03:18:40Z | progress_log_append | Binding data to elements...
+2026-01-08T03:18:41Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:18:42Z | progress_log_append | Creating axes...
+2026-01-08T03:18:44Z | progress_log_append | Building UI components...
+2026-01-08T03:18:44Z | progress_log_append | Applying styles...
+2026-01-08T03:18:44Z | progress_log_append | Finalizing component...
+2026-01-08T03:18:44Z | progress_log_append | Creating widget component...
+2026-01-08T03:18:54Z | progress_log_append | Validating code
+2026-01-08T03:18:54Z | progress_log_append | Testing runtime
+2026-01-08T03:18:54Z | progress_log_append | ✓ Widget generation complete
+2026-01-08T03:18:54Z | progress_log_append | Code generated: 8791 characters
+2026-01-08T03:18:54Z | progress_log_extend | Widget saved: map_these_earthquakes
+2026-01-08T03:18:54Z | progress_log_extend | Location: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_031854_703c9bcdac.js
+2026-01-08T03:18:54Z | status_transition | generating -> ready
+2026-01-08T03:18:54Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:18:54Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:18:54.843Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:18:54Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:18:54.843Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]
+2026-01-08T03:18:54Z | status_transition | ready -> retrying
+2026-01-08T03:18:54Z | repair_attempt_start | retry=1
+2026-01-08T03:18:54Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:18:54.843Z] Error: Minified React error #31; visit https://react.
+2026-01-08T03:18:54Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:18:54.843Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at uu (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:37752)
+    at h (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:39579)
+    at b (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:40931)
+    at A (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:42903)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:43345
+    at gt (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:66980)
+    at kc (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:70512)
+    at A0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:80722)
+    at W0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:116141)
+    at iy (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:115223)
+
+Component stack:
+
+    at EarthquakeMap (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/34b45e8b-523e-4c7d-834d-4c0df0949c05:96:41)
+    at y (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:638:51)
+    at nh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:634:568)
+    at div (<anonymous>)
+    at Mo (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:827:879)
+    at div (<anonymous>)
+    at oh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:862:5351)
+2026-01-08T03:18:54Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:19:09Z | repair_result | applied=True retryable=False
+2026-01-08T03:19:09Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:19:09Z | status_transition | retrying -> ready
+2026-01-08T03:19:09Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:18:54.843Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:19:09Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:19:09.169Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:19:09Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:19:09Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:19:09.169Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:19:09Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:19:09.169Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]
+2026-01-08T03:19:09Z | status_transition | ready -> retrying
+2026-01-08T03:19:09Z | repair_attempt_start | retry=1
+2026-01-08T03:19:09Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:19:09.169Z] Error: Minified React error #31; visit https://react.
+2026-01-08T03:19:09Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:19:09.169Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at uu (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:37752)
+    at h (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:39579)
+    at b (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:40931)
+    at A (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:42903)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:43345
+    at gt (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:66980)
+    at kc (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:70512)
+    at A0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:80722)
+    at W0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:116141)
+    at iy (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:115223)
+
+Component stack:
+
+    at EarthquakeMap (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/20e64491-a8c6-46d9-b1c3-c693ee6f6175:96:41)
+    at y (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:638:51)
+    at nh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:634:568)
+    at div (<anonymous>)
+    at Mo (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:827:879)
+    at div (<anonymous>)
+    at oh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:862:5351)
+2026-01-08T03:19:09Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:19:23Z | repair_result | applied=True retryable=False
+2026-01-08T03:19:23Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:19:23Z | status_transition | retrying -> ready
+2026-01-08T03:19:23Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:19:23.293Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:19:23Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:19:23Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:19:23.293Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:19:23Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:19:23.293Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]
+2026-01-08T03:19:23Z | status_transition | ready -> retrying
+2026-01-08T03:19:23Z | repair_attempt_start | retry=1
+2026-01-08T03:19:23Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:19:23.293Z] Error: Minified React error #31; visit https://react.
+2026-01-08T03:19:23Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:19:23.293Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at uu (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:37752)
+    at h (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:39579)
+    at b (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:40931)
+    at A (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:42903)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:43345
+    at gt (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:66980)
+    at kc (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:70512)
+    at A0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:80722)
+    at W0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:116141)
+    at iy (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:115223)
+
+Component stack:
+
+    at EarthquakeMap (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/39344546-2ea4-4613-bbe1-d12f2cfcba10:96:41)
+    at y (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:638:51)
+    at nh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:634:568)
+    at div (<anonymous>)
+    at Mo (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:827:879)
+    at div (<anonymous>)
+    at oh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:862:5351)
+2026-01-08T03:19:23Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:19:37Z | repair_result | applied=True retryable=False
+2026-01-08T03:19:37Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:19:37Z | status_transition | retrying -> ready
+2026-01-08T03:19:37Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:19:37.742Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:19:37Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:19:37Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:19:37.742Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:19:37Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:19:37.742Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]
+2026-01-08T03:19:37Z | status_transition | ready -> retrying
+2026-01-08T03:19:37Z | repair_attempt_start | retry=1
+2026-01-08T03:19:37Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:19:37.742Z] Error: Minified React error #31; visit https://react.
+2026-01-08T03:19:37Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:19:37.742Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at uu (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:37752)
+    at h (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:39579)
+    at b (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:40931)
+    at A (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:42903)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:43345
+    at gt (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:66980)
+    at kc (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:70512)
+    at A0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:80722)
+    at W0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:116141)
+    at iy (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:8:115223)
+
+Component stack:
+
+    at EarthquakeMap (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/f5cb3e52-9f17-4c86-bbb3-0b6ff9fc1459:96:41)
+    at y (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:638:51)
+    at nh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:634:568)
+    at div (<anonymous>)
+    at Mo (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:827:879)
+    at div (<anonymous>)
+    at oh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/dadf008e-5c9e-4c2b-be22-0e26f65feb07:862:5351)
+2026-01-08T03:19:37Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:19:56Z | repair_result | applied=False retryable=False
+2026-01-08T03:19:56Z | progress_log_append | Repair produced no changes.
+2026-01-08T03:19:56Z | status_transition | retrying -> blocked
+2026-01-08T03:22:35Z | progress_log_reset | Analyzing inputs: 0
+2026-01-08T03:22:35Z | progress_log_append | Skipping cache (cache=False)
+2026-01-08T03:22:35Z | progress_log_append | Generating widget code
+2026-01-08T03:22:35Z | progress_log_append | Analyzing data
+2026-01-08T03:22:35Z | progress_log_append | Inputs: 1
+2026-01-08T03:22:35Z | progress_log_append | Generating widget code...
+2026-01-08T03:22:37Z | progress_log_append | Importing d3...
+2026-01-08T03:22:37Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:22:38Z | progress_log_append | Creating SVG canvas...
+2026-01-08T03:22:38Z | progress_log_append | Setting up scales...
+2026-01-08T03:22:39Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:22:39Z | progress_log_append | Binding data to elements...
+2026-01-08T03:22:40Z | progress_log_append | Creating axes...
+2026-01-08T03:22:41Z | progress_log_append | Building UI components...
+2026-01-08T03:22:41Z | progress_log_append | Finalizing component...
+2026-01-08T03:22:41Z | progress_log_append | Applying styles...
+2026-01-08T03:22:42Z | progress_log_append | Creating widget component...
+2026-01-08T03:22:49Z | progress_log_append | Validating code
+2026-01-08T03:22:49Z | progress_log_append | Testing runtime
+2026-01-08T03:22:49Z | progress_log_append | ✓ Widget generation complete
+2026-01-08T03:22:49Z | progress_log_append | Code generated: 7390 characters
+2026-01-08T03:22:49Z | progress_log_extend | Widget saved: map_these_earthquakes
+2026-01-08T03:22:49Z | progress_log_extend | Location: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_032249_703c9bcdac.js
+2026-01-08T03:22:49Z | status_transition | generating -> ready
+2026-01-08T03:27:41Z | progress_log_reset | Analyzing inputs: 0
+2026-01-08T03:27:41Z | progress_log_append | Skipping cache (cache=False)
+2026-01-08T03:27:41Z | progress_log_append | Generating widget code
+2026-01-08T03:27:41Z | progress_log_append | Analyzing data
+2026-01-08T03:27:41Z | progress_log_append | Inputs: 1
+2026-01-08T03:27:41Z | progress_log_append | Generating widget code...
+2026-01-08T03:27:42Z | progress_log_append | Importing d3...
+2026-01-08T03:27:43Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:27:43Z | progress_log_append | Creating SVG canvas...
+2026-01-08T03:27:44Z | progress_log_append | Setting up scales...
+2026-01-08T03:27:44Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:27:44Z | progress_log_append | Binding data to elements...
+2026-01-08T03:27:45Z | progress_log_append | Creating axes...
+2026-01-08T03:27:46Z | progress_log_append | Building UI components...
+2026-01-08T03:27:46Z | progress_log_append | Applying styles...
+2026-01-08T03:27:46Z | progress_log_append | Finalizing component...
+2026-01-08T03:27:47Z | progress_log_append | Creating widget component...
+2026-01-08T03:27:54Z | progress_log_append | Validating code
+2026-01-08T03:27:54Z | progress_log_append | Testing runtime
+2026-01-08T03:27:54Z | progress_log_append | Issues found: Inline style must be an object literal: use style=${{ ... }} not a string
+2026-01-08T03:27:54Z | progress_log_append | Repairing code (attempt 1)...
+2026-01-08T03:28:06Z | progress_log_append | ✓ Widget generation complete
+2026-01-08T03:28:06Z | progress_log_append | Code generated: 7327 characters
+2026-01-08T03:28:06Z | progress_log_extend | Widget saved: map_these_earthquakes
+2026-01-08T03:28:06Z | progress_log_extend | Location: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_032806_703c9bcdac.js
+2026-01-08T03:28:06Z | status_transition | generating -> ready
+2026-01-08T03:31:10Z | progress_log_reset | Analyzing inputs: 0
+2026-01-08T03:31:10Z | progress_log_append | Skipping cache (cache=False)
+2026-01-08T03:31:10Z | progress_log_append | Generating widget code
+2026-01-08T03:31:10Z | progress_log_append | Analyzing data
+2026-01-08T03:31:10Z | progress_log_append | Inputs: 1
+2026-01-08T03:31:10Z | progress_log_append | Generating widget code...
+2026-01-08T03:31:11Z | progress_log_append | Importing d3...
+2026-01-08T03:31:12Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:31:12Z | progress_log_append | Setting up scales...
+2026-01-08T03:31:12Z | progress_log_append | Binding data to elements...
+2026-01-08T03:31:13Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:31:14Z | progress_log_append | Creating axes...
+2026-01-08T03:31:16Z | progress_log_append | Building UI components...
+2026-01-08T03:31:16Z | progress_log_append | Finalizing component...
+2026-01-08T03:31:16Z | progress_log_append | Creating widget component...
+2026-01-08T03:31:21Z | progress_log_append | Applying styles...
+2026-01-08T03:31:23Z | progress_log_append | Validating code
+2026-01-08T03:31:23Z | progress_log_append | Testing runtime
+2026-01-08T03:31:23Z | progress_log_append | ✓ Widget generation complete
+2026-01-08T03:31:23Z | progress_log_append | Code generated: 7105 characters
+2026-01-08T03:31:23Z | progress_log_extend | Widget saved: map_these_earthquakes
+2026-01-08T03:31:23Z | progress_log_extend | Location: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_033123_703c9bcdac.js
+2026-01-08T03:31:23Z | status_transition | generating -> ready
+2026-01-08T03:31:23Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:31:23Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:31:23.431Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:31:23Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:31:23.431Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]
+2026-01-08T03:31:23Z | progress_log_append | Code file: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_033123_703c9bcdac.js
+2026-01-08T03:31:23Z | status_transition | ready -> retrying
+2026-01-08T03:31:23Z | repair_attempt_start | retry=1
+2026-01-08T03:31:23Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:31:23.431Z] Error: Minified React error #31; visit https://react.
+2026-01-08T03:31:23Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:31:23.431Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at uu (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:37752)
+    at h (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:39579)
+    at b (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:40931)
+    at A (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:42903)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:43345
+    at gt (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:66980)
+    at kc (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:70512)
+    at A0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:80722)
+    at W0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:116141)
+    at iy (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:115223)
+
+Component stack:
+
+    at EarthquakeWidget (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/64ed7b46-8950-4d80-ad32-01058c984a18:87:44)
+    at y (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:641:51)
+    at nh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:637:568)
+    at div (<anonymous>)
+    at Mo (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:830:879)
+    at div (<anonymous>)
+    at oh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:865:5351)
+2026-01-08T03:31:23Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:31:35Z | repair_result | applied=True retryable=False
+2026-01-08T03:31:35Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:31:35Z | status_transition | retrying -> ready
+2026-01-08T03:31:35Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:31:23.431Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:31:35Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:31:35.914Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:31:35Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:31:35Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:31:35.914Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:31:35Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:31:35.914Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]
+2026-01-08T03:31:35Z | progress_log_append | Code file: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_033123_703c9bcdac.js
+2026-01-08T03:31:35Z | status_transition | ready -> retrying
+2026-01-08T03:31:35Z | repair_attempt_start | retry=1
+2026-01-08T03:31:35Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:31:35.914Z] Error: Minified React error #31; visit https://react.
+2026-01-08T03:31:35Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:31:35.914Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at uu (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:37752)
+    at h (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:39579)
+    at b (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:40931)
+    at A (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:42903)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:43345
+    at gt (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:66980)
+    at kc (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:70512)
+    at A0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:80722)
+    at W0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:116141)
+    at iy (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:115223)
+
+Component stack:
+
+    at EarthquakeWidget (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/489aef7a-d297-4e33-b154-885ec5849374:87:44)
+    at y (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:641:51)
+    at nh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:637:568)
+    at div (<anonymous>)
+    at Mo (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:830:879)
+    at div (<anonymous>)
+    at oh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:865:5351)
+2026-01-08T03:31:35Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:31:49Z | repair_result | applied=True retryable=False
+2026-01-08T03:31:49Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:31:49Z | status_transition | retrying -> ready
+2026-01-08T03:31:49Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:31:49Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:31:35.916Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:31:49Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:31:35.916Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]
+2026-01-08T03:31:49Z | progress_log_append | Code file: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_033123_703c9bcdac.js
+2026-01-08T03:31:49Z | status_transition | ready -> retrying
+2026-01-08T03:31:49Z | repair_attempt_start | retry=1
+2026-01-08T03:31:49Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:31:35.916Z] Error: Minified React error #31; visit https://react.
+2026-01-08T03:31:49Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:31:35.916Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at uu (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:37752)
+    at h (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:39579)
+    at b (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:40931)
+    at A (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:42903)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:43345
+    at gt (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:66980)
+    at kc (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:70512)
+    at A0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:80722)
+    at W0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:116141)
+    at iy (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:115223)
+
+Component stack:
+
+    at EarthquakeWidget (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/8c9153b4-0283-47bf-bb43-d294dd308426:87:44)
+    at y (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:641:51)
+    at nh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:637:568)
+    at div (<anonymous>)
+    at Mo (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:830:879)
+    at div (<anonymous>)
+    at oh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:865:5351)
+2026-01-08T03:31:49Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:32:01Z | repair_result | applied=True retryable=False
+2026-01-08T03:32:01Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:32:01Z | status_transition | retrying -> ready
+2026-01-08T03:32:01Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:31:35.916Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:32:01Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:31:49.413Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:32:01Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:32:01Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:31:49.413Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:32:01Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:31:49.413Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]
+2026-01-08T03:32:01Z | progress_log_append | Code file: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_033123_703c9bcdac.js
+2026-01-08T03:32:01Z | status_transition | ready -> retrying
+2026-01-08T03:32:01Z | repair_attempt_start | retry=1
+2026-01-08T03:32:01Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:31:49.413Z] Error: Minified React error #31; visit https://react.
+2026-01-08T03:32:01Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:31:49.413Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at uu (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:37752)
+    at h (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:39579)
+    at b (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:40931)
+    at A (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:42903)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:43345
+    at gt (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:66980)
+    at kc (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:70512)
+    at A0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:80722)
+    at W0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:116141)
+    at iy (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:115223)
+
+Component stack:
+
+    at EarthquakeWidget (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/a6828d3a-d185-4889-8d8c-0fe6d8b3086b:87:44)
+    at y (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:641:51)
+    at nh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:637:568)
+    at div (<anonymous>)
+    at Mo (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:830:879)
+    at div (<anonymous>)
+    at oh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:865:5351)
+2026-01-08T03:32:01Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:32:14Z | repair_result | applied=True retryable=False
+2026-01-08T03:32:14Z | progress_log_append | Code fixed, retrying
+2026-01-08T03:32:14Z | status_transition | retrying -> ready
+2026-01-08T03:32:14Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:32:01.906Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:32:14Z | runtime_error_received | status=ready retry=0
+2026-01-08T03:32:14Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:32:01.906Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:32:14Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:32:01.906Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]
+2026-01-08T03:32:14Z | progress_log_append | Code file: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_033123_703c9bcdac.js
+2026-01-08T03:32:14Z | status_transition | ready -> retrying
+2026-01-08T03:32:14Z | repair_attempt_start | retry=1
+2026-01-08T03:32:14Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:32:01.906Z] Error: Minified React error #31; visit https://react.
+2026-01-08T03:32:14Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:32:01.906Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at uu (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:37752)
+    at h (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:39579)
+    at b (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:40931)
+    at A (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:42903)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:43345
+    at gt (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:66980)
+    at kc (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:70512)
+    at A0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:80722)
+    at W0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:116141)
+    at iy (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:115223)
+
+Component stack:
+
+    at EarthquakeWidget (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/12823995-b912-45d7-84f8-a98ba9ca74fb:87:44)
+    at y (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:641:51)
+    at nh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:637:568)
+    at div (<anonymous>)
+    at Mo (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:830:879)
+    at div (<anonymous>)
+    at oh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:865:5351)
+2026-01-08T03:32:14Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:32:26Z | repair_result | applied=False retryable=False
+2026-01-08T03:32:26Z | progress_log_append | Repair produced no changes.
+2026-01-08T03:32:26Z | status_transition | retrying -> blocked
+2026-01-08T03:32:26Z | widget_error_received | [js_runtime_error_ts=2026-01-08T03:32:14.130Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:32:26Z | runtime_error_received | status=blocked retry=1
+2026-01-08T03:32:26Z | runtime_error_message | [js_runtime_error_ts=2026-01-08T03:32:14.130Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at 
+2026-01-08T03:32:26Z | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-08T03:32:14.130Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]
+2026-01-08T03:32:26Z | progress_log_append | Code file: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_033123_703c9bcdac.js
+2026-01-08T03:32:26Z | status_transition | blocked -> retrying
+2026-01-08T03:32:26Z | repair_attempt_start | retry=2
+2026-01-08T03:32:26Z | progress_log_extend | Error detected: [js_runtime_error_ts=2026-01-08T03:32:14.130Z] Error: Minified React error #31; visit https://react.
+2026-01-08T03:32:26Z | progress_log_extend | Runtime error details:
+[js_runtime_error_ts=2026-01-08T03:32:14.130Z] Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bstyle%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at uu (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:37752)
+    at h (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:39579)
+    at b (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:40931)
+    at A (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:42903)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:43345
+    at gt (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:66980)
+    at kc (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:70512)
+    at A0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:80722)
+    at W0 (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:116141)
+    at iy (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:8:115223)
+
+Component stack:
+
+    at EarthquakeWidget (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/9ded759a-8b79-4c37-8121-131b61b7454c:87:44)
+    at y (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:641:51)
+    at nh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:637:568)
+    at div (<anonymous>)
+    at Mo (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:830:879)
+    at div (<anonymous>)
+    at oh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ebf2731e-8223-4cf4-b84a-686d2419db28:865:5351)
+2026-01-08T03:32:26Z | progress_log_extend | Asking LLM to fix the error
+2026-01-08T03:32:26Z | repair_result | applied=False retryable=False
+2026-01-08T03:32:26Z | progress_log_append | Max retry attempts reached.
+2026-01-08T03:32:26Z | status_transition | retrying -> blocked
+2026-01-08T03:38:30Z | progress_log_reset | Analyzing inputs: 0
+2026-01-08T03:38:30Z | progress_log_append | Skipping cache (cache=False)
+2026-01-08T03:38:30Z | progress_log_append | Generating widget code
+2026-01-08T03:38:30Z | progress_log_append | Analyzing data
+2026-01-08T03:38:30Z | progress_log_append | Inputs: 1
+2026-01-08T03:38:30Z | progress_log_append | Generating widget code...
+2026-01-08T03:38:31Z | progress_log_append | Importing d3...
+2026-01-08T03:38:32Z | progress_log_append | Setting up React hooks...
+2026-01-08T03:38:32Z | progress_log_append | Creating SVG canvas...
+2026-01-08T03:38:33Z | progress_log_append | Setting up scales...
+2026-01-08T03:38:33Z | progress_log_append | Adding visualization elements...
+2026-01-08T03:38:33Z | progress_log_append | Binding data to elements...
+2026-01-08T03:38:34Z | progress_log_append | Creating axes...
+2026-01-08T03:38:35Z | progress_log_append | Building UI components...
+2026-01-08T03:38:35Z | progress_log_append | Applying styles...
+2026-01-08T03:38:35Z | progress_log_append | Finalizing component...
+2026-01-08T03:38:36Z | progress_log_append | Creating widget component...
+2026-01-08T03:38:45Z | progress_log_append | Validating code
+2026-01-08T03:38:45Z | progress_log_append | Testing runtime
+2026-01-08T03:38:45Z | progress_log_append | ✓ Widget generation complete
+2026-01-08T03:38:45Z | progress_log_append | Code generated: 8376 characters
+2026-01-08T03:38:45Z | progress_log_extend | Widget saved: map_these_earthquakes
+2026-01-08T03:38:45Z | progress_log_extend | Location: .vibewidget/widgets/map_these_earthquakes_map_these_20260108_033845_703c9bcdac.js
+2026-01-08T03:38:45Z | status_transition | generating -> ready

@@ -3,6 +3,7 @@ Core VibeWidget implementation.
 Clean, robust widget generation without legacy profile logic.
 """
 from pathlib import Path
+from datetime import datetime
 from typing import Any, Union
 import json
 import inspect
@@ -102,6 +103,23 @@ def _get_widget_class(
 
 logger = get_logger(__name__)
 
+_DEBUG_LOG_PATH = Path(__file__).resolve().parents[3] / "logs.txt"
+
+
+def _write_debug_log(event: str, payload: str = "") -> None:
+    """Best-effort debug logging to a local file for runtime diagnosis."""
+    try:
+        timestamp = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        line = f"{timestamp} | {event}"
+        if payload:
+            line = f"{line} | {payload}"
+        _DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_DEBUG_LOG_PATH, "a", encoding="utf-8") as handle:
+            handle.write(line + "\n")
+    except Exception:
+        pass
+_EDITOR_BUNDLE_CACHE: str | None = None
+
 
 class VibeWidget(anywidget.AnyWidget):
     data = traitlets.List([]).tag(sync=True)
@@ -110,6 +128,7 @@ class VibeWidget(anywidget.AnyWidget):
     code = traitlets.Unicode("").tag(sync=True)
     error_message = traitlets.Unicode("").tag(sync=True)
     widget_error = traitlets.Unicode("").tag(sync=True)
+    last_runtime_error = traitlets.Unicode("").tag(sync=True)
     widget_logs = traitlets.List([]).tag(sync=True)
     retry_count = traitlets.Int(0).tag(sync=True)
     grab_edit_request = traitlets.Dict({}).tag(sync=True)
@@ -117,6 +136,24 @@ class VibeWidget(anywidget.AnyWidget):
     action_event = traitlets.Dict({}).tag(sync=True)
     audit_state = traitlets.Dict({}).tag(sync=True)
     execution_state = traitlets.Dict({}).tag(sync=True)
+    _is_closed = traitlets.Bool(False).tag(sync=False)
+
+    def close(self) -> None:
+        """Close widget comms and mark as disposed."""
+        if self._is_closed:
+            return
+        self._is_closed = True
+        try:
+            super().close()
+        except Exception:
+            pass
+
+    def __del__(self) -> None:
+        """Best-effort cleanup when widget is garbage collected."""
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def _ipython_display_(self) -> None:
         """Ensure rich display works in environments that skip mimebundle reprs."""
@@ -264,7 +301,6 @@ class VibeWidget(anywidget.AnyWidget):
         self._input_sampling = input_sampling
         self._export_accessors: dict[str, ExportHandle] = {}
         self._state = StateManager(self)
-        self._widget_metadata = None
         self._theme = theme
         self._base_code = base_code
         self._base_components = base_components or []
@@ -275,6 +311,8 @@ class VibeWidget(anywidget.AnyWidget):
         self._audit_service: AuditService | None = None
         self._repair_service: RepairService | None = None
         self._max_retries = RepairService.MAX_RETRIES
+        self._last_logged_runtime_error = ""
+        self._widget_metadata: dict[str, Any] | None = None
         
         app_wrapper_dir = Path(__file__).resolve().parents[1]
         app_wrapper_path = app_wrapper_dir / "AppWrapper.bundle.js"
@@ -282,6 +320,7 @@ class VibeWidget(anywidget.AnyWidget):
             # Fallback for older builds
             app_wrapper_path = app_wrapper_dir / "app_wrapper.js"
         self._esm = app_wrapper_path.read_text()
+        self._editor_bundle_path = app_wrapper_dir / "AppWrapper.editor.bundle.js"
         
         data_json = df.to_dict(orient="records")
         data_json = clean_for_json(data_json)
@@ -337,6 +376,7 @@ class VibeWidget(anywidget.AnyWidget):
         self.observe(self._on_audit_state, names='audit_state')
         self.observe(self._on_code_change, names='code')
         self.observe(self._on_execution_state, names='execution_state')
+        self.on_msg(self._handle_custom_msg)
         
         try:
             input_count = len(self._imports or {})
@@ -499,8 +539,11 @@ class VibeWidget(anywidget.AnyWidget):
         lifecycle = getattr(self, "_lifecycle", None)
         if lifecycle is None:
             self.status = status
+            _write_debug_log("status_set", f"{status}")
             return
+        prev_status = self.status
         lifecycle.transition(status, force=force)
+        _write_debug_log("status_transition", f"{prev_status} -> {status}")
         if status == "ready":
             return
 
@@ -508,9 +551,11 @@ class VibeWidget(anywidget.AnyWidget):
         logs = list(self.logs or [])
         logs.append(message)
         self.logs = logs
+        _write_debug_log("progress_log_append", message)
 
     def _reset_logs(self, messages: list[str]) -> None:
         self.logs = list(messages)
+        _write_debug_log("progress_log_reset", " | ".join(messages))
 
     def _extend_logs(self, messages: list[str]) -> None:
         if not messages:
@@ -518,6 +563,8 @@ class VibeWidget(anywidget.AnyWidget):
         logs = list(self.logs or [])
         logs.extend(messages)
         self.logs = logs
+        for message in messages:
+            _write_debug_log("progress_log_extend", message)
 
     # Adds logger streams to the generation call
     def _start_generation(
@@ -1022,6 +1069,36 @@ class VibeWidget(anywidget.AnyWidget):
         if apply_request and apply_request != (old_state.get("apply_request") or {}):
             self._handle_audit_apply_request(apply_request)
 
+    def _load_editor_bundle(self) -> str:
+        global _EDITOR_BUNDLE_CACHE
+        if _EDITOR_BUNDLE_CACHE is not None:
+            return _EDITOR_BUNDLE_CACHE
+        if not self._editor_bundle_path.exists():
+            raise FileNotFoundError(
+                f"Editor bundle not found at {self._editor_bundle_path}. "
+                "Run `npm run build-app-wrapper` to generate it."
+            )
+        _EDITOR_BUNDLE_CACHE = self._editor_bundle_path.read_text(encoding="utf-8")
+        return _EDITOR_BUNDLE_CACHE
+
+    def _handle_custom_msg(self, *args) -> None:
+        """Handle frontend custom messages across ipywidgets versions."""
+        if len(args) == 3:
+            _, content, buffers = args
+        elif len(args) == 2:
+            content, buffers = args
+        else:
+            return
+        if not isinstance(content, dict):
+            return
+        if content.get("type") != "request_editor_bundle":
+            return
+        try:
+            bundle = self._load_editor_bundle()
+            self.send({"type": "editor_bundle", "code": bundle})
+        except Exception as exc:
+            self.send({"type": "editor_bundle_error", "error": str(exc)})
+
     def _handle_audit_request(self, request: dict[str, Any]) -> None:
         """Handle audit requests from the frontend."""
         if self.audit_status == "running":
@@ -1114,6 +1191,16 @@ class VibeWidget(anywidget.AnyWidget):
 
         if error_msg:
             logger.error("Frontend runtime error:\n%s", error_msg)
+            _write_debug_log("runtime_error_received", f"status={self.status} retry={self.retry_count}")
+            _write_debug_log("runtime_error_message", error_msg[:500])
+            self.last_runtime_error = error_msg
+            preview = error_msg.split("\n")[0][:200]
+            if preview != self._last_logged_runtime_error:
+                self._append_log(f"Runtime error: {preview}")
+                path_hint = self._widget_file_path()
+                if path_hint:
+                    self._append_log(f"Code file: {path_hint}")
+                self._last_logged_runtime_error = preview
 
         orchestrator = getattr(self, "orchestrator", None)
         if self._repair_service is None:
@@ -1129,17 +1216,21 @@ class VibeWidget(anywidget.AnyWidget):
         if self.retry_count >= self._max_retries:
             self._set_status("blocked")
             self._append_log("Repair blocked: retry limit reached")
+            _write_debug_log("repair_blocked", f"retry={self.retry_count}")
             self.error_message = ""
             return
 
         self.retry_count += 1
         self._set_status("retrying")
+        _write_debug_log("repair_attempt_start", f"retry={self.retry_count}")
 
         error_preview = error_msg.split("\n")[0][:100]
-        self._extend_logs([
-            f"Error detected: {error_preview}",
-            "Asking LLM to fix the error",
-        ])
+        messages = [f"Error detected: {error_preview}"]
+        path_hint = self._widget_file_path()
+        if path_hint:
+            messages.append(f"Code file: {path_hint}")
+        messages.append("Asking LLM to fix the error")
+        self._extend_logs(messages)
 
         result = self._repair_service.fix_runtime_error(
             code=self.code,
@@ -1147,12 +1238,14 @@ class VibeWidget(anywidget.AnyWidget):
             data_info=self.data_info,
             retry_count=self.retry_count,
         )
+        _write_debug_log("repair_result", f"applied={result.applied} retryable={result.retryable}")
 
         if result.applied:
             self._append_log("Code fixed, retrying")
             self.code = result.code
             self._set_status("ready")
             self.error_message = ""
+            self.last_runtime_error = ""
             self.retry_count = 0
             return
 
@@ -1176,6 +1269,13 @@ class VibeWidget(anywidget.AnyWidget):
         if len(logs) > 200:
             logs = logs[-200:]
         self.widget_logs = logs
+    
+    def _widget_file_path(self) -> str | None:
+        metadata = getattr(self, "_widget_metadata", {}) or {}
+        file_name = metadata.get("file_name")
+        if file_name:
+            return f".vibewidget/widgets/{file_name}"
+        return None
 
     def _on_widget_error(self, change):
         """Surface widget errors coming from the frontend."""
@@ -1183,6 +1283,7 @@ class VibeWidget(anywidget.AnyWidget):
         if not error_msg:
             return
         logger.error("Widget runtime error:\n%s", error_msg)
+        _write_debug_log("widget_error_received", error_msg[:500])
         try:
             self._append_widget_log(f"Widget error: {error_msg}", level="error", source="js")
         except Exception:

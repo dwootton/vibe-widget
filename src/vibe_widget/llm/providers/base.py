@@ -158,6 +158,7 @@ MUST FOLLOW EXACTLY:
 10. Avoid 100vh/100vw—use fixed heights (360–640px) or flex layouts that respect notebook constraints
 11. Ensure high contrast for text and data marks (WCAG AA minimum) in all visual states
 12. Inline styles must be object literals: style=${{ ... }} (never style="..." or style=${"..."}).
+    If you start with CSS strings, convert them to an object with camelCased keys and quoted values before emitting.
 13. Any component that returns html`...` MUST accept `html` in its props, and you MUST pass `html=${{html}}` when using it.
 14. Never wrap the output in markdown code fences
 
@@ -316,6 +317,7 @@ Follow the SAME constraints as generation:
 - html tagged templates only (no JSX)
 - ESM CDN imports with locked versions
 - Thorough cleanup in every React.useEffect
+- Inline styles must be object literals (style=${{ ... }}), never strings; convert any CSS strings to an object with camelCased keys.
 - Export reusable components as named exports when appropriate
 
 Focus on making ONLY the requested changes. Reuse existing code structure where possible.
@@ -375,6 +377,7 @@ MANDATORY FIX RULES:
 4. Keep CDN imports version-pinned
 5. Restore all cleanup handlers
 6. Initialize outputs and call model.save_changes()
+7. Inline styles must be object literals (style=${{ ... }}); convert any string-based style to an object with camelCased keys and quoted values.
 
 Return ONLY the corrected JavaScript code."""
 

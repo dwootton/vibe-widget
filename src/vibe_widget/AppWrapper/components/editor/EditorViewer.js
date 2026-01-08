@@ -17,6 +17,7 @@ export default function EditorViewer({
   widgetLogs,
   stateErrorMessage,
   stateWidgetError,
+  lastRuntimeError,
   auditStatus,
   auditReport,
   auditError,
@@ -73,6 +74,23 @@ export default function EditorViewer({
     if (stateWidgetError && stateWidgetError !== stateErrorMessage) {
       next.push(`Runtime error:\n${stateWidgetError}`);
     }
+    if (lastRuntimeError) {
+      const runtimeText = `Runtime error:\n${lastRuntimeError}`;
+      const alreadyIncluded = next.some((entry) => String(entry).includes(lastRuntimeError));
+      if (!alreadyIncluded) {
+        next.push(runtimeText);
+      }
+    }
+    if (Array.isArray(widgetLogs) && widgetLogs.length > 0) {
+      widgetLogs
+        .filter((entry) => entry && (entry.level === "error" || entry.level === "warn"))
+        .forEach((entry) => {
+          const message = entry && typeof entry === "object" ? entry.message : entry;
+          if (message) {
+            next.push(`Runtime log: ${message}`);
+          }
+        });
+    }
     const isRepairing = status === "retrying"
       || (Array.isArray(logs) && logs.some((entry) => String(entry).toLowerCase().includes("repairing code")));
     if (isRepairing) {
@@ -83,11 +101,22 @@ export default function EditorViewer({
         widgetLogs
       });
       if (summaryLines.length > 0) {
-        next.push(`Stack trace (most recent):\n${summaryLines.join("\n")}`);
+        const summaryText = `Stack trace (most recent):\n${summaryLines.join("\n")}`;
+        const alreadyIncluded = next.some((entry) => String(entry).startsWith("Stack trace (most recent):"));
+        if (!alreadyIncluded) {
+          const repairIndex = next.findIndex((entry) =>
+            String(entry).toLowerCase().includes("repairing code")
+          );
+          if (repairIndex >= 0) {
+            next.splice(repairIndex + 1, 0, summaryText);
+          } else {
+            next.push(summaryText);
+          }
+        }
       }
     }
     return next;
-  }, [logs, widgetLogs, stateErrorMessage, stateWidgetError, status]);
+  }, [logs, widgetLogs, stateErrorMessage, stateWidgetError, lastRuntimeError, status]);
 
   const getCardId = (concern, index) => {
     const base = concern?.id || `concern-${index}`;
@@ -481,6 +510,18 @@ export default function EditorViewer({
           flex-direction: column;
           gap: 10px;
         }
+        .source-debug-banner {
+          border: 1px solid rgba(242, 240, 233, 0.35);
+          background: rgba(26, 26, 26, 0.7);
+          color: #f8fafc;
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 11px;
+          line-height: 1.4;
+          padding: 8px 10px;
+          border-radius: 6px;
+          white-space: pre-wrap;
+        }
         .source-viewer-main {
           flex: 1;
           display: grid;
@@ -808,6 +849,12 @@ export default function EditorViewer({
           onClose=${handleCloseRequest}
         />
         <div class="source-viewer-body">
+          ${lastRuntimeError && html`
+            <div class="source-debug-banner">
+              Last runtime error:
+              ${"\n"}${lastRuntimeError}
+            </div>
+          `}
           ${errorMessage && html`
             <div class="source-viewer-error-banner">
               ${errorMessage}

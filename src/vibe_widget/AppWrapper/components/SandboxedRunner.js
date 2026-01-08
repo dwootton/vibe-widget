@@ -1,6 +1,7 @@
 import * as React from "react";
 import htm from "htm";
 import { appendWidgetLogs } from "../actions/modelActions";
+import { captureRuntimeError } from "../utils/runtimeError";
 
 const html = htm.bind(React.createElement);
 const FORBIDDEN_REACT_IMPORT = /from\s+["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']|require\(\s*["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']\s*\)|from\s+["']https?:\/\/[^"']*react[^"']*["']/;
@@ -65,20 +66,7 @@ function SandboxedRunner({ code, model, runKey }) {
 
   const handleRuntimeError = React.useCallback((err, extraStack = "") => {
     console.error("Code execution error:", err);
-
-    const baseMessage = err instanceof Error ? err.toString() : String(err);
-    const stack = err instanceof Error && err.stack ? err.stack : "No stack trace";
-    const errorDetails = `${baseMessage}\n\nStack:\n${stack}${extraStack}`;
-    const lowerDetails = errorDetails.toLowerCase();
-    if (lowerDetails.includes("cannot send widget sync message")
-        || lowerDetails.includes("error: cannot send")) {
-      enqueueLog("warn", errorDetails);
-      return;
-    }
-
-    model.set("error_message", errorDetails);
-    model.set("widget_error", errorDetails);
-    model.save_changes();
+    captureRuntimeError({ model, enqueueLog, err, extraStack });
   }, [model, enqueueLog]);
 
   React.useEffect(() => {

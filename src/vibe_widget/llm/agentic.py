@@ -1,4 +1,5 @@
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, Optional, Tuple
+import re
 
 
 from vibe_widget.llm.providers.base import LLMProvider
@@ -38,6 +39,83 @@ class AgenticOrchestrator:
 
         # For storing artifacts if needed
         self.artifacts = {}
+
+    def _sanitize_code(self, code: str) -> str:
+        """
+        Normalize inline style strings into object literals to satisfy HTM rules.
+        Example: style="color: red; height: 420px" -> style=${{ color: "red", height: "420px" }}
+        """
+
+        def css_to_object(css: str) -> Optional[str]:
+            entries = []
+            for part in css.split(";"):
+                part = part.strip()
+                if not part or ":" not in part:
+                    continue
+                key, value = part.split(":", 1)
+                key = key.strip()
+                value = value.strip()
+                if not key or not value:
+                    continue
+                key_camel = re.sub(r"-([a-zA-Z])", lambda m: m.group(1).upper(), key)
+                entries.append(f'{key_camel}: "{value}"')
+            if not entries:
+                return None
+            return f"${{{{ {', '.join(entries)} }}}}"
+
+        # Only convert inline style attributes that are plain CSS strings (no templates/objects)
+        literal_style = re.compile(
+            r"style\s*=\s*[\"']([^\"'{}$]+)[\"']",
+            re.IGNORECASE,
+        )
+        templated_style = re.compile(
+            r"style\s*=\s*\$\s*\{\s*[\"']([^\"'{}$]+)[\"']\s*\}",
+            re.IGNORECASE,
+        )
+
+        def literal_replacer(match: re.Match[str]) -> str:
+            css = match.group(1)
+            converted = css_to_object(css)
+            return f"style={converted}" if converted else match.group(0)
+
+        def templated_replacer(match: re.Match[str]) -> str:
+            css = match.group(1)
+            converted = css_to_object(css)
+            return f"style={converted}" if converted else match.group(0)
+
+        try:
+            code = literal_style.sub(literal_replacer, code)
+            code = templated_style.sub(templated_replacer, code)
+            return code
+        except Exception:
+            return code
+
+    def _try_inline_style_fix(
+        self,
+        code: str,
+        validation_fn: Callable[[str], Any],
+        runtime_fn: Callable[[str], Any],
+    ) -> tuple[str, Any, Any]:
+        """
+        If validation flags inline style string issues, attempt to sanitize and re-validate
+        before invoking LLM repairs.
+        """
+        validation = validation_fn(code)
+        runtime = runtime_fn(code)
+        issues = []
+        if validation and hasattr(validation, "output"):
+            issues.extend(validation.output.get("issues", []))
+        inline_issue = any(
+            "inline style must be an object literal" in str(item).lower()
+            for item in issues
+        )
+        if inline_issue:
+            sanitized = self._sanitize_code(code)
+            if sanitized != code:
+                code = sanitized
+                validation = validation_fn(code)
+                runtime = runtime_fn(code)
+        return code, validation, runtime
     
     def generate(
         self,
@@ -107,18 +185,25 @@ class AgenticOrchestrator:
                 data_info=data_info,
                 progress_callback=lambda msg: self._emit(progress_callback, "chunk", msg),
             )
-        
-        # Validate code
+
+        code = self._sanitize_code(code)
+
+        def _validate(c: str):
+            return self.validate_tool.execute(
+                code=c,
+                expected_exports=list(outputs.keys()),
+                expected_imports=list(inputs.keys()),
+            )
+
+        def _runtime(c: str):
+            return self.runtime_tool.execute(code=c)
+
+        # Validate code (with a pass to auto-fix inline style strings)
         self._emit(progress_callback, "step", "Validating code")
-        validation = self.validate_tool.execute(
-            code=code,
-            expected_exports=list(outputs.keys()),
-            expected_imports=list(inputs.keys()),
-        )
+        code, validation, runtime = self._try_inline_style_fix(code, _validate, _runtime)
         
-        # Runtime test
+        # Runtime test (already run in try_inline_style_fix)
         self._emit(progress_callback, "step", "Testing runtime")
-        runtime = self.runtime_tool.execute(code=code)
         
         # Repair loop if needed
         repair_attempts = 0
@@ -132,8 +217,27 @@ class AgenticOrchestrator:
             
             if not issues:
                 break
+
+            inline_issue = any(
+                "inline style must be an object literal" in str(item).lower()
+                for item in issues
+            )
+            if inline_issue:
+                sanitized = self._sanitize_code(code)
+                if sanitized != code:
+                    code = sanitized
+                    validation = self.validate_tool.execute(
+                        code=code,
+                        expected_exports=list(outputs.keys()),
+                        expected_imports=list(inputs.keys()),
+                    )
+                    runtime = self.runtime_tool.execute(code=code)
+                    continue
             
             repair_attempts += 1
+            if issues:
+                preview = "; ".join(issues[:2])
+                self._emit(progress_callback, "step", f"Issues found: {preview[:200]}")
             self._emit(progress_callback, "step", f"Repairing code (attempt {repair_attempts})...")
             # print out all issues
             for issue in issues:
@@ -150,6 +254,8 @@ class AgenticOrchestrator:
             else:
                 # For validation issues, build a repair prompt manually
                 code = self._repair_with_issues(code, issues, data_info)
+
+            code = self._sanitize_code(code)
             
             # Re-validate
             validation = self.validate_tool.execute(

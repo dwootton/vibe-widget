@@ -13,15 +13,25 @@ export default function ProgressMap({
   heading = "Welcome to Vibe Widgets!"
 }) {
   const logListRef = React.useRef(null);
+  const shouldAutoScrollRef = React.useRef(true);
+  const prevScrollHeightRef = React.useRef(0);
   const [spinnerFrame, setSpinnerFrame] = React.useState(0);
   const isTerminal = status === "blocked" || status === "error" || status === "ready";
   const shouldSpin = Array.isArray(logs) && logs.length > 0 && !isTerminal;
 
   React.useLayoutEffect(() => {
-    if (!logListRef.current) return;
     const node = logListRef.current;
+    if (!node) return;
+    const prevHeight = prevScrollHeightRef.current || 0;
+    const nextHeight = node.scrollHeight;
+    const heightDelta = nextHeight - prevHeight;
     const raf = requestAnimationFrame(() => {
-      node.scrollTop = node.scrollHeight;
+      if (shouldAutoScrollRef.current) {
+        node.scrollTop = node.scrollHeight;
+      } else if (heightDelta) {
+        node.scrollTop = node.scrollTop + heightDelta;
+      }
+      prevScrollHeightRef.current = node.scrollHeight;
     });
     return () => cancelAnimationFrame(raf);
   }, [logs]);
@@ -121,7 +131,7 @@ export default function ProgressMap({
         .log-entry {
           display: flex;
           align-items: baseline;
-          gap: 8px;
+          gap: 4px;
           padding: 2px 0;
           color: #D1D5DB;
           opacity: 0;
@@ -132,9 +142,10 @@ export default function ProgressMap({
         }
 
         .log-icon {
-          width: 14px;
-          flex: 0 0 14px;
+          width: 10px;
+          flex: 0 0 10px;
           color: #6B7280;
+          margin-left: 8px;
         }
 
         .log-icon--active {
@@ -168,7 +179,7 @@ export default function ProgressMap({
 
         .cursor {
           display: inline-block;
-          margin-left: 4px;
+          margin-left: 1px;
           animation: cursorBlink 1s steps(2, end) infinite;
         }
 
@@ -190,7 +201,16 @@ export default function ProgressMap({
           </div>
         ` : null}
         <div class="progress-body">
-          <div class="progress-log-list" ref=${logListRef}>
+          <div
+            class="progress-log-list"
+            ref=${logListRef}
+            onScroll=${(event) => {
+              const node = event.currentTarget;
+              const remaining = node.scrollHeight - node.scrollTop - node.clientHeight;
+              shouldAutoScrollRef.current = remaining <= 4;
+              prevScrollHeightRef.current = node.scrollHeight;
+            }}
+          >
             ${logs.map((log, idx) => {
               const isActive = idx === logs.length - 1;
               const isLive = isActive && !isTerminal;

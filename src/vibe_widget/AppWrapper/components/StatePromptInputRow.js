@@ -81,16 +81,20 @@ export default function StatePromptInputRow({
           .log-entry--input {
             align-items: flex-start;
           }
-          .log-entry--input .log-text {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            width: 100%;
-            background: #151515;
-            padding: 6px 8px;
-            border: 1px solid rgba(242, 240, 233, 0.25);
-            border-radius: 2px;
-          }
+        .log-entry--input .log-text {
+          display: flex;
+          align-items: flex-start;
+          gap: 4px;
+          width: 100%;
+          background: transparent;
+          padding: 0;
+          border: none;
+          border-radius: 2px;
+          margin-left: 12px;
+        }
+        .log-entry--input .log-icon {
+          margin-left: -12px;
+        }
           .state-input-wrapper {
             position: relative;
             flex: 1;
