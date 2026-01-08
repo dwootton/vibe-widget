@@ -22,27 +22,28 @@ export default function FloatingMenu({
         }
         .menu-dot-wrapper {
           position: relative;
-          width: 28px;
-          height: 28px;
+          width: 20px;
+          height: 20px;
         }
         .menu-dot {
-          width: 28px;
-          height: 28px;
-          border-radius: 6px;
-          background: #f97316;
+          width: 20px;
+          height: 20px;
+          border-radius: 0;
+          background: #ffffff;
+          border: 2px solid #2a2a2a;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
-          transition: all 0.3s ease;
+          box-shadow: none;
+          transition: none;
         }
         .menu-badge {
           position: absolute;
-          top: 6px;
-          right: 6px;
-          width: 16px;
-          height: 16px;
+          top: 8px;
+          right: 8px;
+          width: 20px;
+          height: 20px;
           border-radius: 999px;
           background: #f87171;
           color: #0b0b0b;
@@ -51,11 +52,10 @@ export default function FloatingMenu({
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
         }
         .menu-dot:hover {
-          transform: scale(1.1);
-          box-shadow: 0 4px 16px rgba(249, 115, 22, 0.5);
+          transform: none;
+          box-shadow: none;
         }
         .menu-dot.spinning {
           animation: spin 2s linear infinite;
@@ -65,36 +65,48 @@ export default function FloatingMenu({
           to { transform: rotate(360deg); }
         }
         .menu-dot-inner {
-          width: 6px;
-          height: 6px;
-          border-radius: 2px;
-          background: white;
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          background: #f97316;
         }
         .menu-options {
           position: absolute;
-          top: 36px;
+          top: 16px;
           right: 0;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          padding: 8px;
-          min-width: 150px;
+          background: #0f0f0f;
+          border: 1px solid rgba(242, 240, 233, 0.35);
+          border-radius: 2px;
+          padding: 6px;
+          min-width: 170px;
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
         .menu-option {
-          padding: 8px 12px;
-          color: #e0e0e0;
+          padding: 6px 8px 6px 20px;
+          color: #f2f0e9;
           cursor: pointer;
-          border-radius: 4px;
-          font-size: 13px;
+          border-radius: 2px;
+          font-size: 12px;
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          position: relative;
           transition: background 0.2s;
         }
+        .menu-option::before {
+          content: ">";
+          position: absolute;
+          left: 8px;
+          color: #f2f0e9;
+        }
         .menu-option:hover {
-          background: #2a2a2a;
+          background: #1a1a1a;
         }
         .menu-option.disabled {
-          color: #666;
+          color: #6b7280;
           cursor: not-allowed;
+        }
+        .menu-option.disabled::before {
+          color: #6b7280;
         }
       </style>
       

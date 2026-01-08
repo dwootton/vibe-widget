@@ -21,6 +21,7 @@ export default function StateViewer({
   widgetError,
   lastRuntimeError,
   retryCount,
+  hideOuterStatus = false,
   onSubmitPrompt
 }) {
   const [prompt, setPrompt] = React.useState("");
@@ -136,15 +137,17 @@ export default function StateViewer({
           white-space: pre-wrap;
         }
       </style>
-      <div class="state-viewer-header">
-        <span class="state-viewer-status">${buildStatusLabel(status)}</span>
-        <span class="state-viewer-meta">Retries: ${retryCount ?? 0}</span>
-      </div>
+      ${!hideOuterStatus && html`
+        <div class="state-viewer-header">
+          <span class="state-viewer-status">${buildStatusLabel(status)}</span>
+          <span class="state-viewer-meta">Retries: ${retryCount ?? 0}</span>
+        </div>
+      `}
       <div class="state-viewer-body">
         <${TerminalViewer}
           logs=${displayLogs}
           status=${status}
-          heading=${"Welcome to Vibe Widgets!"}
+          heading=${`Status: ${buildStatusLabel(status)} • Retries: ${retryCount ?? 0}`}
           promptValue=${prompt}
           onPromptChange=${setPrompt}
           onPromptSubmit=${handleSubmit}

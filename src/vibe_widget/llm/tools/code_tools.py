@@ -114,11 +114,16 @@ class CodeValidateTool(Tool):
             if "className=" in code and "html`" in code:
                 warnings.append("Use 'class=' not 'className=' in htm templates")
 
-            style_literal_pattern = re.compile(r"style\s*=\s*['\"]([^\"']+)['\"]")
-            style_template_pattern = re.compile(r"style\s*=\s*\$\{\s*['\"]([^\"']+)['\"]\s*\}")
+            # Inline style checks (case-insensitive), but only on lines that appear to be HTM/JSX-like markup
+            style_literal_pattern = re.compile(r"style\s*=\s*['\"]([^\"']+)['\"]", re.IGNORECASE)
+            style_template_pattern = re.compile(r"style\s*=\s*\$\{\s*['\"]([^\"']+)['\"]\s*\}", re.IGNORECASE)
+            markup_hint = re.compile(r"<[a-zA-Z]", re.IGNORECASE)
 
             lines = code.splitlines()
             for idx, line in enumerate(lines, start=1):
+                # Only flag if the line looks like markup (reduces false positives inside plain JS strings)
+                if not markup_hint.search(line):
+                    continue
                 if style_literal_pattern.search(line) or style_template_pattern.search(line):
                     snippet = line.strip()
                     issues.append(

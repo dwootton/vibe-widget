@@ -6,7 +6,7 @@ import { ensureGlobalStyles } from "./utils/styles";
 import AuditNotice from "./components/AuditNotice";
 import StateViewer from "./components/StateViewer";
 import WidgetViewer from "./components/WidgetViewer";
-import { loadEditorModule } from "./editor/editorBundleLoader";
+// Load editor from the same bundle to avoid React instance mismatches.
 import useAuditFlow from "./hooks/useAuditFlow";
 import useCodeFlow from "./hooks/useCodeFlow";
 import useContainerMetrics from "./hooks/useContainerMetrics";
@@ -73,8 +73,8 @@ function AppWrapper({ model }) {
   const isApproved = executionApproved || !approvalMode;
   const shouldRenderWidget = hasCode && isApproved;
   const EditorViewer = React.useMemo(
-    () => React.lazy(() => loadEditorModule(model)),
-    [model]
+    () => React.lazy(() => import("./components/editor/EditorViewer")),
+    []
   );
   
   const {
@@ -141,6 +141,7 @@ function AppWrapper({ model }) {
           widgetError=${widgetError}
           lastRuntimeError=${lastRuntimeError}
           retryCount=${retryCount}
+          hideOuterStatus=${true}
           onSubmitPrompt=${handleStatePrompt}
         />
       `}

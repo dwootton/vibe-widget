@@ -63,15 +63,26 @@ class AgenticOrchestrator:
                 return None
             return f"${{{{ {', '.join(entries)} }}}}"
 
-        # Only convert inline style attributes that are plain CSS strings (no templates/objects)
-        literal_style = re.compile(
-            r"style\s*=\s*[\"']([^\"'{}$]+)[\"']",
+        # Only convert inline style attributes that are plain CSS strings (no templates/objects).
+        # Allow inner quotes (e.g., font-family: 'Geograph', sans-serif) by separating outer quotes.
+        # Apply only on lines that look like markup to avoid mangling arbitrary JS strings.
+        literal_style_double = re.compile(
+            r'style\s*=\s*"([^"{}$]*)"',
             re.IGNORECASE,
         )
-        templated_style = re.compile(
-            r"style\s*=\s*\$\s*\{\s*[\"']([^\"'{}$]+)[\"']\s*\}",
+        literal_style_single = re.compile(
+            r"style\s*=\s*'([^'{}$]*)'",
             re.IGNORECASE,
         )
+        templated_style_double = re.compile(
+            r'style\s*=\s*\$\s*\{\s*"([^"{}$]*)"\s*\}',
+            re.IGNORECASE,
+        )
+        templated_style_single = re.compile(
+            r"style\s*=\s*\$\s*\{\s*'([^'{}$]*)'\s*\}",
+            re.IGNORECASE,
+        )
+        markup_hint = re.compile(r"<[a-zA-Z]", re.IGNORECASE)
 
         def literal_replacer(match: re.Match[str]) -> str:
             css = match.group(1)
@@ -84,9 +95,17 @@ class AgenticOrchestrator:
             return f"style={converted}" if converted else match.group(0)
 
         try:
-            code = literal_style.sub(literal_replacer, code)
-            code = templated_style.sub(templated_replacer, code)
-            return code
+            # Process line by line to avoid touching non-markup contexts
+            lines = code.splitlines()
+            for i, line in enumerate(lines):
+                if not markup_hint.search(line):
+                    continue
+                line = literal_style_double.sub(literal_replacer, line)
+                line = literal_style_single.sub(literal_replacer, line)
+                line = templated_style_double.sub(templated_replacer, line)
+                line = templated_style_single.sub(templated_replacer, line)
+                lines[i] = line
+            return "\n".join(lines)
         except Exception:
             return code
 
@@ -369,6 +388,23 @@ class AgenticOrchestrator:
     ) -> str:
         """Repair code using provider with list of issues."""
         error_message = "Validation issues:\n" + "\n".join(f"- {issue}" for issue in issues)
+
+        # Add local code context for any issues that include line numbers
+        lines = code.splitlines()
+        context_blocks: list[str] = []
+        for issue in issues:
+            match = re.search(r"line\s+(\d+)", issue, re.IGNORECASE)
+            if not match:
+                continue
+            try:
+                line_no = int(match.group(1))
+            except ValueError:
+                continue
+            if 1 <= line_no <= len(lines):
+                snippet = lines[line_no - 1].strip()
+                context_blocks.append(f"Line {line_no}: {snippet}")
+        if context_blocks:
+            error_message += "\nRelevant code context:\n" + "\n".join(context_blocks)
         
         return self.provider.fix_code_error(
             broken_code=code,

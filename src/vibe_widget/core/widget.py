@@ -3,7 +3,6 @@ Core VibeWidget implementation.
 Clean, robust widget generation without legacy profile logic.
 """
 from pathlib import Path
-from datetime import datetime
 from typing import Any, Union
 import json
 import inspect
@@ -103,21 +102,9 @@ def _get_widget_class(
 
 logger = get_logger(__name__)
 
-_DEBUG_LOG_PATH = Path(__file__).resolve().parents[3] / "logs.txt"
-
-
 def _write_debug_log(event: str, payload: str = "") -> None:
-    """Best-effort debug logging to a local file for runtime diagnosis."""
-    try:
-        timestamp = datetime.utcnow().isoformat(timespec="seconds") + "Z"
-        line = f"{timestamp} | {event}"
-        if payload:
-            line = f"{line} | {payload}"
-        _DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(_DEBUG_LOG_PATH, "a", encoding="utf-8") as handle:
-            handle.write(line + "\n")
-    except Exception:
-        pass
+    """No-op debug logger (debug file output removed)."""
+    return
 _EDITOR_BUNDLE_CACHE: str | None = None
 
 
@@ -320,7 +307,9 @@ class VibeWidget(anywidget.AnyWidget):
             # Fallback for older builds
             app_wrapper_path = app_wrapper_dir / "app_wrapper.js"
         self._esm = app_wrapper_path.read_text()
-        self._editor_bundle_path = app_wrapper_dir / "AppWrapper.editor.bundle.js"
+        self._editor_bundle_path = app_wrapper_dir / "AppWrapper" / "AppWrapper.editor.bundle.js"
+        if not self._editor_bundle_path.exists():
+            self._editor_bundle_path = app_wrapper_dir / "AppWrapper.editor.bundle.js"
         
         data_json = df.to_dict(orient="records")
         data_json = clean_for_json(data_json)
@@ -1196,10 +1185,9 @@ class VibeWidget(anywidget.AnyWidget):
             self.last_runtime_error = error_msg
             preview = error_msg.split("\n")[0][:200]
             if preview != self._last_logged_runtime_error:
-                self._append_log(f"Runtime error: {preview}")
                 path_hint = self._widget_file_path()
-                if path_hint:
-                    self._append_log(f"Code file: {path_hint}")
+                hint_suffix = f" (file: {path_hint})" if path_hint else ""
+                self._append_log(f"Issue detected: {preview}{hint_suffix}")
                 self._last_logged_runtime_error = preview
 
         orchestrator = getattr(self, "orchestrator", None)
@@ -1225,12 +1213,9 @@ class VibeWidget(anywidget.AnyWidget):
         _write_debug_log("repair_attempt_start", f"retry={self.retry_count}")
 
         error_preview = error_msg.split("\n")[0][:100]
-        messages = [f"Error detected: {error_preview}"]
         path_hint = self._widget_file_path()
-        if path_hint:
-            messages.append(f"Code file: {path_hint}")
-        messages.append("Asking LLM to fix the error")
-        self._extend_logs(messages)
+        hint_suffix = f" (file: {path_hint})" if path_hint else ""
+        self._extend_logs([f"Issue detected: {error_preview}{hint_suffix}", "Asking LLM to fix the error"])
 
         result = self._repair_service.fix_runtime_error(
             code=self.code,
