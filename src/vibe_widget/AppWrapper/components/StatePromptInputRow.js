@@ -73,11 +73,11 @@ export default function StatePromptInputRow({
     <div class="state-input-row">
       <div class="log-entry log-entry--active log-entry--input">
         <style>
-          .state-input-row {
-            border-top: 1px solid rgba(242, 240, 233, 0.25);
-            margin: 8px 8px 0;
-            padding-top: 8px;
-          }
+        .state-input-row {
+          border-top: 1px solid rgba(242, 240, 233, 0.25);
+          margin: 8px 8px 0;
+          padding-top: 12px;
+        }
           .log-entry--input {
             align-items: flex-start;
           }
@@ -100,16 +100,16 @@ export default function StatePromptInputRow({
             flex: 1;
             min-width: 0;
           }
-          .state-input {
-            width: 100%;
-            background: transparent;
-            color: #f2f0e9;
-            border: none;
-            padding: 0;
-            margin: 0;
-            box-shadow: none;
-            outline: none;
-            appearance: none;
+        .state-input {
+          width: 100%;
+          background: #0f0f0f;
+          color: #f2f0e9;
+          border: 1px solid #2a2a2a;
+          padding: 4px 6px;
+          margin: 0;
+          box-shadow: none;
+          outline: none;
+          appearance: none;
             font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
               Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
             font-size: 12px;
@@ -126,14 +126,14 @@ export default function StatePromptInputRow({
           .state-input:disabled {
             color: rgba(242, 240, 233, 0.55);
           }
-          .state-input-mirror {
-            position: absolute;
-            inset: 0;
-            visibility: hidden;
-            white-space: pre-wrap;
-            word-break: break-word;
-            padding: 0;
-            margin: 0;
+        .state-input-mirror {
+          position: absolute;
+          inset: 0;
+          visibility: hidden;
+          white-space: pre-wrap;
+          word-break: break-word;
+          padding: 4px 6px;
+          margin: 0;
             font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
               Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
             font-size: 12px;

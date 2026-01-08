@@ -26,6 +26,50 @@ export default function AuditPanel({
   return html`
     <div class="audit-panel">
       <style>
+        .audit-panel {
+          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
+            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+        .audit-panel-header {
+          font-size: 11px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .audit-card {
+          border-bottom: 1px solid rgba(242, 240, 233, 0.2);
+          padding: 10px 0;
+        }
+        .audit-card-title {
+          font-size: 10px;
+          text-transform: uppercase;
+        }
+        .audit-card-actions button {
+          border-radius: 2px;
+          background: #0f0f0f;
+          color: #f2f0e9;
+          border: 1px solid rgba(242, 240, 233, 0.3);
+          font-size: 10px;
+          width: 20px;
+          height: 20px;
+        }
+        .audit-card-actions button:hover {
+          background: #1a1a1a;
+        }
+        .audit-line-link {
+          border: 1px solid rgba(242, 240, 233, 0.2);
+          border-radius: 2px;
+          padding: 2px 6px;
+          background: #0f0f0f;
+          color: #f2f0e9;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          font-size: 10px;
+        }
+        .audit-card-summary,
+        .audit-card-detail {
+          font-size: 11px;
+          line-height: 1.5;
+        }
         .audit-run-link {
           background: none;
           border: none;
@@ -34,6 +78,12 @@ export default function AuditPanel({
           cursor: pointer;
           font-size: 11px;
           padding: 0 0 0 6px;
+        }
+        .audit-empty {
+          border: 1px solid rgba(242, 240, 233, 0.2);
+          border-radius: 2px;
+          background: #0f0f0f;
+          font-size: 11px;
         }
       </style>
       <div class="audit-panel-header">

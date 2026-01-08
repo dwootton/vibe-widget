@@ -6,7 +6,7 @@ import { ensureGlobalStyles } from "./utils/styles";
 import AuditNotice from "./components/AuditNotice";
 import StateViewer from "./components/StateViewer";
 import WidgetViewer from "./components/WidgetViewer";
-// Load editor from the same bundle to avoid React instance mismatches.
+import EditorViewer from "./components/editor/EditorViewer";
 import useAuditFlow from "./hooks/useAuditFlow";
 import useCodeFlow from "./hooks/useCodeFlow";
 import useContainerMetrics from "./hooks/useContainerMetrics";
@@ -72,11 +72,6 @@ function AppWrapper({ model }) {
   const hasCode = renderCode && renderCode.length > 0;
   const isApproved = executionApproved || !approvalMode;
   const shouldRenderWidget = hasCode && isApproved;
-  const EditorViewer = React.useMemo(
-    () => React.lazy(() => import("./components/editor/EditorViewer")),
-    []
-  );
-  
   const {
     showAudit,
     setShowAudit,
@@ -159,7 +154,6 @@ function AppWrapper({ model }) {
       
 
       ${showSource && html`
-        <${React.Suspense} fallback=${html`<div class="editor-loading">Loading editor...</div>`}>
         <${EditorViewer}
           code=${code}
           errorMessage=${sourceError}
@@ -169,26 +163,25 @@ function AppWrapper({ model }) {
           stateErrorMessage=${errorMessage}
           stateWidgetError=${widgetError}
           lastRuntimeError=${lastRuntimeError}
-            auditStatus=${auditStatus}
-            auditReport=${auditReport}
-            auditError=${auditError || auditResponse?.error}
-            auditMeta=${auditMeta}
-            auditData=${auditData}
-            auditApplyStatus=${auditApplyStatus}
-            auditApplyResponse=${auditApplyResponse}
-            auditApplyError=${auditApplyError}
-            onAudit=${requestAudit}
-            onApply=${handleApplySource}
-            onClose=${() => setShowSource(false)}
-            onSubmitPrompt=${handleStatePrompt}
-            approvalMode=${approvalMode}
-            isApproved=${isApproved}
-            onApprove=${() => {
-              handleApproveRun();
-              setShowAudit(false);
-            }}
-          />
-        </${React.Suspense}>
+          auditStatus=${auditStatus}
+          auditReport=${auditReport}
+          auditError=${auditError || auditResponse?.error}
+          auditMeta=${auditMeta}
+          auditData=${auditData}
+          auditApplyStatus=${auditApplyStatus}
+          auditApplyResponse=${auditApplyResponse}
+          auditApplyError=${auditApplyError}
+          onAudit=${requestAudit}
+          onApply=${handleApplySource}
+          onClose=${() => setShowSource(false)}
+          onSubmitPrompt=${handleStatePrompt}
+          approvalMode=${approvalMode}
+          isApproved=${isApproved}
+          onApprove=${() => {
+            handleApproveRun();
+            setShowAudit(false);
+          }}
+        />
       `}
     </div>
   `;

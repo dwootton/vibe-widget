@@ -81,8 +81,6 @@ function SandboxedRunner({ code, model, runKey }) {
     const originalSetInterval = window.setInterval;
     const originalSetTimeout = window.setTimeout;
     const originalRaf = window.requestAnimationFrame;
-    const originalAddEventListener = EventTarget.prototype.addEventListener;
-    const originalRemoveEventListener = EventTarget.prototype.removeEventListener;
 
     const trackDisposer = (fn) => {
       disposers.push(fn);
@@ -104,11 +102,9 @@ function SandboxedRunner({ code, model, runKey }) {
       window.setInterval = originalSetInterval;
       window.setTimeout = originalSetTimeout;
       window.requestAnimationFrame = originalRaf;
-      EventTarget.prototype.addEventListener = originalAddEventListener;
-      EventTarget.prototype.removeEventListener = originalRemoveEventListener;
-      // Restore model methods
-      if (originalSet) model.set = originalSet;
-      if (originalSave) model.save_changes = originalSave;
+      // After teardown, prevent further sync attempts on this model
+      model.set = () => undefined;
+      model.save_changes = () => undefined;
       setGuestWidget(null);
     };
 
@@ -127,12 +123,6 @@ function SandboxedRunner({ code, model, runKey }) {
       const id = originalRaf(cb);
       trackDisposer(() => cancelAnimationFrame(id));
       return id;
-    };
-
-    // Patch addEventListener/removeEventListener to auto-remove on teardown
-    EventTarget.prototype.addEventListener = function patchedAdd(type, listener, options) {
-      originalAddEventListener.call(this, type, listener, options);
-      trackDisposer(() => originalRemoveEventListener.call(this, type, listener, options));
     };
 
     // Patch model.on/off if available to auto-unsubscribe

@@ -448,8 +448,8 @@ export default function EditorViewer({
           width: min(1020px, 96%);
           height: 96%;
           background: #1a1a1a;
-          border: 2px solid rgba(242, 240, 233, 0.75);
-          border-radius: 10px;
+          border: 2px solid rgba(242, 240, 233, 0.6);
+          border-radius: 2px;
           box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
           display: flex;
           flex-direction: column;
@@ -473,20 +473,20 @@ export default function EditorViewer({
           align-items: center;
         }
         .source-viewer-button {
-          background: rgba(17, 24, 39, 0.6);
-          color: #cbd5f5;
-          border: 1px solid rgba(71, 85, 105, 0.55);
-          border-radius: 8px;
-          padding: 5px 10px;
-          font-size: 11px;
+          background: #0f0f0f;
+          color: #f2f0e9;
+          border: 1px solid rgba(242, 240, 233, 0.35);
+          border-radius: 2px;
+          padding: 4px 8px;
+          font-size: 10px;
           cursor: pointer;
           text-transform: uppercase;
           letter-spacing: 0.04em;
         }
         .source-viewer-button.subtle {
           background: transparent;
-          border-color: rgba(71, 85, 105, 0.4);
-          color: #94a3b8;
+          border-color: rgba(242, 240, 233, 0.2);
+          color: #cbd5f5;
         }
         .source-viewer-button:disabled {
           opacity: 0.4;
@@ -536,9 +536,9 @@ export default function EditorViewer({
           transition: height 240ms ease;
         }
         .audit-panel {
-          border: 1px solid rgba(242, 240, 233, 0.3);
-          border-radius: 10px;
-          background: #151515;
+          border: 1px solid rgba(242, 240, 233, 0.35);
+          border-radius: 2px;
+          background: #0f0f0f;
           padding: 12px;
           display: flex;
           flex-direction: column;

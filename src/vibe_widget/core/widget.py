@@ -1090,11 +1090,11 @@ class VibeWidget(anywidget.AnyWidget):
 
     def _handle_audit_request(self, request: dict[str, Any]) -> None:
         """Handle audit requests from the frontend."""
-        if self.audit_status == "running":
-            return
         level = str(request.get("level", "fast")).lower()
         reuse = bool(request.get("reuse", True))
         try:
+            if self.audit_status == "running":
+                return
             result = self._run_audit(level=level, reuse=reuse, display=False)
             self.audit_response = result
         except Exception as exc:
@@ -1102,6 +1102,7 @@ class VibeWidget(anywidget.AnyWidget):
             self.audit_error = str(exc)
             self.audit_response = {"error": str(exc), "level": level}
         finally:
+            # Always clear the request flag so the frontend can unblock
             self._update_audit_state(request={})
 
     def _handle_audit_apply_request(self, request: dict[str, Any]) -> None:

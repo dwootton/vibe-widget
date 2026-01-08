@@ -107,7 +107,7 @@ export default function ProgressMap({
           min-height: 0;
         }
         .progress-footer {
-          padding: 0 12px 12px;
+          padding: 4px 12px 12px;
           flex: 0 0 auto;
         }
         

@@ -72,17 +72,17 @@ export default function FloatingMenu({
         }
         .menu-options {
           position: absolute;
-          top: 16px;
+          top: 20px;
           right: 0;
           background: #0f0f0f;
           border: 1px solid rgba(242, 240, 233, 0.35);
           border-radius: 2px;
-          padding: 6px;
+          padding: 4px 0;
           min-width: 170px;
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
         .menu-option {
-          padding: 6px 8px 6px 20px;
+          padding: 6px 20px 6px 10px;
           color: #f2f0e9;
           cursor: pointer;
           border-radius: 2px;
@@ -91,12 +91,14 @@ export default function FloatingMenu({
             Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
           position: relative;
           transition: background 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
         }
-        .menu-option::before {
-          content: ">";
-          position: absolute;
-          left: 8px;
-          color: #f2f0e9;
+        .menu-option::after {
+          content: "<";
+          color: currentColor;
+          margin-left: 8px;
         }
         .menu-option:hover {
           background: #1a1a1a;
@@ -104,9 +106,6 @@ export default function FloatingMenu({
         .menu-option.disabled {
           color: #6b7280;
           cursor: not-allowed;
-        }
-        .menu-option.disabled::before {
-          color: #6b7280;
         }
       </style>
       
@@ -125,7 +124,7 @@ export default function FloatingMenu({
         <div class="menu-options">
           <div class="menu-option" onClick=${onGrabModeStart}>Edit Element</div>
           <div class="menu-option" onClick=${onViewSource}>Edit Code</div>
-          <div class="menu-option disabled">Export (Coming Soon)</div>
+          <div class="menu-option disabled">Export (TBD)</div>
         </div>
       `}
     </div>
