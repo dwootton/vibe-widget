@@ -1,6 +1,7 @@
 import * as React from "react";
 import htm from "htm";
-import ProgressMap from "./ProgressMap";
+import TerminalViewer from "./TerminalViewer";
+import { buildStackSummary } from "../utils/stackSummary";
 
 const html = htm.bind(React.createElement);
 
@@ -15,6 +16,7 @@ function buildStatusLabel(status) {
 export default function StateViewer({
   status,
   logs,
+  widgetLogs,
   errorMessage,
   widgetError,
   retryCount,
@@ -25,7 +27,6 @@ export default function StateViewer({
   const isRepairing = status === "retrying";
   const isRepairState = status === "error" || status === "blocked";
   const canPrompt = (isGenerating || isRepairState) && !isRepairing;
-  const inputWidth = Math.max(1, prompt.length + 1);
 
   const displayLogs = React.useMemo(() => {
     const next = Array.isArray(logs) ? logs.slice() : [];
@@ -35,8 +36,21 @@ export default function StateViewer({
     if (widgetError && widgetError !== errorMessage) {
       next.push(`Runtime error:\n${widgetError}`);
     }
+    const isRepairing = status === "retrying"
+      || (Array.isArray(logs) && logs.some((entry) => String(entry).toLowerCase().includes("repairing code")));
+    if (isRepairing) {
+      const summaryLines = buildStackSummary({
+        errorMessage,
+        widgetError,
+        logs,
+        widgetLogs
+      });
+      if (summaryLines.length > 0) {
+        next.push(`Stack trace (most recent):\n${summaryLines.join("\n")}`);
+      }
+    }
     return next;
-  }, [logs, errorMessage, widgetError]);
+  }, [logs, widgetLogs, errorMessage, widgetError, status]);
 
   const handleSubmit = () => {
     const trimmed = prompt.trim();
@@ -44,70 +58,6 @@ export default function StateViewer({
     onSubmitPrompt(trimmed);
     setPrompt("");
   };
-
-  const inputRow = html`
-    <div class="state-input-row">
-      <div class="log-entry log-entry--active log-entry--input">
-      <style>
-        .state-input-row {
-          border-top: 1px solid rgba(148, 163, 184, 0.35);
-          margin: 8px 8px 0;
-          padding-top: 8px;
-        }
-        .log-entry--input {
-          align-items: center;
-        }
-        .log-entry--input .log-text {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          width: 100%;
-          background: transparent;
-          padding: 0;
-        }
-        .state-input {
-          flex: 0 1 auto;
-          background: transparent;
-          color: #f8fafc;
-          border: none;
-          outline: none;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 12px;
-          line-height: 1.4;
-        }
-        .state-input::placeholder {
-          color: #6b7280;
-        }
-        .state-input:disabled {
-          opacity: 0.6;
-        }
-        .state-input-caret {
-          color: #f97316;
-          animation: cursorBlink 1s steps(2, end) infinite;
-        }
-      </style>
-      <span class="log-icon log-icon--active">${">"}</span>
-      <span class="log-text">
-        <input
-          class="state-input"
-          value=${prompt}
-          placeholder=${canPrompt ? "" : ""}
-          disabled=${!canPrompt}
-          style=${{ width: `${inputWidth}ch`, maxWidth: "100%" }}
-          onInput=${(event) => setPrompt(event.target.value)}
-          onKeyDown=${(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              handleSubmit();
-            }
-          }}
-        />
-        <span class="state-input-caret">█</span>
-      </span>
-      </div>
-    </div>
-  `;
 
   return html`
     <div class="state-viewer">
@@ -150,7 +100,16 @@ export default function StateViewer({
         <span class="state-viewer-meta">Retries: ${retryCount ?? 0}</span>
       </div>
       <div class="state-viewer-body">
-        <${ProgressMap} logs=${displayLogs} fullHeight=${true} footer=${inputRow} />
+        <${TerminalViewer}
+          logs=${displayLogs}
+          status=${status}
+          heading=${"Welcome to Vibe Widgets!"}
+          promptValue=${prompt}
+          onPromptChange=${setPrompt}
+          onPromptSubmit=${handleSubmit}
+          promptDisabled=${!canPrompt}
+          promptBlink=${true}
+        />
       </div>
     </div>
   `;

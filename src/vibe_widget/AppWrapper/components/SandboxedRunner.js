@@ -69,11 +69,17 @@ function SandboxedRunner({ code, model, runKey }) {
     const baseMessage = err instanceof Error ? err.toString() : String(err);
     const stack = err instanceof Error && err.stack ? err.stack : "No stack trace";
     const errorDetails = `${baseMessage}\n\nStack:\n${stack}${extraStack}`;
+    const lowerDetails = errorDetails.toLowerCase();
+    if (lowerDetails.includes("cannot send widget sync message")
+        || lowerDetails.includes("error: cannot send")) {
+      enqueueLog("warn", errorDetails);
+      return;
+    }
 
     model.set("error_message", errorDetails);
     model.set("widget_error", errorDetails);
     model.save_changes();
-  }, [model]);
+  }, [model, enqueueLog]);
 
   React.useEffect(() => {
     if (!code) return;

@@ -3,7 +3,14 @@ import htm from "htm";
 
 const html = htm.bind(React.createElement);
 
-export default function EditPromptPanel({ elementBounds, elementDescription, initialPrompt, onSubmit, onCancel }) {
+export default function EditPromptPanel({
+  elementBounds,
+  containerBounds,
+  elementDescription,
+  initialPrompt,
+  onSubmit,
+  onCancel
+}) {
   const [prompt, setPrompt] = React.useState(initialPrompt || "");
   const panelRef = React.useRef(null);
   const textareaRef = React.useRef(null);
@@ -49,36 +56,37 @@ export default function EditPromptPanel({ elementBounds, elementDescription, ini
     if (!elementBounds) return;
 
     const viewport = {
+      top: 0,
+      left: 0,
+      right: window.innerWidth,
+      bottom: window.innerHeight,
       width: window.innerWidth,
       height: window.innerHeight,
+    };
+    const bounds = containerBounds || viewport;
+    const insetBounds = {
+      top: bounds.top + PADDING,
+      left: bounds.left + PADDING,
+      right: bounds.right - PADDING,
+      bottom: bounds.bottom - PADDING,
     };
 
     const panelHeight = textareaHeight + 56;
 
     const elCenterX = elementBounds.left + elementBounds.width / 2;
-    const elCenterY = elementBounds.top + elementBounds.height / 2;
 
     let top = elementBounds.bottom + GAP;
     let left = elCenterX - PANEL_WIDTH / 2;
 
-    if (top + panelHeight + PADDING > viewport.height) {
-      top = elementBounds.top - panelHeight - GAP;
+    if (top + panelHeight > insetBounds.bottom) {
+      top = insetBounds.bottom - panelHeight;
     }
 
-    if (top < PADDING) {
-      top = Math.max(PADDING, elCenterY - panelHeight / 2);
-      if (elementBounds.right + GAP + PANEL_WIDTH + PADDING < viewport.width) {
-        left = elementBounds.right + GAP;
-      } else {
-        left = elementBounds.left - PANEL_WIDTH - GAP;
-      }
-    }
-
-    left = Math.max(PADDING, Math.min(left, viewport.width - PANEL_WIDTH - PADDING));
-    top = Math.max(PADDING, Math.min(top, viewport.height - panelHeight - PADDING));
+    top = Math.max(insetBounds.top, Math.min(top, insetBounds.bottom - panelHeight));
+    left = Math.max(insetBounds.left, Math.min(left, insetBounds.right - PANEL_WIDTH));
 
     setPosition({ top, left });
-  }, [elementBounds, textareaHeight]);
+  }, [elementBounds, textareaHeight, containerBounds]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {

@@ -3,14 +3,20 @@ import htm from "htm";
 import { EditorView } from "@codemirror/view";
 import CodeEditor from "./CodeEditor";
 import AuditPanel from "./AuditPanel";
-import MessageEditor from "./MessageEditor";
 import EditorHeader from "./EditorHeader";
+import TerminalViewer from "../TerminalViewer";
+import { buildStackSummary } from "../../utils/stackSummary";
 
 const html = htm.bind(React.createElement);
 
 export default function EditorViewer({
   code,
   errorMessage,
+  status,
+  logs,
+  widgetLogs,
+  stateErrorMessage,
+  stateWidgetError,
   auditStatus,
   auditReport,
   auditError,
@@ -22,6 +28,7 @@ export default function EditorViewer({
   onAudit,
   onApply,
   onClose,
+  onSubmitPrompt,
   approvalMode,
   isApproved,
   onApprove
@@ -39,12 +46,12 @@ export default function EditorViewer({
   const [technicalCards, setTechnicalCards] = React.useState({});
   const [editingBubbleId, setEditingBubbleId] = React.useState(null);
   const [editingText, setEditingText] = React.useState("");
-  const [manualNote, setManualNote] = React.useState("");
   const [codeChangeRanges, setCodeChangeRanges] = React.useState([]);
   const [lastClearSnapshot, setLastClearSnapshot] = React.useState(null);
+  const [terminalPrompt, setTerminalPrompt] = React.useState("");
+  const [terminalExpanded, setTerminalExpanded] = React.useState(false);
   const lastAppliedChangesRef = React.useRef(null);
   const bubbleEditorRef = React.useRef(null);
-  const manualNoteRef = React.useRef(null);
 
   const hasAuditReport = auditReport && auditReport.length > 0;
   const auditPayload = auditData?.fast_audit || auditData?.full_audit || null;
@@ -55,13 +62,32 @@ export default function EditorViewer({
       ? "Audit saved"
       : "";
   const hasAuditPayload = !!auditPayload;
-  const pendingCount = pendingChanges.length;
-  const applyTooltip = [
-    pendingCount > 0 ? `${pendingCount} audit${pendingCount === 1 ? "" : "s"}` : null,
-    isDirtyRef.current ? "source code changes" : null,
-    manualNote.trim().length > 0 ? "note" : null
-  ].filter(Boolean).join(" and ") || "No pending changes";
   const showApprove = approvalMode && !isApproved;
+  const canPrompt = status !== "retrying";
+
+  const displayLogs = React.useMemo(() => {
+    const next = Array.isArray(logs) ? logs.slice() : [];
+    if (stateErrorMessage) {
+      next.push(`Generation error:\n${stateErrorMessage}`);
+    }
+    if (stateWidgetError && stateWidgetError !== stateErrorMessage) {
+      next.push(`Runtime error:\n${stateWidgetError}`);
+    }
+    const isRepairing = status === "retrying"
+      || (Array.isArray(logs) && logs.some((entry) => String(entry).toLowerCase().includes("repairing code")));
+    if (isRepairing) {
+      const summaryLines = buildStackSummary({
+        errorMessage: stateErrorMessage,
+        widgetError: stateWidgetError,
+        logs,
+        widgetLogs
+      });
+      if (summaryLines.length > 0) {
+        next.push(`Stack trace (most recent):\n${summaryLines.join("\n")}`);
+      }
+    }
+    return next;
+  }, [logs, widgetLogs, stateErrorMessage, stateWidgetError, status]);
 
   const getCardId = (concern, index) => {
     const base = concern?.id || `concern-${index}`;
@@ -77,9 +103,13 @@ export default function EditorViewer({
     }))
     .filter((item) => !dismissedConcerns[item.cardId]);
 
+  const normalizeCode = React.useCallback((value) => {
+    return (value || "").replace(/\r\n/g, "\n");
+  }, []);
+
   React.useEffect(() => {
-    isDirtyRef.current = draftCode !== (code || "");
-  }, [draftCode, code]);
+    isDirtyRef.current = normalizeCode(draftCode) !== normalizeCode(code || "");
+  }, [draftCode, code, normalizeCode]);
 
   React.useEffect(() => {
     if (approvalMode) {
@@ -168,24 +198,9 @@ export default function EditorViewer({
         });
       }
       setPendingChanges([]);
-      setManualNote("");
       lastAppliedChangesRef.current = null;
     }
   }, [auditApplyResponse]);
-
-  const autoResizeManualNote = () => {
-    const el = manualNoteRef.current;
-    if (!el) return;
-    const maxHeight = 72;
-    el.style.height = "auto";
-    const nextHeight = Math.min(el.scrollHeight, maxHeight);
-    el.style.height = `${nextHeight}px`;
-    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
-  };
-
-  React.useEffect(() => {
-    autoResizeManualNote();
-  }, [manualNote]);
 
   const computeChangedRanges = (nextCode, prevCode) => {
     const nextLines = (nextCode || "").split("\\n");
@@ -322,8 +337,9 @@ export default function EditorViewer({
     });
   };
 
-  const handleSend = () => {
-    const hasPending = pendingChanges.length > 0 || manualNote.trim().length > 0;
+  const handleSend = (noteOverride = "") => {
+    const noteText = noteOverride.trim();
+    const hasPending = pendingChanges.length > 0 || noteText.length > 0;
     if (hasPending) {
       lastAppliedChangesRef.current = pendingChanges.slice();
       onApply({
@@ -331,13 +347,13 @@ export default function EditorViewer({
         baseCode: draftCode,
         changes: [
           ...pendingChanges,
-          ...(manualNote.trim().length > 0
+          ...(noteText.length > 0
             ? [{
                 itemId: `manual-${Date.now()}`,
                 cardId: "manual",
-                label: manualNote.trim(),
-                summary: manualNote.trim(),
-                user_note: manualNote.trim(),
+                label: noteText,
+                summary: noteText,
+                user_note: noteText,
                 location: "global"
               }]
             : [])
@@ -346,7 +362,11 @@ export default function EditorViewer({
       return;
     }
     if (isDirtyRef.current) {
-      onApply(draftCode);
+      const normalizedDraft = normalizeCode(draftCode);
+      const normalizedCode = normalizeCode(code || "");
+      if (normalizedDraft !== normalizedCode) {
+        onApply(draftCode);
+      }
     }
   };
 
@@ -354,10 +374,25 @@ export default function EditorViewer({
     if (showApprove) {
       return;
     }
-    if (pendingChanges.length > 0 || manualNote.trim().length > 0 || isDirtyRef.current) {
-      handleSend();
+    if (pendingChanges.length > 0 || isDirtyRef.current) {
+      handleSend("");
     }
     onClose();
+  };
+
+  const handleTerminalSubmit = () => {
+    const trimmed = terminalPrompt.trim();
+    const hasAttachments = pendingChanges.length > 0 || codeChangeRanges.length > 0 || isDirtyRef.current;
+    if (hasAttachments) {
+      handleSend(trimmed);
+      setTerminalPrompt("");
+      setTerminalExpanded(true);
+      return;
+    }
+    if (!trimmed || !canPrompt || !onSubmitPrompt) return;
+    onSubmitPrompt(trimmed);
+    setTerminalPrompt("");
+    setTerminalExpanded(true);
   };
 
   return html`
@@ -377,14 +412,14 @@ export default function EditorViewer({
           display: flex;
           align-items: center;
           justify-content: center;
-          background: rgba(6, 8, 15, 0.82);
+          background: rgba(10, 10, 10, 0.82);
           backdrop-filter: blur(4px);
         }
         .source-viewer-card {
           width: min(1020px, 96%);
           height: 96%;
-          background: #0d1117;
-          border: 1px solid rgba(71, 85, 105, 0.5);
+          background: #1a1a1a;
+          border: 2px solid rgba(242, 240, 233, 0.75);
           border-radius: 10px;
           box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
           display: flex;
@@ -395,8 +430,8 @@ export default function EditorViewer({
           align-items: center;
           justify-content: space-between;
           padding: 14px 16px;
-          border-bottom: 1px solid rgba(71, 85, 105, 0.45);
-          color: #e2e8f0;
+          border-bottom: 1px solid rgba(242, 240, 233, 0.35);
+          color: #f2f0e9;
           font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
             Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
           font-size: 12px;
@@ -452,11 +487,17 @@ export default function EditorViewer({
           grid-template-columns: ${showAuditPanel ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)"};
           gap: 12px;
           overflow: hidden;
+          min-height: 0;
+        }
+        .source-viewer-terminal {
+          flex: 0 0 auto;
+          min-height: 120px;
+          transition: height 240ms ease;
         }
         .audit-panel {
-          border: 1px solid rgba(71, 85, 105, 0.45);
+          border: 1px solid rgba(242, 240, 233, 0.3);
           border-radius: 10px;
-          background: #121820;
+          background: #151515;
           padding: 12px;
           display: flex;
           flex-direction: column;
@@ -630,156 +671,6 @@ export default function EditorViewer({
         .audit-alternative:hover {
           color: #fcd34d;
         }
-        .audit-changes-strip {
-          border: 1px dashed rgba(71, 85, 105, 0.6);
-          border-radius: 10px;
-          padding: 10px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          background: rgba(13, 17, 23, 0.6);
-          position: relative;
-        }
-        .audit-changes-strip.compact {
-          padding: 6px 10px;
-          gap: 6px;
-        }
-        .audit-changes-row {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-        .audit-changes-items {
-          display: flex;
-          gap: 8px;
-          overflow-x: auto;
-          padding-bottom: 2px;
-          scrollbar-width: none;
-        }
-        .audit-changes-items::-webkit-scrollbar {
-          width: 0;
-          height: 0;
-        }
-        .audit-changes-input {
-          flex: 1;
-          min-width: 0;
-          background: #12141d;
-          color: #e5e7eb;
-          border: none;
-          border-radius: 10px;
-          padding: 10px 12px;
-          font-size: 12px;
-          min-height: 32px;
-          max-height: 72px;
-          resize: none;
-          line-height: 1.4;
-          outline: none;
-          scrollbar-width: none;
-        }
-        .audit-changes-input::-webkit-scrollbar {
-          width: 0;
-          height: 0;
-        }
-        .audit-changes-input:focus,
-        .audit-changes-input:focus-visible {
-          outline: none;
-          box-shadow: none;
-        }
-        .audit-send-button {
-          width: 30px;
-          height: 30px;
-          border-radius: 8px;
-          border: none;
-          background: #ef7d45;
-          color: #fff;
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          position: absolute;
-          right: 10px;
-          bottom: 10px;
-        }
-        .audit-send-button:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-        }
-        .audit-send-button:focus,
-        .audit-send-button:focus-visible {
-          outline: none;
-          box-shadow: none;
-        }
-        .audit-change-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          background: rgba(17, 24, 39, 0.8);
-          border: 1px solid rgba(71, 85, 105, 0.5);
-          border-radius: 8px;
-          padding: 6px 10px;
-          color: #e5e7eb;
-          font-size: 11px;
-          max-width: 220px;
-          position: relative;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .audit-change-pill span {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .audit-change-remove {
-          border: none;
-          background: transparent;
-          color: #9aa4b2;
-          cursor: pointer;
-          font-size: 12px;
-          line-height: 1;
-        }
-        .audit-change-remove:hover {
-          color: #f87171;
-        }
-        .audit-bubble-editor {
-          position: absolute;
-          bottom: 130%;
-          left: 0;
-          width: 240px;
-          background: #0f141a;
-          border: 1px solid rgba(71, 85, 105, 0.6);
-          border-radius: 10px;
-          padding: 8px;
-          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
-          z-index: 10;
-        }
-        .audit-bubble-editor textarea {
-          width: 100%;
-          min-height: 80px;
-          background: #12141d;
-          color: #e5e7eb;
-          border: 1px solid rgba(71, 85, 105, 0.6);
-          border-radius: 8px;
-          padding: 6px;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          resize: vertical;
-        }
-        .audit-bubble-editor-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 6px;
-          margin-top: 6px;
-        }
-        .audit-bubble-editor button {
-          background: rgba(239, 125, 69, 0.9);
-          color: #0b0b0b;
-          border: none;
-          border-radius: 6px;
-          padding: 4px 8px;
-          font-size: 10px;
-          cursor: pointer;
-        }
         .audit-empty {
           font-size: 12px;
           color: #94a3b8;
@@ -819,9 +710,9 @@ export default function EditorViewer({
           cursor: pointer;
         }
         .source-viewer-editor {
-          border: 1px solid rgba(71, 85, 105, 0.45);
+          border: 1px solid rgba(242, 240, 233, 0.3);
           border-radius: 10px;
-          background: #0f141a;
+          background: #1a1a1a;
           flex: 1;
           min-height: 0;
           overflow: hidden;
@@ -837,12 +728,12 @@ export default function EditorViewer({
         }
         .source-viewer-editor .cm-editor {
           height: 100%;
-          background-color: #161618 !important;
+          background-color: #1a1a1a !important;
           color: #e5e7eb !important;
         }
         .source-viewer-editor .cm-gutters {
-          background-color: #161618 !important;
-          border-right: 1px solid #2d3139 !important;
+          background-color: #1a1a1a !important;
+          border-right: 1px solid rgba(242, 240, 233, 0.15) !important;
           color: #6b7280 !important;
         }
         .source-viewer-editor .cm-keyword {
@@ -958,26 +849,33 @@ export default function EditorViewer({
               />
             `}
           </div>
-          ${(pendingChanges.length > 0 || isDirtyRef.current || manualNote.trim().length > 0 || codeChangeRanges.length > 0) && html`
-            <${MessageEditor}
-              pendingChanges=${pendingChanges}
-              codeChangeRanges=${codeChangeRanges}
-              manualNote=${manualNote}
-              onManualNoteChange=${setManualNote}
-              onSend=${handleSend}
-              onRemovePending=${removePendingChange}
-              onStartEdit=${startEditingBubble}
-              editingBubbleId=${editingBubbleId}
-              editingText=${editingText}
-              onEditingTextChange=${setEditingText}
-              onSaveEdit=${saveBubbleEdit}
-              onHoverCard=${setHoveredCardId}
-              manualNoteRef=${manualNoteRef}
-              autoResizeManualNote=${autoResizeManualNote}
-              applyTooltip=${applyTooltip}
-              isDirty=${isDirtyRef.current}
+          <div
+            class="source-viewer-terminal"
+            style=${{ height: terminalExpanded ? "200px" : "140px" }}
+          >
+            <${TerminalViewer}
+              logs=${displayLogs}
+              status=${status || "ready"}
+              heading=${null}
+              promptValue=${terminalPrompt}
+              onPromptChange=${setTerminalPrompt}
+              onPromptSubmit=${handleTerminalSubmit}
+              promptDisabled=${!canPrompt}
+              attachments=${{
+                pendingChanges,
+                codeChangeRanges,
+                isDirty: isDirtyRef.current,
+                editingBubbleId,
+                editingText,
+                onStartEdit: startEditingBubble,
+                onEditingTextChange: setEditingText,
+                onSaveEdit: saveBubbleEdit,
+                onRemovePending: removePendingChange,
+                onHoverCard: setHoveredCardId,
+                bubbleEditorRef
+              }}
             />
-          `}
+          </div>
         </div>
       </div>
     </div>

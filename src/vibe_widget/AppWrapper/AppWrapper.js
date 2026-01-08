@@ -24,6 +24,7 @@ function AppWrapper({ model }) {
     code,
     errorMessage,
     widgetError,
+    widgetLogs,
     retryCount,
     auditStatus,
     auditResponse,
@@ -105,7 +106,8 @@ function AppWrapper({ model }) {
       style=${{
         position: "relative",
         width: "100%",
-        minHeight: minHeight ? `${minHeight}px` : "220px"
+        minHeight: minHeight ? `${minHeight}px` : "300px",
+        height: status !== "ready" ? "300px" : "auto"
       }}
     >
 
@@ -117,6 +119,7 @@ function AppWrapper({ model }) {
         <${StateViewer}
           status=${status}
           logs=${logs}
+          widgetLogs=${widgetLogs}
           errorMessage=${errorMessage}
           widgetError=${widgetError}
           retryCount=${retryCount}
@@ -140,6 +143,11 @@ function AppWrapper({ model }) {
         <${EditorViewer}
           code=${code}
           errorMessage=${sourceError}
+          status=${status}
+          logs=${logs}
+          widgetLogs=${widgetLogs}
+          stateErrorMessage=${errorMessage}
+          stateWidgetError=${widgetError}
           auditStatus=${auditStatus}
           auditReport=${auditReport}
           auditError=${auditError || auditResponse?.error}
@@ -151,6 +159,7 @@ function AppWrapper({ model }) {
           onAudit=${requestAudit}
           onApply=${handleApplySource}
           onClose=${() => setShowSource(false)}
+          onSubmitPrompt=${handleStatePrompt}
           approvalMode=${approvalMode}
           isApproved=${isApproved}
           onApprove=${() => {

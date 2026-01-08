@@ -5,13 +5,21 @@ const html = htm.bind(React.createElement);
 const SPINNER_FRAMES = ["/", "-", "\\", "|"];
 const SPINNER_INTERVAL_MS = 120;
 
-export default function ProgressMap({ logs, fullHeight = false, footer = null }) {
-  const containerRef = React.useRef(null);
+export default function ProgressMap({
+  logs,
+  status = "generating",
+  fullHeight = false,
+  footer = null,
+  heading = "Welcome to Vibe Widgets!"
+}) {
+  const logListRef = React.useRef(null);
   const [spinnerFrame, setSpinnerFrame] = React.useState(0);
+  const isTerminal = status === "blocked" || status === "error" || status === "ready";
+  const shouldSpin = Array.isArray(logs) && logs.length > 0 && !isTerminal;
 
   React.useLayoutEffect(() => {
-    if (!containerRef.current) return;
-    const node = containerRef.current;
+    if (!logListRef.current) return;
+    const node = logListRef.current;
     const raf = requestAnimationFrame(() => {
       node.scrollTop = node.scrollHeight;
     });
@@ -19,12 +27,12 @@ export default function ProgressMap({ logs, fullHeight = false, footer = null })
   }, [logs]);
 
   React.useEffect(() => {
-    if (!logs || logs.length === 0) return;
+    if (!shouldSpin) return;
     const interval = setInterval(() => {
       setSpinnerFrame((f) => (f + 1) % SPINNER_FRAMES.length);
     }, SPINNER_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [logs]);
+  }, [shouldSpin]);
 
   const sanitizeLogText = (log) => {
     const upper = String(log ?? "").toUpperCase();
@@ -38,6 +46,7 @@ export default function ProgressMap({ logs, fullHeight = false, footer = null })
           position: relative;
           padding: 12px;
           background: transparent;
+          height: 300px;
         }
         .progress-wrapper--full {
           height: 100%;
@@ -67,9 +76,15 @@ export default function ProgressMap({ logs, fullHeight = false, footer = null })
           letter-spacing: 0.02em;
         }
         
-        .progress-container {
+        .progress-body {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .progress-log-list {
           width: 100%;
-          max-height: 280px;
           padding: 10px 12px;
           background: transparent;
           color: #F2F0E9;
@@ -78,27 +93,28 @@ export default function ProgressMap({ logs, fullHeight = false, footer = null })
           font-size: 12px;
           line-height: 1.4;
           overflow-y: auto;
-        }
-        .progress-wrapper--full .progress-container {
           flex: 1;
-          max-height: none;
           min-height: 0;
         }
+        .progress-footer {
+          padding: 0 12px 12px;
+          flex: 0 0 auto;
+        }
         
-        .progress-container::-webkit-scrollbar {
+        .progress-log-list::-webkit-scrollbar {
           width: 4px;
         }
         
-        .progress-container::-webkit-scrollbar-track {
+        .progress-log-list::-webkit-scrollbar-track {
           background: transparent;
         }
         
-        .progress-container::-webkit-scrollbar-thumb {
+        .progress-log-list::-webkit-scrollbar-thumb {
           background: rgba(243, 119, 38, 0.3);
           border-radius: 2px;
         }
         
-        .progress-container::-webkit-scrollbar-thumb:hover {
+        .progress-log-list::-webkit-scrollbar-thumb:hover {
           background: rgba(243, 119, 38, 0.5);
         }
         
@@ -138,6 +154,18 @@ export default function ProgressMap({ logs, fullHeight = false, footer = null })
           display: inline-block;
         }
 
+        .log-entry--terminal .log-text {
+          background: #334155;
+          color: #e2e8f0;
+          padding: 1px 4px;
+          text-transform: uppercase;
+          display: inline-block;
+        }
+
+        .log-icon--terminal {
+          color: #9ca3af;
+        }
+
         .cursor {
           display: inline-block;
           margin-left: 4px;
@@ -156,28 +184,40 @@ export default function ProgressMap({ logs, fullHeight = false, footer = null })
         }
       </style>
       <div class="progress-bezel">
-        <div class="progress-heading">
-          Welcome to Vibe Widgets!
-        </div>
-        <div class="progress-container" ref=${containerRef}>
-          ${logs.map((log, idx) => {
-            const isActive = idx === logs.length - 1;
-            const icon = isActive ? SPINNER_FRAMES[spinnerFrame] : "\u25A0";
-            const text = sanitizeLogText(log);
-            return html`
-              <div
-                key=${idx}
-                class=${`log-entry ${isActive ? "log-entry--active" : "log-entry--done"}`}
-                style=${{ "--entry-index": idx }}
-              >
-                <span class=${`log-icon ${isActive ? "log-icon--active" : ""}`}>${icon}</span>
-                <span class="log-text">
-                  ${text}${isActive && html`<span class="cursor">█</span>`}
-                </span>
-              </div>
-            `;
-          })}
-          ${footer}
+        ${heading ? html`
+          <div class="progress-heading">
+            ${heading}
+          </div>
+        ` : null}
+        <div class="progress-body">
+          <div class="progress-log-list" ref=${logListRef}>
+            ${logs.map((log, idx) => {
+              const isActive = idx === logs.length - 1;
+              const isLive = isActive && !isTerminal;
+              const icon = isLive ? SPINNER_FRAMES[spinnerFrame] : "\u25A0";
+              const text = sanitizeLogText(log);
+              const entryClass = isLive
+                ? "log-entry--active"
+                : isActive
+                  ? "log-entry--terminal"
+                  : "log-entry--done";
+              return html`
+                <div
+                  key=${idx}
+                  class=${`log-entry ${entryClass}`}
+                  style=${{ "--entry-index": idx }}
+                >
+                  <span class=${`log-icon ${isLive ? "log-icon--active" : isActive ? "log-icon--terminal" : ""}`}>
+                    ${icon}
+                  </span>
+                  <span class="log-text">
+                    ${text}${isLive && html`<span class="cursor">█</span>`}
+                  </span>
+                </div>
+              `;
+            })}
+          </div>
+          ${footer && html`<div class="progress-footer">${footer}</div>`}
         </div>
       </div>
     </div>

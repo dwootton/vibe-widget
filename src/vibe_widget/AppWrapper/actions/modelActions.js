@@ -65,6 +65,14 @@ export function appendWidgetLogs(model, entries) {
   }
   const existing = model.get("widget_logs") || [];
   const next = existing.concat(nextEntries).slice(-200);
-  model.set("widget_logs", next);
-  model.save_changes();
+  try {
+    model.set("widget_logs", next);
+    model.save_changes();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err || "");
+    if (message.toLowerCase().includes("cannot send")) {
+      return;
+    }
+    throw err;
+  }
 }
