@@ -5,7 +5,7 @@ const html = htm.bind(React.createElement);
 const SPINNER_FRAMES = ["/", "-", "\\", "|"];
 const SPINNER_INTERVAL_MS = 120;
 
-export default function ProgressMap({ logs, fullHeight = false }) {
+export default function ProgressMap({ logs, fullHeight = false, footer = null }) {
   const containerRef = React.useRef(null);
   const [spinnerFrame, setSpinnerFrame] = React.useState(0);
 
@@ -177,6 +177,7 @@ export default function ProgressMap({ logs, fullHeight = false }) {
               </div>
             `;
           })}
+          ${footer}
         </div>
       </div>
     </div>

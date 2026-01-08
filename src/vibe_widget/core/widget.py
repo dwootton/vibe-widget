@@ -113,6 +113,7 @@ class VibeWidget(anywidget.AnyWidget):
     widget_logs = traitlets.List([]).tag(sync=True)
     retry_count = traitlets.Int(0).tag(sync=True)
     grab_edit_request = traitlets.Dict({}).tag(sync=True)
+    state_prompt_request = traitlets.Dict({}).tag(sync=True)
     action_event = traitlets.Dict({}).tag(sync=True)
     audit_state = traitlets.Dict({}).tag(sync=True)
     execution_state = traitlets.Dict({}).tag(sync=True)
@@ -254,7 +255,6 @@ class VibeWidget(anywidget.AnyWidget):
             cache: If False, bypass widget cache and regenerate
             **kwargs: Additional widget parameters
         """
-        parser = CodeStreamParser()
         self.description = description
         self._exports = exports or {}
         self._imports = imports or {}
@@ -274,6 +274,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._generation_service: GenerationService | None = None
         self._audit_service: AuditService | None = None
         self._repair_service: RepairService | None = None
+        self._max_retries = RepairService.MAX_RETRIES
         
         app_wrapper_dir = Path(__file__).resolve().parents[1]
         app_wrapper_path = app_wrapper_dir / "AppWrapper.bundle.js"
@@ -320,6 +321,7 @@ class VibeWidget(anywidget.AnyWidget):
             retry_count=0,
             audit_state=audit_state,
             execution_state=execution_state,
+            state_prompt_request={},
             **kwargs
         )
 
@@ -331,13 +333,14 @@ class VibeWidget(anywidget.AnyWidget):
         self.observe(self._on_error, names='error_message')
         self.observe(self._on_widget_error, names='widget_error')
         self.observe(self._on_grab_edit, names='grab_edit_request')
+        self.observe(self._on_state_prompt, names='state_prompt_request')
         self.observe(self._on_audit_state, names='audit_state')
         self.observe(self._on_code_change, names='code')
         self.observe(self._on_execution_state, names='execution_state')
         
         try:
             input_count = len(self._imports or {})
-            self.logs = [f"Analyzing inputs: {input_count}"]
+            self._reset_logs([f"Analyzing inputs: {input_count}"])
             
             resolved_model, config = _resolve_model(model)
             provider = OpenRouterProvider(resolved_model, config.api_key)
@@ -345,7 +348,11 @@ class VibeWidget(anywidget.AnyWidget):
             self._audit_service = AuditService()
             self._llm_provider = provider
             self.orchestrator = self._generation_service.orchestrator
-            self._repair_service = RepairService(self._generation_service.orchestrator)
+            self._max_retries = max(0, int(getattr(config, "retry", RepairService.MAX_RETRIES)))
+            self._repair_service = RepairService(
+                self._generation_service.orchestrator,
+                max_retries=self._max_retries,
+            )
             inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
             if df is not None and isinstance(df, pd.DataFrame) and "data" not in inputs_for_prompt:
                 try:
@@ -354,7 +361,7 @@ class VibeWidget(anywidget.AnyWidget):
                     inputs_for_prompt["data"] = "<data>"
             
             if existing_code is not None:
-                self.logs = self.logs + ["Reusing existing widget code"]
+                self._append_log("Reusing existing widget code")
                 self.code = existing_code
                 self._set_status("ready")
                 self.description = description
@@ -362,6 +369,21 @@ class VibeWidget(anywidget.AnyWidget):
                 if self._theme and "theme_description" not in self._widget_metadata:
                     self._widget_metadata["theme_description"] = self._theme.description
                     self._widget_metadata["theme_name"] = self._theme.name
+                imports_serialized = {}
+                if self._imports:
+                    for import_name in self._imports.keys():
+                        imports_serialized[import_name] = f"<imported_trait:{import_name}>"
+                if isinstance(df, pd.DataFrame) and "data" not in imports_serialized:
+                    imports_serialized["data"] = "<input>"
+                self._generation_context = {
+                    "var_name": var_name,
+                    "data_shape": df.shape,
+                    "resolved_model": resolved_model,
+                    "imports_serialized": imports_serialized,
+                    "theme_name": self._theme.name if self._theme else None,
+                    "theme_description": self._theme.description if self._theme else None,
+                    "revision_parent": self._base_widget_id,
+                }
                 self.data_info = LLMProvider.build_data_info(
                     outputs=self._exports,
                     inputs=inputs_for_prompt,
@@ -380,6 +402,16 @@ class VibeWidget(anywidget.AnyWidget):
                 imports_serialized["data"] = "<input>"
             if isinstance(df, pd.DataFrame) and "data" not in imports_serialized:
                 imports_serialized["data"] = "<input>"
+
+            self._generation_context = {
+                "var_name": var_name,
+                "data_shape": df.shape,
+                "resolved_model": resolved_model,
+                "imports_serialized": imports_serialized,
+                "theme_name": self._theme.name if self._theme else None,
+                "theme_description": self._theme.description if self._theme else None,
+                "revision_parent": self._base_widget_id,
+            }
             
             store = WidgetStore()
             cached_widget = None
@@ -394,14 +426,16 @@ class VibeWidget(anywidget.AnyWidget):
                     revision_parent=self._base_widget_id,
                 )
             else:
-                self.logs = self.logs + ["Skipping cache (cache=False)"]
+                self._append_log("Skipping cache (cache=False)")
             
             # Generation/audit services are already initialized.
             
             if cached_widget:
-                self.logs = self.logs + ["✓ Found cached widget"]
-                self.logs = self.logs + [f"  {cached_widget.get('var_name', 'widget')}"]
-                self.logs = self.logs + [f"  Created: {cached_widget['created_at'][:10]}"]
+                self._extend_logs([
+                    "✓ Found cached widget",
+                    f"  {cached_widget.get('var_name', 'widget')}",
+                    f"  Created: {cached_widget['created_at'][:10]}",
+                ])
                 widget_code = store.load_widget_code(cached_widget)
                 self.code = widget_code
                 self._set_status("ready")
@@ -423,112 +457,22 @@ class VibeWidget(anywidget.AnyWidget):
                 )
                 return
             
-            self.logs = self.logs + ["Generating widget code"]
-            
-            chunk_buffer = []
-            update_counter = 0
-            last_pattern_count = 0
-            
-            def stream_callback(event_type: str, message: str):
-                """Handle progress events from orchestrator."""
-                nonlocal update_counter, last_pattern_count
-                
-                event_messages = {
-                    "step": f"{message}",
-                    "thinking": f"{message[:150]}",
-                    "complete": f"✓ {message}",
-                    "error": f"✘ {message}",
-                    "chunk": message,
-                }
-                
-                display_msg = event_messages.get(event_type, message)
-                
-                if event_type == "chunk":
-                    chunk_buffer.append(message)
-                    update_counter += 1
-                    
-                    updates = parser.parse_chunk(message)
-                    
-                    should_update = (
-                        update_counter % 30 == 0 or 
-                        parser.has_new_pattern() or
-                        len(''.join(chunk_buffer)) > 500
-                    )
-                    
-                    if should_update:
-                        if chunk_buffer:
-                            chunk_buffer.clear()
-                        
-                        for update in updates:
-                            if update["type"] == "micro_bubble":
-                                current_logs = list(self.logs)
-                                current_logs.append(update["message"])
-                                self.logs = current_logs
-                        
-                        current_pattern_count = len(parser.detected)
-                        if current_pattern_count == last_pattern_count and update_counter % 100 == 0:
-                            current_logs = list(self.logs)
-                            current_logs.append(f"Generating code ({update_counter} chunks)")
-                            self.logs = current_logs
-                        last_pattern_count = current_pattern_count
-                else:
-                    current_logs = list(self.logs)
-                    current_logs.append(display_msg)
-                    self.logs = current_logs
-            
-            # Generate code using the agentic orchestrator
-            widget_code, _ = self._generation_service.generate(
-                description=description,
-                outputs=self._exports,
-                inputs=self._imports,
-                input_summaries=inputs_for_prompt,
-                actions=self._actions,
-                action_params=self._action_params,
-                base_code=self._base_code,
-                base_components=self._base_components,
-                theme_description=self._theme.description if self._theme else None,
-                progress_callback=stream_callback,
-            )
-            
-            current_logs = list(self.logs)
-            current_logs.append(f"Code generated: {len(widget_code)} characters")
-            self.logs = current_logs
-            
-            # Save to widget store (reuse store instance from cache lookup)
-            notebook_path = store.get_notebook_path()
-            widget_entry = store.save(
-                widget_code=widget_code,
-                description=description,
-                var_name=var_name,
-                data_shape=df.shape,
-                model=resolved_model,
-                exports=self._exports,
-                imports_serialized=imports_serialized,
-                theme_name=self._theme.name if self._theme else None,
-                theme_description=self._theme.description if self._theme else None,
-                notebook_path=notebook_path,
-                revision_parent=self._base_widget_id,
-            )
-            
-            self.logs = self.logs + [f"Widget saved: {widget_entry.get('var_name', 'widget')}"]
-            self.logs = self.logs + [f"Location: .vibewidget/widgets/{widget_entry['file_name']}"]
-            self.code = widget_code
-            self._set_status("ready")
-            self.description = description
-            self._widget_metadata = widget_entry
-            
-            # Store data_info for error recovery  (build from LLMProvider method)
-            self.data_info = LLMProvider.build_data_info(
-                outputs=self._exports,
-                inputs=inputs_for_prompt,
-                actions=self._actions,
-                action_params=self._action_params,
-                theme_description=self._theme.description if self._theme else None,
-            )
+            self._append_log("Generating widget code")
+            self._generation_context = {
+                "var_name": var_name,
+                "data_shape": df.shape,
+                "resolved_model": resolved_model,
+                "imports_serialized": imports_serialized,
+                "theme_name": self._theme.name if self._theme else None,
+                "theme_description": self._theme.description if self._theme else None,
+                "revision_parent": self._base_widget_id,
+            }
+            self._start_generation(description, inputs_for_prompt)
+            return
             
         except Exception as e:
             self._set_status("error")
-            self.logs = self.logs + [f"Error: {str(e)}"]
+            self._append_log(f"Error: {str(e)}")
             raise
 
     def __getattribute__(self, name: str):
@@ -557,6 +501,132 @@ class VibeWidget(anywidget.AnyWidget):
             self.status = status
             return
         lifecycle.transition(status, force=force)
+        if status == "ready":
+            return
+
+    def _append_log(self, message: str) -> None:
+        logs = list(self.logs or [])
+        logs.append(message)
+        self.logs = logs
+
+    def _reset_logs(self, messages: list[str]) -> None:
+        self.logs = list(messages)
+
+    def _extend_logs(self, messages: list[str]) -> None:
+        if not messages:
+            return
+        logs = list(self.logs or [])
+        logs.extend(messages)
+        self.logs = logs
+
+    # Adds logger streams to the generation call
+    def _start_generation(
+        self,
+        description: str,
+        inputs_for_prompt: dict[str, str],
+    ) -> None:
+        
+        parser = CodeStreamParser()
+        chunk_buffer: list[str] = []
+        update_counter = 0
+        last_pattern_count = 0
+
+        def stream_callback(event_type: str, message: str):
+            """Handle progress events from orchestrator."""
+            nonlocal update_counter, last_pattern_count
+
+            event_messages = {
+                "step": f"{message}",
+                "thinking": f"{message[:150]}",
+                "complete": f"✓ {message}",
+                "error": f"✘ {message}",
+                "chunk": message,
+            }
+
+            display_msg = event_messages.get(event_type, message)
+
+            if event_type == "chunk":
+                chunk_buffer.append(message)
+                update_counter += 1
+
+                updates = parser.parse_chunk(message)
+
+                should_update = (
+                    update_counter % 30 == 0
+                    or parser.has_new_pattern()
+                    or len("".join(chunk_buffer)) > 500
+                )
+
+                if should_update:
+                    if chunk_buffer:
+                        chunk_buffer.clear()
+
+                    for update in updates:
+                        if update["type"] == "micro_bubble":
+                            self._append_log(update["message"])
+
+                    current_pattern_count = len(parser.detected)
+                    if current_pattern_count == last_pattern_count and update_counter % 100 == 0:
+                        self._append_log(f"Generating code ({update_counter} chunks)")
+                    last_pattern_count = current_pattern_count
+            else:
+                self._append_log(display_msg)
+
+        def handle_complete(widget_code: str) -> None:
+            context = getattr(self, "_generation_context", {}) or {}
+            self._append_log(f"Code generated: {len(widget_code)} characters")
+
+            store = WidgetStore()
+            widget_entry = store.save(
+                widget_code=widget_code,
+                description=description,
+                var_name=context.get("var_name"),
+                data_shape=context.get("data_shape"),
+                model=context.get("resolved_model"),
+                exports=self._exports,
+                imports_serialized=context.get("imports_serialized", {}),
+                theme_name=context.get("theme_name"),
+                theme_description=context.get("theme_description"),
+                notebook_path=store.get_notebook_path(),
+                revision_parent=context.get("revision_parent"),
+            )
+
+            self._extend_logs([
+                f"Widget saved: {widget_entry.get('var_name', 'widget')}",
+                f"Location: .vibewidget/widgets/{widget_entry['file_name']}",
+            ])
+            self.code = widget_code
+            self._set_status("ready")
+            self.description = description
+            self._widget_metadata = widget_entry
+
+            self.data_info = LLMProvider.build_data_info(
+                outputs=self._exports,
+                inputs=inputs_for_prompt,
+                actions=self._actions,
+                action_params=self._action_params,
+                theme_description=self._theme.description if self._theme else None,
+            )
+
+        def handle_error(exc: Exception) -> None:
+            self._set_status("error")
+            self._append_log(f"Error: {str(exc)}")
+            logger.exception("Widget generation failed")
+
+        self._generation_service.start_generation_async(
+            description=description,
+            outputs=self._exports,
+            inputs=self._imports,
+            input_summaries=inputs_for_prompt,
+            actions=self._actions,
+            action_params=self._action_params,
+            base_code=self._base_code,
+            base_components=self._base_components,
+            theme_description=self._theme.description if self._theme else None,
+            progress_callback=stream_callback,
+            on_complete=handle_complete,
+            on_error=handle_error,
+        )
 
     def _normalize_audit_state(self, state: dict[str, Any] | None) -> dict[str, Any]:
         base = {
@@ -990,7 +1060,8 @@ class VibeWidget(anywidget.AnyWidget):
 
         self.audit_apply_status = "running"
         self.audit_apply_error = ""
-        self._set_status("generating")
+        if self.status != "generating":
+            self._set_status("generating")
 
         change_lines = []
         for item in changes:
@@ -1048,16 +1119,16 @@ class VibeWidget(anywidget.AnyWidget):
         if self._repair_service is None:
             if orchestrator is None or not hasattr(orchestrator, "fix_runtime_error"):
                 return
-            self._repair_service = RepairService(orchestrator)
+            self._repair_service = RepairService(orchestrator, max_retries=self._max_retries)
         elif orchestrator is not None and getattr(self._repair_service, "orchestrator", None) is not orchestrator:
-            self._repair_service = RepairService(orchestrator)
+            self._repair_service = RepairService(orchestrator, max_retries=self._max_retries)
 
         if not error_msg:
             return
 
-        if self.retry_count >= RepairService.MAX_RETRIES:
+        if self.retry_count >= self._max_retries:
             self._set_status("blocked")
-            self.logs = self.logs + ["Repair blocked: retry limit reached"]
+            self._append_log("Repair blocked: retry limit reached")
             self.error_message = ""
             return
 
@@ -1065,8 +1136,10 @@ class VibeWidget(anywidget.AnyWidget):
         self._set_status("retrying")
 
         error_preview = error_msg.split("\n")[0][:100]
-        self.logs = self.logs + [f"Error detected: {error_preview}"]
-        self.logs = self.logs + ["Asking LLM to fix the error"]
+        self._extend_logs([
+            f"Error detected: {error_preview}",
+            "Asking LLM to fix the error",
+        ])
 
         result = self._repair_service.fix_runtime_error(
             code=self.code,
@@ -1076,14 +1149,14 @@ class VibeWidget(anywidget.AnyWidget):
         )
 
         if result.applied:
-            self.logs = self.logs + ["Code fixed, retrying"]
+            self._append_log("Code fixed, retrying")
             self.code = result.code
             self._set_status("ready")
             self.error_message = ""
             self.retry_count = 0
             return
 
-        self.logs = self.logs + [result.message or "Fix attempt failed"]
+        self._append_log(result.message or "Fix attempt failed")
         if result.retryable:
             self._set_status("error")
         else:
@@ -1266,7 +1339,7 @@ class VibeWidget(anywidget.AnyWidget):
             return
         if self._generation_service is None:
             self._set_status("error")
-            self.logs = ['✘ Edit failed: LLM service unavailable']
+            self._reset_logs(["✘ Edit failed: LLM service unavailable"])
             return
         
         old_code = self.code
@@ -1274,7 +1347,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._pending_old_code = old_code
         self.edit_in_progress = True
         self._set_status("generating")
-        self.logs = [f"Editing: {user_prompt[:50]}{'...' if len(user_prompt) > 50 else ''}"]
+        self._reset_logs([f"Editing: {user_prompt[:50]}{'...' if len(user_prompt) > 50 else ''}"])
         
         old_position = 0
         showed_analyzing = False
@@ -1292,7 +1365,7 @@ class VibeWidget(anywidget.AnyWidget):
                 chunk = message
                 
                 if not showed_analyzing:
-                    self.logs = self.logs + ["Analyzing code"]
+                    self._append_log("Analyzing code")
                     showed_analyzing = True
                 
                 window_start = max(0, old_position - WINDOW_SIZE)
@@ -1305,20 +1378,20 @@ class VibeWidget(anywidget.AnyWidget):
                     old_position = window_start + found_at + len(chunk)
                 else:
                     if not showed_applying:
-                        self.logs = self.logs + ["Applying changes"]
+                        self._append_log("Applying changes")
                         showed_applying = True
                     
                     updates = parser.parse_chunk(chunk)
                     if parser.has_new_pattern():
                         for update in updates:
                             if update["type"] == "micro_bubble":
-                                self.logs = self.logs + [update["message"]]
+                                self._append_log(update["message"])
                 return
             
             if event_type == "complete":
-                self.logs = self.logs + [f"✓ {message}"]
+                self._append_log(f"✓ {message}")
             elif event_type == "error":
-                self.logs = self.logs + [f"✘ {message}"]
+                self._append_log(f"✘ {message}")
         
         try:
             revision_request = self._build_grab_revision_request(element_desc, user_prompt)
@@ -1332,7 +1405,7 @@ class VibeWidget(anywidget.AnyWidget):
             
             self.code = revised_code
             self._set_status("ready")
-            self.logs = self.logs + ['✓ Edit applied']
+            self._append_log("✓ Edit applied")
             
             store = WidgetStore()
             imports_serialized = {}
@@ -1358,19 +1431,117 @@ class VibeWidget(anywidget.AnyWidget):
             )
             self._widget_metadata = widget_entry
             var_name = widget_entry.get('var_name', 'widget')
-            self.logs = self.logs + [f"Saved: {var_name} (cache: {widget_entry['cache_key'][:8]}...)"]
+            self._append_log(f"Saved: {var_name} (cache: {widget_entry['cache_key'][:8]}...)")
             
         except Exception as e:
             if "cancelled" in str(e).lower():
                 self.code = old_code
                 self._set_status("ready")
-                self.logs = self.logs + ['✗ Edit cancelled']
+                self._append_log("✗ Edit cancelled")
             else:
                 self._set_status("error")
-                self.logs = self.logs + [f'✘ Edit failed: {str(e)}']
+                self._append_log(f"✘ Edit failed: {str(e)}")
         
         self.edit_in_progress = False
         self.grab_edit_request = {}
+
+    def _on_state_prompt(self, change):
+        """Handle state viewer prompts for regeneration or repair."""
+        request = change.get("new") or {}
+        if not request:
+            return
+        user_prompt = str(request.get("prompt", "") or "").strip()
+        if not user_prompt:
+            self.state_prompt_request = {}
+            return
+
+        error_override = str(request.get("error", "") or "").strip()
+        self.state_prompt_request = {}
+
+        status = str(getattr(self, "status", "") or "").lower()
+        if status == "generating":
+            self._generation_service.cancel_generation()
+            self._handle_regeneration_prompt(user_prompt)
+            return
+        if status == "ready":
+            self._handle_regeneration_prompt(user_prompt)
+        elif status in {"error", "blocked"}:
+            self._handle_repair_prompt(user_prompt, error_override)
+
+    def _handle_regeneration_prompt(self, user_prompt: str) -> None:
+        if self._generation_service is None:
+            self._set_status("error")
+            self._reset_logs(["✘ Regeneration failed: LLM service unavailable"])
+            return
+
+        self._set_status("generating")
+        self.error_message = ""
+        self.widget_error = ""
+        self.retry_count = 0
+        self._extend_logs([
+            f"USER INPUT: {user_prompt}",
+            f"Regenerating: {user_prompt[:50]}{'...' if len(user_prompt) > 50 else ''}"
+        ])
+
+        inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
+        if "data" not in inputs_for_prompt and self.data:
+            try:
+                inputs_for_prompt["data"] = summarize_for_prompt(pd.DataFrame(self.data))
+            except Exception:
+                inputs_for_prompt["data"] = "<data>"
+
+        base_description = (self.description or "").strip()
+        if base_description:
+            description = f"{base_description}\n\nUser refinement: {user_prompt}"
+        else:
+            description = user_prompt
+
+        try:
+            self._start_generation(description, inputs_for_prompt)
+        except Exception as exc:
+            self._set_status("error")
+            self._append_log(f"✘ Regeneration failed: {exc}")
+
+    def _handle_repair_prompt(self, user_prompt: str, error_override: str) -> None:
+        if self._generation_service is None or self.orchestrator is None:
+            self._set_status("error")
+            self._reset_logs(["✘ Repair failed: LLM service unavailable"])
+            return
+
+        error_message = error_override or self.widget_error or self.error_message
+        if not error_message:
+            self._reset_logs(["✘ Repair failed: missing error context"])
+            self._set_status("error")
+            return
+
+        self._set_status("retrying")
+        self._extend_logs([
+            f"USER INPUT: {user_prompt}",
+            f"Manual repair: {user_prompt[:50]}{'...' if len(user_prompt) > 50 else ''}",
+            "Asking LLM to repair with user context",
+        ])
+
+        full_error = f"{error_message}\n\nUser note: {user_prompt}"
+
+        try:
+            fixed_code = self._generation_service.orchestrator.fix_runtime_error(
+                code=self.code,
+                error_message=full_error,
+                data_info=self.data_info,
+                progress_callback=None,
+            )
+            if fixed_code and fixed_code != self.code:
+                self.code = fixed_code
+                self.error_message = ""
+                self.widget_error = ""
+                self.retry_count = 0
+                self._set_status("ready")
+                return
+            self._append_log("Repair did not change the code")
+            self._set_status("error")
+        except Exception as exc:
+            self._append_log(f"Repair failed: {exc}")
+            self._set_status("error")
         self._pending_old_code = None
 
     def _build_grab_revision_request(self, element_desc: dict, user_prompt: str) -> str:

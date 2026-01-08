@@ -139,6 +139,7 @@ class Config:
     mode: str = "standard"  # "standard" (fast/cheap models) or "premium" (powerful/expensive models)
     theme: Any = None
     execution: str = "auto"  # "auto" or "approve"
+    retry: int = 2  # Runtime repair attempts before blocking
 
     def __repr__(self) -> str:  # pragma: no cover
         masked_key = "****" if self.api_key else None
@@ -150,7 +151,8 @@ class Config:
             f"streaming={self.streaming!r}, "
             f"mode={self.mode!r}, "
             f"theme={self.theme!r}, "
-            f"execution={self.execution!r}"
+            f"execution={self.execution!r}, "
+            f"retry={self.retry!r}"
             ")"
         )
 
@@ -177,6 +179,9 @@ class Config:
 
         if self.execution not in ["auto", "approve"]:
             raise ValueError("Invalid execution mode. Must be 'auto' or 'approve'")
+
+        if not isinstance(self.retry, int) or self.retry < 0:
+            raise ValueError("retry must be a non-negative integer")
         
         if not self.model:
             raise ValueError("No model specified")
@@ -206,11 +211,15 @@ class Config:
             "mode": self.mode,
             "theme": theme_value,
             "execution": self.execution,
+            "retry": self.retry,
         }
     
     @classmethod
     def from_dict(cls, data: dict) -> "Config":
         """Create configuration from dictionary."""
+        if "retry" not in data:
+            data = dict(data)
+            data["retry"] = 2
         return cls(**data)
     
     def save(self, path: Optional[Path] = None):
@@ -267,6 +276,7 @@ def config(
     mode: str = None,
     theme: Any = None,
     execution: str = None,
+    retry: int = None,
     **kwargs
 ) -> Config:
     """
@@ -279,6 +289,7 @@ def config(
         mode: "standard" (fast/cheap models) or "premium" (powerful/expensive models)
         theme: Theme name/prompt or Theme object to use by default
         execution: "auto" (runs immediately) or "approve" (review before run)
+        retry: Runtime repair attempts before blocking
         **kwargs: Additional configuration options
     
     Returns:
@@ -296,6 +307,7 @@ def config(
         >>> vw.config(model="anthropic/claude-opus-4.5")
         >>> vw.config(theme="financial times")
         >>> vw.config(execution="approve")
+        >>> vw.config(retry=3)
     """
     global _global_config
     
@@ -308,6 +320,7 @@ def config(
             mode=mode or "standard",
             theme=theme,
             execution=execution or "auto",
+            retry=retry if retry is not None else 2,
             **kwargs
         )
     else:
@@ -340,6 +353,11 @@ def config(
             if execution not in ["auto", "approve"]:
                 raise ValueError("execution must be 'auto' or 'approve'")
             _global_config.execution = execution
+
+        if retry is not None:
+            if not isinstance(retry, int) or retry < 0:
+                raise ValueError("retry must be a non-negative integer")
+            _global_config.retry = retry
         
         for key, value in kwargs.items():
             if hasattr(_global_config, key):

@@ -4,6 +4,7 @@ import { EditorView } from "@codemirror/view";
 import CodeEditor from "./CodeEditor";
 import AuditPanel from "./AuditPanel";
 import MessageEditor from "./MessageEditor";
+import EditorHeader from "./EditorHeader";
 
 const html = htm.bind(React.createElement);
 
@@ -901,32 +902,20 @@ export default function EditorViewer({
         }
       </style>
       <div class="source-viewer-card" role="dialog" aria-live="polite">
-        <div class="source-viewer-header">
-          <span>${showApprove ? "Review & Approve" : "Code Editor"}</span>
-          <div class="source-viewer-actions">
-            ${auditIndicator && html`<span class="audit-indicator">${auditIndicator}</span>`}
-            ${auditStatus === "running" && html`<span class="audit-indicator">Auditing...</span>`}
-            ${!hasAuditPayload && html`
-              <button class="source-viewer-button" disabled=${auditStatus === "running"} onClick=${() => {
-                setShowAuditPanel(true);
-                onAudit("fast");
-              }}>
-                ${auditStatus === "running" ? "Auditing..." : "Audit"}
-              </button>
-            `}
-            ${hasAuditPayload && html`
-              <button class="source-viewer-button subtle" onClick=${() => setShowAuditPanel(!showAuditPanel)}>
-                ${showAuditPanel ? "Hide Audit" : "Show Audit"}
-              </button>
-            `}
-            ${showApprove && html`
-              <button class="source-viewer-button" onClick=${onApprove}>Approve & Run</button>
-            `}
-            ${!showApprove && html`
-              <button class="source-viewer-button" onClick=${handleCloseRequest}>Close</button>
-            `}
-          </div>
-        </div>
+        <${EditorHeader}
+          showApprove=${showApprove}
+          auditIndicator=${auditIndicator}
+          auditStatus=${auditStatus}
+          hasAuditPayload=${hasAuditPayload}
+          showAuditPanel=${showAuditPanel}
+          onToggleAuditPanel=${() => setShowAuditPanel(!showAuditPanel)}
+          onRunAudit=${() => {
+            setShowAuditPanel(true);
+            onAudit("fast");
+          }}
+          onApprove=${onApprove}
+          onClose=${handleCloseRequest}
+        />
         <div class="source-viewer-body">
           ${errorMessage && html`
             <div class="source-viewer-error-banner">

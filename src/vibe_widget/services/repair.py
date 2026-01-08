@@ -22,8 +22,11 @@ class RepairService:
 
     MAX_RETRIES = 2
 
-    def __init__(self, orchestrator: AgenticOrchestrator):
+    def __init__(self, orchestrator: AgenticOrchestrator, *, max_retries: int | None = None):
         self.orchestrator = orchestrator
+        if max_retries is None:
+            max_retries = self.MAX_RETRIES
+        self.max_retries = max(0, int(max_retries))
 
     def fix_runtime_error(
         self,
@@ -36,7 +39,7 @@ class RepairService:
     ) -> RepairResult:
         if not error_message:
             return RepairResult(code=code, applied=False, retryable=False, message="No error message to repair.")
-        if retry_count >= self.MAX_RETRIES:
+        if retry_count >= self.max_retries:
             return RepairResult(code=code, applied=False, retryable=False, message="Max retry attempts reached.")
 
         try:
@@ -54,7 +57,7 @@ class RepairService:
                     data_info=clean_for_json(data_info),
                 )
         except Exception as exc:
-            retryable = retry_count + 1 < self.MAX_RETRIES
+            retryable = retry_count + 1 < self.max_retries
             return RepairResult(
                 code=code,
                 applied=False,

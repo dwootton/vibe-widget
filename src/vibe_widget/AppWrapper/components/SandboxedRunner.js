@@ -1,5 +1,6 @@
 import * as React from "react";
 import htm from "htm";
+import { appendWidgetLogs } from "../actions/modelActions";
 
 const html = htm.bind(React.createElement);
 const FORBIDDEN_REACT_IMPORT = /from\s+["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']|require\(\s*["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']\s*\)|from\s+["']https?:\/\/[^"']*react[^"']*["']/;
@@ -11,11 +12,8 @@ function SandboxedRunner({ code, model, runKey }) {
 
   const flushLogs = React.useCallback(() => {
     if (!logQueueRef.current.length) return;
-    const existing = model.get("widget_logs") || [];
-    const next = existing.concat(logQueueRef.current).slice(-200);
+    appendWidgetLogs(model, logQueueRef.current);
     logQueueRef.current = [];
-    model.set("widget_logs", next);
-    model.save_changes();
   }, [model]);
 
   const enqueueLog = React.useCallback((level, message) => {
