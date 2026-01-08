@@ -45,6 +45,42 @@ class AgenticOrchestrator:
         Normalize inline style strings into object literals to satisfy HTM rules.
         Example: style="color: red; height: 420px" -> style=${{ color: "red", height: "420px" }}
         """
+        def _html_template_spans(text: str) -> list[tuple[int, int]]:
+            spans: list[tuple[int, int]] = []
+            i = 0
+            n = len(text)
+            while i < n:
+                idx = text.find("html`", i)
+                if idx == -1:
+                    break
+                start = idx + 5
+                i = start
+                brace_depth = 0
+                while i < n:
+                    ch = text[i]
+                    if ch == "\\":
+                        i += 2
+                        continue
+                    if ch == "$" and i + 1 < n and text[i + 1] == "{":
+                        brace_depth += 1
+                        i += 2
+                        continue
+                    if ch == "}" and brace_depth > 0:
+                        brace_depth -= 1
+                        i += 1
+                        continue
+                    if ch == "`" and brace_depth == 0:
+                        spans.append((start, i))
+                        i += 1
+                        break
+                    i += 1
+            return spans
+
+        def _line_overlaps_spans(line_start: int, line_end: int, spans: list[tuple[int, int]]) -> bool:
+            for start, end in spans:
+                if line_start <= end and line_end >= start:
+                    return True
+            return False
 
         def css_to_object(css: str) -> Optional[str]:
             # Skip styles that already look dynamic/template-driven to avoid mangling valid HTM/React objects.
@@ -68,7 +104,7 @@ class AgenticOrchestrator:
 
         # Only convert inline style attributes that are plain CSS strings (no templates/objects).
         # Allow inner quotes (e.g., font-family: 'Geograph', sans-serif) by separating outer quotes.
-        # Apply only on lines that look like markup to avoid mangling arbitrary JS strings.
+        # Apply only within html`...` template literals to avoid touching other strings.
         literal_style_double = re.compile(
             r'style\s*=\s*"([^"{}$`]*)"',
             re.IGNORECASE,
@@ -77,21 +113,40 @@ class AgenticOrchestrator:
             r"style\s*=\s*'([^'{}$`]*)'",
             re.IGNORECASE,
         )
-        markup_hint = re.compile(r"<[a-zA-Z]", re.IGNORECASE)
+        templated_style_double = re.compile(
+            r'style\s*=\s*\$\s*\{\s*"([^"{}$`]*)"\s*\}',
+            re.IGNORECASE,
+        )
+        templated_style_single = re.compile(
+            r"style\s*=\s*\$\s*\{\s*'([^'{}$`]*)'\s*\}",
+            re.IGNORECASE,
+        )
 
         def literal_replacer(match: re.Match[str]) -> str:
             css = match.group(1)
             converted = css_to_object(css)
             return f"style={converted}" if converted else match.group(0)
 
+        def templated_replacer(match: re.Match[str]) -> str:
+            css = match.group(1)
+            converted = css_to_object(css)
+            return f"style={converted}" if converted else match.group(0)
+
         try:
-            # Process line by line to avoid touching non-markup contexts
+            spans = _html_template_spans(code)
+            # Process line by line and only within html`...` spans
             lines = code.splitlines()
+            cursor = 0
             for i, line in enumerate(lines):
-                if not markup_hint.search(line):
+                line_start = cursor
+                line_end = cursor + len(line)
+                cursor = line_end + 1
+                if not _line_overlaps_spans(line_start, line_end, spans):
                     continue
                 line = literal_style_double.sub(literal_replacer, line)
                 line = literal_style_single.sub(literal_replacer, line)
+                line = templated_style_double.sub(templated_replacer, line)
+                line = templated_style_single.sub(templated_replacer, line)
                 lines[i] = line
             return "\n".join(lines)
         except Exception:

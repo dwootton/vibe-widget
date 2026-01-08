@@ -1,10 +1,18 @@
-import * as React from "react";
+import * as React from "preact/compat";
+import { render as preactRender } from "preact";
 import htm from "htm";
+import * as Babel from "@babel/standalone";
+import ReactCompat from "preact/compat";
 import { appendWidgetLogs } from "../actions/modelActions";
 import { captureRuntimeError } from "../utils/runtimeError";
 
 const html = htm.bind(React.createElement);
 const FORBIDDEN_REACT_IMPORT = /from\s+["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']|require\(\s*["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?)["']\s*\)|from\s+["']https?:\/\/[^"']*react[^"']*["']/;
+
+// Expose a stable React-compatible runtime for transformed widgets.
+if (typeof globalThis !== "undefined") {
+  globalThis.__VIBE_PREACT_COMPAT = ReactCompat;
+}
 
 function SandboxedRunner({ code, model, runKey }) {
   const [GuestWidget, setGuestWidget] = React.useState(null);
@@ -174,6 +182,16 @@ function SandboxedRunner({ code, model, runKey }) {
     trackDisposer(() => window.removeEventListener("error", handleWindowError));
     trackDisposer(() => window.removeEventListener("unhandledrejection", handleWindowError));
 
+    const transformWidgetCode = (source) => {
+      const wrapped = `const React = globalThis.__VIBE_PREACT_COMPAT;\n${source}`;
+      const result = Babel.transform(wrapped, {
+        presets: [["react", { runtime: "classic", pragma: "React.createElement", pragmaFrag: "React.Fragment" }]],
+        sourceType: "module",
+        filename: "widget.jsx"
+      });
+      return result.code;
+    };
+
     const executeCode = async () => {
       try {
         setGuestWidget(null);
@@ -182,7 +200,8 @@ function SandboxedRunner({ code, model, runKey }) {
             "Generated code must not import React/ReactDOM or react/jsx-runtime. Use the React and html props provided by the host."
           );
         }
-        const blob = new Blob([code], { type: "text/javascript" });
+        const transformed = transformWidgetCode(code);
+        const blob = new Blob([transformed], { type: "text/javascript" });
         const url = URL.createObjectURL(blob);
 
         const module = await import(url);
@@ -190,6 +209,16 @@ function SandboxedRunner({ code, model, runKey }) {
 
         if (module.default && typeof module.default === "function") {
           console.debug("[vibe][runtime] module loaded successfully");
+          // Pre-mount guard: attempt a fast render into a detached node to catch synchronous throws.
+          try {
+            const probeContainer = document.createElement("div");
+            const Element = ReactCompat.createElement(module.default, { model, html, React });
+            preactRender(Element, probeContainer);
+            preactRender(null, probeContainer);
+          } catch (err) {
+            handleRuntimeError(err);
+            return;
+          }
           setGuestWidget(() => module.default);
           model.set("error_message", "");
           model.set("widget_error", "");

@@ -354,6 +354,8 @@ class VibeWidget(anywidget.AnyWidget):
         )
 
         self._lifecycle = WidgetLifecycle(self)
+        # Track whether we should render immediately (not in tests/headless)
+        self._display_widget = display_widget
 
         if display_widget:
             _display_widget(self)
@@ -531,6 +533,9 @@ class VibeWidget(anywidget.AnyWidget):
             _write_debug_log("status_set", f"{status}")
             return
         prev_status = self.status
+        if status == prev_status and not force:
+            _write_debug_log("status_transition_skipped", f"{prev_status} -> {status}")
+            return
         lifecycle.transition(status, force=force)
         _write_debug_log("status_transition", f"{prev_status} -> {status}")
         if status == "ready":
@@ -649,20 +654,40 @@ class VibeWidget(anywidget.AnyWidget):
             self._append_log(f"Error: {str(exc)}")
             logger.exception("Widget generation failed")
 
-        self._generation_service.start_generation_async(
-            description=description,
-            outputs=self._exports,
-            inputs=self._imports,
-            input_summaries=inputs_for_prompt,
-            actions=self._actions,
-            action_params=self._action_params,
-            base_code=self._base_code,
-            base_components=self._base_components,
-            theme_description=self._theme.description if self._theme else None,
-            progress_callback=stream_callback,
-            on_complete=handle_complete,
-            on_error=handle_error,
-        )
+        if getattr(self, "_display_widget", True):
+            # async path for interactive rendering
+            self._generation_service.start_generation_async(
+                description=description,
+                outputs=self._exports,
+                inputs=self._imports,
+                input_summaries=inputs_for_prompt,
+                actions=self._actions,
+                action_params=self._action_params,
+                base_code=self._base_code,
+                base_components=self._base_components,
+                theme_description=self._theme.description if self._theme else None,
+                progress_callback=stream_callback,
+                on_complete=handle_complete,
+                on_error=handle_error,
+            )
+        else:
+            # synchronous path for non-display contexts (tests, headless) to ensure code is ready
+            try:
+                code, _ = self._generation_service.generate(
+                    description=description,
+                    outputs=self._exports,
+                    inputs=self._imports,
+                    input_summaries=inputs_for_prompt,
+                    actions=self._actions,
+                    action_params=self._action_params,
+                    base_code=self._base_code,
+                    base_components=self._base_components,
+                    theme_description=self._theme.description if self._theme else None,
+                    progress_callback=stream_callback,
+                )
+                handle_complete(code)
+            except Exception as exc:
+                handle_error(exc)
 
     def _normalize_audit_state(self, state: dict[str, Any] | None) -> dict[str, Any]:
         base = {
@@ -1187,8 +1212,8 @@ class VibeWidget(anywidget.AnyWidget):
             preview = error_msg.split("\n")[0][:200]
             if preview != self._last_logged_runtime_error:
                 path_hint = self._widget_file_path()
-                hint_suffix = f" (file: {path_hint})" if path_hint else ""
-                self._append_log(f"Issue detected: {preview}{hint_suffix}")
+                hint_suffix = f" | Code file: {path_hint}" if path_hint else ""
+                self._append_log(f"Runtime error: {preview}{hint_suffix}")
                 self._last_logged_runtime_error = preview
 
         orchestrator = getattr(self, "orchestrator", None)
@@ -1215,8 +1240,8 @@ class VibeWidget(anywidget.AnyWidget):
 
         error_preview = error_msg.split("\n")[0][:100]
         path_hint = self._widget_file_path()
-        hint_suffix = f" (file: {path_hint})" if path_hint else ""
-        self._extend_logs([f"Issue detected: {error_preview}{hint_suffix}", "Asking LLM to fix the error"])
+        hint_suffix = f" | Code file: {path_hint}" if path_hint else ""
+        self._extend_logs([f"Runtime error: {error_preview}{hint_suffix}", "Repairing code..."])
 
         result = self._repair_service.fix_runtime_error(
             code=self.code,
@@ -1231,7 +1256,6 @@ class VibeWidget(anywidget.AnyWidget):
             self.code = result.code
             self._set_status("ready")
             self.error_message = ""
-            self.last_runtime_error = ""
             self.retry_count = 0
             return
 

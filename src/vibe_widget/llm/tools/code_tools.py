@@ -50,6 +50,43 @@ class CodeValidateTool(Tool):
         warnings = []
 
         try:
+            def _html_template_spans(text: str) -> list[tuple[int, int]]:
+                spans: list[tuple[int, int]] = []
+                i = 0
+                n = len(text)
+                while i < n:
+                    idx = text.find("html`", i)
+                    if idx == -1:
+                        break
+                    start = idx + 5
+                    i = start
+                    brace_depth = 0
+                    while i < n:
+                        ch = text[i]
+                        if ch == "\\":
+                            i += 2
+                            continue
+                        if ch == "$" and i + 1 < n and text[i + 1] == "{":
+                            brace_depth += 1
+                            i += 2
+                            continue
+                        if ch == "}" and brace_depth > 0:
+                            brace_depth -= 1
+                            i += 1
+                            continue
+                        if ch == "`" and brace_depth == 0:
+                            spans.append((start, i))
+                            i += 1
+                            break
+                        i += 1
+                return spans
+
+            def _line_overlaps_spans(line_start: int, line_end: int, spans: list[tuple[int, int]]) -> bool:
+                for start, end in spans:
+                    if line_start <= end and line_end >= start:
+                        return True
+                return False
+
             # Check 1: Default export exists
             if "export default function" not in code:
                 issues.append("Missing 'export default function' declaration")
@@ -114,15 +151,18 @@ class CodeValidateTool(Tool):
             if "className=" in code and "html`" in code:
                 warnings.append("Use 'class=' not 'className=' in htm templates")
 
-            # Inline style checks (case-insensitive), but only on lines that appear to be HTM/JSX-like markup
+            # Inline style checks (case-insensitive), but only inside html`...` templates.
             style_literal_pattern = re.compile(r"style\s*=\s*['\"]([^\"']+)['\"]", re.IGNORECASE)
             style_template_pattern = re.compile(r"style\s*=\s*\$\{\s*['\"]([^\"']+)['\"]\s*\}", re.IGNORECASE)
-            markup_hint = re.compile(r"<[a-zA-Z]", re.IGNORECASE)
+            html_spans = _html_template_spans(code)
 
             lines = code.splitlines()
+            cursor = 0
             for idx, line in enumerate(lines, start=1):
-                # Only flag if the line looks like markup (reduces false positives inside plain JS strings)
-                if not markup_hint.search(line):
+                line_start = cursor
+                line_end = cursor + len(line)
+                cursor = line_end + 1
+                if not _line_overlaps_spans(line_start, line_end, html_spans):
                     continue
                 if style_literal_pattern.search(line) or style_template_pattern.search(line):
                     snippet = line.strip()

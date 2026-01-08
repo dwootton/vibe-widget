@@ -41,6 +41,11 @@ npm run watch-app-wrapper
 1. Rebuild the bundle (or use watch mode)
 2. **Restart the Jupyter kernel** (the bundle is cached)
 
+### Agent Done Checklist (always)
+- If you touched JS: run `npm run build-app-wrapper` before handing off, or state why it wasn’t run.
+- For substantial changes (backend or frontend): run the relevant tests (`pytest`, `npm run test:ui`) and report results, or state why they weren’t run.
+- If a command can’t be run (env/time), say so explicitly in the final message.
+
 ### Testing
 
 ```bash
