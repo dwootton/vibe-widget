@@ -72,6 +72,107 @@ function SandboxedRunner({ code, model, runKey }) {
   React.useEffect(() => {
     if (!code) return;
 
+    const guardState = { closed: false };
+    const disposers = [];
+
+    // Preserve originals
+    const originalSet = model.set?.bind(model);
+    const originalSave = model.save_changes?.bind(model);
+    const originalSetInterval = window.setInterval;
+    const originalSetTimeout = window.setTimeout;
+    const originalRaf = window.requestAnimationFrame;
+    const originalAddEventListener = EventTarget.prototype.addEventListener;
+    const originalRemoveEventListener = EventTarget.prototype.removeEventListener;
+
+    const trackDisposer = (fn) => {
+      disposers.push(fn);
+      return fn;
+    };
+
+    const teardown = () => {
+      if (guardState.closed) return;
+      guardState.closed = true;
+      while (disposers.length) {
+        try {
+          const dispose = disposers.pop();
+          dispose?.();
+        } catch (err) {
+          // ignore teardown errors
+        }
+      }
+      // Restore globals
+      window.setInterval = originalSetInterval;
+      window.setTimeout = originalSetTimeout;
+      window.requestAnimationFrame = originalRaf;
+      EventTarget.prototype.addEventListener = originalAddEventListener;
+      EventTarget.prototype.removeEventListener = originalRemoveEventListener;
+      // Restore model methods
+      if (originalSet) model.set = originalSet;
+      if (originalSave) model.save_changes = originalSave;
+      setGuestWidget(null);
+    };
+
+    // Patch timers
+    window.setInterval = (...args) => {
+      const id = originalSetInterval(...args);
+      trackDisposer(() => clearInterval(id));
+      return id;
+    };
+    window.setTimeout = (...args) => {
+      const id = originalSetTimeout(...args);
+      trackDisposer(() => clearTimeout(id));
+      return id;
+    };
+    window.requestAnimationFrame = (cb) => {
+      const id = originalRaf(cb);
+      trackDisposer(() => cancelAnimationFrame(id));
+      return id;
+    };
+
+    // Patch addEventListener/removeEventListener to auto-remove on teardown
+    EventTarget.prototype.addEventListener = function patchedAdd(type, listener, options) {
+      originalAddEventListener.call(this, type, listener, options);
+      trackDisposer(() => originalRemoveEventListener.call(this, type, listener, options));
+    };
+
+    // Patch model.on/off if available to auto-unsubscribe
+    if (model && typeof model.on === "function" && typeof model.off === "function") {
+      const originalOn = model.on.bind(model);
+      model.on = (event, handler, ...rest) => {
+        originalOn(event, handler, ...rest);
+        trackDisposer(() => {
+          try {
+            model.off(event, handler, ...rest);
+          } catch (_) {
+            /* ignore */
+          }
+        });
+      };
+    }
+
+    // Guard model.set/save_changes to halt on closed comm
+    const guardCall = (fn) => (...args) => {
+      if (guardState.closed || !fn) return;
+      try {
+        return fn(...args);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err || "");
+        if (msg.toLowerCase().includes("cannot send")) {
+          enqueueLog("warn", "Widget comm closed; tearing down widget runtime.");
+          teardown();
+          return;
+        }
+        throw err;
+      }
+    };
+
+    if (originalSet) {
+      model.set = guardCall(originalSet);
+    }
+    if (originalSave) {
+      model.save_changes = guardCall(originalSave);
+    }
+
     const executeCode = async () => {
       try {
         setGuestWidget(null);
@@ -98,10 +199,15 @@ function SandboxedRunner({ code, model, runKey }) {
         }
       } catch (err) {
         handleRuntimeError(err);
+        teardown();
       }
     };
 
     executeCode();
+
+    return () => {
+      teardown();
+    };
   }, [code, model, handleRuntimeError, runKey]);
 
   if (!GuestWidget) {

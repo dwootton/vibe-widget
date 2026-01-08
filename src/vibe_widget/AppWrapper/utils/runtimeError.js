@@ -22,7 +22,16 @@ export function captureRuntimeError({ model, enqueueLog, err, extraStack = "" })
     return;
   }
   enqueueLog("error", errorDetails);
-  model.set("error_message", errorDetails);
-  model.set("widget_error", errorDetails);
-  model.save_changes();
+  try {
+    model.set("error_message", errorDetails);
+    model.set("widget_error", errorDetails);
+    model.save_changes();
+  } catch (sendErr) {
+    const msg = sendErr instanceof Error ? sendErr.message : String(sendErr || "");
+    if (msg.toLowerCase().includes("cannot send")) {
+      // Comm is dead; nothing to do.
+      return;
+    }
+    throw sendErr;
+  }
 }

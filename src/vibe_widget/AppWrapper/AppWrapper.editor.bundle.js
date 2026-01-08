@@ -357,10 +357,10 @@ var gO=Object.create;var Zh=Object.defineProperty;var bO=Object.getOwnPropertyDe
           padding: 0;
           border: none;
           border-radius: 2px;
-          margin-left: -8px;
+          margin-left: 12px;
         }
         .log-entry--input .log-icon {
-          margin-left: -12px;
+          margin-left: 0;
         }
           .state-input-wrapper {
             position: relative;

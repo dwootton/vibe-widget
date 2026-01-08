@@ -114,14 +114,16 @@ class CodeValidateTool(Tool):
             if "className=" in code and "html`" in code:
                 warnings.append("Use 'class=' not 'className=' in htm templates")
 
-            if (
-                re.search(r"style\s*=\s*['\"]", code)
-                or re.search(r"style\s*=\s*\$\{\s*['\"]", code)
-                or re.search(r"style\s*=\s*\{\s*['\"]", code)
-            ):
-                issues.append(
-                    "Inline style must be an object literal: use style=${{ ... }} not a string"
-                )
+            style_literal_pattern = re.compile(r"style\s*=\s*['\"]([^\"']+)['\"]")
+            style_template_pattern = re.compile(r"style\s*=\s*\$\{\s*['\"]([^\"']+)['\"]\s*\}")
+
+            lines = code.splitlines()
+            for idx, line in enumerate(lines, start=1):
+                if style_literal_pattern.search(line) or style_template_pattern.search(line):
+                    snippet = line.strip()
+                    issues.append(
+                        f"Inline style must be an object literal at line {idx}: {snippet[:120]}"
+                    )
 
             cdn_imports = re.findall(r'from\s+["\']https://esm\.sh/([^"\']+)["\']', code)
             for imp in cdn_imports:

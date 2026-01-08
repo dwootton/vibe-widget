@@ -93,7 +93,7 @@ export default function StatePromptInputRow({
           margin-left: 12px;
         }
         .log-entry--input .log-icon {
-          margin-left: -12px;
+          margin-left: 0;
         }
           .state-input-wrapper {
             position: relative;
