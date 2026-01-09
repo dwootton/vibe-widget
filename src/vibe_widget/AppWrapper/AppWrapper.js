@@ -281,15 +281,36 @@ function AppWrapper({ model }) {
 }
 
 function render({ model, el }) {
-  const modelId = model?.cid || model?.model_id || model?.id || model?.get?.("_model_id");
+  const traceTs = new Date().toISOString();
+  const traceModelId = model?.cid || model?.model_id || model?.id || model?.get?.("_model_id");
+  const stack = new Error("VIBE_RENDER_TRACE").stack;
+  console.log("[VIBE_RENDER_TRACE]", {
+    ts: traceTs,
+    phase: "render_entry",
+    modelId: traceModelId,
+    hasEl: !!el,
+    hasRoot: !!el?.__vibeRoot,
+    stack
+  });
+  const modelId = traceModelId;
   debugLog(model, "[vibe][debug] render() called", { modelId, hasRoot: !!el.__vibeRoot });
 
   let root = el.__vibeRoot;
   if (!root) {
+    console.log("[VIBE_RENDER_TRACE]", {
+      ts: new Date().toISOString(),
+      phase: "create_root",
+      modelId
+    });
     debugLog(model, "[vibe][debug] creating root for model", { modelId });
     root = createRoot(el);
     el.__vibeRoot = root;
   }
+  console.log("[VIBE_RENDER_TRACE]", {
+    ts: new Date().toISOString(),
+    phase: "render_call",
+    modelId
+  });
   root.render(<AppWrapper model={model} />);
 }
 

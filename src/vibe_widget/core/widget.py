@@ -159,7 +159,20 @@ class VibeWidget(anywidget.AnyWidget):
         """Ensure rich display works in environments that skip mimebundle reprs."""
         try:
             from IPython.display import display
+            if getattr(self, "_displayed", False):
+                _write_debug_log("ipython_display_skip", f"model_id={getattr(self, 'model_id', '')}")
+                return
+            self._displayed = True
+            try:
+                import traceback
+                stack = "".join(traceback.format_stack(limit=6)).strip()
+            except Exception:
+                stack = ""
 
+            _write_debug_log(
+                "ipython_display",
+                f"model_id={getattr(self, 'model_id', '')} stack={stack}"
+            )
             bundle = self._repr_mimebundle_()
             if bundle is None:
                 display(repr(self))
@@ -301,6 +314,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._input_sampling = input_sampling
         self._export_accessors: dict[str, ExportHandle] = {}
         self._state = StateManager(self)
+        self._displayed = False
         self._theme = theme
         self._base_code = base_code
         self._base_components = base_components or []
@@ -1826,7 +1840,11 @@ def _link_imports(widget: VibeWidget, imports: dict[str, Any] | None) -> None:
 def _display_widget(widget: VibeWidget) -> None:
     """Display widget in IPython environment if available."""
     try:
+        if getattr(widget, "_displayed", False):
+            _write_debug_log("display_widget_skip", f"model_id={getattr(widget, 'model_id', '')}")
+            return
         from IPython.display import display
+        _write_debug_log("display_widget", f"model_id={getattr(widget, 'model_id', '')}")
         display(widget)
     except ImportError:
         pass
@@ -1918,6 +1936,7 @@ def create(
         >>> scatter_plot = create("show temperature trends", df)
         >>> sales_chart = create("visualize sales data", "sales.csv")
     """
+    _write_debug_log("create_called", f"display={display} cache={cache}")
     # Capture the variable name from the caller's assignment
     # e.g., scatter_plot = vw.create(...) -> var_name = "scatter_plot"
     from vibe_widget.utils.widget_store import capture_caller_var_name
@@ -1968,6 +1987,7 @@ def create(
         theme=resolved_theme,
     )
 
+    _write_debug_log("create_return", f"model_id={getattr(widget, 'model_id', '')}")
     return WidgetHandle(widget)
 
 
@@ -2004,6 +2024,7 @@ class WidgetHandle:
         return self._widget
 
     def __call__(self, *args, **kwargs) -> "VibeWidget":
+        _write_debug_log("handle_rerun", f"model_id={getattr(self._widget, 'model_id', '')}")
         widget = self._widget._rerun_with(*args, **kwargs)
         self._widget = widget
         return widget

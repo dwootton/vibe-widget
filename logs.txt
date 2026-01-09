@@ -1,46 +1,81 @@
-2026-01-09T13:37:13.667465+00:00 | progress_log_reset | Analyzing inputs: 0
-2026-01-09T13:37:13.686043+00:00 | progress_log_extend | ✓ Found cached widget
-2026-01-09T13:37:13.686193+00:00 | progress_log_extend |   umap_rows_dataset
-2026-01-09T13:37:13.686274+00:00 | progress_log_extend |   Created: 2026-01-09
-2026-01-09T13:37:13.687172+00:00 | status_transition | generating -> ready
-2026-01-09T13:39:08.388393+00:00 | progress_log_reset | Analyzing inputs: 0
-2026-01-09T13:39:08.405361+00:00 | progress_log_extend | ✓ Found cached widget
-2026-01-09T13:39:08.405550+00:00 | progress_log_extend |   umap_rows_dataset
-2026-01-09T13:39:08.405652+00:00 | progress_log_extend |   Created: 2026-01-09
-2026-01-09T13:39:08.406511+00:00 | status_transition | generating -> ready
-2026-01-09T13:42:04.229060+00:00 | progress_log_reset | Analyzing inputs: 0
-2026-01-09T13:42:04.256313+00:00 | progress_log_append | Generating widget code
-2026-01-09T13:42:04.260064+00:00 | progress_log_append | Analyzing data
-2026-01-09T13:42:04.261410+00:00 | progress_log_append | Inputs: 1
-2026-01-09T13:42:04.262826+00:00 | progress_log_append | Generating widget code...
-2026-01-09T13:42:05.698583+00:00 | progress_log_append | Importing d3...
-2026-01-09T13:42:07.572005+00:00 | progress_log_append | Building UI components...
-2026-01-09T13:42:07.951229+00:00 | progress_log_append | Applying styles...
-2026-01-09T13:42:10.691411+00:00 | progress_log_append | Setting up React hooks...
-2026-01-09T13:42:11.461441+00:00 | progress_log_append | Processing data...
-2026-01-09T13:42:11.463224+00:00 | progress_log_append | Creating SVG canvas...
-2026-01-09T13:42:11.464876+00:00 | progress_log_append | Setting up scales...
-2026-01-09T13:42:12.231372+00:00 | progress_log_append | Adding visualization elements...
-2026-01-09T13:42:12.232131+00:00 | progress_log_append | Creating axes...
-2026-01-09T13:42:12.630941+00:00 | progress_log_append | Binding data to elements...
-2026-01-09T13:42:14.548075+00:00 | progress_log_append | Creating widget component...
-2026-01-09T13:42:18.670474+00:00 | progress_log_append | Setting up reactivity...
-2026-01-09T13:42:22.532375+00:00 | progress_log_append | Adding interactivity...
-2026-01-09T13:42:26.038640+00:00 | progress_log_append | Adding conditional rendering...
-2026-01-09T13:42:27.441818+00:00 | progress_log_append | Validating code
-2026-01-09T13:42:27.445267+00:00 | progress_log_append | Testing runtime
-2026-01-09T13:42:27.493905+00:00 | progress_log_append | ✓ Widget generation complete
-2026-01-09T13:42:27.494519+00:00 | progress_log_append | Code generated: 11152 characters
-2026-01-09T13:42:27.497742+00:00 | progress_log_extend | Widget saved: credsaate_umap_rows
-2026-01-09T13:42:27.497870+00:00 | progress_log_extend | Location: .vibewidget/widgets/credsaate_umap_rows_credsaate_umap_20260109_134227_41191948e8.js
-2026-01-09T13:42:27.498897+00:00 | status_transition | generating -> ready
-2026-01-09T13:55:51.126963+00:00 | progress_log_reset | Analyzing inputs: 0
-2026-01-09T13:55:51.144041+00:00 | progress_log_extend | ✓ Found cached widget
-2026-01-09T13:55:51.144166+00:00 | progress_log_extend |   credsaate_umap_rows
-2026-01-09T13:55:51.144241+00:00 | progress_log_extend |   Created: 2026-01-09
-2026-01-09T13:55:51.144901+00:00 | status_transition | generating -> ready
-2026-01-09T13:56:05.702203+00:00 | progress_log_reset | Analyzing inputs: 0
-2026-01-09T13:56:05.718810+00:00 | progress_log_extend | ✓ Found cached widget
-2026-01-09T13:56:05.719072+00:00 | progress_log_extend |   credsaate_umap_rows
-2026-01-09T13:56:05.719178+00:00 | progress_log_extend |   Created: 2026-01-09
-2026-01-09T13:56:05.719942+00:00 | status_transition | generating -> ready
+2026-01-09T14:13:47.224523+00:00 | create_called | display=True cache=False
+2026-01-09T14:13:47.312563+00:00 | display_widget | model_id=b7691d97ed43430e911eb31189c7cd4b
+2026-01-09T14:13:47.315154+00:00 | ipython_display | model_id=b7691d97ed43430e911eb31189c7cd4b stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-09T14:13:47.318027+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-09T14:13:47.347856+00:00 | progress_log_append | Skipping cache (cache=False)
+2026-01-09T14:13:47.348659+00:00 | progress_log_append | Generating widget code
+2026-01-09T14:13:47.349591+00:00 | create_return | model_id=b7691d97ed43430e911eb31189c7cd4b
+2026-01-09T14:13:47.349632+00:00 | progress_log_append | Analyzing data
+2026-01-09T14:13:47.350294+00:00 | progress_log_append | Inputs: 1
+2026-01-09T14:13:47.350355+00:00 | ipython_display_skip | model_id=b7691d97ed43430e911eb31189c7cd4b
+2026-01-09T14:13:47.350627+00:00 | progress_log_append | Generating widget code...
+2026-01-09T14:13:47.716927+00:00 | create_called | display=True cache=True
+2026-01-09T14:13:47.813145+00:00 | display_widget | model_id=eded8397529b43c0b49f6a210fa9fe5b
+2026-01-09T14:13:47.813872+00:00 | ipython_display | model_id=eded8397529b43c0b49f6a210fa9fe5b stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-09T14:13:47.819347+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-09T14:13:47.926042+00:00 | progress_log_extend | ✓ Found cached widget
+2026-01-09T14:13:47.930407+00:00 | progress_log_extend |   umap_rows_dataset
+2026-01-09T14:13:47.930791+00:00 | progress_log_extend |   Created: 2026-01-09
+2026-01-09T14:13:48.021088+00:00 | status_transition | generating -> ready
+2026-01-09T14:13:48.111270+00:00 | create_return | model_id=eded8397529b43c0b49f6a210fa9fe5b
+2026-01-09T14:13:48.113539+00:00 | ipython_display_skip | model_id=eded8397529b43c0b49f6a210fa9fe5b
+2026-01-09T14:13:48.326744+00:00 | create_called | display=True cache=True
+2026-01-09T14:13:48.524243+00:00 | display_widget | model_id=2d11f566fad64ea39a77b994f5df0e04
+2026-01-09T14:13:48.526429+00:00 | ipython_display | model_id=2d11f566fad64ea39a77b994f5df0e04 stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-09T14:13:48.533037+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-09T14:13:48.570978+00:00 | progress_log_extend | ✓ Found cached widget
+2026-01-09T14:13:48.571392+00:00 | progress_log_extend |   new_umap_rows
+2026-01-09T14:13:48.571581+00:00 | progress_log_extend |   Created: 2026-01-09
+2026-01-09T14:13:48.573916+00:00 | status_transition | generating -> ready
+2026-01-09T14:13:48.575501+00:00 | create_return | model_id=2d11f566fad64ea39a77b994f5df0e04
+2026-01-09T14:13:48.576739+00:00 | ipython_display_skip | model_id=2d11f566fad64ea39a77b994f5df0e04
+2026-01-09T14:13:50.244030+00:00 | progress_log_append | Importing d3...
+2026-01-09T14:13:51.496618+00:00 | progress_log_append | Building UI components...
+2026-01-09T14:13:51.637001+00:00 | progress_log_append | Applying styles...
+2026-01-09T14:13:55.284550+00:00 | progress_log_append | Processing data...
+2026-01-09T14:13:57.108212+00:00 | progress_log_append | Creating widget component...
+2026-01-09T14:13:57.352072+00:00 | progress_log_append | Setting up React hooks...
+2026-01-09T14:14:02.159608+00:00 | progress_log_append | Creating SVG canvas...
+2026-01-09T14:14:02.543057+00:00 | progress_log_append | Setting up scales...
+2026-01-09T14:14:02.974062+00:00 | progress_log_append | Adding visualization elements...
+2026-01-09T14:14:03.326804+00:00 | progress_log_append | Binding data to elements...
+2026-01-09T14:14:12.559087+00:00 | progress_log_append | Validating code
+2026-01-09T14:14:12.561452+00:00 | progress_log_append | Testing runtime
+2026-01-09T14:14:12.602369+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-09T14:14:12.602975+00:00 | progress_log_append | Code generated: 12608 characters
+2026-01-09T14:14:12.605903+00:00 | progress_log_extend | Widget saved: credsaate_umap_rows
+2026-01-09T14:14:12.606056+00:00 | progress_log_extend | Location: .vibewidget/widgets/credsaate_umap_rows_credsaate_umap_20260109_141412_41191948e8.js
+2026-01-09T14:14:12.607719+00:00 | status_transition | generating -> ready
