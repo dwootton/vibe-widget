@@ -1,4 +1,32 @@
 import React from "react";
+import { tw } from "../../styles/setup.js";
+
+const containerClass = tw("flex flex-col gap-2");
+const rowClass = tw("flex flex-wrap gap-2 items-center");
+const itemsClass = tw("flex flex-wrap gap-2 items-center");
+const pillClass = tw(
+  "inline-flex items-center gap-2 bg-[#0b0b0b] border border-[#4b5563] rounded-[6px] px-[10px] py-[6px] text-[11px] text-[#e5e7eb] max-w-[220px] relative cursor-pointer whitespace-nowrap"
+);
+const pillTextClass = tw("overflow-hidden text-ellipsis whitespace-nowrap");
+const removeButtonClass = tw(
+  "border-none bg-transparent text-[#9aa4b2] cursor-pointer text-[12px] leading-[1] transition-colors duration-150 hover:text-error"
+);
+const bubbleEditorClass = tw(
+  "absolute bottom-[130%] left-0 w-[240px] bg-[#0f141a] border border-[rgba(71,85,105,0.6)] rounded-[10px] p-2 shadow-[0_12px_24px_rgba(0,0,0,0.4)] z-10"
+);
+const bubbleTextareaClass = tw(
+  "w-full min-h-[80px] bg-[#12141d] text-[#e5e7eb] border border-[rgba(71,85,105,0.6)] rounded-[8px] px-2 py-1 font-mono text-[11px] resize-y"
+);
+const bubbleActionsClass = tw("flex justify-end gap-1 mt-1");
+const bubbleButtonClass = tw(
+  "bg-[rgba(239,125,69,0.9)] text-[#0b0b0b] border-none rounded-[6px] px-2 py-1 text-[10px] cursor-pointer"
+);
+const inputClass = tw(
+  "flex-1 min-h-[60px] bg-[#0b0b0b] text-[#e5e7eb] border border-[#4b5563] rounded-[6px] px-2 py-2 font-mono text-[12px] resize-y"
+);
+const sendButtonClass = tw(
+  "self-start bg-[rgba(239,125,69,0.9)] text-[#0b0b0b] border-none rounded-[8px] px-3 py-2 inline-flex items-center justify-center cursor-pointer transition-opacity duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
+);
 
 export default function MessageEditor({
   pendingChanges,
@@ -19,145 +47,25 @@ export default function MessageEditor({
   isDirty
 }) {
   const pendingCount = pendingChanges.length;
-
   const hasCodeChanges = codeChangeRanges.length > 0;
 
   return (
-    <div class={`audit-changes-strip ${pendingCount === 0 ? "compact" : ""}`}>
-      <style>{`
-        .audit-changes-strip {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .audit-changes-row {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          flex-wrap: wrap;
-        }
-        .audit-changes-items {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          flex-wrap: wrap;
-        }
-        .audit-change-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          background: #0b0b0b;
-          border: 1px solid #4b5563;
-          border-radius: 6px;
-          padding: 6px 10px;
-          color: #e5e7eb;
-          font-size: 11px;
-          max-width: 220px;
-          position: relative;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .audit-change-pill span {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .audit-change-remove {
-          border: none;
-          background: transparent;
-          color: #9aa4b2;
-          cursor: pointer;
-          font-size: 12px;
-          line-height: 1;
-        }
-        .audit-change-remove:hover {
-          color: #f87171;
-        }
-        .audit-bubble-editor {
-          position: absolute;
-          bottom: 130%;
-          left: 0;
-          width: 240px;
-          background: #0f141a;
-          border: 1px solid rgba(71, 85, 105, 0.6);
-          border-radius: 10px;
-          padding: 8px;
-          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
-          z-index: 10;
-        }
-        .audit-bubble-editor textarea {
-          width: 100%;
-          min-height: 80px;
-          background: #12141d;
-          color: #e5e7eb;
-          border: 1px solid rgba(71, 85, 105, 0.6);
-          border-radius: 8px;
-          padding: 6px;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          resize: vertical;
-        }
-        .audit-bubble-editor-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 6px;
-          margin-top: 6px;
-        }
-        .audit-bubble-editor button {
-          background: rgba(239, 125, 69, 0.9);
-          color: #0b0b0b;
-          border: none;
-          border-radius: 6px;
-          padding: 4px 8px;
-          font-size: 10px;
-          cursor: pointer;
-        }
-        .audit-changes-input {
-          flex: 1;
-          min-height: 60px;
-          background: #0b0b0b;
-          color: #e5e7eb;
-          border: 1px solid #4b5563;
-          border-radius: 6px;
-          padding: 8px;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 12px;
-          resize: vertical;
-        }
-        .audit-send-button {
-          align-self: flex-start;
-          background: rgba(239, 125, 69, 0.9);
-          color: #0b0b0b;
-          border: none;
-          border-radius: 8px;
-          padding: 8px 10px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: opacity 0.2s;
-        }
-        .audit-send-button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-      `}</style>
-      <div class="audit-changes-row">
-        <div class="audit-changes-items">
+    <div class={containerClass}>
+      <div class={rowClass}>
+        <div class={itemsClass}>
           {pendingChanges.map((item) => {
             const isEditing = editingBubbleId === item.itemId;
             return (
               <div
-                class="audit-change-pill"
+                key={item.itemId}
+                class={pillClass}
                 onMouseEnter={() => onHoverCard(item.cardId)}
                 onMouseLeave={() => onHoverCard(null)}
                 onClick={() => onStartEdit(item)}
               >
-                <span title={item.label}>{item.label}</span>
+                <span class={pillTextClass} title={item.label}>{item.label}</span>
                 <button
-                  class="audit-change-remove"
+                  class={removeButtonClass}
                   title="Remove"
                   onClick={(event) => {
                     event.stopPropagation();
@@ -167,14 +75,16 @@ export default function MessageEditor({
                   ×
                 </button>
                 {isEditing && (
-                  <div class="audit-bubble-editor">
+                  <div class={bubbleEditorClass}>
                     <textarea
+                      class={bubbleTextareaClass}
                       value={editingText}
                       onInput={(event) => onEditingTextChange(event.target.value)}
                       placeholder="Edit what will be sent..."
                     ></textarea>
-                    <div class="audit-bubble-editor-actions">
+                    <div class={bubbleActionsClass}>
                       <button
+                        class={bubbleButtonClass}
                         onClick={(event) => {
                           event.stopPropagation();
                           onSaveEdit();
@@ -191,31 +101,36 @@ export default function MessageEditor({
           {hasCodeChanges &&
             (codeChangeRanges.length >= 3 ? (
               <div
-                class="audit-change-pill"
+                key="code-change-summary"
+                class={pillClass}
                 title={`Changed: ${codeChangeRanges
                   .map((range) =>
                     range[0] === range[1] ? `Line ${range[0]}` : `Lines ${range[0]}-${range[1]}`
                   )
                   .join(", ")}`}
               >
-                <span>Code changes ({codeChangeRanges.length})</span>
+                <span class={pillTextClass}>Code changes ({codeChangeRanges.length})</span>
               </div>
             ) : (
-              codeChangeRanges.map((range) => {
+              codeChangeRanges.map((range, index) => {
                 const label = range[0] === range[1] ? `Line ${range[0]}` : `Lines ${range[0]}-${range[1]}`;
                 return (
-                  <div class="audit-change-pill" title="Source code edits">
-                    <span>{label}</span>
+                  <div
+                    key={`code-range-${range[0]}-${range[1]}-${index}`}
+                    class={pillClass}
+                    title="Source code edits"
+                  >
+                    <span class={pillTextClass}>{label}</span>
                   </div>
                 );
               })
             ))}
         </div>
       </div>
-      <div class="audit-changes-row">
+      <div class={rowClass}>
         <textarea
           ref={manualNoteRef}
-          class="audit-changes-input"
+          class={inputClass}
           placeholder="Add a note for the changes..."
           value={manualNote}
           onInput={(event) => {
@@ -231,7 +146,7 @@ export default function MessageEditor({
         ></textarea>
       </div>
       <button
-        class="audit-send-button"
+        class={sendButtonClass}
         title={applyTooltip}
         disabled={pendingCount === 0 && !isDirty && manualNote.trim().length === 0}
         onClick={onSend}

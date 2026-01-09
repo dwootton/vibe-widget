@@ -86,6 +86,12 @@ class CodeValidateTool(Tool):
             if "ReactDOM.render" in code or "createRoot(" in code:
                 issues.append("Do not call ReactDOM.render/createRoot; just return JSX from the widget function")
 
+            if re.search(r"\bhtml`", code) or re.search(r"\bHTML`", code):
+                issues.append("Do not use html` tagged templates; return JSX instead")
+
+            if re.search(r"\bHTML\s*\(", code):
+                issues.append("Do not call HTML(); return JSX instead")
+
             react_import_pattern = re.compile(
                 r"""(
                     from\s+["'](?:react(?:/jsx-runtime)?|react-dom(?:/client)?)["']|

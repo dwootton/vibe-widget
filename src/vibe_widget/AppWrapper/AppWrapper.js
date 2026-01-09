@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
+import "./styles/setup.js";
 import { ensureGlobalStyles } from "./utils/styles";
 import AuditNotice from "./components/AuditNotice";
 import StateViewer from "./components/StateViewer";
@@ -20,15 +21,82 @@ let appWrapperCounter = 0;
 function AppWrapper({ model }) {
   const instanceId = React.useRef(++appWrapperCounter).current;
   debugLog(model, "[vibe][debug] AppWrapper render", { instanceId });
+  console.log("[vibe][debug] AppWrapper render", {
+    instanceId,
+    modelId: model?.cid || model?.model_id || model?.id
+  });
 
   useEffect(() => {
+    if (!model) return;
+    const handleCommClose = () => {
+      model.__vibeCommClosed = true;
+      if (typeof model.__vibeOnCommClosed === "function") {
+        model.__vibeOnCommClosed();
+      }
+    };
+    if (typeof model.on === "function") {
+      model.on("comm:close", handleCommClose);
+    }
+    if (model.comm && typeof model.comm.on === "function") {
+      model.comm.on("close", handleCommClose);
+    }
     return () => {
+      if (typeof model.off === "function") {
+        model.off("comm:close", handleCommClose);
+      }
+      if (model.comm && typeof model.comm.off === "function") {
+        model.comm.off("close", handleCommClose);
+      }
+    };
+  }, [model]);
+
+  useEffect(() => {
+    if (!model || typeof model.save_changes !== "function") return;
+    const originalSave = model.save_changes.bind(model);
+    model.save_changes = (...args) => {
+      if (model.__vibeCommClosed) return;
       try {
-        if (model && typeof model.close === "function") {
-          model.close();
-        }
+        return originalSave(...args);
       } catch (err) {
-        // Ignore teardown failures during output clear.
+        const message = err instanceof Error ? err.message : String(err || "");
+        if (message.toLowerCase().includes("cannot send")) {
+          model.__vibeCommClosed = true;
+          return;
+        }
+        throw err;
+      }
+    };
+    return () => {
+      model.save_changes = originalSave;
+    };
+  }, [model]);
+
+  useEffect(() => {
+    if (typeof globalThis === "undefined") return;
+    const sink = (payload) => {
+      const debugEnabled =
+        globalThis.__VIBE_DEBUG === true ||
+        (model && typeof model.get === "function" && model.get("debug_mode") === true);
+      if (!debugEnabled) {
+        return;
+      }
+      try {
+        const current = model?.get?.("debug_event") || {};
+        model?.set?.("debug_event", {
+          ...payload,
+          modelId: model?.cid || model?.model_id || model?.id,
+          ts: Date.now(),
+          seq: (current.seq || 0) + 1
+        });
+        model?.save_changes?.();
+      } catch (err) {
+        // Ignore debug sink failures.
+      }
+    };
+    globalThis.__VIBE_DEBUG_SINK = sink;
+    return () => {
+      if (globalThis.__VIBE_DEBUG_SINK === sink) {
+        delete globalThis.__VIBE_DEBUG_SINK;
       }
     };
   }, [model]);
@@ -107,6 +175,26 @@ function AppWrapper({ model }) {
     }
   }, [model, instanceId, status, shouldRenderWidget]);
 
+  React.useEffect(() => {
+    debugLog(model, "[vibe][debug] AppWrapper view flags", {
+      instanceId,
+      status,
+      hasRuntimeError,
+      showStateViewer: status !== "ready" || hasRuntimeError,
+      showWidgetViewer: status === "ready" && shouldRenderWidget,
+      showSource
+    });
+    console.log("[vibe][debug] AppWrapper view flags", {
+      instanceId,
+      modelId: model?.cid || model?.model_id || model?.id,
+      status,
+      hasRuntimeError,
+      showStateViewer: status !== "ready" || hasRuntimeError,
+      showWidgetViewer: status === "ready" && shouldRenderWidget,
+      showSource
+    });
+  }, [model, instanceId, status, hasRuntimeError, shouldRenderWidget, showSource]);
+
   const handleStatePrompt = (prompt) => {
     const trimmed = (prompt || "").trim();
     if (!trimmed) return;
@@ -134,21 +222,7 @@ function AppWrapper({ model }) {
     >
       {showAudit && <AuditNotice onAccept={handleAuditAccept} />}
 
-      {status !== "ready" && (
-        <StateViewer
-          status={viewerStatus}
-          logs={logs}
-          widgetLogs={widgetLogs}
-          errorMessage={errorMessage}
-          widgetError={widgetError}
-          lastRuntimeError={lastRuntimeError}
-          retryCount={retryCount}
-          hideOuterStatus={true}
-          onSubmitPrompt={handleStatePrompt}
-        />
-      )}
-
-      {status === "ready" && hasRuntimeError && (
+      {(status !== "ready" || hasRuntimeError) && (
         <StateViewer
           status={viewerStatus}
           logs={logs}

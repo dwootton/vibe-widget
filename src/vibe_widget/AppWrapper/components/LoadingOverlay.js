@@ -25,7 +25,7 @@ export default function LoadingOverlay({ logs, hasExistingWidget }) {
             padding: "12px"
           }}
         >
-          <ProgressMap logs={logs} fullHeight={true} />
+          <ProgressMap logs={logs} fullHeight={true} debugLabel="LoadingOverlay" />
         </div>
       </div>
     );
@@ -33,7 +33,7 @@ export default function LoadingOverlay({ logs, hasExistingWidget }) {
 
   return (
     <div style={{ width: "100%", height: "100%" }}>
-      <ProgressMap logs={logs} fullHeight={true} />
+      <ProgressMap logs={logs} fullHeight={true} debugLabel="LoadingOverlay" />
     </div>
   );
 }

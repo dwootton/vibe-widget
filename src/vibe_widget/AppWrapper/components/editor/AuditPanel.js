@@ -1,4 +1,34 @@
 import React from "react";
+import { tw } from "../../styles/setup.js";
+
+const panelClass = tw("font-mono text-text-primary text-[12px]");
+const headerClass = tw("text-[11px] uppercase tracking-[0.08em] flex justify-between mb-2");
+const cardClass = tw(
+  "border-b border-[rgba(242,240,233,0.2)] rounded-[4px] px-2 py-3 transition-shadow duration-150"
+);
+const dimmedClass = tw("opacity-50");
+const highlightClass = tw("ring-1 ring-accent ring-inset");
+const cardTitleClass = tw("text-[10px] uppercase flex items-center gap-1");
+const impactDotClass = tw("w-2 h-2 rounded-full");
+const actionsClass = tw("flex gap-1 my-1");
+const actionButtonClass = tw(
+  "w-5 h-5 border border-[rgba(242,240,233,0.3)] rounded-[2px] bg-surface-2 text-text-primary text-[10px] transition-colors duration-150 hover:bg-surface-3"
+);
+const metaClass = tw("mb-1");
+const metaButtonClass = tw(
+  "border border-[rgba(242,240,233,0.2)] rounded-[2px] px-2 py-[2px] uppercase tracking-[0.04em] text-[10px] bg-surface-2 text-text-primary"
+);
+const summaryClass = tw("text-[11px] leading-[1.5]");
+const detailClass = tw("text-[11px] leading-[1.5]");
+const listClass = tw("text-[11px] leading-[1.5]");
+const alternativeClass = tw("text-accent underline text-[11px] cursor-pointer");
+const emptyClass = tw(
+  "border border-[rgba(242,240,233,0.2)] rounded-[2px] bg-surface-2 text-[11px] p-2"
+);
+const emptyActionListClass = tw("mt-2 space-y-1 text-[11px]");
+const toggleButtonClass = tw("text-accent underline text-[11px] cursor-pointer");
+const emptyListItemClass = tw("flex items-center justify-between gap-2 text-[11px]");
+const gridClass = tw("space-y-2");
 
 export default function AuditPanel({
   hasAuditPayload,
@@ -20,95 +50,20 @@ export default function AuditPanel({
 }) {
   const showEmpty = visibleConcerns.length === 0;
   const concernCountLabel = hasAuditPayload ? `${visibleConcerns.length} concerns` : "No audit yet";
+
   return (
-    <div class="audit-panel">
-      <style>{`
-        .audit-panel {
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          color: #f2f0e9;
-        }
-        .audit-panel a { color: #f97316; }
-        .audit-panel a:hover { color: #fb923c; }
-        .audit-panel-header {
-          font-size: 11px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 8px;
-        }
-        .audit-card {
-          border-bottom: 1px solid rgba(242, 240, 233, 0.2);
-          padding: 10px 0;
-        }
-        .audit-card-title {
-          font-size: 10px;
-          text-transform: uppercase;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .impact-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 999px;
-          display: inline-block;
-        }
-        .audit-card-actions {
-          display: flex;
-          gap: 6px;
-          margin: 6px 0;
-        }
-        .audit-card-actions button {
-          border-radius: 2px;
-          background: #0f0f0f;
-          color: #f2f0e9;
-          border: 1px solid rgba(242, 240, 233, 0.3);
-          font-size: 10px;
-          width: 20px;
-          height: 20px;
-        }
-        .audit-card-actions button:hover { background: #1a1a1a; }
-        .audit-line-link {
-          border: 1px solid rgba(242, 240, 233, 0.2);
-          border-radius: 2px;
-          padding: 2px 6px;
-          background: #0f0f0f;
-          color: #f2f0e9;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          font-size: 10px;
-        }
-        .audit-card-summary,
-        .audit-card-detail {
-          font-size: 11px;
-          line-height: 1.5;
-        }
-        .audit-run-link {
-          background: none;
-          border: none;
-          color: #f97316;
-          text-decoration: underline;
-          cursor: pointer;
-          font-size: 11px;
-          padding: 0 0 0 6px;
-        }
-        .audit-empty {
-          border: 1px solid rgba(242, 240, 233, 0.2);
-          border-radius: 2px;
-          background: #0f0f0f;
-          font-size: 11px;
-          padding: 10px;
-        }
-      `}</style>
-      <div class="audit-panel-header">
+    <div class={panelClass}>
+      <div class={headerClass}>
         <span>Audit Overview</span>
         <span>{concernCountLabel}</span>
       </div>
       {!showEmpty ? (
-        <div class="audit-grid">
-          {visibleConcerns.map(({ concern, cardId, index }) => {
+        <div class={gridClass}>
+          {visibleConcerns.map((entry, index) => {
+            const resolved = entry && entry.concern ? entry : { concern: entry };
+            const concern = resolved?.concern;
+            if (!concern) return null;
+            const cardId = resolved.cardId || concern.id || `concern-${index}`;
             const isExpanded = !!expandedCards[cardId];
             const showTechnical = !!technicalCards[cardId];
             const impact = (concern.impact || "low").toLowerCase();
@@ -124,18 +79,28 @@ export default function AuditPanel({
             const descriptionText = showTechnical && canToggleTechnical ? technicalSummary : plainSummary;
             const isDimmed = hoveredCardId && hoveredCardId !== cardId;
             const isHighlighted = hoveredCardId === cardId;
+            const classes = [
+              cardClass,
+              isDimmed ? dimmedClass : "",
+              isHighlighted ? highlightClass : ""
+            ]
+              .filter(Boolean)
+              .join(" ");
             return (
               <div
-                class={`audit-card ${isDimmed ? "dimmed" : ""} ${isHighlighted ? "highlight" : ""}`}
+                key={cardId}
+                class={classes}
                 onClick={() => onToggleExpanded(cardId)}
+                onMouseEnter={() => onHoverCard(cardId)}
+                onMouseLeave={() => onHoverCard(null)}
               >
-                <div class="audit-card-title" title={`Impact: ${impact}`}>
-                  <span class="impact-dot" style={{ background: impactColor }}></span>
+                <div class={cardTitleClass} title={`Impact: ${impact}`}>
+                  <span class={impactDotClass} style={{ background: impactColor }}></span>
                   <span>{concern.id || "concern"}</span>
                 </div>
-                <div class="audit-card-actions">
+                <div class={actionsClass}>
                   <button
-                    class="audit-add-button"
+                    class={actionButtonClass}
                     title="Add to Changes"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -145,7 +110,7 @@ export default function AuditPanel({
                     +
                   </button>
                   <button
-                    class="audit-dismiss-button"
+                    class={actionButtonClass}
                     title="Dismiss"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -155,9 +120,9 @@ export default function AuditPanel({
                     ×
                   </button>
                 </div>
-                <div class="audit-card-meta">
+                <div class={metaClass}>
                   <button
-                    class="audit-line-link"
+                    class={metaButtonClass}
                     onClick={(event) => {
                       event.stopPropagation();
                       if (location.length > 0) {
@@ -169,7 +134,7 @@ export default function AuditPanel({
                   </button>
                 </div>
                 <div
-                  class="audit-card-summary"
+                  class={summaryClass}
                   onClick={(event) => {
                     if (!canToggleTechnical) return;
                     event.stopPropagation();
@@ -180,25 +145,25 @@ export default function AuditPanel({
                   {descriptionText}
                 </div>
                 {isExpanded && detailText && (
-                  <div class="audit-card-detail">{detailText}</div>
+                  <div class={detailClass}>{detailText}</div>
                 )}
                 {isExpanded && concern.alternatives && concern.alternatives.length > 0 && (
-                  <div class="audit-card-list">
+                  <div class={listClass}>
                     Recommendations:{" "}
                     {Array.isArray(concern.alternatives)
-                      ? concern.alternatives.map((alt, altIndex) => {
+                      ? concern.alternatives.map((alt, index) => {
                           const altText = alt.option || alt;
-                          const isLast = altIndex === concern.alternatives.length - 1;
+                          const isLast = index === concern.alternatives.length - 1;
                           return (
-                            <span>
+                            <span key={`${cardId}-alt-${index}`}>
                               <span
-                                class="audit-alternative"
+                                class={alternativeClass}
                                 role="button"
                                 tabIndex="0"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   onAddPendingChange(concern, cardId, {
-                                    itemId: `${cardId}-alt-${altIndex}`,
+                                    itemId: `${cardId}-alt-${index}`,
                                     label: `Recommendation: ${altText}`,
                                     source: "recommendation",
                                     alternative: altText
@@ -208,7 +173,7 @@ export default function AuditPanel({
                                   if (event.key === "Enter" || event.key === " ") {
                                     event.preventDefault();
                                     onAddPendingChange(concern, cardId, {
-                                      itemId: `${cardId}-alt-${altIndex}`,
+                                      itemId: `${cardId}-alt-${index}`,
                                       label: `Recommendation: ${altText}`,
                                       source: "recommendation",
                                       alternative: altText
@@ -230,24 +195,26 @@ export default function AuditPanel({
           })}
         </div>
       ) : (
-        <div class="audit-empty">
+        <div class={emptyClass}>
           {hasAuditPayload
             ? "All audits resolved."
             : (
-              <>Run an audit to see findings. {onRunAudit && <button class="audit-run-link" onClick={onRunAudit}>Run an audit</button>}</>
+              <>Run an audit to see findings. {onRunAudit && (
+                <button class={toggleButtonClass} onClick={onRunAudit}>Run an audit</button>
+              )}</>
             )
           }
           {Object.keys(dismissedConcerns).length > 0 && (
-            <div>
-              <button onClick={onToggleDismissed}>
+            <div class={emptyActionListClass}>
+              <button class={toggleButtonClass} onClick={onToggleDismissed}>
                 {showDismissed ? "Hide dismissed" : "Show dismissed"}
               </button>
               {showDismissed && (
-                <div class="audit-dismissed-list">
+                <div>
                   {Object.entries(dismissedConcerns).map(([cardId, label]) => (
-                    <div class="audit-dismissed-item">
+                    <div key={cardId} class={emptyListItemClass}>
                       <span>{label}</span>
-                      <button onClick={() => onRestoreDismissed(cardId)}>
+                      <button class={toggleButtonClass} onClick={() => onRestoreDismissed(cardId)}>
                         Restore
                       </button>
                     </div>

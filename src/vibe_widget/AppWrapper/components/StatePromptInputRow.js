@@ -1,4 +1,28 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { css, tw } from "../styles/setup.js";
+
+const wrapperClass = tw("mr-2");
+const entryClass = tw("flex items-center gap-1 text-text-muted uppercase font-mono text-[12px]");
+const logIconClass = tw("flex-none text-text-muted");
+const logTextClass = tw("flex-1 flex items-start gap-1");
+const inputWrapperClass = tw("relative flex-1 min-w-0");
+const textareaClass = tw(
+  "w-full bg-transparent text-text-primary border-none outline-none focus:outline-none focus-visible:outline-none shadow-none p-0 m-0 resize-none font-mono text-[12px] leading-[1.4] caret-transparent disabled:text-[rgba(242,240,233,0.55)] appearance-none"
+);
+const mirrorClass = css({
+  position: "absolute",
+  inset: 0,
+  visibility: "hidden",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  padding: 0,
+  margin: 0,
+  fontFamily:
+    "JetBrains Mono, Space Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace",
+  fontSize: "12px",
+  lineHeight: "1.4"
+});
+const caretBaseClass = tw("absolute w-[0.7ch] bg-text-primary pointer-events-none top-0 left-0");
 
 export default function StatePromptInputRow({
   value,
@@ -6,7 +30,8 @@ export default function StatePromptInputRow({
   onSubmit,
   disabled = false,
   maxHeight = 200,
-  blink = true
+  blink = true,
+  caretOffset = 0
 }) {
   const textareaRef = useRef(null);
   const markerRef = useRef(null);
@@ -37,10 +62,10 @@ export default function StatePromptInputRow({
     const scrollLeft = textarea.scrollLeft || 0;
     setCaretStyle({
       left: marker.offsetLeft - scrollLeft,
-      top: marker.offsetTop - scrollTop,
+      top: marker.offsetTop - scrollTop + caretOffset,
       height: lineHeight
     });
-  }, []);
+  }, [caretOffset]);
 
   const autoResize = useCallback(() => {
     const textarea = textareaRef.current;
@@ -67,97 +92,14 @@ export default function StatePromptInputRow({
   }, [normalizedValue, updateCaretIndex]);
 
   return (
-    <div class="state-input-row">
-      <div class="log-entry log-entry--active log-entry--input">
-        <style>{`
-        .state-input-row {
-          border-top: 1px solid rgba(242, 240, 233, 0.25);
-          margin: 8px 8px 0;
-          padding-top: 12px;
-        }
-          .log-entry--input {
-            align-items: flex-start;
-          }
-        .log-entry--input .log-text {
-          display: flex;
-          align-items: flex-start;
-          gap: 4px;
-          width: 100%;
-          background: transparent;
-          padding: 0;
-          border: none;
-          border-radius: 2px;
-          margin-left: 4px;
-        }
-        .log-entry--input .log-icon {
-          margin-left: 0;
-        }
-          .state-input-wrapper {
-            position: relative;
-            flex: 1;
-            min-width: 0;
-          }
-        .state-input {
-          width: 100%;
-          background: transparent;
-          color: #f2f0e9;
-          border: none;
-          padding: 0;
-          margin: 0;
-          box-shadow: none;
-          outline: none;
-          appearance: none;
-            font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-              Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-size: 12px;
-            line-height: 1.4;
-            resize: none;
-            min-height: 20px;
-            caret-color: transparent;
-          }
-          .state-input:focus,
-          .state-input:focus-visible {
-            outline: none;
-            box-shadow: none;
-          }
-          .state-input:disabled {
-            color: rgba(242, 240, 233, 0.55);
-          }
-        .state-input-mirror {
-          position: absolute;
-          inset: 0;
-          visibility: hidden;
-          white-space: pre-wrap;
-          word-break: break-word;
-          padding: 0;
-          margin: 0;
-            font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-              Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-size: 12px;
-            line-height: 1.4;
-          }
-          .state-input-caret {
-            position: absolute;
-            width: 0.7ch;
-            background: #f2f0e9;
-            pointer-events: none;
-            top: 0;
-            left: 0;
-          }
-          .state-input-caret.is-blinking {
-            animation: terminalCaretBlink 1.6s steps(2, end) infinite;
-          }
-          @keyframes terminalCaretBlink {
-            0%, 49% { opacity: 1; }
-            50%, 100% { opacity: 0; }
-          }
-        `}</style>
-        <span class="log-icon log-icon--active">{">"}</span>
-        <span class="log-text">
-          <span class="state-input-wrapper" ref={wrapperRef}>
+    <div class={wrapperClass}>
+      <div class={entryClass}>
+        <span class={logIconClass}>{">"}</span>
+        <span class={logTextClass}>
+          <span class={inputWrapperClass} ref={wrapperRef}>
             <textarea
               ref={textareaRef}
-              class="state-input"
+              class={textareaClass}
               value={normalizedValue}
               disabled={disabled}
               rows={1}
@@ -177,13 +119,13 @@ export default function StatePromptInputRow({
               onSelect={updateCaretIndex}
               onScroll={updateCaretPosition}
             ></textarea>
-            <div class="state-input-mirror" ref={mirrorRef} aria-hidden="true">
+            <div class={mirrorClass} ref={mirrorRef} aria-hidden="true">
               {beforeCaret}
               <span ref={markerRef}>&#8203;</span>
               {afterCaret}
             </div>
             <span
-              class={`state-input-caret ${blink ? "is-blinking" : ""}`}
+              class={`${caretBaseClass} ${blink ? "animate-terminal-caret-blink" : ""}`}
               style={{
                 transform: `translate(${caretStyle.left}px, ${caretStyle.top}px)`,
                 height: `${caretStyle.height}px`

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import TerminalViewer from "./TerminalViewer";
 import { buildStackSummary } from "../utils/stackSummary";
+import { tw } from "../styles/setup.js";
 
 function buildStatusLabel(status) {
   if (status === "retrying") return "Repairing widget";
@@ -9,6 +10,11 @@ function buildStatusLabel(status) {
   if (status === "generating") return "Generating widget";
   return "Preparing widget";
 }
+
+const containerClass = tw("w-full h-full flex flex-col gap-3 p-3 box-border");
+const headerClass = tw("flex items-center justify-between gap-2 w-full px-2 text-xs font-mono uppercase tracking-[0.06em]");
+const metaClass = tw("text-[11px] text-text-muted text-right");
+const bodyClass = tw("flex-1 min-h-0");
 
 export default function StateViewer({
   status,
@@ -87,65 +93,17 @@ export default function StateViewer({
     setPrompt("");
   };
 
+  const statusColor = status === "blocked" ? "text-error-light" : "text-text-primary";
+
   return (
-    <div class="state-viewer">
-      <style>{`
-        .state-viewer {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: 12px;
-          box-sizing: border-box;
-        }
-        .state-viewer-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          color: #e2e8f0;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 12px;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          width: 100%;
-          padding: 0 8px;
-        }
-        .state-viewer-status {
-          color: ${status === "blocked" ? "#fca5a5" : "#f8fafc"};
-          flex: 1;
-        }
-        .state-viewer-meta {
-          font-size: 11px;
-          color: #9ca3af;
-          text-transform: none;
-          text-align: right;
-        }
-        .state-viewer-body {
-          flex: 1;
-          min-height: 0;
-        }
-        .state-debug-banner {
-          border: 1px solid rgba(242, 240, 233, 0.35);
-          background: rgba(26, 26, 26, 0.7);
-          color: #f8fafc;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          line-height: 1.4;
-          padding: 8px 10px;
-          border-radius: 6px;
-          white-space: pre-wrap;
-        }
-      `}</style>
+    <div class={containerClass}>
       {!hideOuterStatus && (
-        <div class="state-viewer-header">
-          <span class="state-viewer-status">{buildStatusLabel(status)}</span>
-          <span class="state-viewer-meta">Retries: {retryCount ?? 0}</span>
+        <div class={headerClass}>
+          <span class={`${statusColor} flex-1`}>{buildStatusLabel(status)}</span>
+          <span class={metaClass}>Retries: {retryCount ?? 0}</span>
         </div>
       )}
-      <div class="state-viewer-body">
+      <div class={bodyClass}>
         <TerminalViewer
           logs={displayLogs}
           status={status}
@@ -155,6 +113,7 @@ export default function StateViewer({
           onPromptSubmit={handleSubmit}
           promptDisabled={!canPrompt}
           promptBlink={true}
+          debugLabel="StateViewer"
         />
       </div>
     </div>

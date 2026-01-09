@@ -24,6 +24,7 @@ function SandboxedRunner({ code, model, runKey }) {
   const [GuestWidget, setGuestWidget] = React.useState(null);
   const logQueueRef = React.useRef([]);
   const flushTimerRef = React.useRef(null);
+  const lastConsoleErrorRef = React.useRef("");
 
   const flushLogs = React.useCallback(() => {
     if (!logQueueRef.current.length) return;
@@ -62,7 +63,18 @@ function SandboxedRunner({ code, model, runKey }) {
       original.warn(...args);
     };
     console.error = (...args) => {
-      enqueueLog("error", args.map(String).join(" "));
+      const message = args.map(String).join(" ");
+      enqueueLog("error", message);
+      const explicitError = args.find((arg) => arg instanceof Error);
+      const candidate =
+        explicitError ||
+        (typeof message === "string" && /(^|\b)(TypeError|ReferenceError|SyntaxError|Error):/i.test(message)
+          ? new Error(message)
+          : null);
+      if (candidate && message !== lastConsoleErrorRef.current) {
+        lastConsoleErrorRef.current = message;
+        captureRuntimeError({ model, enqueueLog, err: candidate });
+      }
       original.error(...args);
     };
 
@@ -91,6 +103,7 @@ function SandboxedRunner({ code, model, runKey }) {
 
     const guardState = { closed: false };
     const disposers = [];
+    const previousCommClosed = model.__vibeOnCommClosed;
 
     // Preserve originals
     const originalSet = model.set?.bind(model);
@@ -124,6 +137,9 @@ function SandboxedRunner({ code, model, runKey }) {
       model.set = () => undefined;
       model.save_changes = () => undefined;
       setGuestWidget(null);
+      if (model.__vibeOnCommClosed === teardown) {
+        model.__vibeOnCommClosed = previousCommClosed;
+      }
     };
 
     // Patch timers
@@ -146,16 +162,21 @@ function SandboxedRunner({ code, model, runKey }) {
     // Patch model.on/off if available to auto-unsubscribe
     if (model && typeof model.on === "function" && typeof model.off === "function") {
       const originalOn = model.on.bind(model);
+      const originalOff = model.off.bind(model);
       model.on = (event, handler, ...rest) => {
         originalOn(event, handler, ...rest);
         trackDisposer(() => {
           try {
-            model.off(event, handler, ...rest);
+            originalOff(event, handler, ...rest);
           } catch (_) {
             /* ignore */
           }
         });
       };
+      trackDisposer(() => {
+        model.on = originalOn;
+        model.off = originalOff;
+      });
     }
 
     // Guard model.set/save_changes to halt on closed comm
@@ -166,6 +187,7 @@ function SandboxedRunner({ code, model, runKey }) {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err || "");
         if (msg.toLowerCase().includes("cannot send")) {
+          model.__vibeCommClosed = true;
           enqueueLog("warn", "Widget comm closed; tearing down widget runtime.");
           teardown();
           return;
@@ -181,6 +203,13 @@ function SandboxedRunner({ code, model, runKey }) {
       model.save_changes = guardCall(originalSave);
     }
 
+    model.__vibeOnCommClosed = () => {
+      if (typeof previousCommClosed === "function") {
+        previousCommClosed();
+      }
+      teardown();
+    };
+
     const handleWindowError = (event) => {
       if (!event) return;
       const err = event.error || event.reason || event.message || event;
@@ -193,7 +222,10 @@ function SandboxedRunner({ code, model, runKey }) {
     trackDisposer(() => window.removeEventListener("unhandledrejection", handleWindowError));
 
     const transformWidgetCode = (source) => {
-      const wrapped = `const React = globalThis.__VIBE_REACT;\n${source}`;
+      const wrapped = `const React = globalThis.__VIBE_REACT;
+const tw = globalThis.__VIBE_TW;
+const css = globalThis.__VIBE_CSS;
+${source}`;
       const result = Babel.transform(wrapped, {
         presets: [["react", { runtime: "classic", pragma: "React.createElement", pragmaFrag: "React.Fragment" }]],
         sourceType: "module",
@@ -258,11 +290,7 @@ function SandboxedRunner({ code, model, runKey }) {
   }, [code, model, handleRuntimeError, runKey]);
 
   if (!GuestWidget) {
-    return (
-      <div style={{ padding: "20px", color: "#8b949e" }}>
-        Loading widget...
-      </div>
-    );
+    return null;
   }
 
   class RuntimeErrorBoundary extends React.Component {

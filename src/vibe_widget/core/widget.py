@@ -4,6 +4,7 @@ Clean, robust widget generation without legacy profile logic.
 """
 from pathlib import Path
 from typing import Any, Union
+from datetime import datetime, timezone
 import json
 import inspect
 import sys
@@ -103,8 +104,18 @@ def _get_widget_class(
 logger = get_logger(__name__)
 
 def _write_debug_log(event: str, payload: str = "") -> None:
-    """No-op debug logger (debug file output removed)."""
-    return
+    """Append debug events to logs.txt for local inspection."""
+    try:
+        repo_root = Path(__file__).resolve().parents[3]
+        log_path = repo_root / "logs.txt"
+        timestamp = datetime.now(timezone.utc).isoformat()
+        entry = f"{timestamp} | {event}"
+        if payload:
+            entry = f"{entry} | {payload}"
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(entry + "\n")
+    except Exception:
+        return
 _EDITOR_BUNDLE_CACHE: str | None = None
 
 
@@ -123,6 +134,8 @@ class VibeWidget(anywidget.AnyWidget):
     action_event = traitlets.Dict({}).tag(sync=True)
     audit_state = traitlets.Dict({}).tag(sync=True)
     execution_state = traitlets.Dict({}).tag(sync=True)
+    debug_mode = traitlets.Bool(False).tag(sync=True)
+    debug_event = traitlets.Dict({}).tag(sync=True)
     _is_closed = traitlets.Bool(False).tag(sync=False)
 
     def close(self) -> None:
@@ -349,6 +362,7 @@ class VibeWidget(anywidget.AnyWidget):
             retry_count=0,
             audit_state=audit_state,
             execution_state=execution_state,
+            debug_mode=False,
             state_prompt_request={},
             **kwargs
         )
@@ -367,6 +381,7 @@ class VibeWidget(anywidget.AnyWidget):
         self.observe(self._on_audit_state, names='audit_state')
         self.observe(self._on_code_change, names='code')
         self.observe(self._on_execution_state, names='execution_state')
+        self.observe(self._on_debug_event, names='debug_event')
         self.on_msg(self._handle_custom_msg)
         
         try:
@@ -1719,6 +1734,18 @@ Find this element in the code and apply the requested change. The element should
         updated = dict(new_state)
         updated["approved_hash"] = current_hash
         self.execution_state = updated
+
+    def _on_debug_event(self, change):
+        """Persist frontend debug events to logs.txt."""
+        payload = change.get("new") or {}
+        if not payload:
+            return
+        event = payload.get("source", "debug")
+        message = payload.get("message") or payload.get("event") or ""
+        label = payload.get("label") or ""
+        meta = payload.get("modelId") or ""
+        parts = [part for part in [meta, label, message] if part]
+        _write_debug_log(event, " | ".join(parts))
 
 
 

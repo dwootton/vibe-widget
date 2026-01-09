@@ -1,4 +1,5 @@
 export function requestGrabEdit(model, { element, prompt }) {
+  if (model?.__vibeCommClosed) return;
   model.set("grab_edit_request", {
     element,
     prompt
@@ -7,6 +8,7 @@ export function requestGrabEdit(model, { element, prompt }) {
 }
 
 export function resetRuntimeErrorsForRetry(model) {
+  if (model?.__vibeCommClosed) return;
   model.set("error_message", "");
   model.set("widget_error", "");
   model.set("retry_count", 0);
@@ -15,6 +17,7 @@ export function resetRuntimeErrorsForRetry(model) {
 }
 
 export function applyAuditChanges(model, { changes, baseCode }) {
+  if (model?.__vibeCommClosed) return;
   const currentState = model.get("audit_state") || {};
   model.set("audit_state", {
     ...currentState,
@@ -27,6 +30,7 @@ export function applyAuditChanges(model, { changes, baseCode }) {
 }
 
 export function requestAudit(model, level) {
+  if (model?.__vibeCommClosed) return;
   const currentState = model.get("audit_state") || {};
   model.set("audit_state", {
     ...currentState,
@@ -39,12 +43,14 @@ export function requestAudit(model, level) {
 }
 
 export function updateCode(model, nextCode) {
+  if (model?.__vibeCommClosed) return;
   model.set("error_message", "");
   model.set("code", nextCode);
   model.save_changes();
 }
 
 export function approveExecution(model) {
+  if (model?.__vibeCommClosed) return;
   const currentState = model.get("execution_state") || {};
   model.set("execution_state", {
     ...currentState,
@@ -54,11 +60,13 @@ export function approveExecution(model) {
 }
 
 export function requestStatePrompt(model, payload) {
+  if (model?.__vibeCommClosed) return;
   model.set("state_prompt_request", payload || {});
   model.save_changes();
 }
 
 export function appendWidgetLogs(model, entries) {
+  if (model?.__vibeCommClosed) return;
   const nextEntries = Array.isArray(entries) ? entries : [];
   if (nextEntries.length === 0) {
     return;

@@ -2,6 +2,9 @@ import React from "react";
 import ProgressMap from "./ProgressMap";
 import StatePromptInputRow from "./StatePromptInputRow";
 import AttachmentStrip from "./AttachmentStrip";
+import { tw } from "../styles/setup.js";
+
+const footerClass = tw("flex flex-col gap-2 border-t border-[rgba(242,240,233,0.25)] mt-2 pt-3");
 
 export default function TerminalViewer({
   logs,
@@ -12,7 +15,8 @@ export default function TerminalViewer({
   onPromptSubmit,
   promptDisabled,
   attachments,
-  promptBlink = false
+  promptBlink = false,
+  debugLabel = "TerminalViewer"
 }) {
   const hasAttachments =
     attachments &&
@@ -21,22 +25,7 @@ export default function TerminalViewer({
       attachments.isDirty);
 
   const footer = (
-    <div class="terminal-footer">
-      <style>{`
-        .terminal-footer {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-      `}</style>
-      <StatePromptInputRow
-        value={promptValue}
-        onChange={onPromptChange}
-        onSubmit={onPromptSubmit}
-        disabled={promptDisabled}
-        blink={promptBlink}
-        maxHeight={200}
-      />
+    <div class={footerClass}>
       {hasAttachments && (
         <AttachmentStrip
           pendingChanges={attachments.pendingChanges}
@@ -51,6 +40,14 @@ export default function TerminalViewer({
           bubbleEditorRef={attachments.bubbleEditorRef}
         />
       )}
+      <StatePromptInputRow
+        value={promptValue}
+        onChange={onPromptChange}
+        onSubmit={onPromptSubmit}
+        disabled={promptDisabled}
+        blink={promptBlink}
+        maxHeight={200}
+      />
     </div>
   );
 
@@ -61,6 +58,7 @@ export default function TerminalViewer({
       fullHeight={true}
       heading={heading}
       footer={footer}
+      debugLabel={debugLabel}
     />
   );
 }

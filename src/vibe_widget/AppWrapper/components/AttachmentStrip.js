@@ -1,4 +1,36 @@
 import React from "react";
+import { css, tw } from "../styles/setup.js";
+
+const containerClass = tw("flex flex-col gap-[6px]");
+const rowClass = css({
+  display: "flex",
+  gap: "8px",
+  alignItems: "center",
+  overflowX: "auto",
+  paddingBottom: "2px",
+  scrollbarWidth: "none",
+  "&::-webkit-scrollbar": {
+    width: 0,
+    height: 0
+  }
+});
+const pillClass = tw(
+  "inline-flex items-center gap-2 bg-[#0b0b0b] border border-[#4b5563] rounded-[2px] px-2 py-[4px] text-[11px] text-[#e5e7eb] max-w-[220px] relative cursor-pointer whitespace-nowrap"
+);
+const pillTextClass = tw("overflow-hidden text-ellipsis whitespace-nowrap");
+const removeButtonClass = tw(
+  "border-none bg-transparent text-[#9aa4b2] cursor-pointer text-[12px] leading-[1] transition-colors duration-150 hover:text-error"
+);
+const bubbleEditorClass = tw(
+  "absolute bottom-[130%] left-0 w-[240px] bg-[#0f141a] border border-[rgba(71,85,105,0.6)] rounded-[10px] p-2 shadow-[0_12px_24px_rgba(0,0,0,0.4)] z-10"
+);
+const bubbleTextareaClass = tw(
+  "w-full min-h-[80px] bg-[#12141d] text-[#e5e7eb] border border-[rgba(71,85,105,0.6)] rounded-[8px] px-2 py-1 font-mono text-[11px] resize-y"
+);
+const bubbleActionsClass = tw("flex justify-end gap-1 mt-1");
+const bubbleButtonClass = tw(
+  "bg-[rgba(239,125,69,0.9)] text-[#0b0b0b] border-none rounded-[6px] px-2 py-1 text-[10px] cursor-pointer"
+);
 
 export default function AttachmentStrip({
   pendingChanges,
@@ -12,113 +44,22 @@ export default function AttachmentStrip({
   onHoverCard,
   bubbleEditorRef
 }) {
-  const pendingCount = pendingChanges.length;
-
   return (
-    <div class="terminal-attachments">
-      <style>{`
-        .terminal-attachments {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .terminal-attachments-row {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          overflow-x: auto;
-          padding-bottom: 2px;
-          scrollbar-width: none;
-        }
-        .terminal-attachments-row::-webkit-scrollbar {
-          width: 0;
-          height: 0;
-        }
-        .audit-change-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          background: #0b0b0b;
-          border: 1px solid #4b5563;
-          border-radius: 6px;
-          padding: 6px 10px;
-          color: #e5e7eb;
-          font-size: 11px;
-          max-width: 220px;
-          position: relative;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .audit-change-pill span {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .audit-change-remove {
-          border: none;
-          background: transparent;
-          color: #9aa4b2;
-          cursor: pointer;
-          font-size: 12px;
-          line-height: 1;
-        }
-        .audit-change-remove:hover {
-          color: #f87171;
-        }
-        .audit-bubble-editor {
-          position: absolute;
-          bottom: 130%;
-          left: 0;
-          width: 240px;
-          background: #0f141a;
-          border: 1px solid rgba(71, 85, 105, 0.6);
-          border-radius: 10px;
-          padding: 8px;
-          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
-          z-index: 10;
-        }
-        .audit-bubble-editor textarea {
-          width: 100%;
-          min-height: 80px;
-          background: #12141d;
-          color: #e5e7eb;
-          border: 1px solid rgba(71, 85, 105, 0.6);
-          border-radius: 8px;
-          padding: 6px;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          resize: vertical;
-        }
-        .audit-bubble-editor-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 6px;
-          margin-top: 6px;
-        }
-        .audit-bubble-editor button {
-          background: rgba(239, 125, 69, 0.9);
-          color: #0b0b0b;
-          border: none;
-          border-radius: 6px;
-          padding: 4px 8px;
-          font-size: 10px;
-          cursor: pointer;
-        }
-      `}</style>
-      <div class="terminal-attachments-row">
+    <div class={containerClass}>
+      <div class={rowClass}>
         {pendingChanges.map((item) => {
           const isEditing = editingBubbleId === item.itemId;
           return (
             <div
-              class="audit-change-pill"
+              key={item.itemId}
+              class={pillClass}
               onMouseEnter={() => onHoverCard(item.cardId)}
               onMouseLeave={() => onHoverCard(null)}
               onClick={() => onStartEdit(item)}
             >
-              <span title={item.label}>{item.label}</span>
+              <span class={pillTextClass} title={item.label}>{item.label}</span>
               <button
-                class="audit-change-remove"
+                class={removeButtonClass}
                 title="Remove"
                 onClick={(event) => {
                   event.stopPropagation();
@@ -128,14 +69,16 @@ export default function AttachmentStrip({
                 ×
               </button>
               {isEditing && (
-                <div class="audit-bubble-editor" ref={bubbleEditorRef}>
+                <div class={bubbleEditorClass} ref={bubbleEditorRef}>
                   <textarea
+                    class={bubbleTextareaClass}
                     value={editingText}
                     onInput={(event) => onEditingTextChange(event.target.value)}
                     placeholder="Edit what will be sent..."
                   ></textarea>
-                  <div class="audit-bubble-editor-actions">
+                  <div class={bubbleActionsClass}>
                     <button
+                      class={bubbleButtonClass}
                       onClick={(event) => {
                         event.stopPropagation();
                         onSaveEdit();
@@ -151,21 +94,22 @@ export default function AttachmentStrip({
         })}
         {codeChangeRanges.length >= 3 ? (
           <div
-            class="audit-change-pill"
+            key="code-change-summary"
+            class={pillClass}
             title={`Changed: ${codeChangeRanges
               .map((range) =>
                 range[0] === range[1] ? `Line ${range[0]}` : `Lines ${range[0]}-${range[1]}`
               )
               .join(", ")}`}
           >
-            <span>Code changes ({codeChangeRanges.length})</span>
+            <span class={pillTextClass}>Code changes ({codeChangeRanges.length})</span>
           </div>
         ) : (
-          codeChangeRanges.map((range) => {
+          codeChangeRanges.map((range, idx) => {
             const label = range[0] === range[1] ? `Line ${range[0]}` : `Lines ${range[0]}-${range[1]}`;
             return (
-              <div class="audit-change-pill" title="Source code edits">
-                <span>{label}</span>
+              <div class={pillClass} title="Source code edits" key={`code-range-${range[0]}-${range[1]}-${idx}`}>
+                <span class={pillTextClass}>{label}</span>
               </div>
             );
           })

@@ -4,6 +4,23 @@ import AuditPanel from "./AuditPanel";
 import EditorHeader from "./EditorHeader";
 import TerminalViewer from "../TerminalViewer";
 import { buildStackSummary } from "../../utils/stackSummary";
+import { tw } from "../../styles/setup.js";
+
+const overlayClass = tw(
+  "absolute inset-0 z-[1100] flex items-stretch justify-stretch p-4 box-border bg-[rgba(0,0,0,0.7)] backdrop-blur-[4px]"
+);
+const cardClass = tw(
+  "w-full h-full max-w-full max-h-full bg-[#0c0c0c] border border-[rgba(242,240,233,0.12)] rounded-[8px] shadow-[0_18px_48px_rgba(0,0,0,0.55)] flex flex-col overflow-hidden min-w-0 min-h-0"
+);
+const bodyClass = tw("flex-1 flex flex-col min-h-0 gap-2 p-[8px_12px_12px] overflow-hidden");
+const errorBannerClass = tw(
+  "rounded-[6px] border border-[rgba(239,125,69,0.4)] bg-[rgba(239,125,69,0.1)] text-error-light text-[12px] font-mono whitespace-pre-wrap px-3 py-2"
+);
+const debugBannerClass = tw(
+  "rounded-[6px] border border-[rgba(59,130,246,0.3)] bg-[rgba(59,130,246,0.12)] text-[#cbd5e1] text-[12px] font-mono whitespace-pre-wrap px-3 py-2"
+);
+const mainGridClass = tw("flex-[1.45] grid gap-3 min-h-0");
+const terminalWrapperClass = tw("mt-1 flex-[0.75] min-h-0");
 
 export default function EditorViewer({
   code,
@@ -42,17 +59,10 @@ export default function EditorViewer({
   const [editingText, setEditingText] = useState("");
   const [codeChangeRanges, setCodeChangeRanges] = useState([]);
   const [terminalPrompt, setTerminalPrompt] = useState("");
-  const [showDismissedLocal, setShowDismissedLocal] = useState(false);
 
   const hasAuditReport = auditReport && auditReport.length > 0;
   const auditPayload = auditData?.fast_audit || auditData?.full_audit || null;
-  const auditSavedPath = auditMeta?.saved_path || "";
-  const auditIndicator = auditSavedPath
-    ? `Saved to ${auditSavedPath}`
-    : hasAuditReport
-      ? "Audit saved"
-      : "";
-  const hasAuditPayload = !!auditPayload;
+  const hasAuditPayload = !!(auditPayload && Object.keys(auditPayload).length > 0);
   const showApprove = approvalMode && !isApproved;
   const canPrompt = status !== "retrying";
 
@@ -111,93 +121,52 @@ export default function EditorViewer({
 
   const visibleConcerns = auditPayload?.concerns || auditPayload?.concerns || [];
 
+  const handleOverlayClick = (event) => {
+    if (event.target !== event.currentTarget) return;
+    onClose();
+  };
+  const handleTerminalSubmit = () => {
+    if (!onSubmitPrompt) return;
+    const trimmed = terminalPrompt.trim();
+    if (!trimmed) return;
+    onSubmitPrompt(trimmed);
+    setTerminalPrompt("");
+    onClose();
+  };
+  const handleAuditAction = () => {
+    if (!onAudit) return;
+    if (hasAuditPayload) {
+      setShowAuditPanel((prev) => !prev);
+      return;
+    }
+    setShowAuditPanel(true);
+    onAudit("fast");
+  };
+
   return (
-    <div class="source-viewer">
-      <style>{`
-        .source-viewer {
-          position: fixed;
-          inset: 0;
-          z-index: 1100;
-          background: rgba(0, 0, 0, 0.7);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 16px;
-          box-sizing: border-box;
-        }
-        .source-viewer-card {
-          width: min(1080px, 96vw);
-          height: min(720px, 92vh);
-          background: #0c0c0c;
-          border: 1px solid rgba(242, 240, 233, 0.12);
-          border-radius: 8px;
-          box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-        .source-viewer-body {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          padding: 8px 12px 12px;
-          overflow: hidden;
-        }
-        .source-viewer-main {
-          flex: 1;
-          display: grid;
-          grid-template-columns: ${showAuditPanel ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)"};
-          gap: 12px;
-          min-height: 0;
-        }
-        .source-viewer-terminal {
-          margin-top: 6px;
-        }
-        .source-viewer-error-banner {
-          background: rgba(239, 125, 69, 0.1);
-          color: #fca5a5;
-          border: 1px solid rgba(239, 125, 69, 0.4);
-          border-radius: 6px;
-          padding: 8px 10px;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 12px;
-          white-space: pre-wrap;
-        }
-        .source-debug-banner {
-          background: rgba(59, 130, 246, 0.12);
-          color: #cbd5e1;
-          border: 1px solid rgba(59, 130, 246, 0.3);
-          border-radius: 6px;
-          padding: 8px 10px;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 12px;
-          white-space: pre-wrap;
-        }
-      `}</style>
-      <div class="source-viewer-card" role="dialog" aria-live="polite">
+    <div class={overlayClass} onClick={handleOverlayClick}>
+      <div class={cardClass} role="dialog" aria-live="polite" onClick={(event) => event.stopPropagation()}>
         <EditorHeader
           showApprove={showApprove}
-          auditIndicator={auditIndicator}
-          auditStatus={auditStatus}
           hasAuditPayload={hasAuditPayload}
           showAuditPanel={showAuditPanel}
           onToggleAuditPanel={() => setShowAuditPanel(!showAuditPanel)}
-          onRunAudit={() => {
-            setShowAuditPanel(true);
-            onAudit("fast");
-          }}
+          onRunAudit={handleAuditAction}
           onApprove={onApprove}
           onClose={onClose}
         />
-        <div class="source-viewer-body">
-          {lastRuntimeError && <div class="source-debug-banner">Last runtime error:{`\n`}{lastRuntimeError}</div>}
-          {errorMessage && <div class="source-viewer-error-banner">{errorMessage}</div>}
-          {auditError && <div class="source-viewer-error-banner">Audit failed: {auditError}</div>}
-          {auditApplyError && <div class="source-viewer-error-banner">Apply failed: {auditApplyError}</div>}
-          <div class="source-viewer-main">
+        <div class={bodyClass}>
+          {lastRuntimeError && <div class={debugBannerClass}>Last runtime error:{`\n`}{lastRuntimeError}</div>}
+          {errorMessage && <div class={errorBannerClass}>{errorMessage}</div>}
+          {auditError && <div class={errorBannerClass}>Audit failed: {auditError}</div>}
+          {auditApplyError && <div class={errorBannerClass}>Apply failed: {auditApplyError}</div>}
+          <div
+            class={mainGridClass}
+            style={{
+              gridTemplateColumns: showAuditPanel ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)",
+              gridAutoRows: "minmax(0, 1fr)"
+            }}
+          >
             <CodeEditor value={draftCode} onChange={setDraftCode} />
             {showAuditPanel && (
               <AuditPanel
@@ -233,18 +202,16 @@ export default function EditorViewer({
               />
             )}
           </div>
-          <div
-            class="source-viewer-terminal"
-            style={{ height: "180px" }}
-          >
+          <div class={terminalWrapperClass} style={{ flexShrink: 0 }}>
             <TerminalViewer
-              logs={displayLogs}
+              logs={[]}
               status={status || "ready"}
               heading={null}
               promptValue={terminalPrompt}
               onPromptChange={setTerminalPrompt}
-              onPromptSubmit={onSubmitPrompt ? () => onSubmitPrompt(terminalPrompt) : () => {}}
+              onPromptSubmit={handleTerminalSubmit}
               promptDisabled={!canPrompt}
+              debugLabel="EditorViewer"
               attachments={{
                 pendingChanges,
                 codeChangeRanges,

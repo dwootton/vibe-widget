@@ -1,4 +1,35 @@
 import React, { useMemo } from "react";
+import { css, tw } from "../styles/setup.js";
+
+const containerClass = tw("absolute top-3 right-3 z-[1000]");
+const dotWrapperClass = tw("relative w-5 h-5");
+const dotClass = tw(
+  "w-5 h-5 rounded-none flex items-center justify-center border-2 border-[#2a2a2a] bg-white cursor-pointer"
+);
+const dotInnerClass = tw("w-2 h-2 rounded-full bg-accent");
+const badgeClass = tw(
+  "absolute top-2 right-2 w-5 h-5 rounded-full bg-error text-black text-[9px] font-semibold flex items-center justify-center"
+);
+const menuClass = tw(
+  "absolute top-5 right-0 bg-surface-2 border border-border-medium rounded-[2px] px-1 py-1 min-w-[170px] shadow-[0_8px_24px_rgba(0,0,0,0.4)]"
+);
+const menuOptionClass = tw(
+  "w-full text-left pl-[10px] pr-[20px] py-[6px] flex items-center justify-between gap-2 text-xs font-mono text-text-primary rounded-[2px] transition-colors duration-200 hover:bg-surface-3 focus:outline-none"
+);
+const menuOptionAfter = css({
+  "&::after": {
+    content: '"<"',
+    color: "currentColor",
+    marginLeft: "8px"
+  }
+  ,
+  "&[disabled]": {
+    color: "rgba(148, 163, 184, 1)",
+    cursor: "not-allowed",
+    opacity: "0.65"
+  }
+});
+const menuOptionButtonClass = `${menuOptionClass} ${menuOptionAfter}`;
 
 export default function FloatingMenu({
   isOpen,
@@ -9,124 +40,33 @@ export default function FloatingMenu({
   isEditMode
 }) {
   const badge = highAuditCount > 0 ? (
-    <div class="menu-badge" title="High impact audit items">
+    <div class={badgeClass} title="High impact audit items">
       {highAuditCount}
     </div>
   ) : null;
 
   const options = useMemo(() => (
-    <div class="menu-options">
-      <div class="menu-option" onClick={onGrabModeStart}>Edit Element</div>
-      <div class="menu-option" onClick={onViewSource}>Edit Code</div>
-      <div class="menu-option disabled">Export (TBD)</div>
+    <div class={menuClass}>
+      <button type="button" class={menuOptionButtonClass} onClick={onGrabModeStart}>
+        Edit Element
+      </button>
+      <button type="button" class={menuOptionButtonClass} onClick={onViewSource}>
+        Edit Code
+      </button>
+      <button type="button" class={menuOptionButtonClass} disabled>
+        Export (TBD)
+      </button>
     </div>
   ), [onGrabModeStart, onViewSource]);
 
   return (
-    <div class="floating-menu-container">
-      <style>{`
-        .floating-menu-container {
-          position: absolute;
-          top: 12px;
-          right: 12px;
-          z-index: 1000;
-        }
-        .menu-dot-wrapper {
-          position: relative;
-          width: 20px;
-          height: 20px;
-        }
-        .menu-dot {
-          width: 20px;
-          height: 20px;
-          border-radius: 0;
-          background: #ffffff;
-          border: 2px solid #2a2a2a;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: none;
-          transition: none;
-        }
-        .menu-badge {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          width: 20px;
-          height: 20px;
-          border-radius: 999px;
-          background: #f87171;
-          color: #0b0b0b;
-          font-size: 9px;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .menu-dot:hover {
-          transform: none;
-          box-shadow: none;
-        }
-        .menu-dot.spinning {
-          animation: spin 2s linear infinite;
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .menu-dot-inner {
-          width: 8px;
-          height: 8px;
-          border-radius: 999px;
-          background: #f97316;
-        }
-        .menu-options {
-          position: absolute;
-          top: 20px;
-          right: 0;
-          background: #0f0f0f;
-          border: 1px solid rgba(242, 240, 233, 0.35);
-          border-radius: 2px;
-          padding: 4px 0;
-          min-width: 170px;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-        }
-        .menu-option {
-          padding: 6px 20px 6px 10px;
-          color: #f2f0e9;
-          cursor: pointer;
-          border-radius: 2px;
-          font-size: 12px;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          position: relative;
-          transition: background 0.2s;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        .menu-option::after {
-          content: "<";
-          color: currentColor;
-          margin-left: 8px;
-        }
-        .menu-option:hover {
-          background: #1a1a1a;
-        }
-        .menu-option.disabled {
-          color: #6b7280;
-          cursor: not-allowed;
-        }
-      `}</style>
-
-      <div class="menu-dot-wrapper">
-        <div class={`menu-dot ${isEditMode ? "spinning" : ""}`} onClick={onToggle}>
-          <div class="menu-dot-inner"></div>
+    <div class={containerClass}>
+      <div class={dotWrapperClass}>
+        <div class={`${dotClass} ${isEditMode ? "animate-spin-slow" : ""}`} onClick={onToggle}>
+          <div class={dotInnerClass}></div>
         </div>
         {badge}
       </div>
-
       {isOpen ? options : null}
     </div>
   );

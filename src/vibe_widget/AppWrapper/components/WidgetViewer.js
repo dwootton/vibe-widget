@@ -7,6 +7,7 @@ import EditPromptPanel from "./EditPromptPanel";
 import useGrabEdit from "../hooks/useGrabEdit";
 import useKeyboardShortcuts from "../hooks/useKeyboardShortcuts";
 import { debugLog } from "../utils/debug";
+import { tw } from "../styles/setup.js";
 
 let widgetViewerCounter = 0;
 
@@ -32,7 +33,7 @@ export default function WidgetViewer({
   useKeyboardShortcuts({ isLoading: false, hasCode, grabMode, onGrabStart: handleGrabStart });
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
+    <div class={tw("relative w-full h-full")}>
       {hasCode && <SandboxedRunner code={code} model={model} runKey={0} />}
 
       {hasCode && (

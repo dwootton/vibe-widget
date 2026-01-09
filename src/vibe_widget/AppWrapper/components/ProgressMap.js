@@ -1,20 +1,122 @@
 import React from "react";
+import { css, tw } from "../styles/setup.js";
 
-export default function ProgressMap({ logs = [], status = "ready", fullHeight = false, heading = null, footer = null }) {
+const bezelClass = tw(
+  "w-full h-full box-border text-text-secondary bg-[#050505] border border-border-medium shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] flex flex-col gap-2 px-[10px] py-[12px]"
+);
+const headingClass = tw(
+  "flex items-center gap-2 text-xs font-mono uppercase tracking-[0.05em] text-text-primary pl-[9px]"
+);
+const statusDotBaseClass = tw(
+  "w-2 h-2 rounded-none shadow-[0_0_0_4px_rgba(249,115,22,0.12)] flex-shrink-0"
+);
+const logContainerBaseClass = tw("flex-1 min-h-0 overflow-auto bg-transparent border-0 shadow-none pt-[6px]");
+const logListClass = css({
+  listStyle: "none",
+  margin: 0,
+  padding: 0,
+  display: "flex",
+  flexDirection: "column",
+  gap: "2px",
+  fontFamily:
+    "JetBrains Mono, Space Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace",
+  fontSize: "12px",
+  textTransform: "uppercase",
+  "&::-webkit-scrollbar": {
+    width: "4px",
+    height: "4px"
+  },
+  "&::-webkit-scrollbar-thumb": {
+    background: "rgba(243, 119, 38, 0.3)",
+    borderRadius: "2px"
+  },
+  "&::-webkit-scrollbar-thumb:hover": {
+    background: "rgba(243, 119, 38, 0.5)"
+  }
+});
+const logEntryClass = css({
+  display: "flex",
+  alignItems: "baseline",
+  gap: "4px",
+  padding: "2px 0",
+  color: "#94a3b8",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  textTransform: "uppercase"
+});
+const logIconClass = tw("flex-none w-[10px] ml-2 flex items-center justify-center text-text-muted");
+const logIconBlockClass = tw("w-[6px] h-[6px] rounded-none bg-[rgba(148,163,184,0.6)]");
+const logTextBaseClass = tw("flex-1 flex items-center gap-1 text-[12px] uppercase font-mono leading-snug text-text-muted");
+const ellipsisClass = tw("inline-block min-w-[1.6em] text-left");
+const footerClass = tw("pt-2");
+
+export default function ProgressMap({
+  logs = [],
+  status = "ready",
+  fullHeight = false,
+  heading = null,
+  footer = null,
+  debugLabel = "ProgressMap"
+}) {
   const isActive = status !== "ready" && status !== "error";
   const isDone = status === "ready";
   const [spinnerIndex, setSpinnerIndex] = React.useState(0);
   const spinnerFrames = ["|", "/", "-", "\\"];
   const logContainerRef = React.useRef(null);
+  const hasInitialScroll = React.useRef(false);
+  const lastLogRef = React.useRef(null);
+  const autoFollowRef = React.useRef(true);
+  const debugSink =
+    typeof globalThis !== "undefined" ? globalThis.__VIBE_DEBUG_SINK : null;
+  const debugEnabled = true;
+
+  React.useEffect(() => {
+    if (typeof debugSink === "function") {
+      debugSink({
+        source: "ProgressMap",
+        event: "mount",
+        label: debugLabel,
+        status,
+        logs: logs.length
+      });
+    }
+    console.log("[vibe][debug] ProgressMap mount", {
+      label: debugLabel,
+      status,
+      logs: logs.length
+    });
+    return () => {
+      if (typeof debugSink === "function") {
+        debugSink({ source: "ProgressMap", event: "unmount", label: debugLabel });
+      }
+      console.log("[vibe][debug] ProgressMap unmount", { label: debugLabel });
+    };
+  }, [debugEnabled, debugSink, debugLabel, status, logs.length]);
+
+  React.useLayoutEffect(() => {
+    const el = logContainerRef.current;
+    if (!el) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (autoFollowRef.current && lastLogRef.current) {
+        lastLogRef.current.scrollIntoView({ block: "end" });
+      } else if (autoFollowRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+      hasInitialScroll.current = true;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [logs, isActive]);
 
   React.useEffect(() => {
     const el = logContainerRef.current;
     if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distanceFromBottom < 24) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [logs]);
+    const handleScroll = () => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      autoFollowRef.current = distanceFromBottom < 12;
+    };
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
 
   React.useEffect(() => {
     if (!isActive) return;
@@ -24,179 +126,68 @@ export default function ProgressMap({ logs = [], status = "ready", fullHeight = 
     return () => clearInterval(timer);
   }, [isActive, spinnerFrames.length]);
 
+  const hasLogs = logs.length > 0;
+  const logContainerClass = [logContainerBaseClass, !fullHeight ? "max-h-[240px]" : ""]
+    .filter(Boolean)
+    .join(" ");
+  const rootClass = [bezelClass, !hasLogs ? "justify-end gap-0" : ""].join(" ");
+
   return (
-    <div class="progress-bezel">
-      <style>{`
-        .progress-bezel {
-          width: 100%;
-          height: 100%;
-          box-sizing: border-box;
-          color: #e2e8f0;
-          background: #050505;
-          border: 1px solid rgba(148, 163, 184, 0.14);
-          border-radius: 0;
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-          padding: 10px 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .progress-heading {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 12px;
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-          color: #f2f0e9;
-          padding-left: 9px;
-        }
-        .progress-heading .dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 0;
-          background: ${isDone ? "#22c55e" : "#f97316"};
-          box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.12);
-        }
-        .progress-log-container {
-          flex: 1;
-          min-height: 0;
-          ${fullHeight ? "" : "max-height: 240px;"}
-          overflow: auto;
-          background: transparent;
-          border: 0;
-          border-radius: 0;
-          padding: 6px 0 0;
-          box-shadow: none;
-        }
-        .progress-log-list {
-          list-style: none;
-          margin: 0;
-          padding: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 12px;
-          text-transform: uppercase;
-        }
-        .progress-log-list::-webkit-scrollbar {
-          width: 4px;
-          height: 4px;
-        }
-        
-        .progress-log-list::-webkit-scrollbar-thumb {
-          background: rgba(243, 119, 38, 0.3);
-          border-radius: 2px;
-        }
-        
-        .progress-log-list::-webkit-scrollbar-thumb:hover {
-          background: rgba(243, 119, 38, 0.5);
-        }
-
-        .progress-footer {
-          padding-top: 8px;
-        }
-        
-        .log-entry {
-          display: flex;
-          align-items: baseline;
-          gap: 4px;
-          padding: 2px 0;
-          color: #94a3b8;
-          opacity: 0;
-          animation: fadeIn 0.3s ease-out forwards;
-          animation-delay: calc(var(--entry-index) * 0.03s);
-          white-space: pre-wrap;
-          word-break: break-word;
-          text-transform: uppercase;
-        }
-
-        .log-icon {
-          width: 10px;
-          flex: 0 0 10px;
-          margin-left: 8px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .log-icon-block {
-          width: 6px;
-          height: 6px;
-          border-radius: 0;
-          background: rgba(148, 163, 184, 0.6);
-        }
-
-        .log-entry--live .log-text {
-          color: #f97316;
-          text-transform: uppercase;
-        }
-
-        .log-entry--live .log-icon {
-          color: #f97316;
-        }
-
-        .log-entry--done .log-text {
-          color: #94a3b8;
-        }
-
-        .log-entry--terminal .log-text {
-          color: #cbd5e1;
-        }
-
-        .cursor {
-          display: inline-block;
-          margin-left: 1px;
-          animation: cursorBlink 1s steps(2, end) infinite;
-        }
-
-        @keyframes cursorBlink {
-          0%, 49% { opacity: 1; }
-          50%, 100% { opacity: 0; }
-        }
-
-        @keyframes fadeIn {
-          to {
-            opacity: 1;
-          }
-        }
-      `}</style>
+    <div class={rootClass}>
       {heading && (
-        <div class="progress-heading">
-          <span class="dot" aria-hidden="true"></span>
+        <div class={headingClass}>
+          <span class={`${statusDotBaseClass} ${isDone ? "bg-success" : "bg-accent"}`} aria-hidden="true"></span>
           <span>{heading}</span>
         </div>
       )}
-      <div class="progress-log-container" ref={logContainerRef}>
-        <ul class="progress-log-list">
-          {logs.map((entry, idx) => {
-            const text = typeof entry === "string" ? entry : String(entry);
-            const isTerminal = text.toLowerCase().includes("runtime error");
-            const isLive = idx === logs.length - 1 && isActive;
-            const classes = [
-              "log-entry",
-              isDone ? "log-entry--done" : "",
-              isLive ? "log-entry--live" : "",
-              isTerminal ? "log-entry--terminal" : ""
-            ].filter(Boolean).join(" ");
-            return (
-              <li key={idx} class={classes} style={{ "--entry-index": idx }}>
-                <span class="log-icon">
-                  {isLive ? spinnerFrames[spinnerIndex] : <span class="log-icon-block" />}
-                </span>
-                <span class="log-text">
-                  {text}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-      {footer && <div class="progress-footer">{footer}</div>}
+      {hasLogs && (
+        <div class={logContainerClass} ref={logContainerRef}>
+          <ul class={logListClass}>
+            {logs.map((entry, idx) => {
+              const text = typeof entry === "string" ? entry : String(entry);
+              const lower = text.toLowerCase();
+              const isTerminal = lower.includes("runtime error");
+              const isLive = idx === logs.length - 1 && isActive;
+              const hasTrailingDots = isLive && text.endsWith("...");
+              const baseText = hasTrailingDots ? text.slice(0, -3) : text;
+              const ellipsisFrames = [".", "..", "..."];
+              const logTextColor = isTerminal
+                ? "#cbd5e1"
+                : isLive
+                  ? "#f97316"
+                  : "#94a3b8";
+              const logIconClasses = [
+                logIconClass,
+                isLive ? "text-accent" : ""
+              ].join(" ");
+              const logIconStyle = isLive ? { color: "#f97316" } : undefined;
+              return (
+                <li
+                  key={idx}
+                  ref={isLive ? lastLogRef : null}
+                  class={logEntryClass}
+                  style={{ "--entry-index": idx }}
+                >
+                  <span class={logIconClasses} style={logIconStyle}>
+                    {isLive ? (
+                      spinnerFrames[spinnerIndex]
+                    ) : (
+                      <span class={logIconBlockClass} />
+                    )}
+                  </span>
+                  <span class={logTextBaseClass} style={{ color: logTextColor }}>
+                    {baseText}
+                    {hasTrailingDots && (
+                      <span class={ellipsisClass}>{ellipsisFrames[spinnerIndex % ellipsisFrames.length]}</span>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+      {footer && <div class={footerClass}>{footer}</div>}
     </div>
   );
 }

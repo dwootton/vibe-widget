@@ -1,9 +1,18 @@
 import React from "react";
+import { tw } from "../../styles/setup.js";
+
+const headerClass = tw(
+  "flex items-center justify-between gap-2 px-3 py-2 bg-[rgba(12,12,12,0.9)] border-b border-[rgba(242,240,233,0.12)] text-[12px] font-mono text-text-primary"
+);
+const actionsClass = tw("flex items-center gap-2");
+const buttonBase = tw(
+  "rounded-[6px] px-3 py-1 text-[12px] font-semibold transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
+);
+const primaryButton = `${buttonBase} ${tw("bg-accent text-surface-1 border-none")}`;
+const subtleButton = `${buttonBase} ${tw("bg-transparent border border-[rgba(242,240,233,0.18)] text-text-primary")}`;
 
 export default function EditorHeader({
   showApprove,
-  auditIndicator,
-  auditStatus,
   hasAuditPayload,
   showAuditPanel,
   onToggleAuditPanel,
@@ -12,69 +21,28 @@ export default function EditorHeader({
   onClose
 }) {
   return (
-    <div class="source-viewer-header">
-      <style>{`
-        .source-viewer-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-          padding: 8px 12px;
-          background: rgba(12, 12, 12, 0.9);
-          border-bottom: 1px solid rgba(242, 240, 233, 0.12);
-          color: #f2f0e9;
-          font-family: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular,
-            Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 12px;
-        }
-        .source-viewer-actions {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .source-viewer-button {
-          background: #f97316;
-          color: #0b0b0b;
-          border: none;
-          border-radius: 6px;
-          padding: 6px 10px;
-          font-size: 12px;
-          cursor: pointer;
-        }
-        .source-viewer-button.subtle {
-          background: transparent;
-          color: #e2e8f0;
-          border: 1px solid rgba(242, 240, 233, 0.18);
-        }
-        .audit-indicator {
-          color: #f97316;
-          font-size: 11px;
-        }
-      `}</style>
+    <div class={headerClass}>
       <div class="source-viewer-title">
         <span>Source Viewer</span>
-        {auditIndicator && <span class="audit-indicator">{auditIndicator}</span>}
-        {auditStatus === "running" && <span class="audit-indicator">Auditing...</span>}
       </div>
-      <div class="source-viewer-actions">
+      <div class={actionsClass}>
         {!hasAuditPayload && (
           <button
-            class="source-viewer-button"
-            disabled={auditStatus === "running"}
+            class={primaryButton}
             onClick={onRunAudit}
           >
-            {auditStatus === "running" ? "Auditing..." : "Audit"}
+            Audit
           </button>
         )}
         {hasAuditPayload && (
-          <button class="source-viewer-button subtle" onClick={onToggleAuditPanel}>
+          <button class={subtleButton} onClick={onToggleAuditPanel}>
             {showAuditPanel ? "Hide Audit" : "Show Audit"}
           </button>
         )}
         {showApprove ? (
-          <button class="source-viewer-button" onClick={onApprove}>Approve</button>
+          <button class={primaryButton} onClick={onApprove}>Approve</button>
         ) : (
-          <button class="source-viewer-button subtle" onClick={onClose}>Close</button>
+          <button class={subtleButton} onClick={onClose}>Close</button>
         )}
       </div>
     </div>
