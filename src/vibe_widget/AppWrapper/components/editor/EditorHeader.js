@@ -14,6 +14,7 @@ const subtleButton = `${buttonBase} ${tw("bg-transparent border border-[rgba(242
 export default function EditorHeader({
   showApprove,
   hasAuditPayload,
+  auditStatus,
   showAuditPanel,
   onToggleAuditPanel,
   onRunAudit,
@@ -29,9 +30,10 @@ export default function EditorHeader({
         {!hasAuditPayload && (
           <button
             class={primaryButton}
+            disabled={auditStatus === "running"}
             onClick={onRunAudit}
           >
-            Audit
+            {auditStatus === "running" ? "Auditing..." : "Audit"}
           </button>
         )}
         {hasAuditPayload && (

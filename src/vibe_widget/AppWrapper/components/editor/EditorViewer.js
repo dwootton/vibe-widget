@@ -19,11 +19,15 @@ const errorBannerClass = tw(
 const debugBannerClass = tw(
   "rounded-[6px] border border-[rgba(59,130,246,0.3)] bg-[rgba(59,130,246,0.12)] text-[#cbd5e1] text-[12px] font-mono whitespace-pre-wrap px-3 py-2"
 );
-const mainGridClass = tw("flex-[1.45] grid gap-3 min-h-0");
-const terminalWrapperClass = tw("mt-1 flex-[0.75] min-h-0");
+const mainGridClass = tw("flex-1 grid gap-3 min-h-0 min-w-0");
+const terminalWrapperClass = tw("mt-1");
 
 export default function EditorViewer({
   code,
+  initialDraft,
+  initialCodeChangeRanges,
+  onDraftChange,
+  onCodeChangeRangesChange,
   errorMessage,
   status,
   logs,
@@ -47,7 +51,7 @@ export default function EditorViewer({
   isApproved,
   onApprove
 }) {
-  const [draftCode, setDraftCode] = useState(code || "");
+  const [draftCode, setDraftCode] = useState(initialDraft ?? code ?? "");
   const [showAuditPanel, setShowAuditPanel] = useState(false);
   const [pendingChanges, setPendingChanges] = useState([]);
   const [dismissedConcerns, setDismissedConcerns] = useState({});
@@ -57,8 +61,63 @@ export default function EditorViewer({
   const [technicalCards, setTechnicalCards] = useState({});
   const [editingBubbleId, setEditingBubbleId] = useState(null);
   const [editingText, setEditingText] = useState("");
-  const [codeChangeRanges, setCodeChangeRanges] = useState([]);
+  const [codeChangeRanges, setCodeChangeRanges] = useState(initialCodeChangeRanges || []);
   const [terminalPrompt, setTerminalPrompt] = useState("");
+  const baseCodeRef = React.useRef(code || "");
+
+  React.useEffect(() => {
+    if (initialDraft === undefined || initialDraft === null) return;
+    if (initialDraft !== draftCode) {
+      setDraftCode(initialDraft);
+    }
+  }, [initialDraft]);
+
+  React.useEffect(() => {
+    if (!code) return;
+    if (code !== baseCodeRef.current) {
+      baseCodeRef.current = code;
+    }
+  }, [code]);
+
+  const computeDiffRanges = React.useCallback((baseText, nextText) => {
+    const baseLines = String(baseText || "").split("\n");
+    const nextLines = String(nextText || "").split("\n");
+    const maxLines = Math.max(baseLines.length, nextLines.length);
+    const ranges = [];
+    let currentStart = null;
+    for (let i = 0; i < maxLines; i += 1) {
+      const baseLine = baseLines[i];
+      const nextLine = nextLines[i];
+      const differs = baseLine !== nextLine;
+      if (differs && currentStart === null) {
+        currentStart = i + 1;
+      }
+      if (!differs && currentStart !== null) {
+        ranges.push([currentStart, i]);
+        currentStart = null;
+      }
+    }
+    if (currentStart !== null) {
+      ranges.push([currentStart, maxLines]);
+    }
+    return ranges;
+  }, []);
+
+  React.useEffect(() => {
+    if (!code) return;
+    if (draftCode === code) {
+      if (codeChangeRanges.length !== 0) {
+        setCodeChangeRanges([]);
+        onCodeChangeRangesChange?.([]);
+      }
+      onDraftChange?.(draftCode);
+      return;
+    }
+    const ranges = computeDiffRanges(code, draftCode);
+    setCodeChangeRanges(ranges);
+    onCodeChangeRangesChange?.(ranges);
+    onDraftChange?.(draftCode);
+  }, [code, draftCode, computeDiffRanges, onDraftChange, onCodeChangeRangesChange]);
 
   const hasAuditReport = auditReport && auditReport.length > 0;
   const auditPayload = auditData?.fast_audit || auditData?.full_audit || null;
@@ -125,11 +184,71 @@ export default function EditorViewer({
     if (event.target !== event.currentTarget) return;
     onClose();
   };
+  const formatCodeRange = (range) => {
+    if (typeof range === "string") return range;
+    if (!range || typeof range !== "object") return "";
+    const start = range.startLine ?? range.from ?? range.start ?? range.line;
+    const end = range.endLine ?? range.to ?? range.end ?? start;
+    if (Number.isFinite(start) && Number.isFinite(end)) {
+      return start === end ? `line ${start}` : `lines ${start}-${end}`;
+    }
+    return "";
+  };
+
   const handleTerminalSubmit = () => {
     if (!onSubmitPrompt) return;
     const trimmed = terminalPrompt.trim();
-    if (!trimmed) return;
-    onSubmitPrompt(trimmed);
+    const hasAttachments = pendingChanges.length > 0 || codeChangeRanges.length > 0;
+    if (!trimmed && !hasAttachments) return;
+    const codeChanged = draftCode !== code;
+    if (!trimmed && pendingChanges.length === 0 && codeChangeRanges.length > 0 && onApply && codeChanged) {
+      onApply(draftCode);
+      setTerminalPrompt("");
+      onClose();
+      return;
+    }
+    const basePrompt = trimmed || "Apply selected audit changes.";
+    const sections = [basePrompt];
+    if (pendingChanges.length > 0) {
+      const items = pendingChanges
+        .map((item) => {
+          const label = item?.label || item?.summary || "Audit change";
+          const suffix = item?.cardId ? ` (${item.cardId})` : "";
+          return `- ${label}${suffix}`;
+        })
+        .filter(Boolean);
+      if (items.length > 0) {
+        sections.push(`AUDIT CHANGES:\n${items.join("\n")}`);
+      }
+    }
+    if (codeChangeRanges.length > 0) {
+      const items = codeChangeRanges
+        .map((range, index) => {
+          const label = formatCodeRange(range) || `change ${index + 1}`;
+          return `- ${label}`;
+        })
+        .filter(Boolean);
+      if (items.length > 0) {
+        sections.push(`CODE CHANGES:\n${items.join("\n")}`);
+      }
+    }
+    onSubmitPrompt({
+      prompt: sections.join("\n\n"),
+      base_code: draftCode,
+      code_change_ranges: codeChangeRanges
+    });
+    if (pendingChanges.length > 0) {
+      setDismissedConcerns((prev) => {
+        const next = { ...prev };
+        pendingChanges.forEach((item) => {
+          if (item?.cardId) {
+            next[item.cardId] = item?.label || item?.summary || "Audit change";
+          }
+        });
+        return next;
+      });
+      setPendingChanges([]);
+    }
     setTerminalPrompt("");
     onClose();
   };
@@ -149,6 +268,7 @@ export default function EditorViewer({
         <EditorHeader
           showApprove={showApprove}
           hasAuditPayload={hasAuditPayload}
+          auditStatus={auditStatus}
           showAuditPanel={showAuditPanel}
           onToggleAuditPanel={() => setShowAuditPanel(!showAuditPanel)}
           onRunAudit={handleAuditAction}
@@ -163,7 +283,7 @@ export default function EditorViewer({
           <div
             class={mainGridClass}
             style={{
-              gridTemplateColumns: showAuditPanel ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)",
+              gridTemplateColumns: showAuditPanel ? "minmax(0, 1fr) minmax(260px, 32%)" : "minmax(0, 1fr)",
               gridAutoRows: "minmax(0, 1fr)"
             }}
           >
@@ -191,6 +311,7 @@ export default function EditorViewer({
                 }}
                 onDismissConcern={(cardId, label) => {
                   setDismissedConcerns((prev) => ({ ...prev, [cardId]: label }));
+                  setPendingChanges((prev) => prev.filter((item) => item.cardId !== cardId));
                 }}
                 onScrollToLines={(location) => {
                   // No-op in this simplified viewer
@@ -202,7 +323,7 @@ export default function EditorViewer({
               />
             )}
           </div>
-          <div class={terminalWrapperClass} style={{ flexShrink: 0 }}>
+          <div class={terminalWrapperClass}>
             <TerminalViewer
               logs={[]}
               status={status || "ready"}
@@ -212,6 +333,11 @@ export default function EditorViewer({
               onPromptSubmit={handleTerminalSubmit}
               promptDisabled={!canPrompt}
               debugLabel="EditorViewer"
+              compact={true}
+              showFooterBorder={false}
+              promptMaxHeight={80}
+              promptAlign="start"
+              promptAutoFocus={true}
               attachments={{
                 pendingChanges,
                 codeChangeRanges,

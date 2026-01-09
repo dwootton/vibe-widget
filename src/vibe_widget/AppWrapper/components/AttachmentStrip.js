@@ -1,7 +1,7 @@
 import React from "react";
 import { css, tw } from "../styles/setup.js";
 
-const containerClass = tw("flex flex-col gap-[6px]");
+const containerClass = tw("flex flex-col gap-[6px] font-mono text-[11px]");
 const rowClass = css({
   display: "flex",
   gap: "8px",
@@ -15,7 +15,7 @@ const rowClass = css({
   }
 });
 const pillClass = tw(
-  "inline-flex items-center gap-2 bg-[#0b0b0b] border border-[#4b5563] rounded-[2px] px-2 py-[4px] text-[11px] text-[#e5e7eb] max-w-[220px] relative cursor-pointer whitespace-nowrap"
+  "inline-flex items-center gap-2 bg-[#0b0b0b] border border-[#4b5563] rounded-[2px] px-2 py-[4px] text-[11px] text-[#e5e7eb] max-w-[220px] relative cursor-pointer whitespace-nowrap font-mono"
 );
 const pillTextClass = tw("overflow-hidden text-ellipsis whitespace-nowrap");
 const removeButtonClass = tw(

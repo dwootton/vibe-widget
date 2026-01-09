@@ -5,6 +5,7 @@ import AttachmentStrip from "./AttachmentStrip";
 import { tw } from "../styles/setup.js";
 
 const footerClass = tw("flex flex-col gap-2 border-t border-[rgba(242,240,233,0.25)] mt-2 pt-3");
+const compactClass = tw("flex flex-col gap-2");
 
 export default function TerminalViewer({
   logs,
@@ -16,28 +17,37 @@ export default function TerminalViewer({
   promptDisabled,
   attachments,
   promptBlink = false,
-  debugLabel = "TerminalViewer"
+  debugLabel = "TerminalViewer",
+  compact = false,
+  showFooterBorder = true,
+  promptMaxHeight = 200,
+  promptAlign,
+  promptAutoFocus
 }) {
+  const resolvedAttachments = attachments || {
+    pendingChanges: [],
+    codeChangeRanges: [],
+    isDirty: false
+  };
   const hasAttachments =
-    attachments &&
-    (attachments.pendingChanges.length > 0 ||
-      attachments.codeChangeRanges.length > 0 ||
-      attachments.isDirty);
+    resolvedAttachments.pendingChanges.length > 0 ||
+    resolvedAttachments.codeChangeRanges.length > 0 ||
+    resolvedAttachments.isDirty;
 
   const footer = (
-    <div class={footerClass}>
+    <div class={showFooterBorder ? footerClass : "flex flex-col gap-2"}>
       {hasAttachments && (
         <AttachmentStrip
-          pendingChanges={attachments.pendingChanges}
-          codeChangeRanges={attachments.codeChangeRanges}
-          editingBubbleId={attachments.editingBubbleId}
-          editingText={attachments.editingText}
-          onStartEdit={attachments.onStartEdit}
-          onEditingTextChange={attachments.onEditingTextChange}
-          onSaveEdit={attachments.onSaveEdit}
-          onRemovePending={attachments.onRemovePending}
-          onHoverCard={attachments.onHoverCard}
-          bubbleEditorRef={attachments.bubbleEditorRef}
+          pendingChanges={resolvedAttachments.pendingChanges}
+          codeChangeRanges={resolvedAttachments.codeChangeRanges}
+          editingBubbleId={resolvedAttachments.editingBubbleId}
+          editingText={resolvedAttachments.editingText}
+          onStartEdit={resolvedAttachments.onStartEdit}
+          onEditingTextChange={resolvedAttachments.onEditingTextChange}
+          onSaveEdit={resolvedAttachments.onSaveEdit}
+          onRemovePending={resolvedAttachments.onRemovePending}
+          onHoverCard={resolvedAttachments.onHoverCard}
+          bubbleEditorRef={resolvedAttachments.bubbleEditorRef}
         />
       )}
       <StatePromptInputRow
@@ -46,10 +56,16 @@ export default function TerminalViewer({
         onSubmit={onPromptSubmit}
         disabled={promptDisabled}
         blink={promptBlink}
-        maxHeight={200}
+        maxHeight={promptMaxHeight}
+        align={promptAlign}
+        autoFocus={promptAutoFocus}
       />
     </div>
   );
+
+  if (compact) {
+    return <div class={compactClass}>{footer}</div>;
+  }
 
   return (
     <ProgressMap

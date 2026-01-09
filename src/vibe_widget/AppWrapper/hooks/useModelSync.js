@@ -13,31 +13,126 @@ export default function useModelSync(model) {
   const [retryCount, setRetryCount] = React.useState(model.get("retry_count"));
   const [auditState, setAuditState] = React.useState(model.get("audit_state") || {});
   const [executionState, setExecutionState] = React.useState(model.get("execution_state") || {});
+  const traceRef = React.useRef({
+    status,
+    logsLen: Array.isArray(logs) ? logs.length : 0,
+    codeLen: code ? code.length : 0,
+    errorMessage,
+    widgetError,
+    lastRuntimeError,
+    widgetLogsLen: Array.isArray(widgetLogs) ? widgetLogs.length : 0,
+    retryCount,
+    auditState,
+    executionState
+  });
+
+  const traceChange = React.useCallback((label, nextValue) => {
+    const modelId = model?.cid || model?.model_id || model?.id || model?.get?.("_model_id");
+    console.log("[VIBE_STATE_TRACE]", {
+      ts: new Date().toISOString(),
+      modelId,
+      label,
+      next: nextValue
+    });
+  }, [model]);
 
   React.useEffect(() => {
     const onStatusChange = () => {
-      setStatus(model.get("status"));
-      setLastRuntimeError(model.get("last_runtime_error"));
+      const nextStatus = model.get("status");
+      const nextRuntime = model.get("last_runtime_error");
+      if (traceRef.current.status !== nextStatus) {
+        traceRef.current.status = nextStatus;
+        traceChange("status", nextStatus);
+      }
+      if (traceRef.current.lastRuntimeError !== nextRuntime) {
+        traceRef.current.lastRuntimeError = nextRuntime;
+        traceChange("last_runtime_error", nextRuntime);
+      }
+      setStatus(nextStatus);
+      setLastRuntimeError(nextRuntime);
     };
-    const onLogsChange = () => setLogs(model.get("logs"));
-    const onCodeChange = () => setCode(model.get("code"));
+    const onLogsChange = () => {
+      const nextLogs = model.get("logs");
+      const nextLen = Array.isArray(nextLogs) ? nextLogs.length : 0;
+      if (traceRef.current.logsLen !== nextLen) {
+        traceRef.current.logsLen = nextLen;
+        traceChange("logs.length", nextLen);
+      }
+      setLogs(nextLogs);
+    };
+    const onCodeChange = () => {
+      const nextCode = model.get("code");
+      const nextLen = nextCode ? nextCode.length : 0;
+      if (traceRef.current.codeLen !== nextLen) {
+        traceRef.current.codeLen = nextLen;
+        traceChange("code.length", nextLen);
+      }
+      setCode(nextCode);
+    };
     const onErrorChange = () => {
-      setErrorMessage(model.get("error_message"));
-      setLastRuntimeError(model.get("last_runtime_error"));
+      const nextError = model.get("error_message");
+      const nextRuntime = model.get("last_runtime_error");
+      if (traceRef.current.errorMessage !== nextError) {
+        traceRef.current.errorMessage = nextError;
+        traceChange("error_message", nextError);
+      }
+      if (traceRef.current.lastRuntimeError !== nextRuntime) {
+        traceRef.current.lastRuntimeError = nextRuntime;
+        traceChange("last_runtime_error", nextRuntime);
+      }
+      setErrorMessage(nextError);
+      setLastRuntimeError(nextRuntime);
     };
     const onWidgetErrorChange = () => {
-      setWidgetError(model.get("widget_error"));
-      setLastRuntimeError(model.get("last_runtime_error"));
+      const nextWidgetError = model.get("widget_error");
+      const nextRuntime = model.get("last_runtime_error");
+      if (traceRef.current.widgetError !== nextWidgetError) {
+        traceRef.current.widgetError = nextWidgetError;
+        traceChange("widget_error", nextWidgetError);
+      }
+      if (traceRef.current.lastRuntimeError !== nextRuntime) {
+        traceRef.current.lastRuntimeError = nextRuntime;
+        traceChange("last_runtime_error", nextRuntime);
+      }
+      setWidgetError(nextWidgetError);
+      setLastRuntimeError(nextRuntime);
     };
-    const onLastRuntimeErrorChange = () => setLastRuntimeError(model.get("last_runtime_error"));
-    const onWidgetLogsChange = () => setWidgetLogs(model.get("widget_logs"));
-    const onRetryCountChange = () => setRetryCount(model.get("retry_count"));
+    const onLastRuntimeErrorChange = () => {
+      const nextRuntime = model.get("last_runtime_error");
+      if (traceRef.current.lastRuntimeError !== nextRuntime) {
+        traceRef.current.lastRuntimeError = nextRuntime;
+        traceChange("last_runtime_error", nextRuntime);
+      }
+      setLastRuntimeError(nextRuntime);
+    };
+    const onWidgetLogsChange = () => {
+      const nextLogs = model.get("widget_logs");
+      const nextLen = Array.isArray(nextLogs) ? nextLogs.length : 0;
+      if (traceRef.current.widgetLogsLen !== nextLen) {
+        traceRef.current.widgetLogsLen = nextLen;
+        traceChange("widget_logs.length", nextLen);
+      }
+      setWidgetLogs(nextLogs);
+    };
+    const onRetryCountChange = () => {
+      const nextRetry = model.get("retry_count");
+      if (traceRef.current.retryCount !== nextRetry) {
+        traceRef.current.retryCount = nextRetry;
+        traceChange("retry_count", nextRetry);
+      }
+      setRetryCount(nextRetry);
+    };
     const onAuditStateChange = () => {
       const nextAudit = model.get("audit_state") || {};
       debugLog(model, "[vibe][audit] audit_state changed", nextAudit);
+      traceChange("audit_state", nextAudit);
       setAuditState(nextAudit);
     };
-    const onExecutionStateChange = () => setExecutionState(model.get("execution_state") || {});
+    const onExecutionStateChange = () => {
+      const nextExec = model.get("execution_state") || {};
+      traceChange("execution_state", nextExec);
+      setExecutionState(nextExec);
+    };
 
     model.on("change:status", onStatusChange);
     model.on("change:logs", onLogsChange);

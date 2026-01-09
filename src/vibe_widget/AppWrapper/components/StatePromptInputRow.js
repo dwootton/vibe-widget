@@ -3,8 +3,10 @@ import { css, tw } from "../styles/setup.js";
 
 const wrapperClass = tw("mr-2");
 const entryClass = tw("flex items-center gap-1 text-text-muted uppercase font-mono text-[12px]");
+const entryTopClass = tw("flex items-start gap-1 text-text-muted uppercase font-mono text-[12px]");
 const logIconClass = tw("flex-none text-text-muted");
-const logTextClass = tw("flex-1 flex items-start gap-1");
+const logTextClass = tw("flex-1 flex items-center gap-1");
+const logTextTopClass = tw("flex-1 flex items-start gap-1");
 const inputWrapperClass = tw("relative flex-1 min-w-0");
 const textareaClass = tw(
   "w-full bg-transparent text-text-primary border-none outline-none focus:outline-none focus-visible:outline-none shadow-none p-0 m-0 resize-none font-mono text-[12px] leading-[1.4] caret-transparent disabled:text-[rgba(242,240,233,0.55)] appearance-none"
@@ -31,7 +33,8 @@ export default function StatePromptInputRow({
   disabled = false,
   maxHeight = 200,
   blink = true,
-  caretOffset = 0
+  align = "center",
+  autoFocus = false
 }) {
   const textareaRef = useRef(null);
   const markerRef = useRef(null);
@@ -62,10 +65,10 @@ export default function StatePromptInputRow({
     const scrollLeft = textarea.scrollLeft || 0;
     setCaretStyle({
       left: marker.offsetLeft - scrollLeft,
-      top: marker.offsetTop - scrollTop + caretOffset,
+      top: marker.offsetTop - scrollTop,
       height: lineHeight
     });
-  }, [caretOffset]);
+  }, []);
 
   const autoResize = useCallback(() => {
     const textarea = textareaRef.current;
@@ -91,11 +94,23 @@ export default function StatePromptInputRow({
     updateCaretIndex();
   }, [normalizedValue, updateCaretIndex]);
 
+  useEffect(() => {
+    if (!autoFocus) return;
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.focus();
+    updateCaretIndex();
+    updateCaretPosition();
+  }, [autoFocus, updateCaretIndex, updateCaretPosition]);
+
+  const rowClass = align === "start" ? entryTopClass : entryClass;
+  const textClass = align === "start" ? logTextTopClass : logTextClass;
+
   return (
     <div class={wrapperClass}>
-      <div class={entryClass}>
+      <div class={rowClass}>
         <span class={logIconClass}>{">"}</span>
-        <span class={logTextClass}>
+        <span class={textClass}>
           <span class={inputWrapperClass} ref={wrapperRef}>
             <textarea
               ref={textareaRef}

@@ -7,7 +7,7 @@ import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { tw } from "../../styles/setup.js";
 
-const wrapperClass = tw("relative w-full flex flex-col min-h-0");
+const wrapperClass = tw("relative w-full flex flex-col min-h-0 min-w-0");
 const editorClass = tw(
   "flex-1 bg-[#0b0b0b] border border-[rgba(242,240,233,0.15)] rounded-[4px] text-[12px] text-text-primary font-mono overflow-auto flex flex-col min-h-0 resize"
 );
@@ -130,8 +130,12 @@ const CodeEditor = React.forwardRef(function CodeEditor({ value, onChange }, ref
     const current = viewRef.current.state.doc.toString();
     const next = nextCode || "";
     if (current === next) return;
+    const selection = viewRef.current.state.selection.main;
+    const nextAnchor = Math.min(selection.anchor, next.length);
+    const nextHead = Math.min(selection.head, next.length);
     viewRef.current.dispatch({
-      changes: { from: 0, to: current.length, insert: next }
+      changes: { from: 0, to: current.length, insert: next },
+      selection: { anchor: nextAnchor, head: nextHead }
     });
   };
 
@@ -184,7 +188,7 @@ const CodeEditor = React.forwardRef(function CodeEditor({ value, onChange }, ref
         viewRef.current = null;
       }
     };
-  }, [value, onChange]);
+  }, []);
 
   useEffect(() => {
     if (!viewRef.current) return;
@@ -205,7 +209,14 @@ const CodeEditor = React.forwardRef(function CodeEditor({ value, onChange }, ref
       <style>{editorStyles}</style>
       {isLoading && <div class={messageClass}>Loading editor...</div>}
       {loadError && <div class={`${messageClass} ${errorClass}`}>{loadError}</div>}
-      <div class={`${editorClass} source-viewer-editor`}>
+      <div
+        class={`${editorClass} source-viewer-editor`}
+        onMouseDown={() => {
+          if (viewRef.current) {
+            viewRef.current.focus();
+          }
+        }}
+      >
         <div ref={containerRef} class={editorContainerClass}></div>
       </div>
     </div>

@@ -23,7 +23,7 @@ function AppWrapper({ model }) {
   debugLog(model, "[vibe][debug] AppWrapper render", { instanceId });
   console.log("[vibe][debug] AppWrapper render", {
     instanceId,
-    modelId: model?.cid || model?.model_id || model?.id
+    modelId: model?.cid || model?.model_id || model?.id || model?.get?.("_model_id")
   });
 
   useEffect(() => {
@@ -117,7 +117,8 @@ function AppWrapper({ model }) {
     auditApplyResponse,
     auditApplyError,
     executionMode,
-    executionApproved
+    executionApproved,
+    executionState
   } = useModelSync(model);
 
   const isLoading = status === "generating" || status === "retrying";
@@ -143,7 +144,8 @@ function AppWrapper({ model }) {
   const hasCode = renderCode && renderCode.length > 0;
   const isApproved = executionApproved || !approvalMode;
   const hasRuntimeError = !!(widgetError || lastRuntimeError);
-  const shouldRenderWidget = hasCode && isApproved && !hasRuntimeError;
+  const runtimeCheck = executionState?.runtime_check === true;
+  const shouldRenderWidget = hasCode && isApproved && !hasRuntimeError && (status === "ready" || runtimeCheck);
   const viewerStatus = hasRuntimeError && status === "ready" ? "error" : status;
   const { showAudit, setShowAudit, requestAudit, acceptAudit } = useAuditFlow({
     model,
@@ -158,6 +160,19 @@ function AppWrapper({ model }) {
   const handleViewSource = () => {
     setShowSource(true);
   };
+
+  const [editorDraft, setEditorDraft] = React.useState(null);
+  const [editorCodeRanges, setEditorCodeRanges] = React.useState([]);
+  const editorBaseRef = React.useRef(code || "");
+
+  React.useEffect(() => {
+    if (!code) return;
+    if (code !== editorBaseRef.current) {
+      editorBaseRef.current = code;
+      setEditorDraft(null);
+      setEditorCodeRanges([]);
+    }
+  }, [code]);
 
   const auditReport = auditResponse?.report_yaml || "";
   const auditMeta = auditResponse && !auditResponse.error ? auditResponse : null;
@@ -195,8 +210,20 @@ function AppWrapper({ model }) {
     });
   }, [model, instanceId, status, hasRuntimeError, shouldRenderWidget, showSource]);
 
-  const handleStatePrompt = (prompt) => {
-    const trimmed = (prompt || "").trim();
+  const handleStatePrompt = (payload) => {
+    if (payload && typeof payload === "object") {
+      const trimmed = (payload.prompt || "").trim();
+      if (!trimmed) return;
+      requestStatePrompt(model, {
+        prompt: trimmed,
+        mode: status,
+        error: widgetError || errorMessage || "",
+        base_code: payload.base_code,
+        code_change_ranges: payload.code_change_ranges
+      });
+      return;
+    }
+    const trimmed = (payload || "").trim();
     if (!trimmed) return;
     requestStatePrompt(model, {
       prompt: trimmed,
@@ -222,18 +249,26 @@ function AppWrapper({ model }) {
     >
       {showAudit && <AuditNotice onAccept={handleAuditAccept} />}
 
-      {(status !== "ready" || hasRuntimeError) && (
-        <StateViewer
-          status={viewerStatus}
-          logs={logs}
-          widgetLogs={widgetLogs}
-          errorMessage={errorMessage}
-          widgetError={widgetError}
-          lastRuntimeError={lastRuntimeError}
-          retryCount={retryCount}
-          hideOuterStatus={true}
-          onSubmitPrompt={handleStatePrompt}
-        />
+      {(status !== "ready" || hasRuntimeError || runtimeCheck) && (
+        <div
+          style={
+            runtimeCheck && status === "ready"
+              ? { position: "absolute", inset: 0, zIndex: 20 }
+              : undefined
+          }
+        >
+          <StateViewer
+            status={viewerStatus}
+            logs={logs}
+            widgetLogs={widgetLogs}
+            errorMessage={errorMessage}
+            widgetError={widgetError}
+            lastRuntimeError={lastRuntimeError}
+            retryCount={retryCount}
+            hideOuterStatus={true}
+            onSubmitPrompt={handleStatePrompt}
+          />
+        </div>
       )}
 
       {status === "ready" && shouldRenderWidget && (
@@ -249,6 +284,10 @@ function AppWrapper({ model }) {
       {showSource && (
         <EditorViewer
           code={code}
+          initialDraft={editorDraft ?? code}
+          initialCodeChangeRanges={editorCodeRanges}
+          onDraftChange={setEditorDraft}
+          onCodeChangeRangesChange={setEditorCodeRanges}
           errorMessage={sourceError}
           status={status}
           logs={logs}
@@ -284,12 +323,14 @@ function render({ model, el }) {
   const traceTs = new Date().toISOString();
   const traceModelId = model?.cid || model?.model_id || model?.id || model?.get?.("_model_id");
   const stack = new Error("VIBE_RENDER_TRACE").stack;
+  const renderCount = el ? (el.__vibeRenderCount = (el.__vibeRenderCount || 0) + 1) : 0;
   console.log("[VIBE_RENDER_TRACE]", {
     ts: traceTs,
     phase: "render_entry",
     modelId: traceModelId,
     hasEl: !!el,
     hasRoot: !!el?.__vibeRoot,
+    renderCount,
     stack
   });
   const modelId = traceModelId;

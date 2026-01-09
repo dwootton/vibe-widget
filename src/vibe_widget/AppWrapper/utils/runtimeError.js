@@ -24,6 +24,10 @@ export function captureRuntimeError({ model, enqueueLog, err, extraStack = "" })
   enqueueLog("error", errorDetails);
   console.debug?.("[vibe][runtime-error]", { errorDetails });
   try {
+    const currentError = model?.get?.("error_message");
+    if (currentError === errorDetails) {
+      model.set("error_message", "");
+    }
     // Force an error state so the UI shows the repair panel instead of trying to render the broken widget.
     model.set("status", "error");
     model.set("error_message", errorDetails);

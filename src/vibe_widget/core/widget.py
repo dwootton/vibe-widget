@@ -1595,6 +1595,11 @@ class VibeWidget(anywidget.AnyWidget):
             self.state_prompt_request = {}
             return
 
+        base_code = request.get("base_code")
+        if isinstance(base_code, str) and base_code.strip():
+            self._base_code = base_code
+            self._base_components = []
+
         error_override = str(request.get("error", "") or "").strip()
         self.state_prompt_request = {}
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { tw } from "../../styles/setup.js";
 
-const panelClass = tw("font-mono text-text-primary text-[12px]");
+const panelClass = tw("font-mono text-text-primary text-[12px] min-w-0 h-full flex flex-col min-h-0");
 const headerClass = tw("text-[11px] uppercase tracking-[0.08em] flex justify-between mb-2");
 const cardClass = tw(
   "border-b border-[rgba(242,240,233,0.2)] rounded-[4px] px-2 py-3 transition-shadow duration-150"
@@ -23,12 +23,13 @@ const detailClass = tw("text-[11px] leading-[1.5]");
 const listClass = tw("text-[11px] leading-[1.5]");
 const alternativeClass = tw("text-accent underline text-[11px] cursor-pointer");
 const emptyClass = tw(
-  "border border-[rgba(242,240,233,0.2)] rounded-[2px] bg-surface-2 text-[11px] p-2"
+  "border border-[rgba(242,240,233,0.2)] rounded-[2px] bg-surface-2 text-[11px] p-2 flex-1"
 );
 const emptyActionListClass = tw("mt-2 space-y-1 text-[11px]");
 const toggleButtonClass = tw("text-accent underline text-[11px] cursor-pointer");
 const emptyListItemClass = tw("flex items-center justify-between gap-2 text-[11px]");
-const gridClass = tw("space-y-2");
+const gridClass = tw("space-y-2 flex-1 min-h-0 overflow-auto pr-1");
+const titleTextClass = tw("truncate max-w-[200px]");
 
 export default function AuditPanel({
   hasAuditPayload,
@@ -64,6 +65,9 @@ export default function AuditPanel({
             const concern = resolved?.concern;
             if (!concern) return null;
             const cardId = resolved.cardId || concern.id || `concern-${index}`;
+            if (dismissedConcerns && dismissedConcerns[cardId]) {
+              return null;
+            }
             const isExpanded = !!expandedCards[cardId];
             const showTechnical = !!technicalCards[cardId];
             const impact = (concern.impact || "low").toLowerCase();
@@ -96,7 +100,9 @@ export default function AuditPanel({
               >
                 <div class={cardTitleClass} title={`Impact: ${impact}`}>
                   <span class={impactDotClass} style={{ background: impactColor }}></span>
-                  <span>{concern.id || "concern"}</span>
+                  <span class={titleTextClass} title={concern.id || "concern"}>
+                    {concern.id || "concern"}
+                  </span>
                 </div>
                 <div class={actionsClass}>
                   <button
@@ -199,9 +205,12 @@ export default function AuditPanel({
           {hasAuditPayload
             ? "All audits resolved."
             : (
-              <>Run an audit to see findings. {onRunAudit && (
-                <button class={toggleButtonClass} onClick={onRunAudit}>Run an audit</button>
-              )}</>
+              <>
+                {onRunAudit && (
+                  <button class={toggleButtonClass} onClick={onRunAudit}>Run an Audit</button>
+                )}{" "}
+                to see findings.
+              </>
             )
           }
           {Object.keys(dismissedConcerns).length > 0 && (

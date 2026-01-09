@@ -45,6 +45,20 @@ export function requestAudit(model, level) {
 export function updateCode(model, nextCode) {
   if (model?.__vibeCommClosed) return;
   model.set("error_message", "");
+  model.set("widget_error", "");
+  model.set("last_runtime_error", "");
+  const currentExec = model.get("execution_state") || {};
+  const mode = currentExec.mode || "auto";
+  const approved = currentExec.approved !== false;
+  const shouldRun = mode === "auto" || (mode === "approve" && approved);
+  if (shouldRun) {
+    model.set("logs", ["Validating updated code", "Testing runtime"]);
+    model.set("execution_state", { ...currentExec, runtime_check: true });
+  } else {
+    model.set("logs", ["Code updated. Awaiting approval."]);
+    model.set("execution_state", { ...currentExec, runtime_check: false });
+  }
+  model.set("status", "ready");
   model.set("code", nextCode);
   model.save_changes();
 }
@@ -61,7 +75,11 @@ export function approveExecution(model) {
 
 export function requestStatePrompt(model, payload) {
   if (model?.__vibeCommClosed) return;
-  model.set("state_prompt_request", payload || {});
+  const base = payload || {};
+  model.set("state_prompt_request", {
+    ...base,
+    request_id: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  });
   model.save_changes();
 }
 

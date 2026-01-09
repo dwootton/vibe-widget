@@ -47,6 +47,15 @@ function SandboxedRunner({ code, model, runKey }) {
     }
   }, [flushLogs]);
 
+  const shouldIgnoreConsole = React.useCallback((message) => {
+    if (!message) return false;
+    return (
+      message.startsWith("[vibe][debug]") ||
+      message.startsWith("[VIBE_RENDER_TRACE]") ||
+      message.startsWith("[VIBE_STATE_TRACE]")
+    );
+  }, []);
+
   React.useEffect(() => {
     const original = {
       log: console.log,
@@ -55,16 +64,24 @@ function SandboxedRunner({ code, model, runKey }) {
     };
 
     console.log = (...args) => {
-      enqueueLog("info", args.map(String).join(" "));
+      const message = args.map(String).join(" ");
+      if (!shouldIgnoreConsole(message)) {
+        enqueueLog("info", message);
+      }
       original.log(...args);
     };
     console.warn = (...args) => {
-      enqueueLog("warn", args.map(String).join(" "));
+      const message = args.map(String).join(" ");
+      if (!shouldIgnoreConsole(message)) {
+        enqueueLog("warn", message);
+      }
       original.warn(...args);
     };
     console.error = (...args) => {
       const message = args.map(String).join(" ");
-      enqueueLog("error", message);
+      if (!shouldIgnoreConsole(message)) {
+        enqueueLog("error", message);
+      }
       const explicitError = args.find((arg) => arg instanceof Error);
       const candidate =
         explicitError ||
@@ -88,12 +105,24 @@ function SandboxedRunner({ code, model, runKey }) {
       }
       flushLogs();
     };
-  }, [enqueueLog, flushLogs]);
+  }, [enqueueLog, flushLogs, shouldIgnoreConsole]);
 
-  const handleRuntimeError = React.useCallback((err, extraStack = "") => {
-    console.error("Code execution error:", err);
-    captureRuntimeError({ model, enqueueLog, err, extraStack });
-  }, [model, enqueueLog]);
+    const clearRuntimeCheck = () => {
+      try {
+        const currentExec = model.get?.("execution_state") || {};
+        if (currentExec.runtime_check) {
+          model.set("execution_state", { ...currentExec, runtime_check: false });
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    const handleRuntimeError = React.useCallback((err, extraStack = "") => {
+      console.error("Code execution error:", err);
+      clearRuntimeCheck();
+      captureRuntimeError({ model, enqueueLog, err, extraStack });
+    }, [model, enqueueLog]);
 
   React.useEffect(() => {
     debugLog(model, "[vibe][debug] SandboxedRunner useEffect running", { instanceId, codeLen: code?.length });
@@ -270,6 +299,7 @@ ${source}`;
           model.set("widget_error", "");
           model.set("retry_count", 0);
           model.set("status", "ready");
+          clearRuntimeCheck();
           model.save_changes();
         } else {
           throw new Error("Generated code must export a default function");
