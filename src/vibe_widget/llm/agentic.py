@@ -4,7 +4,7 @@ from typing import Any, Callable, Optional, Tuple
 
 from vibe_widget.llm.providers.base import LLMProvider
 # Tool imports
-from vibe_widget.llm.tools.data_tools import DataLoadTool, DataProfileTool, DataWrangleTool
+from vibe_widget.llm.tools.data_tools import DataLoadTool, DataProfileTool
 from vibe_widget.llm.tools.code_tools import CodeValidateTool
 from vibe_widget.llm.tools.execution_tools import RuntimeTestTool, ErrorDiagnoseTool
 
@@ -32,7 +32,6 @@ class AgenticOrchestrator:
         # Tool instances
         self.data_load_tool = DataLoadTool()
         self.data_profile_tool = DataProfileTool()
-        self.data_wrangle_tool = DataWrangleTool(llm_provider=provider)
         self.validate_tool = CodeValidateTool()
         self.runtime_tool = RuntimeTestTool()
         self.diagnose_tool = ErrorDiagnoseTool()

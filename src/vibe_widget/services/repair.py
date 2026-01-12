@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from vibe_widget.llm.agentic import AgenticOrchestrator
+from vibe_widget.llm.agentic_agents import AgentSdkOrchestrator
 from vibe_widget.utils.serialization import clean_for_json
 
 
@@ -22,7 +22,7 @@ class RepairService:
 
     MAX_RETRIES = 2
 
-    def __init__(self, orchestrator: AgenticOrchestrator, *, max_retries: int | None = None):
+    def __init__(self, orchestrator: AgentSdkOrchestrator, *, max_retries: int | None = None):
         self.orchestrator = orchestrator
         if max_retries is None:
             max_retries = self.MAX_RETRIES

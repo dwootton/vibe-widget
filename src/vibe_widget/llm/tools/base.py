@@ -78,6 +78,32 @@ class Tool(ABC):
         
         return tool_def
 
+    def to_openai_tool(self) -> dict[str, Any]:
+        """Convert tool to OpenAI tool format for API calls."""
+        properties = {}
+        required = []
+
+        for key, schema in self.parameters_schema.items():
+            prop_schema = {k: v for k, v in schema.items() if k != "required"}
+            properties[key] = prop_schema
+            if schema.get("required", False):
+                required.append(key)
+
+        tool_def = {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                },
+            },
+        }
+        if required:
+            tool_def["function"]["parameters"]["required"] = required
+        return tool_def
+
 
 class ToolRegistry:
     """Registry for managing available tools."""

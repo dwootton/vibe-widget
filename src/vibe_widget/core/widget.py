@@ -45,6 +45,7 @@ from vibe_widget.core.state import StateManager
 from vibe_widget.core.lifecycle import WidgetLifecycle
 from vibe_widget.services.audit import AuditService
 from vibe_widget.services.generation import GenerationService
+from vibe_widget.llm.agents.config import resolve_agent_run_config
 from vibe_widget.services.repair import RepairService
 from vibe_widget.services.theme import ThemeService
 from vibe_widget.utils.logging import get_logger
@@ -404,7 +405,11 @@ class VibeWidget(anywidget.AnyWidget):
             
             resolved_model, config = _resolve_model(model)
             provider = OpenRouterProvider(resolved_model, config.api_key)
-            self._generation_service = GenerationService(provider)
+            agent_run_config = resolve_agent_run_config(
+                preset=getattr(config, "agent_preset", "project"),
+                overrides=getattr(config, "agent_run", None),
+            )
+            self._generation_service = GenerationService(provider, agent_run_config=agent_run_config)
             self._audit_service = AuditService()
             self._llm_provider = provider
             self.orchestrator = self._generation_service.orchestrator
