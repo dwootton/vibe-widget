@@ -1,4 +1,4 @@
-import{j as e}from"./index-D_8R8ZUm.js";import{D as r}from"./DocMdxPage-BvlSajtn.js";import"./DocContent-D7aio9c8.js";const s={title:"Theming",description:"Style widgets with natural-language design specs."};function a(t){const n={code:"code",h2:"h2",p:"p",pre:"pre",...t.components};return e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Themes are natural-language design specs that guide code generation."}),`
+import{j as e}from"./index-DW6fP7wU.js";import{D as r}from"./DocMdxPage-DHLXPrOC.js";import"./DocContent-BrPZLS5s.js";const s={title:"Theming",description:"Style widgets with natural-language design specs."};function a(t){const n={code:"code",h2:"h2",p:"p",pre:"pre",...t.components};return e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Themes are natural-language design specs that guide code generation."}),`
 `,e.jsx(n.h2,{children:"List available themes"}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`import vibe_widget as vw
 

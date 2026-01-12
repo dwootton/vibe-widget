@@ -1,4 +1,4 @@
-import{j as t}from"./index-D_8R8ZUm.js";import{D as i}from"./DocMdxPage-BvlSajtn.js";import"./DocContent-D7aio9c8.js";const o={title:"Reactivity",description:"Connect widgets with reactive inputs and outputs."};function s(n){const e={code:"code",p:"p",pre:"pre",...n.components};return t.jsxs(t.Fragment,{children:[t.jsx(e.p,{children:"Outputs are reactive state handles that can be passed into other widgets."}),`
+import{j as t}from"./index-DW6fP7wU.js";import{D as i}from"./DocMdxPage-DHLXPrOC.js";import"./DocContent-BrPZLS5s.js";const o={title:"Reactivity",description:"Connect widgets with reactive inputs and outputs."};function s(n){const e={code:"code",p:"p",pre:"pre",...n.components};return t.jsxs(t.Fragment,{children:[t.jsx(e.p,{children:"Outputs are reactive state handles that can be passed into other widgets."}),`
 `,t.jsx(e.pre,{children:t.jsx(e.code,{className:"language-python",children:`scatter = vw.create(
     "scatter plot with brush selection tool",
     df,

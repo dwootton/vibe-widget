@@ -12,26 +12,30 @@ const PLANET_DATA = [
   { name: "NEPTUNE", color: "#6081FF", size: 2.1, distance: 105, speed: 0.0008 },
 ];
 
-export const PlanetLabel = ({ name, selected, html }) => html`
-  <div style=${{
-    position: 'absolute',
-    bottom: '20px',
-    left: '20px',
-    padding: '12px 20px',
-    background: 'rgba(0,0,0,0.8)',
-    color: 'white',
-    borderRadius: '8px',
-    borderLeft: `4px solid ${selected ? '#00ffcc' : '#555'}`,
-    fontFamily: 'system-ui, sans-serif',
-    pointerEvents: 'none',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
-  }}>
-    <div style=${{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.7 }}>Selected Body</div>
-    <div style=${{ fontSize: '20px', fontWeight: 'bold' }}>${name}</div>
+export const PlanetLabel = ({ name, selected }) => (
+  <div
+    style={{
+      position: "absolute",
+      bottom: "20px",
+      left: "20px",
+      padding: "12px 20px",
+      background: "rgba(0,0,0,0.8)",
+      color: "white",
+      borderRadius: "8px",
+      borderLeft: `4px solid ${selected ? "#00ffcc" : "#555"}`,
+      fontFamily: "system-ui, sans-serif",
+      pointerEvents: "none",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+    }}
+  >
+    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px", opacity: 0.7 }}>
+      Selected Body
+    </div>
+    <div style={{ fontSize: "20px", fontWeight: "bold" }}>{name}</div>
   </div>
-`;
+);
 
-export default function SolarSystemWidget({ model, html, React }) {
+export default function SolarSystemWidget({ model, React }) {
   const containerRef = React.useRef(null);
   const [selectedPlanet, setSelectedPlanet] = React.useState("EARTH");
 
@@ -179,28 +183,34 @@ export default function SolarSystemWidget({ model, html, React }) {
     };
   }, [selectedPlanet]);
 
-  return html`
-    <div style=${{ 
-      position: 'relative', 
-      width: '100%', 
-      height: '500px', 
-      background: '#050508',
-      borderRadius: '12px',
-      overflow: 'hidden'
-    }}>
-      <div ref=${containerRef} style=${{ width: '100%', height: '100%' }}></div>
-      <${PlanetLabel} name=${selectedPlanet} selected=${true} html=${html} />
-      <div style=${{
-        position: 'absolute',
-        top: '20px',
-        right: '20px',
-        color: 'rgba(255,255,255,0.5)',
-        fontSize: '11px',
-        textAlign: 'right',
-        pointerEvents: 'none'
-      }}>
-        DRAG TO ROTATE<br/>SCROLL TO ZOOM<br/>CLICK PLANETS TO SELECT
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "500px",
+        background: "#050508",
+        borderRadius: "12px",
+        overflow: "hidden",
+      }}
+    >
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }}></div>
+      <PlanetLabel name={selectedPlanet} selected />
+      <div
+        style={{
+          position: "absolute",
+          top: "20px",
+          right: "20px",
+          color: "rgba(255,255,255,0.5)",
+          fontSize: "11px",
+          textAlign: "right",
+          pointerEvents: "none",
+        }}
+      >
+        DRAG TO ROTATE<br />
+        SCROLL TO ZOOM<br />
+        CLICK PLANETS TO SELECT
       </div>
     </div>
-  `;
+  );
 }

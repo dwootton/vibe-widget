@@ -1,4 +1,4 @@
-import{j as e}from"./index-D_8R8ZUm.js";import{D as a}from"./DocMdxPage-BvlSajtn.js";import"./DocContent-D7aio9c8.js";const r={title:"Create",description:"Create widgets from natural language prompts and data sources."};function s(t){const n={code:"code",h2:"h2",li:"li",p:"p",pre:"pre",ul:"ul",...t.components};return e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Create widgets from natural language prompts and data sources."}),`
+import{j as e}from"./index-DW6fP7wU.js";import{D as a}from"./DocMdxPage-DHLXPrOC.js";import"./DocContent-BrPZLS5s.js";const r={title:"Create",description:"Create widgets from natural language prompts and data sources."};function s(t){const n={code:"code",h2:"h2",li:"li",p:"p",pre:"pre",ul:"ul",...t.components};return e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Create widgets from natural language prompts and data sources."}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`import vibe_widget as vw
 
 widget = vw.create(

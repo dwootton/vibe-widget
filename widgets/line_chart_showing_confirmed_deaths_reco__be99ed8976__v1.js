@@ -1,33 +1,37 @@
 import * as d3 from "https://esm.sh/d3@7";
 
-export const Legend = ({ items, html }) => {
-  return html`
-    <div style=${{
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '20px',
-      justifyContent: 'center',
-      marginBottom: '16px',
-      fontFamily: 'sans-serif',
-      fontSize: '14px'
-    }}>
-      ${items.map(item => html`
-        <div style=${{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style=${{
-        width: '12px',
-        height: '12px',
-        backgroundColor: item.color,
-        display: 'inline-block',
-        borderRadius: '2px'
-      }}></span>
-          <span style=${{ color: '#374151', fontWeight: '600' }}>${item.label}</span>
+export const Legend = ({ items }) => {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "20px",
+        justifyContent: "center",
+        marginBottom: "16px",
+        fontFamily: "sans-serif",
+        fontSize: "14px",
+      }}
+    >
+      {items.map((item) => (
+        <div key={item.label} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <span
+            style={{
+              width: "12px",
+              height: "12px",
+              backgroundColor: item.color,
+              display: "inline-block",
+              borderRadius: "2px",
+            }}
+          ></span>
+          <span style={{ color: "#374151", fontWeight: "600" }}>{item.label}</span>
         </div>
-      `)}
+      ))}
     </div>
-  `;
+  );
 };
 
-export default function Widget({ model, html, React }) {
+export default function Widget({ model, React }) {
   const rawData = model.get("data") || [];
   const containerRef = React.useRef(null);
 
@@ -136,37 +140,36 @@ export default function Widget({ model, html, React }) {
     { label: "Deaths", color: "#dc2626" }
   ];
 
-  return html`
-    <section style=${{ padding: '24px', fontFamily: 'system-ui, -apple-system, sans-serif', backgroundColor: '#ffffff' }}>
-      <h2 style=${{
-      margin: '0 0 20px',
-      textAlign: 'center',
-      color: '#111827',
-      fontSize: '20px',
-      fontWeight: '700'
-    }}>
+  return (
+    <section
+      style={{ padding: "24px", fontFamily: "system-ui, -apple-system, sans-serif", backgroundColor: "#ffffff" }}
+    >
+      <h2
+        style={{
+          margin: "0 0 20px",
+          textAlign: "center",
+          color: "#111827",
+          fontSize: "20px",
+          fontWeight: "700",
+        }}
+      >
         Global COVID-19 Trends
       </h2>
-      
-      <${Legend} items=${legendItems} html=${html} />
-      
-      <div 
-        ref=${containerRef} 
-        style=${{
-      position: 'relative',
-      height: '400px',
-      width: '100%'
-    }}
-      ></div>
-      
-      <div style=${{
-      marginTop: '12px',
-      textAlign: 'right',
-      fontSize: '12px',
-      color: '#6b7280'
-    }}>
+
+      <Legend items={legendItems} />
+
+      <div ref={containerRef} style={{ position: "relative", height: "400px", width: "100%" }}></div>
+
+      <div
+        style={{
+          marginTop: "12px",
+          textAlign: "right",
+          fontSize: "12px",
+          color: "#6b7280",
+        }}
+      >
         Source: Data Repository
       </div>
     </section>
-  `;
+  );
 }

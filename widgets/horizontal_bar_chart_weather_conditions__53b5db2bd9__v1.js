@@ -1,23 +1,25 @@
 import * as d3 from "https://esm.sh/d3@7";
 
-export const Tooltip = ({ html, data }) => {
-  if (!data) return html`<div style=${{ height: '20px' }}></div>`;
-  return html`
-    <div style=${{ 
-      padding: '8px 12px', 
-      background: '#1e1e1e', 
-      color: 'white', 
-      borderRadius: '4px', 
-      fontSize: '12px',
-      marginBottom: '10px',
-      borderLeft: `4px solid ${data.color}`
-    }}>
-      <strong>${data.weather.toUpperCase()}</strong>: ${data.count} records
+export const Tooltip = ({ data }) => {
+  if (!data) return <div style={{ height: "20px" }} />;
+  return (
+    <div
+      style={{
+        padding: "8px 12px",
+        background: "#1e1e1e",
+        color: "white",
+        borderRadius: "4px",
+        fontSize: "12px",
+        marginBottom: "10px",
+        borderLeft: `4px solid ${data.color}`,
+      }}
+    >
+      <strong>{data.weather.toUpperCase()}</strong>: {data.count} records
     </div>
-  `;
+  );
 };
 
-export default function WeatherBarChart({ model, html, React }) {
+export default function WeatherBarChart({ model, React }) {
   const containerRef = React.useRef(null);
   const [hovered, setHovered] = React.useState(null);
   const [selection, setSelection] = React.useState(model.get("selected_indices") || []);
@@ -134,45 +136,54 @@ export default function WeatherBarChart({ model, html, React }) {
     };
   }, [processedData]);
 
-  return html`
-    <div style=${{ 
-      fontFamily: 'system-ui, sans-serif', 
-      padding: '20px', 
-      background: '#fff', 
-      borderRadius: '8px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      maxWidth: '640px'
-    }}>
-      <h3 style=${{ margin: '0 0 16px 0', color: '#333' }}>Weather Conditions Distribution</h3>
-      
-      <${Tooltip} html=${html} data=${hovered} />
-      
-      <div ref=${containerRef}></div>
-      
-      <div style=${{ 
-        marginTop: '12px', 
-        fontSize: '11px', 
-        color: '#888', 
-        display: 'flex', 
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
+  return (
+    <div
+      style={{
+        fontFamily: "system-ui, sans-serif",
+        padding: "20px",
+        background: "#fff",
+        borderRadius: "8px",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        maxWidth: "640px",
+      }}
+    >
+      <h3 style={{ margin: "0 0 16px 0", color: "#333" }}>
+        Weather Conditions Distribution
+      </h3>
+
+      <Tooltip data={hovered} />
+
+      <div ref={containerRef}></div>
+
+      <div
+        style={{
+          marginTop: "12px",
+          fontSize: "11px",
+          color: "#888",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <span>Click bars to filter global selection</span>
-        ${selection.length > 0 && html`
-          <button 
-            onClick=${() => { model.set("selected_indices", []); model.save_changes(); }}
-            style=${{
-              padding: '4px 8px',
-              cursor: 'pointer',
-              background: '#f0f0f0',
-              border: '1px solid #ccc',
-              borderRadius: '4px'
+        {selection.length > 0 && (
+          <button
+            onClick={() => {
+              model.set("selected_indices", []);
+              model.save_changes();
+            }}
+            style={{
+              padding: "4px 8px",
+              cursor: "pointer",
+              background: "#f0f0f0",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
             }}
           >
-            Clear Selection (${selection.length})
+            Clear Selection ({selection.length})
           </button>
-        `}
+        )}
       </div>
     </div>
-  `;
+  );
 }

@@ -6,29 +6,52 @@ const COLORS = {
   Recovered: "#2E7D32"  // Dark Green
 };
 
-export const ChartLegend = ({ html, keys, colors }) => {
-  return html`
-    <div style=${{ display: "flex", gap: "16px", marginBottom: "12px", justifyContent: "center", fontSize: "14px", fontFamily: "sans-serif" }}>
-      ${keys.map(key => html`
-        <div style=${{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style=${{ width: "12px", height: "12px", backgroundColor: colors[key], borderRadius: "50%", display: "inline-block" }}></span>
-          <span style=${{ color: "#333", fontWeight: "600" }}>${key}</span>
-        </div>
-      `)}
-    </div>
-  `;
-};
+export const ChartLegend = ({ keys, colors }) => (
+  <div
+    style={{
+      display: "flex",
+      gap: "16px",
+      marginBottom: "12px",
+      justifyContent: "center",
+      fontSize: "14px",
+      fontFamily: "sans-serif",
+    }}
+  >
+    {keys.map((key) => (
+      <div key={key} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <span
+          style={{
+            width: "12px",
+            height: "12px",
+            backgroundColor: colors[key],
+            borderRadius: "50%",
+            display: "inline-block",
+          }}
+        ></span>
+        <span style={{ color: "#333", fontWeight: "600" }}>{key}</span>
+      </div>
+    ))}
+  </div>
+);
 
-export const Toggle = ({ html, label, checked, onChange }) => {
-  return html`
-    <label style=${{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", cursor: "pointer", fontFamily: "sans-serif", color: "#333" }}>
-      <input type="checkbox" checked=${checked} onChange=${onChange} style=${{ cursor: "pointer" }} />
-      ${label}
-    </label>
-  `;
-};
+export const Toggle = ({ label, checked, onChange }) => (
+  <label
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      fontSize: "14px",
+      cursor: "pointer",
+      fontFamily: "sans-serif",
+      color: "#333",
+    }}
+  >
+    <input type="checkbox" checked={checked} onChange={onChange} style={{ cursor: "pointer" }} />
+    {label}
+  </label>
+);
 
-export default function Widget({ model, html, React }) {
+export default function Widget({ model, React }) {
   const rawData = model.get("data") || [];
   const containerRef = React.useRef(null);
   const [useLogScale, setUseLogScale] = React.useState(false);
@@ -196,67 +219,80 @@ export default function Widget({ model, html, React }) {
 
   const formatNum = (num) => new Intl.NumberFormat().format(num);
 
-  return html`
-    <div style=${{ 
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-      border: '1px solid #e0e0e0',
-      borderRadius: '8px',
-      padding: '20px',
-      backgroundColor: '#fff',
-      color: '#333'
-    }}>
-      <div style=${{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h2 style=${{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Global COVID-19 Trends</h2>
-        <${Toggle} 
-          html=${html} 
-          label="Log Scale" 
-          checked=${useLogScale} 
-          onChange=${(e) => setUseLogScale(e.target.checked)} 
-        />
+  return (
+    <div
+      style={{
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        border: "1px solid #e0e0e0",
+        borderRadius: "8px",
+        padding: "20px",
+        backgroundColor: "#fff",
+        color: "#333",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "16px",
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: "18px", fontWeight: "600" }}>Global COVID-19 Trends</h2>
+        <Toggle label="Log Scale" checked={useLogScale} onChange={(e) => setUseLogScale(e.target.checked)} />
       </div>
 
-      <${ChartLegend} html=${html} keys=${["Confirmed", "Deaths", "Recovered"]} colors=${COLORS} />
+      <ChartLegend keys={["Confirmed", "Deaths", "Recovered"]} colors={COLORS} />
 
-      <div style=${{ position: 'relative' }}>
-        <div ref=${containerRef} style=${{ width: '100%', minHeight: '400px' }}></div>
-        
-        ${hoverData && html`
-          <div style=${{
-            position: 'absolute',
-            top: '10px',
-            left: '60px',
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            border: '1px solid #ddd',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            padding: '12px',
-            borderRadius: '4px',
-            pointerEvents: 'none',
-            fontSize: '13px',
-            lineHeight: '1.6',
-            zIndex: 10
-          }}>
-            <div style=${{ fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
-              ${formatDate(hoverData.dateObj)}
+      <div style={{ position: "relative" }}>
+        <div ref={containerRef} style={{ width: "100%", minHeight: "400px" }}></div>
+
+        {hoverData && (
+          <div
+            style={{
+              position: "absolute",
+              top: "10px",
+              left: "60px",
+              backgroundColor: "rgba(255, 255, 255, 0.95)",
+              border: "1px solid #ddd",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              padding: "12px",
+              borderRadius: "4px",
+              pointerEvents: "none",
+              fontSize: "13px",
+              lineHeight: "1.6",
+              zIndex: 10,
+            }}
+          >
+            <div
+              style={{
+                fontWeight: "bold",
+                marginBottom: "4px",
+                borderBottom: "1px solid #eee",
+                paddingBottom: "4px",
+              }}
+            >
+              {formatDate(hoverData.dateObj)}
             </div>
-            <div style=${{ color: COLORS.Confirmed }}>
-              Confirmed: <strong>${formatNum(hoverData.Confirmed)}</strong>
+            <div style={{ color: COLORS.Confirmed }}>
+              Confirmed: <strong>{formatNum(hoverData.Confirmed)}</strong>
             </div>
-            <div style=${{ color: COLORS.Deaths }}>
-              Deaths: <strong>${formatNum(hoverData.Deaths)}</strong>
+            <div style={{ color: COLORS.Deaths }}>
+              Deaths: <strong>{formatNum(hoverData.Deaths)}</strong>
             </div>
-            <div style=${{ color: COLORS.Recovered }}>
-              Recovered: <strong>${formatNum(hoverData.Recovered)}</strong>
+            <div style={{ color: COLORS.Recovered }}>
+              Recovered: <strong>{formatNum(hoverData.Recovered)}</strong>
             </div>
-            <div style=${{ marginTop: '4px', color: '#666', fontSize: '12px' }}>
-              Active: ${formatNum(hoverData.Active)}
+            <div style={{ marginTop: "4px", color: "#666", fontSize: "12px" }}>
+              Active: {formatNum(hoverData.Active)}
             </div>
           </div>
-        `}
+        )}
       </div>
 
-      <div style=${{ marginTop: '12px', fontSize: '12px', color: '#777', textAlign: 'right' }}>
+      <div style={{ marginTop: "12px", fontSize: "12px", color: "#777", textAlign: "right" }}>
         Data source: Global Summary
       </div>
     </div>
-  `;
+  );
 }

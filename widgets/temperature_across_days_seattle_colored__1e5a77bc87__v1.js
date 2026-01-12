@@ -1,19 +1,30 @@
 import * as d3 from "https://esm.sh/d3@7";
 
-export const Legend = ({ html, colorScale, weatherTypes }) => {
-  return html`
-    <div style=${{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '12px', fontFamily: 'sans-serif' }}>
-      ${weatherTypes.map(type => html`
-        <div style=${{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div style=${{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: colorScale(type) }}></div>
-          <span style=${{ textTransform: 'capitalize', color: '#444' }}>${type}</span>
+export const Legend = ({ colorScale, weatherTypes }) => {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: "12px",
+        flexWrap: "wrap",
+        marginBottom: "12px",
+        fontSize: "12px",
+        fontFamily: "sans-serif",
+      }}
+    >
+      {weatherTypes.map((type) => (
+        <div key={type} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div
+            style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: colorScale(type) }}
+          ></div>
+          <span style={{ textTransform: "capitalize", color: "#444" }}>{type}</span>
         </div>
-      `)}
+      ))}
     </div>
-  `;
+  );
 };
 
-export default function WeatherVisualization({ model, html, React }) {
+export default function WeatherVisualization({ model, React }) {
   const containerRef = React.useRef(null);
   const [hovered, setHovered] = React.useState(null);
   const data = model.get("data") || [];
@@ -140,40 +151,50 @@ export default function WeatherVisualization({ model, html, React }) {
   }, [data, d3]);
 
   if (!d3 || !weatherColors) {
-    return html`<div style=${{ padding: '20px', textAlign: 'center', color: '#666' }}>Loading D3...</div>`;
+    return <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>Loading D3...</div>;
   }
 
-  return html`
-    <div style=${{
-      background: '#ffffff',
-      padding: '20px',
-      borderRadius: '8px',
-      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-      border: '1px solid #e5e7eb'
-    }}>
-      <header style=${{ marginBottom: '16px' }}>
-        <h2 style=${{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: '600', color: '#111827' }}>
+  return (
+    <div
+      style={{
+        background: "#ffffff",
+        padding: "20px",
+        borderRadius: "8px",
+        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+        border: "1px solid #e5e7eb",
+      }}
+    >
+      <header style={{ marginBottom: "16px" }}>
+        <h2 style={{ margin: "0 0 4px 0", fontSize: "18px", fontWeight: "600", color: "#111827" }}>
           Seattle Weather Trends
         </h2>
-        <p style=${{ margin: 0, fontSize: '14px', color: '#6b7280' }}>
+        <p style={{ margin: 0, fontSize: "14px", color: "#6b7280" }}>
           Max Temp vs Time. Size represents precipitation. Brush to select.
         </p>
       </header>
-      
-      <${Legend} html=${html} colorScale=${weatherColors} weatherTypes=${weatherTypes} />
-      
-      <div ref=${containerRef} style=${{ width: '100%', position: 'relative' }}></div>
-      
-      <div style=${{ height: '24px', marginTop: '8px' }}>
-        ${hovered && html`
-          <div style=${{ fontSize: '13px', color: '#374151', display: 'flex', gap: '16px' }}>
-            <span><strong>Date:</strong> ${hovered.date ? hovered.date.toLocaleDateString() : 'N/A'}</span>
-            <span><strong>Max Temp:</strong> ${hovered.temp_max}°C</span>
-            <span><strong>Precip:</strong> ${hovered.precipitation}mm</span>
-            <span style=${{ textTransform: 'capitalize' }}><strong>Weather:</strong> ${hovered.weather}</span>
+
+      <Legend colorScale={weatherColors} weatherTypes={weatherTypes} />
+
+      <div ref={containerRef} style={{ width: "100%", position: "relative" }}></div>
+
+      <div style={{ height: "24px", marginTop: "8px" }}>
+        {hovered && (
+          <div style={{ fontSize: "13px", color: "#374151", display: "flex", gap: "16px" }}>
+            <span>
+              <strong>Date:</strong> {hovered.date ? hovered.date.toLocaleDateString() : "N/A"}
+            </span>
+            <span>
+              <strong>Max Temp:</strong> {hovered.temp_max}°C
+            </span>
+            <span>
+              <strong>Precip:</strong> {hovered.precipitation}mm
+            </span>
+            <span style={{ textTransform: "capitalize" }}>
+              <strong>Weather:</strong> {hovered.weather}
+            </span>
           </div>
-        `}
+        )}
       </div>
     </div>
-  `;
+  );
 }

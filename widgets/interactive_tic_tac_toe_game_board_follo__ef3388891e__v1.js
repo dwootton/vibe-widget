@@ -9,7 +9,7 @@ const WIN_COMBINATIONS = [
   [0, 4, 8], [2, 4, 6]             // Diagonals
 ];
 
-export default function TicTacToeWidget({ model, html, React }) {
+export default function TicTacToeWidget({ model, React }) {
   // Internal State
   const [board, setBoard] = React.useState(Array(9).fill('b'));
   const [turn, setTurn] = React.useState('x');
@@ -131,29 +131,29 @@ export default function TicTacToeWidget({ model, html, React }) {
     return `Current Turn: ${turn.toUpperCase()}`;
   };
 
-  return html`
-    <div style=${styles.container}>
-      <div style=${styles.status}>${getStatusMessage()}</div>
-      
-      <div style=${styles.grid}>
-        ${board.map((cell, i) => html`
-          <div 
-            key=${i}
-            style=${styles.cell(cell)}
-            onClick=${() => turn === 'x' && makeMove(i, 'x')}
+  return (
+    <div style={styles.container}>
+      <div style={styles.status}>{getStatusMessage()}</div>
+
+      <div style={styles.grid}>
+        {board.map((cell, i) => (
+          <div
+            key={i}
+            style={styles.cell(cell)}
+            onClick={() => turn === "x" && makeMove(i, "x")}
           >
-            ${cell !== 'b' ? cell.toUpperCase() : ''}
+            {cell !== "b" ? cell.toUpperCase() : ""}
           </div>
-        `)}
+        ))}
       </div>
 
-      <button style=${styles.button} onClick=${resetGame}>
+      <button style={styles.button} onClick={resetGame}>
         Reset Game
       </button>
 
-      <div style=${{ marginTop: '15px', fontSize: '0.8rem', color: '#6c757d' }}>
+      <div style={{ marginTop: "15px", fontSize: "0.8rem", color: "#6c757d" }}>
         X = Human (Blue) | O = AI (Red)
       </div>
     </div>
-  `;
+  );
 }

@@ -1,15 +1,17 @@
 import * as d3 from "https://esm.sh/d3@7";
 
-export const ChartHeader = ({ html, count, total }) => html`
-  <div style=${{ marginBottom: '12px', fontFamily: 'sans-serif' }}>
-    <h3 style=${{ margin: '0 0 4px 0', fontSize: '16px', color: '#1a1a1a' }}>Weather Condition Distribution</h3>
-    <p style=${{ margin: 0, fontSize: '12px', color: '#666' }}>
-      Showing ${count} of ${total} selected records
+export const ChartHeader = ({ count, total }) => (
+  <div style={{ marginBottom: "12px", fontFamily: "sans-serif" }}>
+    <h3 style={{ margin: "0 0 4px 0", fontSize: "16px", color: "#1a1a1a" }}>
+      Weather Condition Distribution
+    </h3>
+    <p style={{ margin: 0, fontSize: "12px", color: "#666" }}>
+      Showing {count} of {total} selected records
     </p>
   </div>
-`;
+);
 
-export default function WeatherBarChart({ model, html, React }) {
+export default function WeatherBarChart({ model, React }) {
   const [selectedIndices, setSelectedIndices] = React.useState(model.get("selected_indices") || []);
   const containerRef = React.useRef(null);
   const data = model.get("data") || [];
@@ -153,24 +155,22 @@ export default function WeatherBarChart({ model, html, React }) {
 
   }, [processedData]);
 
-  return html`
-    <div style=${{ 
-      padding: '20px', 
-      background: '#fff', 
-      borderRadius: '8px', 
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      minHeight: '360px'
-    }}>
-      <${ChartHeader} 
-        html=${html} 
-        count=${selectedIndices.length || data.length} 
-        total=${data.length} 
-      />
-      <div ref=${containerRef}></div>
+  return (
+    <div
+      style={{
+        padding: "20px",
+        background: "#fff",
+        borderRadius: "8px",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        minHeight: "360px",
+      }}
+    >
+      <ChartHeader count={selectedIndices.length || data.length} total={data.length} />
+      <div ref={containerRef}></div>
       <style>
-        .tick text { fill: #666; font-family: sans-serif; }
-        .tick line { stroke: #eee; }
+        {`.tick text { fill: #666; font-family: sans-serif; }
+        .tick line { stroke: #eee; }`}
       </style>
     </div>
-  `;
+  );
 }

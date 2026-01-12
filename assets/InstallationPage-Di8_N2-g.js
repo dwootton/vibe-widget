@@ -1,4 +1,4 @@
-import{j as n}from"./index-D_8R8ZUm.js";import{D as s}from"./DocMdxPage-BvlSajtn.js";import"./DocContent-D7aio9c8.js";const r={title:"Installation",description:"Get up and running with Vibe Widget in seconds."};function i(t){const e={code:"code",h2:"h2",p:"p",pre:"pre",...t.components},{InstallCommand:o}=e;return o||a("InstallCommand"),n.jsxs(n.Fragment,{children:[n.jsx(e.p,{children:"Get up and running with Vibe Widget in seconds."}),`
+import{j as n}from"./index-DW6fP7wU.js";import{D as s}from"./DocMdxPage-DHLXPrOC.js";import"./DocContent-BrPZLS5s.js";const r={title:"Installation",description:"Get up and running with Vibe Widget in seconds."};function i(t){const e={code:"code",h2:"h2",p:"p",pre:"pre",...t.components},{InstallCommand:o}=e;return o||a("InstallCommand"),n.jsxs(n.Fragment,{children:[n.jsx(e.p,{children:"Get up and running with Vibe Widget in seconds."}),`
 `,n.jsx(o,{command:"pip install vibe-widget"}),`
 `,n.jsx(e.p,{children:"Vibe Widget requires Python 3.8+ and an OpenRouter API key."}),`
 `,n.jsx(e.pre,{children:n.jsx(e.code,{className:"language-bash",children:`export OPENROUTER_API_KEY='your-key'

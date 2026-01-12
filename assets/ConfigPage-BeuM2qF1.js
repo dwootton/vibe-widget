@@ -1,4 +1,4 @@
-import{j as e}from"./index-D_8R8ZUm.js";import{D as i}from"./DocMdxPage-BvlSajtn.js";import"./DocContent-D7aio9c8.js";const t={title:"Configuration",description:"Configure model settings and API keys."};function s(o){const n={code:"code",h2:"h2",li:"li",p:"p",pre:"pre",ul:"ul",...o.components};return e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Configure model settings and API keys."}),`
+import{j as e}from"./index-DW6fP7wU.js";import{D as i}from"./DocMdxPage-DHLXPrOC.js";import"./DocContent-BrPZLS5s.js";const t={title:"Configuration",description:"Configure model settings and API keys."};function s(o){const n={code:"code",h2:"h2",li:"li",p:"p",pre:"pre",ul:"ul",...o.components};return e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Configure model settings and API keys."}),`
 `,e.jsx(n.h2,{children:"Set defaults"}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`import vibe_widget as vw
 
