@@ -91,3 +91,6 @@ src/vibe_widget/frontend/node_modules/.package-lock.json
 
 /planning/
 .vibewidget/
+
+AGENTS.md
+logs.txt

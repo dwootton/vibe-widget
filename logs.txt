@@ -966,3 +966,579 @@ CODE CHANGES:
 2026-01-09T17:25:14.523786+00:00 | progress_log_extend | Widget saved: credsaatea_umap_rows
 2026-01-09T17:25:14.523965+00:00 | progress_log_extend | Location: .vibewidget/widgets/credsaatea_umap_rows_credsaatea_umap_20260109_172514_41191948e8.js
 2026-01-09T17:25:14.525170+00:00 | status_transition | generating -> ready
+2026-01-10T03:29:59.172763+00:00 | create_called | display=True cache=False
+2026-01-10T03:29:59.240401+00:00 | display_widget | model_id=f9137def62d947afbccd5a434443a6d1
+2026-01-10T03:29:59.243964+00:00 | ipython_display | model_id=f9137def62d947afbccd5a434443a6d1 stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-10T03:29:59.283847+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-10T03:29:59.385336+00:00 | progress_log_append | Skipping cache (cache=False)
+2026-01-10T03:29:59.385748+00:00 | progress_log_append | Generating widget code
+2026-01-10T03:29:59.386991+00:00 | create_return | model_id=f9137def62d947afbccd5a434443a6d1
+2026-01-10T03:29:59.387893+00:00 | progress_log_append | Analyzing data
+2026-01-10T03:29:59.388293+00:00 | progress_log_append | Inputs: 1
+2026-01-10T03:29:59.388790+00:00 | progress_log_append | Generating widget code...
+2026-01-10T03:30:00.836892+00:00 | progress_log_append | Importing d3...
+2026-01-10T03:30:01.900038+00:00 | progress_log_append | Building UI components...
+2026-01-10T03:30:02.246200+00:00 | progress_log_append | Creating widget component...
+2026-01-10T03:30:02.353958+00:00 | progress_log_append | Setting up React hooks...
+2026-01-10T03:30:04.856131+00:00 | progress_log_append | Setting up reactivity...
+2026-01-10T03:30:07.282585+00:00 | progress_log_append | Applying styles...
+2026-01-10T03:30:07.931143+00:00 | progress_log_append | Processing data...
+2026-01-10T03:30:08.531614+00:00 | progress_log_append | Validating code
+2026-01-10T03:30:08.534015+00:00 | progress_log_append | Testing runtime
+2026-01-10T03:30:08.669321+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-10T03:30:08.669932+00:00 | progress_log_append | Code generated: 4782 characters
+2026-01-10T03:30:08.674071+00:00 | progress_log_extend | Widget saved: game_board
+2026-01-10T03:30:08.674203+00:00 | progress_log_extend | Location: .vibewidget/widgets/game_board_interactive_tic_20260110_033008_ada9fd42b9.js
+2026-01-10T03:30:08.674599+00:00 | status_transition | generating -> ready
+2026-01-11T00:08:10.466774+00:00 | create_called | display=True cache=True
+2026-01-11T00:08:10.500772+00:00 | display_widget | model_id=77da2618fd664be1b510e32208f37c3b
+2026-01-11T00:08:10.503474+00:00 | ipython_display | model_id=77da2618fd664be1b510e32208f37c3b stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-11T00:08:10.506616+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-11T00:08:10.570143+00:00 | progress_log_append | Generating widget code
+2026-01-11T00:08:10.571007+00:00 | create_return | model_id=77da2618fd664be1b510e32208f37c3b
+2026-01-11T00:08:10.571036+00:00 | progress_log_append | Analyzing data
+2026-01-11T00:08:10.571481+00:00 | ipython_display_skip | model_id=77da2618fd664be1b510e32208f37c3b
+2026-01-11T00:08:10.571764+00:00 | progress_log_append | Inputs: 1
+2026-01-11T00:08:10.572510+00:00 | progress_log_append | Generating widget code...
+2026-01-11T00:08:11.762785+00:00 | progress_log_append | Importing d3...
+2026-01-11T00:08:12.477778+00:00 | progress_log_append | Processing data...
+2026-01-11T00:08:15.117616+00:00 | progress_log_append | Applying styles...
+2026-01-11T00:08:16.245158+00:00 | progress_log_append | Setting up React hooks...
+2026-01-11T00:08:17.258197+00:00 | progress_log_append | Creating SVG canvas...
+2026-01-11T00:08:17.568206+00:00 | progress_log_append | Adding visualization elements...
+2026-01-11T00:08:18.061908+00:00 | progress_log_append | Setting up scales...
+2026-01-11T00:08:19.527387+00:00 | progress_log_append | Creating axes...
+2026-01-11T00:08:19.970207+00:00 | progress_log_append | Binding data to elements...
+2026-01-11T00:08:21.792989+00:00 | progress_log_append | Building UI components...
+2026-01-11T00:08:22.891719+00:00 | progress_log_append | Creating widget component...
+2026-01-11T00:08:26.552907+00:00 | progress_log_append | Validating code
+2026-01-11T00:08:26.557407+00:00 | progress_log_append | Testing runtime
+2026-01-11T00:08:26.743988+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-11T00:08:26.744439+00:00 | progress_log_append | Code generated: 9214 characters
+2026-01-11T00:08:26.746487+00:00 | progress_log_extend | Widget saved: help_interactive_explainer
+2026-01-11T00:08:26.746690+00:00 | progress_log_extend | Location: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_000826_55071d1d5c.js
+2026-01-11T00:08:26.747446+00:00 | status_transition | generating -> ready
+2026-01-11T00:10:13.649487+00:00 | create_called | display=True cache=True
+2026-01-11T00:10:13.686582+00:00 | display_widget | model_id=979266bbdba04007a0282818beb8bd82
+2026-01-11T00:10:13.689468+00:00 | ipython_display | model_id=979266bbdba04007a0282818beb8bd82 stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-11T00:10:13.691727+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-11T00:10:13.714876+00:00 | progress_log_append | Generating widget code
+2026-01-11T00:10:13.715775+00:00 | create_return | model_id=979266bbdba04007a0282818beb8bd82
+2026-01-11T00:10:13.715799+00:00 | progress_log_append | Analyzing data
+2026-01-11T00:10:13.716255+00:00 | progress_log_append | Inputs: 1
+2026-01-11T00:10:13.716313+00:00 | ipython_display_skip | model_id=979266bbdba04007a0282818beb8bd82
+2026-01-11T00:10:13.716836+00:00 | progress_log_append | Generating widget code...
+2026-01-11T00:10:14.610429+00:00 | progress_log_append | Importing d3...
+2026-01-11T00:10:15.505232+00:00 | progress_log_append | Processing data...
+2026-01-11T00:10:18.106030+00:00 | progress_log_append | Setting up React hooks...
+2026-01-11T00:10:18.405490+00:00 | progress_log_append | Building UI components...
+2026-01-11T00:10:19.538332+00:00 | progress_log_append | Creating SVG canvas...
+2026-01-11T00:10:19.656347+00:00 | progress_log_append | Adding visualization elements...
+2026-01-11T00:10:20.221061+00:00 | progress_log_append | Setting up scales...
+2026-01-11T00:10:20.572216+00:00 | progress_log_append | Creating axes...
+2026-01-11T00:10:21.157819+00:00 | progress_log_append | Binding data to elements...
+2026-01-11T00:10:25.220965+00:00 | progress_log_append | Applying styles...
+2026-01-11T00:10:26.069608+00:00 | progress_log_append | Creating widget component...
+2026-01-11T00:10:32.663980+00:00 | progress_log_append | Validating code
+2026-01-11T00:10:32.668008+00:00 | progress_log_append | Testing runtime
+2026-01-11T00:10:32.714227+00:00 | progress_log_append | Issues found: Do not import React/ReactDOM/Preact; the host injects a React-compatible runtime for you.
+2026-01-11T00:10:32.714879+00:00 | progress_log_append | Repairing code (attempt 1)...
+2026-01-11T00:10:48.732495+00:00 | progress_log_append | Issues found: Do not import React/ReactDOM/Preact; the host injects a React-compatible runtime for you.
+2026-01-11T00:10:48.733457+00:00 | progress_log_append | Repairing code (attempt 2)...
+2026-01-11T00:11:06.993801+00:00 | progress_log_append | Issues found: Do not import React/ReactDOM/Preact; the host injects a React-compatible runtime for you.
+2026-01-11T00:11:06.994610+00:00 | progress_log_append | Repairing code (attempt 3)...
+2026-01-11T00:11:25.282669+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-11T00:11:25.283485+00:00 | progress_log_append | Code generated: 10949 characters
+2026-01-11T00:11:25.286304+00:00 | progress_log_extend | Widget saved: help_interactive_explainer
+2026-01-11T00:11:25.286456+00:00 | progress_log_extend | Location: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001125_55071d1d5c.js
+2026-01-11T00:11:25.287472+00:00 | status_transition | generating -> ready
+2026-01-11T00:11:25.296268+00:00 | runtime_error_received | status=error retry=0
+2026-01-11T00:11:25.296581+00:00 | runtime_error_message | [js_runtime_error_ts=2026-01-11T00:11:25.291Z] Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+
+Stack:
+Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-7994acf8a843:844:286
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-
+2026-01-11T00:11:25.297088+00:00 | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-11T00:11:25.291Z] Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead. | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001125_55071d1d5c.js
+2026-01-11T00:11:25.297659+00:00 | status_transition | error -> retrying
+2026-01-11T00:11:25.297950+00:00 | repair_attempt_start | retry=1
+2026-01-11T00:11:25.298344+00:00 | progress_log_extend | Runtime error: [js_runtime_error_ts=2026-01-11T00:11:25.291Z] Error: Generated code must not import React/ReactDOM/ | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001125_55071d1d5c.js
+2026-01-11T00:11:25.298432+00:00 | progress_log_extend | Repairing code...
+2026-01-11T00:11:43.232856+00:00 | repair_result | applied=False retryable=False
+2026-01-11T00:11:43.235837+00:00 | progress_log_append | Repair produced no changes.
+2026-01-11T00:11:43.236706+00:00 | status_transition | retrying -> blocked
+2026-01-11T00:11:43.238964+00:00 | widget_error_received | [js_runtime_error_ts=2026-01-11T00:11:25.291Z] Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+
+Stack:
+Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-7994acf8a843:844:286
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-
+2026-01-11T00:11:43.246605+00:00 | runtime_error_received | status=error retry=0
+2026-01-11T00:11:43.247178+00:00 | runtime_error_message | [js_runtime_error_ts=2026-01-11T00:11:25.292Z] Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+
+Stack:
+Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-7994acf8a843:844:286
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-
+2026-01-11T00:11:43.248006+00:00 | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-11T00:11:25.292Z] Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead. | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_000826_55071d1d5c.js
+2026-01-11T00:11:43.248877+00:00 | status_transition | error -> retrying
+2026-01-11T00:11:43.249299+00:00 | repair_attempt_start | retry=1
+2026-01-11T00:11:43.249884+00:00 | progress_log_extend | Runtime error: [js_runtime_error_ts=2026-01-11T00:11:25.292Z] Error: Generated code must not import React/ReactDOM/ | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_000826_55071d1d5c.js
+2026-01-11T00:11:43.250066+00:00 | progress_log_extend | Repairing code...
+2026-01-11T00:11:59.174862+00:00 | repair_result | applied=True retryable=False
+2026-01-11T00:11:59.179778+00:00 | progress_log_append | Code fixed, retrying
+2026-01-11T00:11:59.180744+00:00 | status_transition | retrying -> ready
+2026-01-11T00:11:59.183001+00:00 | widget_error_received | [js_runtime_error_ts=2026-01-11T00:11:25.292Z] Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+
+Stack:
+Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-7994acf8a843:844:286
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-
+2026-01-11T00:11:59.186553+00:00 | runtime_error_received | status=blocked retry=1
+2026-01-11T00:11:59.187132+00:00 | runtime_error_message | [js_runtime_error_ts=2026-01-11T00:11:25.292Z] Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+
+Stack:
+Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-7994acf8a843:844:286
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-
+2026-01-11T00:11:59.187899+00:00 | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-11T00:11:25.292Z] Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead. | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001125_55071d1d5c.js
+2026-01-11T00:11:59.188758+00:00 | status_transition | blocked -> retrying
+2026-01-11T00:11:59.188873+00:00 | repair_attempt_start | retry=2
+2026-01-11T00:11:59.189318+00:00 | progress_log_extend | Runtime error: [js_runtime_error_ts=2026-01-11T00:11:25.292Z] Error: Generated code must not import React/ReactDOM/ | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001125_55071d1d5c.js
+2026-01-11T00:11:59.189422+00:00 | progress_log_extend | Repairing code...
+2026-01-11T00:11:59.189515+00:00 | repair_result | applied=False retryable=False
+2026-01-11T00:11:59.189714+00:00 | progress_log_append | Max retry attempts reached.
+2026-01-11T00:11:59.190562+00:00 | status_transition | retrying -> blocked
+2026-01-11T00:11:59.191473+00:00 | widget_error_received | [js_runtime_error_ts=2026-01-11T00:11:25.292Z] Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+
+Stack:
+Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-7994acf8a843:844:286
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-
+2026-01-11T00:11:59.232763+00:00 | create_called | display=True cache=True
+2026-01-11T00:11:59.259684+00:00 | display_widget | model_id=1bf86e1713604a19ab8e03b130076dbf
+2026-01-11T00:11:59.260179+00:00 | ipython_display | model_id=1bf86e1713604a19ab8e03b130076dbf stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-11T00:11:59.262319+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-11T00:11:59.278414+00:00 | progress_log_append | Generating widget code
+2026-01-11T00:11:59.279251+00:00 | progress_log_append | Analyzing data
+2026-01-11T00:11:59.279325+00:00 | create_return | model_id=1bf86e1713604a19ab8e03b130076dbf
+2026-01-11T00:11:59.279829+00:00 | progress_log_append | Inputs: 1
+2026-01-11T00:11:59.279881+00:00 | ipython_display_skip | model_id=1bf86e1713604a19ab8e03b130076dbf
+2026-01-11T00:11:59.280379+00:00 | progress_log_append | Generating widget code...
+2026-01-11T00:11:59.285185+00:00 | runtime_error_received | status=ready retry=0
+2026-01-11T00:11:59.285658+00:00 | runtime_error_message | [js_runtime_error_ts=2026-01-11T00:11:25.292Z] Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+
+Stack:
+Error: Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead.
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-7994acf8a843:844:286
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/633c3ae6-adff-48f3-97be-
+2026-01-11T00:11:59.286165+00:00 | status_transition | ready -> retrying
+2026-01-11T00:11:59.286345+00:00 | repair_attempt_start | retry=1
+2026-01-11T00:11:59.286682+00:00 | progress_log_extend | Runtime error: [js_runtime_error_ts=2026-01-11T00:11:25.292Z] Error: Generated code must not import React/ReactDOM/ | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_000826_55071d1d5c.js
+2026-01-11T00:11:59.286786+00:00 | progress_log_extend | Repairing code...
+2026-01-11T00:12:00.534540+00:00 | progress_log_append | Importing d3...
+2026-01-11T00:12:01.055965+00:00 | progress_log_append | Processing data...
+2026-01-11T00:12:02.681394+00:00 | progress_log_append | Applying styles...
+2026-01-11T00:12:03.823380+00:00 | progress_log_append | Setting up React hooks...
+2026-01-11T00:12:04.843158+00:00 | progress_log_append | Binding data to elements...
+2026-01-11T00:12:04.940534+00:00 | progress_log_append | Creating SVG canvas...
+2026-01-11T00:12:05.178497+00:00 | progress_log_append | Setting up scales...
+2026-01-11T00:12:06.609056+00:00 | progress_log_append | Adding visualization elements...
+2026-01-11T00:12:06.715386+00:00 | progress_log_append | Creating axes...
+2026-01-11T00:12:10.387162+00:00 | progress_log_append | Adding animations...
+2026-01-11T00:12:10.835430+00:00 | progress_log_append | Building UI components...
+2026-01-11T00:12:11.560634+00:00 | progress_log_append | Creating widget component...
+2026-01-11T00:12:14.560825+00:00 | repair_result | applied=True retryable=False
+2026-01-11T00:12:14.561361+00:00 | progress_log_append | Code fixed, retrying
+2026-01-11T00:12:14.561960+00:00 | status_transition | retrying -> ready
+2026-01-11T00:12:17.474129+00:00 | progress_log_append | Validating code
+2026-01-11T00:12:17.477679+00:00 | progress_log_append | Testing runtime
+2026-01-11T00:12:17.537861+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-11T00:12:17.538534+00:00 | progress_log_append | Code generated: 10486 characters
+2026-01-11T00:12:17.541039+00:00 | progress_log_extend | Widget saved: help_interactive_explainer
+2026-01-11T00:12:17.541171+00:00 | progress_log_extend | Location: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001217_55071d1d5c.js
+2026-01-11T00:12:17.542020+00:00 | status_transition | generating -> ready
+2026-01-11T00:12:17.586059+00:00 | runtime_error_received | status=error retry=0
+2026-01-11T00:12:17.586280+00:00 | runtime_error_message | [js_runtime_error_ts=2026-01-11T00:12:17.578Z] TypeError: d3.dot is not a function
+
+Stack:
+TypeError: d3.dot is not a function
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ee87ad33-1300-4510-bd23-718cf7474e42:22:24
+    at Array.forEach (<anonymous>)
+    at getFirstComponent (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ee87ad33-1300-4510-bd23-718cf7474e42:21:11)
+    at computePCA (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0
+2026-01-11T00:12:17.586721+00:00 | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-11T00:12:17.578Z] TypeError: d3.dot is not a function | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001217_55071d1d5c.js
+2026-01-11T00:12:17.587281+00:00 | status_transition | error -> retrying
+2026-01-11T00:12:17.587379+00:00 | repair_attempt_start | retry=1
+2026-01-11T00:12:17.587709+00:00 | progress_log_extend | Runtime error: [js_runtime_error_ts=2026-01-11T00:12:17.578Z] TypeError: d3.dot is not a function | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001217_55071d1d5c.js
+2026-01-11T00:12:17.587828+00:00 | progress_log_extend | Repairing code...
+2026-01-11T00:12:38.960401+00:00 | create_called | display=True cache=False
+2026-01-11T00:12:38.990887+00:00 | display_widget | model_id=86363e9ac58c48afa3e5f96da136b3d3
+2026-01-11T00:12:38.993379+00:00 | ipython_display | model_id=86363e9ac58c48afa3e5f96da136b3d3 stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-11T00:12:38.995229+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-11T00:12:39.036968+00:00 | progress_log_append | Skipping cache (cache=False)
+2026-01-11T00:12:39.037218+00:00 | progress_log_append | Generating widget code
+2026-01-11T00:12:39.037984+00:00 | progress_log_append | Analyzing data
+2026-01-11T00:12:39.038021+00:00 | create_return | model_id=86363e9ac58c48afa3e5f96da136b3d3
+2026-01-11T00:12:39.038429+00:00 | progress_log_append | Inputs: 1
+2026-01-11T00:12:39.038610+00:00 | ipython_display_skip | model_id=86363e9ac58c48afa3e5f96da136b3d3
+2026-01-11T00:12:39.039128+00:00 | progress_log_append | Generating widget code...
+2026-01-11T00:12:39.950253+00:00 | progress_log_append | Importing d3...
+2026-01-11T00:12:40.599855+00:00 | progress_log_append | Processing data...
+2026-01-11T00:12:43.508510+00:00 | progress_log_append | Applying styles...
+2026-01-11T00:12:44.709820+00:00 | progress_log_append | Setting up React hooks...
+2026-01-11T00:12:45.266553+00:00 | progress_log_append | Creating SVG canvas...
+2026-01-11T00:12:45.876448+00:00 | progress_log_append | Setting up scales...
+2026-01-11T00:12:46.243777+00:00 | progress_log_append | Binding data to elements...
+2026-01-11T00:12:47.168501+00:00 | progress_log_append | Adding animations...
+2026-01-11T00:12:48.173259+00:00 | progress_log_append | Adding visualization elements...
+2026-01-11T00:12:48.972912+00:00 | progress_log_append | Building UI components...
+2026-01-11T00:12:49.338977+00:00 | progress_log_append | Creating widget component...
+2026-01-11T00:12:54.955827+00:00 | progress_log_append | Validating code
+2026-01-11T00:12:54.959597+00:00 | progress_log_append | Testing runtime
+2026-01-11T00:12:54.998978+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-11T00:12:54.999511+00:00 | progress_log_append | Code generated: 9090 characters
+2026-01-11T00:12:55.002169+00:00 | progress_log_extend | Widget saved: help_interactive_explainer
+2026-01-11T00:12:55.002262+00:00 | progress_log_extend | Location: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001255_55071d1d5c.js
+2026-01-11T00:12:55.003145+00:00 | status_transition | generating -> ready
+2026-01-11T00:12:55.068072+00:00 | runtime_error_received | status=error retry=0
+2026-01-11T00:12:55.068205+00:00 | runtime_error_message | [js_runtime_error_ts=2026-01-11T00:12:55.063Z] Error: Minified React error #62; visit https://react.dev/errors/62 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #62; visit https://react.dev/errors/62 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Mge (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/693e
+2026-01-11T00:12:55.068638+00:00 | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-11T00:12:55.063Z] Error: Minified React error #62; visit https://react.dev/errors/62 for the full message or use the non-minified dev environment for full errors and addit | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001255_55071d1d5c.js
+2026-01-11T00:12:55.069227+00:00 | status_transition | error -> retrying
+2026-01-11T00:12:55.069361+00:00 | repair_attempt_start | retry=1
+2026-01-11T00:12:55.069773+00:00 | progress_log_extend | Runtime error: [js_runtime_error_ts=2026-01-11T00:12:55.063Z] Error: Minified React error #62; visit https://react. | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001255_55071d1d5c.js
+2026-01-11T00:12:55.069883+00:00 | progress_log_extend | Repairing code...
+2026-01-11T00:13:09.594077+00:00 | repair_result | applied=True retryable=False
+2026-01-11T00:13:09.596456+00:00 | progress_log_append | Code fixed, retrying
+2026-01-11T00:13:09.597587+00:00 | status_transition | retrying -> ready
+2026-01-11T00:13:09.599089+00:00 | widget_error_received | [js_runtime_error_ts=2026-01-11T00:12:55.063Z] Error: Minified React error #62; visit https://react.dev/errors/62 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #62; visit https://react.dev/errors/62 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Mge (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/693e
+2026-01-11T00:13:09.617224+00:00 | runtime_error_received | status=ready retry=0
+2026-01-11T00:13:09.617644+00:00 | runtime_error_message | [js_runtime_error_ts=2026-01-11T00:12:55.064Z] Error: Minified React error #62; visit https://react.dev/errors/62 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #62; visit https://react.dev/errors/62 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Mge (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/693e
+2026-01-11T00:13:09.618561+00:00 | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-11T00:12:55.064Z] Error: Minified React error #62; visit https://react.dev/errors/62 for the full message or use the non-minified dev environment for full errors and addit | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001255_55071d1d5c.js
+2026-01-11T00:13:09.619103+00:00 | status_transition | ready -> retrying
+2026-01-11T00:13:09.620149+00:00 | repair_attempt_start | retry=1
+2026-01-11T00:13:09.624149+00:00 | progress_log_extend | Runtime error: [js_runtime_error_ts=2026-01-11T00:12:55.064Z] Error: Minified React error #62; visit https://react. | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001255_55071d1d5c.js
+2026-01-11T00:13:09.625813+00:00 | progress_log_extend | Repairing code...
+2026-01-11T00:13:25.119058+00:00 | repair_result | applied=True retryable=False
+2026-01-11T00:13:25.121621+00:00 | progress_log_append | Code fixed, retrying
+2026-01-11T00:13:25.122735+00:00 | status_transition | retrying -> ready
+2026-01-11T00:13:25.125144+00:00 | widget_error_received | [js_runtime_error_ts=2026-01-11T00:12:55.064Z] Error: Minified React error #62; visit https://react.dev/errors/62 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+
+Stack:
+Error: Minified React error #62; visit https://react.dev/errors/62 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Mge (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/693e
+2026-01-11T00:14:25.783792+00:00 | create_called | display=True cache=False
+2026-01-11T00:14:25.814885+00:00 | display_widget | model_id=e7f0188cbc5c4239a40b2edb9f5c0691
+2026-01-11T00:14:25.815597+00:00 | ipython_display | model_id=e7f0188cbc5c4239a40b2edb9f5c0691 stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-11T00:14:25.819375+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-11T00:14:25.837864+00:00 | progress_log_append | Skipping cache (cache=False)
+2026-01-11T00:14:25.838206+00:00 | progress_log_append | Generating widget code
+2026-01-11T00:14:25.838905+00:00 | progress_log_append | Analyzing data
+2026-01-11T00:14:25.838926+00:00 | create_return | model_id=e7f0188cbc5c4239a40b2edb9f5c0691
+2026-01-11T00:14:25.839365+00:00 | progress_log_append | Inputs: 1
+2026-01-11T00:14:25.839422+00:00 | ipython_display_skip | model_id=e7f0188cbc5c4239a40b2edb9f5c0691
+2026-01-11T00:14:25.839925+00:00 | progress_log_append | Generating widget code...
+2026-01-11T00:14:26.989126+00:00 | progress_log_append | Importing d3...
+2026-01-11T00:14:27.406489+00:00 | progress_log_append | Processing data...
+2026-01-11T00:14:29.154368+00:00 | progress_log_append | Applying styles...
+2026-01-11T00:14:30.394939+00:00 | progress_log_append | Setting up React hooks...
+2026-01-11T00:14:31.498953+00:00 | progress_log_append | Creating SVG canvas...
+2026-01-11T00:14:32.194910+00:00 | progress_log_append | Setting up scales...
+2026-01-11T00:14:32.668445+00:00 | progress_log_append | Adding visualization elements...
+2026-01-11T00:14:32.762740+00:00 | progress_log_append | Creating axes...
+2026-01-11T00:14:33.050928+00:00 | progress_log_append | Binding data to elements...
+2026-01-11T00:14:33.553956+00:00 | progress_log_append | Adding animations...
+2026-01-11T00:14:36.616048+00:00 | progress_log_append | Building UI components...
+2026-01-11T00:14:37.093673+00:00 | progress_log_append | Creating widget component...
+2026-01-11T00:14:41.830512+00:00 | progress_log_append | Validating code
+2026-01-11T00:14:41.831675+00:00 | progress_log_append | Testing runtime
+2026-01-11T00:14:42.034287+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-11T00:14:42.035799+00:00 | progress_log_append | Code generated: 9589 characters
+2026-01-11T00:14:42.039746+00:00 | progress_log_extend | Widget saved: help_interactive_explainer
+2026-01-11T00:14:42.039924+00:00 | progress_log_extend | Location: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001442_55071d1d5c.js
+2026-01-11T00:14:42.043253+00:00 | status_transition | generating -> ready
+2026-01-11T00:15:16.714217+00:00 | status_transition | ready -> generating
+2026-01-11T00:15:16.715808+00:00 | progress_log_reset | Editing: As I scroll the chart should stay with me and show...
+2026-01-11T00:15:17.816208+00:00 | progress_log_append | Analyzing code
+2026-01-11T00:15:21.502056+00:00 | progress_log_append | Applying changes
+2026-01-11T00:15:23.548044+00:00 | progress_log_append | Setting scale range
+2026-01-11T00:15:23.859949+00:00 | progress_log_append | Applying transformations
+2026-01-11T00:15:24.473727+00:00 | progress_log_append | Updating element attributes
+2026-01-11T00:15:24.475942+00:00 | progress_log_append | Updating radius
+2026-01-11T00:15:24.694627+00:00 | progress_log_append | Adding transition effects
+2026-01-11T00:15:28.878622+00:00 | progress_log_append | Applying style changes
+2026-01-11T00:15:30.650861+00:00 | progress_log_append | Updating fill color
+2026-01-11T00:15:32.302317+00:00 | progress_log_append | ✓ Revision complete
+2026-01-11T00:15:32.304095+00:00 | status_transition | generating -> ready
+2026-01-11T00:15:32.306702+00:00 | progress_log_append | ✓ Edit applied
+2026-01-11T00:15:32.311328+00:00 | progress_log_append | Saved: help_interactive_explainer (cache: 1eba00c8...)
+2026-01-11T00:16:11.388354+00:00 | create_called | display=True cache=False
+2026-01-11T00:16:11.445513+00:00 | display_widget | model_id=8ae0e4ae5d7243979d5ddca06344dce3
+2026-01-11T00:16:11.446234+00:00 | ipython_display | model_id=8ae0e4ae5d7243979d5ddca06344dce3 stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-11T00:16:11.448716+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-11T00:16:11.477230+00:00 | progress_log_append | Skipping cache (cache=False)
+2026-01-11T00:16:11.477505+00:00 | progress_log_append | Generating widget code
+2026-01-11T00:16:11.478286+00:00 | create_return | model_id=8ae0e4ae5d7243979d5ddca06344dce3
+2026-01-11T00:16:11.478406+00:00 | progress_log_append | Analyzing data
+2026-01-11T00:16:11.478622+00:00 | ipython_display_skip | model_id=8ae0e4ae5d7243979d5ddca06344dce3
+2026-01-11T00:16:11.479052+00:00 | progress_log_append | Inputs: 1
+2026-01-11T00:16:11.479872+00:00 | progress_log_append | Generating widget code...
+2026-01-11T00:16:12.328776+00:00 | progress_log_append | Importing d3...
+2026-01-11T00:16:16.423986+00:00 | progress_log_append | Processing data...
+2026-01-11T00:16:17.939166+00:00 | progress_log_append | Setting up React hooks...
+2026-01-11T00:16:19.011000+00:00 | progress_log_append | Binding data to elements...
+2026-01-11T00:16:19.338766+00:00 | progress_log_append | Setting up scales...
+2026-01-11T00:16:20.225840+00:00 | progress_log_append | Creating axes...
+2026-01-11T00:16:20.587312+00:00 | progress_log_append | Adding animations...
+2026-01-11T00:16:21.673785+00:00 | progress_log_append | Adding visualization elements...
+2026-01-11T00:16:24.024549+00:00 | progress_log_append | Building UI components...
+2026-01-11T00:16:24.026226+00:00 | progress_log_append | Applying styles...
+2026-01-11T00:16:25.925679+00:00 | progress_log_append | Creating widget component...
+2026-01-11T00:16:29.061618+00:00 | progress_log_append | Validating code
+2026-01-11T00:16:29.065342+00:00 | progress_log_append | Testing runtime
+2026-01-11T00:16:29.113730+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-11T00:16:29.114298+00:00 | progress_log_append | Code generated: 10431 characters
+2026-01-11T00:16:29.117185+00:00 | progress_log_extend | Widget saved: help_interactive_explainer
+2026-01-11T00:16:29.117307+00:00 | progress_log_extend | Location: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001629_55071d1d5c.js
+2026-01-11T00:16:29.118239+00:00 | status_transition | generating -> ready
+2026-01-11T00:18:18.327357+00:00 | create_called | display=True cache=False
+2026-01-11T00:18:18.393806+00:00 | display_widget | model_id=23c327779e324852a7a2bbe7f4a19aac
+2026-01-11T00:18:18.400700+00:00 | ipython_display | model_id=23c327779e324852a7a2bbe7f4a19aac stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-11T00:18:18.418949+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-11T00:18:18.444606+00:00 | progress_log_append | Skipping cache (cache=False)
+2026-01-11T00:18:18.444894+00:00 | progress_log_append | Generating widget code
+2026-01-11T00:18:18.448046+00:00 | create_return | model_id=23c327779e324852a7a2bbe7f4a19aac
+2026-01-11T00:18:18.448501+00:00 | ipython_display_skip | model_id=23c327779e324852a7a2bbe7f4a19aac
+2026-01-11T00:18:18.448113+00:00 | progress_log_append | Analyzing data
+2026-01-11T00:18:18.449352+00:00 | progress_log_append | Inputs: 1
+2026-01-11T00:18:18.450559+00:00 | progress_log_append | Generating widget code...
+2026-01-11T00:18:19.563733+00:00 | progress_log_append | Importing d3...
+2026-01-11T00:18:22.758016+00:00 | progress_log_append | Setting up React hooks...
+2026-01-11T00:18:22.882796+00:00 | progress_log_append | Loading data...
+2026-01-11T00:18:23.486028+00:00 | progress_log_append | Binding data to elements...
+2026-01-11T00:18:24.078100+00:00 | progress_log_append | Setting up scales...
+2026-01-11T00:18:24.547108+00:00 | progress_log_append | Creating axes...
+2026-01-11T00:18:24.552030+00:00 | progress_log_append | Adding animations...
+2026-01-11T00:18:25.127454+00:00 | progress_log_append | Adding visualization elements...
+2026-01-11T00:18:28.094576+00:00 | progress_log_append | Building UI components...
+2026-01-11T00:18:28.243008+00:00 | progress_log_append | Applying styles...
+2026-01-11T00:18:28.382969+00:00 | progress_log_append | Creating widget component...
+2026-01-11T00:18:31.176764+00:00 | progress_log_append | Processing data...
+2026-01-11T00:18:33.023028+00:00 | progress_log_append | Validating code
+2026-01-11T00:18:33.026053+00:00 | progress_log_append | Testing runtime
+2026-01-11T00:18:33.079965+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-11T00:18:33.080564+00:00 | progress_log_append | Code generated: 8019 characters
+2026-01-11T00:18:33.083395+00:00 | progress_log_extend | Widget saved: help_interactive_explainer
+2026-01-11T00:18:33.083514+00:00 | progress_log_extend | Location: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_001833_55071d1d5c.js
+2026-01-11T00:18:33.084020+00:00 | status_transition | generating -> ready
+2026-01-11T00:19:41.880884+00:00 | create_called | display=True cache=False
+2026-01-11T00:19:41.910713+00:00 | display_widget | model_id=074fcc3f8e054f168eca74107e2a27d4
+2026-01-11T00:19:41.912627+00:00 | ipython_display | model_id=074fcc3f8e054f168eca74107e2a27d4 stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-11T00:19:41.914654+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-11T00:19:41.932716+00:00 | progress_log_append | Skipping cache (cache=False)
+2026-01-11T00:19:41.933259+00:00 | progress_log_append | Generating widget code
+2026-01-11T00:19:41.934057+00:00 | create_return | model_id=074fcc3f8e054f168eca74107e2a27d4
+2026-01-11T00:19:41.934223+00:00 | progress_log_append | Analyzing data
+2026-01-11T00:19:41.934732+00:00 | ipython_display_skip | model_id=074fcc3f8e054f168eca74107e2a27d4
+2026-01-11T00:19:41.935092+00:00 | progress_log_append | Inputs: 1
+2026-01-11T00:19:41.935782+00:00 | progress_log_append | Generating widget code...
+2026-01-11T00:19:43.123238+00:00 | progress_log_append | Importing d3...
+2026-01-11T00:19:44.518355+00:00 | progress_log_append | Processing data...
+2026-01-11T00:19:48.877164+00:00 | progress_log_append | Setting up React hooks...
+2026-01-11T00:19:50.162633+00:00 | progress_log_append | Creating SVG canvas...
+2026-01-11T00:19:50.166198+00:00 | progress_log_append | Adding visualization elements...
+2026-01-11T00:19:50.833779+00:00 | progress_log_append | Setting up scales...
+2026-01-11T00:19:52.492564+00:00 | progress_log_append | Binding data to elements...
+2026-01-11T00:19:52.493553+00:00 | progress_log_append | Adding animations...
+2026-01-11T00:19:56.113556+00:00 | progress_log_append | Building UI components...
+2026-01-11T00:19:56.115525+00:00 | progress_log_append | Applying styles...
+2026-01-11T00:19:57.426854+00:00 | progress_log_append | Creating widget component...
+2026-01-11T00:20:01.790820+00:00 | progress_log_append | Validating code
+2026-01-11T00:20:01.793446+00:00 | progress_log_append | Testing runtime
+2026-01-11T00:20:01.857546+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-11T00:20:01.858655+00:00 | progress_log_append | Code generated: 10708 characters
+2026-01-11T00:20:01.863469+00:00 | progress_log_extend | Widget saved: help_interactive_explainer
+2026-01-11T00:20:01.863616+00:00 | progress_log_extend | Location: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_002001_55071d1d5c.js
+2026-01-11T00:20:01.865743+00:00 | status_transition | generating -> ready
+2026-01-11T00:20:01.930551+00:00 | runtime_error_received | status=error retry=0
+2026-01-11T00:20:01.930780+00:00 | runtime_error_message | [js_runtime_error_ts=2026-01-11T00:20:01.923Z] Error: transition 78 not found
+
+Stack:
+Error: transition 78 not found
+    at d (https://esm.sh/d3-transition@3.0.1/es2022/src/selection/transition.mjs:2:354)
+    at a.T [as transition] (https://esm.sh/d3-transition@3.0.1/es2022/src/selection/transition.mjs:2:613)
+    at blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv9e505b344mtpte5oi6o2lch/ed092d92-7345-455c-bd18-8aaa027a5aa0:127:162
+    at rh (blob:vscode-webview://0ipcq1ne8uhtfak3s3ogv2fdbb0tv
+2026-01-11T00:20:01.931263+00:00 | progress_log_append | Runtime error: [js_runtime_error_ts=2026-01-11T00:20:01.923Z] Error: transition 78 not found | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_002001_55071d1d5c.js
+2026-01-11T00:20:01.931929+00:00 | status_transition | error -> retrying
+2026-01-11T00:20:01.932048+00:00 | repair_attempt_start | retry=1
+2026-01-11T00:20:01.933000+00:00 | progress_log_extend | Runtime error: [js_runtime_error_ts=2026-01-11T00:20:01.923Z] Error: transition 78 not found | Code file: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_002001_55071d1d5c.js
+2026-01-11T00:20:01.933211+00:00 | progress_log_extend | Repairing code...
+2026-01-11T00:20:16.044379+00:00 | create_called | display=True cache=False
+2026-01-11T00:20:16.076837+00:00 | display_widget | model_id=82623940357746c3afa8744a18ecea5c
+2026-01-11T00:20:16.079681+00:00 | ipython_display | model_id=82623940357746c3afa8744a18ecea5c stack=File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/display_functions.py", line 278, in display
+    format_dict, md_dict = format(obj, include=include, exclude=exclude)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 204, in format
+    if self.ipython_display_formatter(obj):
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 282, in catch_format_error
+    r = method(self, *args, **kwargs)
+  File "/Users/dwootton/miniconda3/lib/python3.12/site-packages/IPython/core/formatters.py", line 984, in __call__
+    method()
+  File "/Users/dwootton/Projects/vibe-widgets-sundai/src/vibe_widget/core/widget.py", line 168, in _ipython_display_
+    stack = "".join(traceback.format_stack(limit=6)).strip()
+2026-01-11T00:20:16.081507+00:00 | progress_log_reset | Analyzing inputs: 0
+2026-01-11T00:20:16.128043+00:00 | progress_log_append | Skipping cache (cache=False)
+2026-01-11T00:20:16.128580+00:00 | progress_log_append | Generating widget code
+2026-01-11T00:20:16.129288+00:00 | create_return | model_id=82623940357746c3afa8744a18ecea5c
+2026-01-11T00:20:16.129306+00:00 | progress_log_append | Analyzing data
+2026-01-11T00:20:16.129515+00:00 | ipython_display_skip | model_id=82623940357746c3afa8744a18ecea5c
+2026-01-11T00:20:16.129786+00:00 | progress_log_append | Inputs: 1
+2026-01-11T00:20:16.130792+00:00 | progress_log_append | Generating widget code...
+2026-01-11T00:20:17.067599+00:00 | progress_log_append | Importing d3...
+2026-01-11T00:20:21.762649+00:00 | progress_log_append | Processing data...
+2026-01-11T00:20:23.730885+00:00 | progress_log_append | Setting up React hooks...
+2026-01-11T00:20:24.511569+00:00 | progress_log_append | Binding data to elements...
+2026-01-11T00:20:25.258712+00:00 | progress_log_append | Setting up scales...
+2026-01-11T00:20:26.219898+00:00 | progress_log_append | Creating axes...
+2026-01-11T00:20:26.222107+00:00 | progress_log_append | Adding animations...
+2026-01-11T00:20:26.691449+00:00 | progress_log_append | Adding visualization elements...
+2026-01-11T00:20:31.135192+00:00 | progress_log_append | Building UI components...
+2026-01-11T00:20:31.136792+00:00 | progress_log_append | Applying styles...
+2026-01-11T00:20:32.182146+00:00 | progress_log_append | Creating widget component...
+2026-01-11T00:20:35.253871+00:00 | progress_log_append | Validating code
+2026-01-11T00:20:35.255181+00:00 | progress_log_append | Testing runtime
+2026-01-11T00:20:35.424564+00:00 | progress_log_append | ✓ Widget generation complete
+2026-01-11T00:20:35.425227+00:00 | progress_log_append | Code generated: 11549 characters
+2026-01-11T00:20:35.428319+00:00 | progress_log_extend | Widget saved: help_interactive_explainer
+2026-01-11T00:20:35.428469+00:00 | progress_log_extend | Location: .vibewidget/widgets/help_interactive_explainer_help_interactive_20260111_002035_55071d1d5c.js
+2026-01-11T00:20:35.429535+00:00 | status_transition | generating -> ready
+2026-01-11T00:21:16.657749+00:00 | status_transition | ready -> generating
+2026-01-11T00:21:16.660404+00:00 | progress_log_reset | Editing: Make sure to remove the data points from the previ...
+2026-01-11T00:21:17.768843+00:00 | progress_log_append | Analyzing code
+2026-01-11T00:21:20.613343+00:00 | progress_log_append | Applying changes
+2026-01-11T00:21:24.460717+00:00 | progress_log_append | Updating element attributes
+2026-01-11T00:21:24.825728+00:00 | progress_log_append | Applying transformations
+2026-01-11T00:21:25.440284+00:00 | progress_log_append | Setting scale range
+2026-01-11T00:21:25.713068+00:00 | progress_log_append | Adjusting scale domain
+2026-01-11T00:21:26.463814+00:00 | progress_log_append | Adding transition effects
+2026-01-11T00:21:27.179144+00:00 | progress_log_append | Updating radius
+2026-01-11T00:21:31.173956+00:00 | progress_log_append | Updating text content
+2026-01-11T00:21:31.764616+00:00 | progress_log_append | Applying style changes
+2026-01-11T00:21:32.403445+00:00 | progress_log_append | Adjusting dimensions
+2026-01-11T00:21:35.389009+00:00 | progress_log_append | ✓ Revision complete
+2026-01-11T00:21:35.390918+00:00 | status_transition | generating -> ready
+2026-01-11T00:21:35.392685+00:00 | progress_log_append | ✓ Edit applied
+2026-01-11T00:21:35.399966+00:00 | progress_log_append | Saved: help_interactive_explainer (cache: 04815285...)
