@@ -6,6 +6,7 @@ export default function useModelSync(model) {
   const [status, setStatus] = React.useState(model.get("status"));
   const [logs, setLogs] = React.useState(model.get("logs"));
   const [code, setCode] = React.useState(model.get("code"));
+  const [renderCode, setRenderCode] = React.useState(model.get("render_code"));
   const [errorMessage, setErrorMessage] = React.useState(model.get("error_message"));
   const [widgetError, setWidgetError] = React.useState(model.get("widget_error"));
   const [lastRuntimeError, setLastRuntimeError] = React.useState(model.get("last_runtime_error"));
@@ -17,6 +18,7 @@ export default function useModelSync(model) {
     status,
     logsLen: Array.isArray(logs) ? logs.length : 0,
     codeLen: code ? code.length : 0,
+    renderCodeLen: renderCode ? renderCode.length : 0,
     errorMessage,
     widgetError,
     lastRuntimeError,
@@ -68,6 +70,15 @@ export default function useModelSync(model) {
         traceChange("code.length", nextLen);
       }
       setCode(nextCode);
+    };
+    const onRenderCodeChange = () => {
+      const nextCode = model.get("render_code");
+      const nextLen = nextCode ? nextCode.length : 0;
+      if (traceRef.current.renderCodeLen !== nextLen) {
+        traceRef.current.renderCodeLen = nextLen;
+        traceChange("render_code.length", nextLen);
+      }
+      setRenderCode(nextCode);
     };
     const onErrorChange = () => {
       const nextError = model.get("error_message");
@@ -137,6 +148,7 @@ export default function useModelSync(model) {
     model.on("change:status", onStatusChange);
     model.on("change:logs", onLogsChange);
     model.on("change:code", onCodeChange);
+    model.on("change:render_code", onRenderCodeChange);
     model.on("change:error_message", onErrorChange);
     model.on("change:widget_error", onWidgetErrorChange);
     model.on("change:last_runtime_error", onLastRuntimeErrorChange);
@@ -149,6 +161,7 @@ export default function useModelSync(model) {
       model.off("change:status", onStatusChange);
       model.off("change:logs", onLogsChange);
       model.off("change:code", onCodeChange);
+      model.off("change:render_code", onRenderCodeChange);
       model.off("change:error_message", onErrorChange);
       model.off("change:widget_error", onWidgetErrorChange);
       model.off("change:last_runtime_error", onLastRuntimeErrorChange);
@@ -175,6 +188,7 @@ export default function useModelSync(model) {
     status,
     logs,
     code,
+    renderCode,
     errorMessage,
     widgetError,
     lastRuntimeError,

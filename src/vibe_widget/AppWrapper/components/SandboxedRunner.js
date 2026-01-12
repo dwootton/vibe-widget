@@ -67,6 +67,13 @@ function isReactImportForbidden(source) {
 // Use the full namespace import (React) which includes all hooks.
 if (typeof globalThis !== "undefined") {
   globalThis.__VIBE_REACT = React;
+  globalThis.__VIBE_REACT_DOM = {
+    createRoot,
+    flushSync
+  };
+  globalThis.__VIBE_REACT_DOM_CLIENT = {
+    createRoot
+  };
 }
 
 let sandboxInstanceCounter = 0;

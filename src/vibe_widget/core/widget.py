@@ -50,6 +50,7 @@ from vibe_widget.llm.agents.context import AgentHarnessContext
 from vibe_widget.llm.tools.agents_tools import default_agent_tools
 from vibe_widget.services.repair import RepairService
 from vibe_widget.services.theme import ThemeService
+from vibe_widget.services.bundling import BundleService
 from vibe_widget.utils.logging import get_logger
 
 
@@ -127,6 +128,7 @@ class VibeWidget(anywidget.AnyWidget):
     status = traitlets.Unicode("idle").tag(sync=True)
     logs = traitlets.List([]).tag(sync=True)
     code = traitlets.Unicode("").tag(sync=True)
+    render_code = traitlets.Unicode("").tag(sync=True)
     error_message = traitlets.Unicode("").tag(sync=True)
     widget_error = traitlets.Unicode("").tag(sync=True)
     last_runtime_error = traitlets.Unicode("").tag(sync=True)
@@ -330,6 +332,8 @@ class VibeWidget(anywidget.AnyWidget):
         self._generation_service: GenerationService | None = None
         self._audit_service: AuditService | None = None
         self._repair_service: RepairService | None = None
+        self._bundle_service = BundleService()
+        self._last_bundle_hash = ""
         self._max_retries = RepairService.MAX_RETRIES
         self._last_logged_runtime_error = ""
         self._widget_metadata: dict[str, Any] | None = None
@@ -377,6 +381,7 @@ class VibeWidget(anywidget.AnyWidget):
             status="generating",
             logs=[],
             code="",
+            render_code="",
             error_message="",
             widget_error="",
             widget_logs=[],
@@ -445,7 +450,7 @@ class VibeWidget(anywidget.AnyWidget):
             
             if existing_code is not None:
                 self._append_log("Reusing existing widget code")
-                self.code = existing_code
+                self._apply_code(existing_code)
                 self._set_status("ready")
                 self.description = description
                 self._widget_metadata = existing_metadata or {}
@@ -520,7 +525,7 @@ class VibeWidget(anywidget.AnyWidget):
                     f"  Created: {cached_widget['created_at'][:10]}",
                 ])
                 widget_code = store.load_widget_code(cached_widget)
-                self.code = widget_code
+                self._apply_code(widget_code)
                 self._set_status("ready")
                 self.description = description
                 self._widget_metadata = cached_widget
@@ -691,7 +696,7 @@ class VibeWidget(anywidget.AnyWidget):
                 f"Widget saved: {widget_entry.get('var_name', 'widget')}",
                 f"Location: .vibewidget/widgets/{widget_entry['file_name']}",
             ])
-            self.code = widget_code
+            self._apply_code(widget_code)
             self._set_status("ready")
             self.description = description
             self._widget_metadata = widget_entry
@@ -1310,7 +1315,7 @@ class VibeWidget(anywidget.AnyWidget):
                 revision_request=revision_request,
                 data_info=self.data_info,
             )
-            self.code = revised_code
+            self._apply_code(revised_code)
             self._set_status("ready")
             self.audit_apply_status = "idle"
             self.audit_apply_response = {"success": True, "applied": len(changes)}
@@ -1379,7 +1384,7 @@ class VibeWidget(anywidget.AnyWidget):
 
         if result.applied:
             self._append_log("Code fixed, retrying")
-            self.code = result.code
+            self._apply_code(result.code)
             self._set_status("ready")
             self.error_message = ""
             self.retry_count = 0
@@ -1640,7 +1645,7 @@ class VibeWidget(anywidget.AnyWidget):
                 progress_callback=progress_callback,
             )
             
-            self.code = revised_code
+            self._apply_code(revised_code)
             self._set_status("ready")
             self._append_log("✓ Edit applied")
             
@@ -1672,7 +1677,7 @@ class VibeWidget(anywidget.AnyWidget):
             
         except Exception as e:
             if "cancelled" in str(e).lower():
-                self.code = old_code
+                self._apply_code(old_code)
                 self._set_status("ready")
                 self._append_log("✗ Edit cancelled")
             else:
@@ -1777,7 +1782,7 @@ class VibeWidget(anywidget.AnyWidget):
                 progress_callback=None,
             )
             if result.applied:
-                self.code = result.code
+                self._apply_code(result.code)
                 self.error_message = ""
                 self.widget_error = ""
                 self.retry_count = 0
@@ -1830,6 +1835,7 @@ Find this element in the code and apply the requested change. The element should
         if self.execution_mode != "approve":
             if not self.execution_approved:
                 self.execution_approved = True
+            self._refresh_render_code(change.get("new") or "")
             return
         current_hash = compute_code_hash(self.code or "")
         approved_hash = self.execution_approved_hash or ""
@@ -1839,6 +1845,7 @@ Find this element in the code and apply the requested change. The element should
         else:
             if self.execution_approved:
                 self.execution_approved = False
+        self._refresh_render_code(change.get("new") or "")
 
     def _on_execution_state(self, change):
         """Persist approval hash when user approves the current code."""
@@ -1866,6 +1873,27 @@ Find this element in the code and apply the requested change. The element should
         meta = payload.get("modelId") or ""
         parts = [part for part in [meta, label, message] if part]
         _write_debug_log(event, " | ".join(parts))
+
+    def _refresh_render_code(self, source: str) -> None:
+        """Ensure render_code stays in sync with the current source code."""
+        if not source:
+            self.render_code = ""
+            self._last_bundle_hash = ""
+            return
+        source_hash = compute_code_hash(source)
+        if self._last_bundle_hash == source_hash and self.render_code:
+            return
+        bundle_result = self._bundle_service.bundle(source)
+        if bundle_result.code:
+            self.render_code = bundle_result.code
+        else:
+            self.render_code = source
+        self._last_bundle_hash = source_hash
+
+    def _apply_code(self, source: str) -> None:
+        """Set source + render code together."""
+        self.code = source
+        self._refresh_render_code(source)
 
 
 
