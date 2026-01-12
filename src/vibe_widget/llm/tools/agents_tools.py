@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 import re
 from urllib.parse import urlparse
+import base64
+import mimetypes
 
 import pandas as pd
 import requests
@@ -391,6 +393,44 @@ class FsReadTool(Tool):
         return ToolResult(success=True, output=_truncate_text(text, max_bytes))
 
 
+class FsReadBase64Tool(Tool):
+    """Read a file and return a base64 data URL."""
+
+    def __init__(self):
+        super().__init__(name="fs.read_base64", description="Read a file and return a base64 data URL.")
+
+    @property
+    def parameters_schema(self) -> dict[str, Any]:
+        return {
+            "path": {"type": "string", "description": "File path.", "required": True},
+            "max_bytes": {"type": "integer", "description": "Max bytes to read.", "required": False},
+        }
+
+    def execute(self, context: AgentHarnessContext, path: str, max_bytes: int | None = None) -> ToolResult:
+        if cancelled := _check_cancelled(context):
+            return cancelled
+        if context.permission_tier < 1:
+            return _permission_error(context, required_tier=1, path=path)
+        resolved = _resolve_path(context, path)
+        if resolved is None:
+            return ToolResult(success=False, output={}, error="path_not_allowed")
+        if not resolved.exists() or not resolved.is_file():
+            return ToolResult(success=False, output={}, error="not_a_file")
+        max_bytes = max_bytes or DEFAULT_MAX_READ_BYTES
+        data = resolved.read_bytes()
+        if len(data) > max_bytes:
+            data = data[:max_bytes]
+        mime_type, _ = mimetypes.guess_type(str(resolved))
+        if not mime_type:
+            mime_type = "application/octet-stream"
+        encoded = base64.b64encode(data).decode("ascii")
+        data_url = f"data:{mime_type};base64,{encoded}"
+        return ToolResult(
+            success=True,
+            output={"path": str(resolved), "data_url": data_url, "bytes": len(data)},
+        )
+
+
 class FsWriteTool(Tool):
     """Write a text file."""
 
@@ -672,6 +712,7 @@ def default_agent_tools() -> AgentToolRegistry:
             DescribeTool(),
             FsListTool(),
             FsReadTool(),
+            FsReadBase64Tool(),
             FsWriteTool(),
             FsMkdirTool(),
             FsExistsTool(),

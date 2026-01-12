@@ -14,7 +14,7 @@ function buildStatusLabel(status) {
 const containerClass = tw("w-full h-full flex flex-col gap-3 p-3 box-border");
 const headerClass = tw("flex items-center justify-between gap-2 w-full px-2 text-xs font-mono uppercase tracking-[0.06em]");
 const metaClass = tw("text-[11px] text-text-muted text-right");
-const bodyClass = tw("flex-1 min-h-0");
+const bodyClass = tw("flex-1 min-h-0 flex");
 
 export default function StateViewer({
   status,
@@ -35,6 +35,13 @@ export default function StateViewer({
 
   const displayLogs = useMemo(() => {
     const next = Array.isArray(logs) ? logs.slice() : [];
+    const shouldSkipMessage = (message) => {
+      const text = String(message || "").toLowerCase();
+      return (
+        text.includes("cannot send widget sync message") ||
+        text.includes("error: cannot send")
+      );
+    };
     if (errorMessage) {
       next.push(`Generation error:\n${errorMessage}`);
     }
@@ -53,7 +60,7 @@ export default function StateViewer({
         .filter((entry) => entry && (entry.level === "error" || entry.level === "warn"))
         .forEach((entry) => {
           const message = entry && typeof entry === "object" ? entry.message : entry;
-          if (message) {
+          if (message && !shouldSkipMessage(message)) {
             next.push(`Runtime log: ${message}`);
           }
         });

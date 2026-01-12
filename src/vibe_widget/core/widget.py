@@ -46,6 +46,8 @@ from vibe_widget.core.lifecycle import WidgetLifecycle
 from vibe_widget.services.audit import AuditService
 from vibe_widget.services.generation import GenerationService
 from vibe_widget.llm.agents.config import resolve_agent_run_config
+from vibe_widget.llm.agents.context import AgentHarnessContext
+from vibe_widget.llm.tools.agents_tools import default_agent_tools
 from vibe_widget.services.repair import RepairService
 from vibe_widget.services.theme import ThemeService
 from vibe_widget.utils.logging import get_logger
@@ -222,6 +224,7 @@ class VibeWidget(anywidget.AnyWidget):
         existing_code: str | None = None,
         existing_metadata: dict[str, Any] | None = None,
         display_widget: bool = False,
+        data_root: Path | None = None,
         cache: bool = True,
         execution_mode: str | None = None,
         execution_approved: bool | None = None,
@@ -260,6 +263,7 @@ class VibeWidget(anywidget.AnyWidget):
             existing_code=existing_code,
             existing_metadata=existing_metadata,
             display_widget=display_widget,
+            data_root=data_root,
             cache=cache,
             execution_mode=execution_mode,
             execution_approved=execution_approved,
@@ -284,6 +288,7 @@ class VibeWidget(anywidget.AnyWidget):
         existing_code: str | None = None,
         existing_metadata: dict[str, Any] | None = None,
         display_widget: bool = False,
+        data_root: Path | None = None,
         cache: bool = True,
         execution_mode: str | None = None,
         execution_approved: bool | None = None,
@@ -328,6 +333,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._max_retries = RepairService.MAX_RETRIES
         self._last_logged_runtime_error = ""
         self._widget_metadata: dict[str, Any] | None = None
+        self._data_path = data_root
         
         app_wrapper_dir = Path(__file__).resolve().parents[1]
         app_wrapper_path = app_wrapper_dir / "AppWrapper.bundle.js"
@@ -409,7 +415,17 @@ class VibeWidget(anywidget.AnyWidget):
                 preset=getattr(config, "agent_preset", "project"),
                 overrides=getattr(config, "agent_run", None),
             )
-            self._generation_service = GenerationService(provider, agent_run_config=agent_run_config)
+            self._agent_run_config = agent_run_config
+            self._agent_tool_registry = default_agent_tools()
+            if self._data_path:
+                resolved_path = Path(self._data_path).resolve()
+                if resolved_path not in agent_run_config.allowed_roots:
+                    agent_run_config.allowed_roots.append(resolved_path)
+            self._generation_service = GenerationService(
+                provider,
+                agent_run_config=agent_run_config,
+                stream=getattr(config, "streaming", True),
+            )
             self._audit_service = AuditService()
             self._llm_provider = provider
             self.orchestrator = self._generation_service.orchestrator
@@ -419,6 +435,8 @@ class VibeWidget(anywidget.AnyWidget):
                 max_retries=self._max_retries,
             )
             inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
+            if self._data_path:
+                inputs_for_prompt.setdefault("data_path", str(self._data_path))
             if df is not None and isinstance(df, pd.DataFrame) and "data" not in inputs_for_prompt:
                 try:
                     inputs_for_prompt["data"] = summarize_for_prompt(df)
@@ -616,6 +634,9 @@ class VibeWidget(anywidget.AnyWidget):
                 "complete": f"✓ {message}",
                 "error": f"✘ {message}",
                 "chunk": message,
+                "agent_message": f"Agent: {message}",
+                "tool_call": f"{message}",
+                "tool_result": f"{message}",
             }
 
             display_msg = event_messages.get(event_type, message)
@@ -1139,13 +1160,80 @@ class VibeWidget(anywidget.AnyWidget):
             return
         if not isinstance(content, dict):
             return
-        if content.get("type") != "request_editor_bundle":
+        msg_type = content.get("type")
+        if msg_type == "request_editor_bundle":
+            try:
+                bundle = self._load_editor_bundle()
+                self.send({"type": "editor_bundle", "code": bundle})
+            except Exception as exc:
+                self.send({"type": "editor_bundle_error", "error": str(exc)})
+            return
+        if msg_type != "remote_call":
+            return
+
+        call_id = content.get("id")
+        name = content.get("name")
+        args = content.get("args") or {}
+        if not call_id or not name or not isinstance(args, dict):
+            self.send(
+                {
+                    "type": "remote_call_result",
+                    "id": call_id,
+                    "success": False,
+                    "error": "invalid_remote_call",
+                }
+            )
+            return
+        tool_registry = getattr(self, "_agent_tool_registry", None) or default_agent_tools()
+        run_config = getattr(self, "_agent_run_config", None)
+        if run_config is None:
+            config = get_global_config()
+            run_config = resolve_agent_run_config(
+                preset=getattr(config, "agent_preset", "project"),
+                overrides=getattr(config, "agent_run", None),
+            )
+        context = AgentHarnessContext(
+            widget=self,
+            permission_tier=run_config.permission_tier,
+            safety_mode=run_config.safety_mode,
+            allowed_roots=run_config.allowed_roots,
+            sandbox_dir=run_config.sandbox_dir,
+            allow_net_fetch=run_config.allow_net_fetch,
+            allow_search=run_config.allow_search,
+            net_allowlist=run_config.net_allowlist,
+            net_mime_allowlist=run_config.net_mime_allowlist,
+        )
+        tool = tool_registry.get(str(name))
+        if tool is None:
+            self.send(
+                {
+                    "type": "remote_call_result",
+                    "id": call_id,
+                    "success": False,
+                    "error": f"tool_not_found:{name}",
+                }
+            )
             return
         try:
-            bundle = self._load_editor_bundle()
-            self.send({"type": "editor_bundle", "code": bundle})
+            result = tool.execute(context=context, **args)
+            payload = {
+                "type": "remote_call_result",
+                "id": call_id,
+                "success": result.success,
+                "result": clean_for_json(result.output),
+                "error": result.error,
+                "metadata": result.metadata,
+            }
+            self.send(payload)
         except Exception as exc:
-            self.send({"type": "editor_bundle_error", "error": str(exc)})
+            self.send(
+                {
+                    "type": "remote_call_result",
+                    "id": call_id,
+                    "success": False,
+                    "error": str(exc),
+                }
+            )
 
     def _handle_audit_request(self, request: dict[str, Any]) -> None:
         """Handle audit requests from the frontend."""
@@ -1282,6 +1370,10 @@ class VibeWidget(anywidget.AnyWidget):
             error_message=error_msg,
             data_info=self.data_info,
             retry_count=self.retry_count,
+            widget_error=self.widget_error,
+            last_runtime_error=self.last_runtime_error,
+            widget_logs=list(self.widget_logs or []),
+            code_path=self._widget_file_path(),
         )
         _write_debug_log("repair_result", f"applied={result.applied} retryable={result.retryable}")
 
@@ -1671,23 +1763,27 @@ class VibeWidget(anywidget.AnyWidget):
             "Asking LLM to repair with user context",
         ])
 
-        full_error = f"{error_message}\n\nUser note: {user_prompt}"
-
         try:
-            fixed_code = self._generation_service.orchestrator.fix_runtime_error(
+            result = self._repair_service.fix_runtime_error(
                 code=self.code,
-                error_message=full_error,
+                error_message=error_message,
                 data_info=self.data_info,
+                retry_count=self.retry_count,
+                widget_error=self.widget_error,
+                last_runtime_error=self.last_runtime_error,
+                widget_logs=list(self.widget_logs or []),
+                code_path=self._widget_file_path(),
+                user_prompt=user_prompt,
                 progress_callback=None,
             )
-            if fixed_code and fixed_code != self.code:
-                self.code = fixed_code
+            if result.applied:
+                self.code = result.code
                 self.error_message = ""
                 self.widget_error = ""
                 self.retry_count = 0
                 self._set_status("ready")
                 return
-            self._append_log("Repair did not change the code")
+            self._append_log(result.message or "Repair did not change the code")
             self._set_status("error")
         except Exception as exc:
             self._append_log(f"Repair failed: {exc}")
@@ -1959,7 +2055,22 @@ def create(
         actions=actions,
     )
     model, resolved_config = _resolve_model()
-    df = load_data(data)
+    data_path: Path | None = None
+    if data is not None and isinstance(data, (str, Path)):
+        candidate = Path(data)
+        if candidate.exists() and candidate.is_dir():
+            data_path = candidate.resolve()
+            df = pd.DataFrame()
+        else:
+            df = load_data(data)
+    else:
+        df = load_data(data)
+    if data_path is not None:
+        if inputs is None:
+            inputs = {}
+        if "data_path" not in inputs:
+            inputs = dict(inputs)
+            inputs["data_path"] = str(data_path)
     theme_service = ThemeService()
     resolved_theme = theme_service.resolve(
         theme,
@@ -1978,6 +2089,7 @@ def create(
         var_name=var_name,
         display_widget=display,
         cache=cache,
+        data_root=data_path,
         execution_mode=resolved_config.execution if resolved_config else "auto",
         execution_approved=None,
         actions=actions,

@@ -22,6 +22,7 @@ class AgentSdkOrchestrator:
         self,
         provider: LLMProvider,
         run_config: AgentRunConfig | None = None,
+        stream: bool = True,
     ):
         self.provider = provider
         self.adapter = AgentProviderAdapter(provider)
@@ -30,6 +31,7 @@ class AgentSdkOrchestrator:
         self.validate_tool = CodeValidateTool()
         self.runtime_tool = RuntimeTestTool()
         self.diagnose_tool = ErrorDiagnoseTool()
+        self.stream = bool(stream)
 
     def _emit(self, progress_callback: Callable[[str, str], None] | None, event_type: str, message: str) -> None:
         if progress_callback:
@@ -68,34 +70,62 @@ class AgentSdkOrchestrator:
         messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
         tool_calls_count = 0
 
+        self._emit(progress_callback, "step", "Agent call to generate code")
         for turn in range(run_config.budgets.max_turns):
-            self._emit(progress_callback, "step", f"Agent step {turn + 1}/{run_config.budgets.max_turns}")
-            response = self.adapter.chat_complete(
-                messages=messages,
-                tools=tools,
-                tool_choice="auto",
-                max_tokens=8192,
-                temperature=0.7,
-            )
-            message = response.choices[0].message
-            tool_calls = getattr(message, "tool_calls", None) or []
+            if turn > 0:
+                self._emit(progress_callback, "step", "Agent continuation")
+            streamed = False
+            if self.stream:
+                try:
+                    stream = self.adapter.chat_complete_stream(
+                        messages=messages,
+                        tools=tools,
+                        tool_choice="auto",
+                        max_tokens=8192,
+                        temperature=0.7,
+                    )
+                    message = self._consume_stream(stream, progress_callback)
+                    streamed = True
+                except Exception:
+                    message = None
+            if message is None:
+                response = self.adapter.chat_complete(
+                    messages=messages,
+                    tools=tools,
+                    tool_choice="auto",
+                    max_tokens=8192,
+                    temperature=0.7,
+                )
+                message = response.choices[0].message
+
+            raw_tool_calls = getattr(message, "tool_calls", None) or []
+            tool_calls = []
+            for call in raw_tool_calls:
+                if isinstance(call, dict):
+                    tool_calls.append(call)
+                    continue
+                func = getattr(call, "function", None)
+                tool_calls.append(
+                    {
+                        "id": getattr(call, "id", None),
+                        "type": getattr(call, "type", "function"),
+                        "function": {
+                            "name": getattr(func, "name", ""),
+                            "arguments": getattr(func, "arguments", ""),
+                        },
+                    }
+                )
+            if message.content and not streamed:
+                content = (message.content or "").strip()
+                if content:
+                    self._emit(progress_callback, "agent_message", content)
 
             assistant_message = {
                 "role": message.role,
                 "content": message.content or "",
             }
             if tool_calls:
-                assistant_message["tool_calls"] = [
-                    {
-                        "id": call.id,
-                        "type": call.type,
-                        "function": {
-                            "name": call.function.name,
-                            "arguments": call.function.arguments,
-                        },
-                    }
-                    for call in tool_calls
-                ]
+                assistant_message["tool_calls"] = tool_calls
             messages.append(assistant_message)
 
             if not tool_calls:
@@ -106,28 +136,100 @@ class AgentSdkOrchestrator:
                 if tool_calls_count > run_config.budgets.max_tool_calls:
                     self._emit(progress_callback, "step", "Tool budget exceeded")
                     return ""
-                tool = self.tool_registry.get(call.function.name)
+                func = call.get("function", {})
+                tool = self.tool_registry.get(func.get("name", ""))
+                args = self._parse_tool_args(func.get("arguments", ""))
+                arg_summary = ", ".join(sorted(args.keys()))
+                if arg_summary:
+                    self._emit(
+                        progress_callback,
+                        "tool_call",
+                        f"Tool call: {func.get('name', '')} ({arg_summary})",
+                    )
+                else:
+                    self._emit(progress_callback, "tool_call", f"Tool call: {func.get('name', '')}")
                 if tool is None:
                     tool_result = {
                         "success": False,
                         "output": {},
-                        "error": f"tool_not_found: {call.function.name}",
+                        "error": f"tool_not_found: {func.get('name', '')}",
                         "metadata": {},
                     }
                     content = json.dumps(tool_result, ensure_ascii=True)
+                    self._emit(
+                        progress_callback,
+                        "tool_result",
+                        f"Tool result: {func.get('name', '')} failed (tool_not_found)",
+                    )
                 else:
-                    args = self._parse_tool_args(call.function.arguments)
                     result = tool.execute(context=context, **args)
                     content = self._serialize_tool_result(result, run_config.budgets.max_tool_output_bytes)
+                    status = "ok" if result.success else "error"
+                    message = f"Tool result: {func.get('name', '')} {status}"
+                    if not result.success and result.error:
+                        message = f"{message} ({result.error})"
+                    self._emit(progress_callback, "tool_result", message)
                 messages.append(
                     {
                         "role": "tool",
-                        "tool_call_id": call.id,
+                        "tool_call_id": call.get("id"),
                         "content": content,
                     }
                 )
 
         return ""
+
+    def _consume_stream(self, stream, progress_callback: Callable[[str, str], None] | None):
+        content_chunks: list[str] = []
+        tool_calls: dict[int, dict[str, Any]] = {}
+        role = "assistant"
+
+        for chunk in stream:
+            if not chunk or not chunk.choices:
+                continue
+            choice = chunk.choices[0]
+            delta = getattr(choice, "delta", None)
+            if delta is None:
+                continue
+            if getattr(delta, "role", None):
+                role = delta.role
+            if getattr(delta, "content", None):
+                text = delta.content
+                if text:
+                    content_chunks.append(text)
+                    self._emit(progress_callback, "chunk", text)
+            for call in getattr(delta, "tool_calls", None) or []:
+                index = getattr(call, "index", None)
+                if index is None:
+                    index = len(tool_calls)
+                entry = tool_calls.get(index)
+                if entry is None:
+                    entry = {
+                        "id": getattr(call, "id", None),
+                        "type": getattr(call, "type", "function"),
+                        "function": {"name": "", "arguments": ""},
+                    }
+                    tool_calls[index] = entry
+                if getattr(call, "id", None):
+                    entry["id"] = call.id
+                if getattr(call, "type", None):
+                    entry["type"] = call.type
+                func = getattr(call, "function", None)
+                if func is not None:
+                    if getattr(func, "name", None):
+                        entry["function"]["name"] = func.name
+                    if getattr(func, "arguments", None):
+                        entry["function"]["arguments"] += func.arguments
+
+        tool_call_list = [tool_calls[idx] for idx in sorted(tool_calls.keys())]
+
+        class _Message:
+            def __init__(self, role_value: str, content_value: str, calls: list[dict[str, Any]]):
+                self.role = role_value
+                self.content = content_value
+                self.tool_calls = calls
+
+        return _Message(role, "".join(content_chunks), tool_call_list)
 
     def _build_context(self, run_config: AgentRunConfig) -> AgentHarnessContext:
         return AgentHarnessContext(

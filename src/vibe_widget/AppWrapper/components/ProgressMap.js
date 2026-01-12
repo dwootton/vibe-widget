@@ -2,7 +2,7 @@ import React from "react";
 import { css, tw } from "../styles/setup.js";
 
 const bezelClass = tw(
-  "w-full h-full box-border text-text-secondary bg-[#050505] border border-border-medium shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] flex flex-col gap-2 px-[10px] py-[12px]"
+  "w-full h-full min-h-0 box-border text-text-secondary bg-[#050505] border border-border-medium shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] flex flex-col gap-2 px-[10px] py-[12px]"
 );
 const headingClass = tw(
   "flex items-center gap-2 text-xs font-mono uppercase tracking-[0.05em] text-text-primary pl-[9px]"
@@ -64,7 +64,6 @@ export default function ProgressMap({
   const spinnerFrames = ["|", "/", "-", "\\"];
   const logContainerRef = React.useRef(null);
   const hasInitialScroll = React.useRef(false);
-  const lastLogRef = React.useRef(null);
   const autoFollowRef = React.useRef(true);
   const debugSink =
     typeof globalThis !== "undefined" ? globalThis.__VIBE_DEBUG_SINK : null;
@@ -96,10 +95,11 @@ export default function ProgressMap({
   React.useLayoutEffect(() => {
     const el = logContainerRef.current;
     if (!el) return;
+    if (!hasInitialScroll.current) {
+      autoFollowRef.current = true;
+    }
     const frame = window.requestAnimationFrame(() => {
-      if (autoFollowRef.current && lastLogRef.current) {
-        lastLogRef.current.scrollIntoView({ block: "end" });
-      } else if (autoFollowRef.current) {
+      if (autoFollowRef.current) {
         el.scrollTop = el.scrollHeight;
       }
       hasInitialScroll.current = true;
@@ -164,7 +164,6 @@ export default function ProgressMap({
               return (
                 <li
                   key={idx}
-                  ref={isLive ? lastLogRef : null}
                   class={logEntryClass}
                   style={{ "--entry-index": idx }}
                 >

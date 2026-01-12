@@ -68,13 +68,15 @@ export default function TerminalViewer({
   }
 
   return (
-    <ProgressMap
-      logs={logs}
-      status={status}
-      fullHeight={true}
-      heading={heading}
-      footer={footer}
-      debugLabel={debugLabel}
-    />
+    <div class="flex-1 min-h-0 w-full">
+      <ProgressMap
+        logs={logs}
+        status={status}
+        fullHeight={true}
+        heading={heading}
+        footer={footer}
+        debugLabel={debugLabel}
+      />
+    </div>
   );
 }

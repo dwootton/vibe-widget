@@ -57,7 +57,7 @@ class DataLoadTool(Tool):
                         ".xlsx", ".xls", ".pdf", ".txt",
                     )
                     candidates = [
-                        path for path in sorted(source_path.iterdir())
+                        path for path in sorted(source_path.rglob("*"))
                         if path.is_file() and path.suffix.lower() in supported_exts
                     ]
                     if not candidates:
@@ -490,4 +490,3 @@ class DataProfileTool(Tool):
 
         except Exception as e:
             return ToolResult(success=False, output={}, error=str(e))
-

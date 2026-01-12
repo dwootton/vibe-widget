@@ -20,9 +20,19 @@ class GenerationService:
 
     MAX_RETRIES = 2
 
-    def __init__(self, llm_provider: LLMProvider, *, agent_run_config: AgentRunConfig | None = None):
+    def __init__(
+        self,
+        llm_provider: LLMProvider,
+        *,
+        agent_run_config: AgentRunConfig | None = None,
+        stream: bool | None = None,
+    ):
         self.llm_provider = llm_provider
-        self.orchestrator = AgentSdkOrchestrator(provider=llm_provider, run_config=agent_run_config)
+        self.orchestrator = AgentSdkOrchestrator(
+            provider=llm_provider,
+            run_config=agent_run_config,
+            stream=True if stream is None else bool(stream),
+        )
         self._run_id = 0
         self._cancel_event: threading.Event | None = None
         self._thread: threading.Thread | None = None
