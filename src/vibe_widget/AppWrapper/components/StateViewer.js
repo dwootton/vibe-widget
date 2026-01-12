@@ -32,6 +32,7 @@ export default function StateViewer({
   const isRepairing = status === "retrying";
   const isRepairState = status === "error" || status === "blocked";
   const canPrompt = (isGenerating || isRepairState) && !isRepairing;
+  const containerRef = React.useRef(null);
 
   const displayLogs = useMemo(() => {
     const next = Array.isArray(logs) ? logs.slice() : [];
@@ -102,8 +103,16 @@ export default function StateViewer({
 
   const statusColor = status === "blocked" ? "text-error-light" : "text-text-primary";
 
+  React.useEffect(() => {
+    if (canPrompt) return;
+    const active = document.activeElement;
+    if (active && containerRef.current && containerRef.current.contains(active)) {
+      active.blur();
+    }
+  }, [canPrompt]);
+
   return (
-    <div class={containerClass}>
+    <div class={containerClass} ref={containerRef}>
       {!hideOuterStatus && (
         <div class={headerClass}>
           <span class={`${statusColor} flex-1`}>{buildStatusLabel(status)}</span>
@@ -120,6 +129,8 @@ export default function StateViewer({
           onPromptSubmit={handleSubmit}
           promptDisabled={!canPrompt}
           promptBlink={true}
+          promptAutoFocus={false}
+          showPrompt={canPrompt}
           debugLabel="StateViewer"
         />
       </div>

@@ -9,6 +9,7 @@ import json
 import inspect
 import sys
 import time
+import os
 
 import anywidget
 import pandas as pd
@@ -334,6 +335,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._repair_service: RepairService | None = None
         self._bundle_service = BundleService()
         self._last_bundle_hash = ""
+        self._last_bundle_error = ""
         self._max_retries = RepairService.MAX_RETRIES
         self._last_logged_runtime_error = ""
         self._widget_metadata: dict[str, Any] | None = None
@@ -1880,14 +1882,21 @@ Find this element in the code and apply the requested change. The element should
             self.render_code = ""
             self._last_bundle_hash = ""
             return
-        source_hash = compute_code_hash(source)
+        source_hash = self._bundle_service.bundle_key(source)
         if self._last_bundle_hash == source_hash and self.render_code:
             return
         bundle_result = self._bundle_service.bundle(source)
-        if bundle_result.code:
+        if bundle_result.code and bundle_result.bundled:
             self.render_code = bundle_result.code
-        else:
+        elif os.getenv("VIBE_ALLOW_UNBUNDLED") == "1":
             self.render_code = source
+        else:
+            self.render_code = ""
+        if bundle_result.error and bundle_result.error != self._last_bundle_error:
+            self._append_log(f"Bundling failed: {bundle_result.error}")
+            self._last_bundle_error = bundle_result.error
+            if self.render_code == "":
+                self._set_status("error")
         self._last_bundle_hash = source_hash
 
     def _apply_code(self, source: str) -> None:

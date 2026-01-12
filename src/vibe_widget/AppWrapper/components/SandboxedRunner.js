@@ -39,6 +39,12 @@ function extractImportSpecifiers(source) {
   return specs;
 }
 
+function isBundledSource(source) {
+  if (!source) return false;
+  const trimmed = source.trimStart();
+  return trimmed.startsWith("/*__VIBE_BUNDLED__*/");
+}
+
 function isReactImportForbidden(source) {
   if (!source) return false;
   if (FORBIDDEN_REACT_IMPORT.test(source)) return true;
@@ -406,6 +412,9 @@ function SandboxedRunner({ code, model, runKey }) {
     trackDisposer(() => window.removeEventListener("unhandledrejection", handleWindowError));
 
     const transformWidgetCode = (source) => {
+      if (isBundledSource(source)) {
+        return source;
+      }
       const wrapped = `const React = globalThis.__VIBE_REACT;
 const tw = globalThis.__VIBE_TW;
 const css = globalThis.__VIBE_CSS;
@@ -422,7 +431,7 @@ ${source}`;
       debugLog(model, "[vibe][debug] executeCode called", { instanceId });
       try {
         setGuestWidget(null);
-        if (isReactImportForbidden(code)) {
+        if (!isBundledSource(code) && isReactImportForbidden(code)) {
           throw new Error(
             "Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead."
           );

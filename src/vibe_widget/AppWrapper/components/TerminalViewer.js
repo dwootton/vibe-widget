@@ -20,6 +20,7 @@ export default function TerminalViewer({
   debugLabel = "TerminalViewer",
   compact = false,
   showFooterBorder = true,
+  showPrompt = true,
   promptMaxHeight = 200,
   promptAlign,
   promptAutoFocus
@@ -34,7 +35,7 @@ export default function TerminalViewer({
     resolvedAttachments.codeChangeRanges.length > 0 ||
     resolvedAttachments.isDirty;
 
-  const footer = (
+  const footer = showPrompt ? (
     <div class={showFooterBorder ? footerClass : "flex flex-col gap-2"}>
       {hasAttachments && (
         <AttachmentStrip
@@ -61,7 +62,7 @@ export default function TerminalViewer({
         autoFocus={promptAutoFocus}
       />
     </div>
-  );
+  ) : null;
 
   if (compact) {
     return <div class={compactClass}>{footer}</div>;

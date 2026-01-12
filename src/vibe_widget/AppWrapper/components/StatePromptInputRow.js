@@ -95,13 +95,21 @@ export default function StatePromptInputRow({
   }, [normalizedValue, updateCaretIndex]);
 
   useEffect(() => {
-    if (!autoFocus) return;
+    if (!autoFocus || disabled) return;
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.focus();
     updateCaretIndex();
     updateCaretPosition();
-  }, [autoFocus, updateCaretIndex, updateCaretPosition]);
+  }, [autoFocus, disabled, updateCaretIndex, updateCaretPosition]);
+
+  useEffect(() => {
+    if (!disabled) return;
+    const textarea = textareaRef.current;
+    if (textarea && document.activeElement === textarea) {
+      textarea.blur();
+    }
+  }, [disabled]);
 
   const rowClass = align === "start" ? entryTopClass : entryClass;
   const textClass = align === "start" ? logTextTopClass : logTextClass;
@@ -117,6 +125,8 @@ export default function StatePromptInputRow({
               class={textareaClass}
               value={normalizedValue}
               disabled={disabled}
+              tabIndex={disabled ? -1 : 0}
+              style={disabled ? { pointerEvents: "none" } : undefined}
               rows={1}
               onInput={(event) => {
                 onChange(event.target.value);
@@ -127,6 +137,11 @@ export default function StatePromptInputRow({
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
                   onSubmit();
+                }
+              }}
+              onFocus={() => {
+                if (disabled) {
+                  textareaRef.current?.blur();
                 }
               }}
               onClick={updateCaretIndex}
