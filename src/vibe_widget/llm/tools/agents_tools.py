@@ -65,6 +65,28 @@ def _check_cancelled(context: AgentHarnessContext) -> ToolResult | None:
     return None
 
 
+def _expand_brace_pattern(pattern: str) -> list[str]:
+    """Expand brace patterns like {jpg,png} into multiple patterns.
+
+    Python's glob doesn't support brace expansion, so we expand them manually.
+    Example: "**/*.{jpg,png}" -> ["**/*.jpg", "**/*.png"]
+    """
+    # Find brace groups like {a,b,c}
+    brace_match = re.search(r'\{([^{}]+)\}', pattern)
+    if not brace_match:
+        return [pattern]
+
+    prefix = pattern[:brace_match.start()]
+    suffix = pattern[brace_match.end():]
+    alternatives = brace_match.group(1).split(',')
+
+    # Recursively expand in case there are multiple brace groups
+    expanded = []
+    for alt in alternatives:
+        expanded.extend(_expand_brace_pattern(prefix + alt.strip() + suffix))
+    return expanded
+
+
 def _resolve_path(context: AgentHarnessContext, path: str) -> Path | None:
     candidate = Path(path).expanduser()
     if not candidate.is_absolute():
@@ -97,8 +119,14 @@ class AgentToolRegistry:
     def list(self) -> list[Tool]:
         return list(self._tools.values())
 
-    def to_openai_tools(self) -> list[dict[str, Any]]:
-        return [tool.to_openai_tool() for tool in self._tools.values()]
+    def list_for_tier(self, tier: int) -> list[Tool]:
+        """Return tools available at the given permission tier."""
+        return [tool for tool in self._tools.values() if tool.required_tier <= tier]
+
+    def to_openai_tools(self, tier: int | None = None) -> list[dict[str, Any]]:
+        """Convert tools to OpenAI format, optionally filtered by tier."""
+        tools = self.list_for_tier(tier) if tier is not None else self.list()
+        return [tool.to_openai_tool() for tool in tools]
 
 
 class DataProfileAgentTool(Tool):
@@ -157,6 +185,7 @@ class DataLoadAgentTool(Tool):
     def __init__(self):
         super().__init__(
             name="data.load",
+            required_tier=1,
             description="Load data from an allowed file path or URL into the data registry.",
         )
         self._tool = DataLoadTool()
@@ -255,7 +284,7 @@ class WidgetSetInputTool(Tool):
     """Set a widget input trait."""
 
     def __init__(self):
-        super().__init__(name="widget.set_input", description="Set a widget input trait value.")
+        super().__init__(name="widget.set_input", description="Set a widget input trait value.", required_tier=1)
 
     @property
     def parameters_schema(self) -> dict[str, Any]:
@@ -282,7 +311,7 @@ class WidgetSetOutputTool(Tool):
     """Set a widget output trait."""
 
     def __init__(self):
-        super().__init__(name="widget.set_output", description="Set a widget output trait value.")
+        super().__init__(name="widget.set_output", description="Set a widget output trait value.", required_tier=1)
 
     @property
     def parameters_schema(self) -> dict[str, Any]:
@@ -397,7 +426,7 @@ class FsReadBase64Tool(Tool):
     """Read a file and return a base64 data URL."""
 
     def __init__(self):
-        super().__init__(name="fs.read_base64", description="Read a file and return a base64 data URL.")
+        super().__init__(name="fs.read_base64", description="Read a file and return a base64 data URL.", required_tier=1)
 
     @property
     def parameters_schema(self) -> dict[str, Any]:
@@ -435,7 +464,7 @@ class FsWriteTool(Tool):
     """Write a text file."""
 
     def __init__(self):
-        super().__init__(name="fs.write", description="Write a text file.")
+        super().__init__(name="fs.write", description="Write a text file.", required_tier=1)
 
     @property
     def parameters_schema(self) -> dict[str, Any]:
@@ -471,7 +500,7 @@ class FsMkdirTool(Tool):
     """Create a directory."""
 
     def __init__(self):
-        super().__init__(name="fs.mkdir", description="Create a directory.")
+        super().__init__(name="fs.mkdir", description="Create a directory.", required_tier=1)
 
     @property
     def parameters_schema(self) -> dict[str, Any]:
@@ -529,7 +558,12 @@ class FsGlobTool(Tool):
         resolved = _resolve_path(context, path)
         if resolved is None:
             return ToolResult(success=False, output={}, error="path_not_allowed")
-        matches = sorted(str(p) for p in resolved.glob(pattern))
+        # Expand brace patterns like {jpg,png} since Python glob doesn't support them
+        patterns = _expand_brace_pattern(pattern)
+        all_matches: set[str] = set()
+        for p in patterns:
+            all_matches.update(str(m) for m in resolved.glob(p))
+        matches = sorted(all_matches)
         return ToolResult(success=True, output=matches)
 
 
@@ -537,7 +571,7 @@ class NetFetchTool(Tool):
     """Fetch a URL with allowlists and caps."""
 
     def __init__(self):
-        super().__init__(name="net.fetch", description="Fetch a URL with allowlist and MIME caps.")
+        super().__init__(name="net.fetch", description="Fetch a URL with allowlist and MIME caps.", required_tier=2)
 
     @property
     def parameters_schema(self) -> dict[str, Any]:
@@ -604,7 +638,7 @@ class PythonWriteModuleTool(Tool):
     """Write a python module into the sandbox."""
 
     def __init__(self):
-        super().__init__(name="python.write_module", description="Write a python module in the sandbox.")
+        super().__init__(name="python.write_module", description="Write a python module in the sandbox.", required_tier=2)
 
     @property
     def parameters_schema(self) -> dict[str, Any]:
@@ -655,7 +689,7 @@ class PythonRunModuleTool(Tool):
     """Execute a sandboxed python module run(context)."""
 
     def __init__(self):
-        super().__init__(name="python.run_module", description="Run a sandboxed python module.")
+        super().__init__(name="python.run_module", description="Run a sandboxed python module.", required_tier=2)
 
     @property
     def parameters_schema(self) -> dict[str, Any]:

@@ -22,9 +22,10 @@ class ToolResult:
 class Tool(ABC):
     """Base class for all tools in the agentic system."""
 
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, description: str, required_tier: int = 0):
         self.name = name
         self.description = description
+        self.required_tier = required_tier
 
     @abstractmethod
     def execute(self, **kwargs) -> ToolResult:

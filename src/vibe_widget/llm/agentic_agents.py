@@ -66,7 +66,8 @@ class AgentSdkOrchestrator:
         run_config: AgentRunConfig,
         context: AgentHarnessContext,
     ) -> str:
-        tools = self.tool_registry.to_openai_tools()
+        # Filter tools by permission tier so LLM only sees tools it can use
+        tools = self.tool_registry.to_openai_tools(tier=run_config.permission_tier)
         messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
         tool_calls_count = 0
 

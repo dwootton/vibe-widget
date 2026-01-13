@@ -13,13 +13,22 @@ const REACT_PACKAGE_NAMES = new Set([
   "react",
   "react-dom",
   "react/jsx-runtime",
+  "react/jsx-dev-runtime",
   "react-dom/client",
+  "react-dom/server",
   "preact",
   "preact/compat",
   "preact/hooks",
+  "preact/jsx-runtime",
+  "scheduler",
+  "scheduler/tracing",
+  "react-is",
 ]);
 
-const REACT_URL_PATH_PATTERN = /^\/(react|react-dom|preact)(@|\/|$)/i;
+// Match React packages in URL paths, ensuring we don't match react-window, react-query, etc.
+// Matches: /react, /react@18.0.0, /react/jsx-runtime, /v135/react@18.0.0/...
+// Does NOT match: /react-window, /react-query, /@tanstack/react-virtual
+const REACT_URL_PATH_PATTERN = /(?:^|\/)(react|react-dom|preact|scheduler|react-is)(?:@[\d.]+)?(?:\/|$)/i;
 
 function extractImportSpecifiers(source) {
   if (!source) return [];

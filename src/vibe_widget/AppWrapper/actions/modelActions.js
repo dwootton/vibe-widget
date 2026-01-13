@@ -2,7 +2,8 @@ export function requestGrabEdit(model, { element, prompt }) {
   if (model?.__vibeCommClosed) return;
   model.set("grab_edit_request", {
     element,
-    prompt
+    prompt,
+    request_id: `${Date.now()}-${Math.random().toString(16).slice(2)}`
   });
   model.save_changes();
 }

@@ -635,6 +635,8 @@ class VibeWidget(anywidget.AnyWidget):
             """Handle progress events from orchestrator."""
             nonlocal update_counter, last_pattern_count
 
+            _write_debug_log("agent_trace", f"{event_type} | {message}")
+
             event_messages = {
                 "step": f"{message}",
                 "thinking": f"{message[:150]}",

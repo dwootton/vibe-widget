@@ -34,7 +34,7 @@ class BundleService:
         self._root.mkdir(parents=True, exist_ok=True)
         self._packages_dir.mkdir(parents=True, exist_ok=True)
         self._node_path = self._resolve_node_modules()
-        self._bundle_rev = "v6-package-cache"
+        self._bundle_rev = "v10-auto-react-import"
 
     def _resolve_node_modules(self) -> str | None:
         repo_root = Path(__file__).resolve().parents[3]
@@ -81,13 +81,22 @@ class BundleService:
             shim_path = tmp_path / "react-shim.js"
             dom_shim_path = tmp_path / "react-dom-shim.js"
             dom_client_shim_path = tmp_path / "react-dom-client-shim.js"
+            scheduler_shim_path = tmp_path / "scheduler-shim.js"
+            react_is_shim_path = tmp_path / "react-is-shim.js"
             build_path = tmp_path / "bundle.cjs"
             out_path = tmp_path / "bundle.js"
 
-            entry_path.write_text(source, encoding="utf-8")
+            # Ensure React is imported for JSX transform (React.createElement)
+            # Only add if not already importing React
+            entry_source = source
+            if not _has_react_import(source):
+                entry_source = "import React from 'react';\n" + source
+            entry_path.write_text(entry_source, encoding="utf-8")
             shim_path.write_text(_react_shim_source(), encoding="utf-8")
             dom_shim_path.write_text(_react_dom_shim_source(), encoding="utf-8")
             dom_client_shim_path.write_text(_react_dom_client_shim_source(), encoding="utf-8")
+            scheduler_shim_path.write_text(_scheduler_shim_source(), encoding="utf-8")
+            react_is_shim_path.write_text(_react_is_shim_source(), encoding="utf-8")
             build_path.write_text(_build_script_source(), encoding="utf-8")
 
             env = os.environ.copy()
@@ -155,58 +164,182 @@ const outfile = process.argv[3];
 const shimPath = path.join(process.cwd(), "react-shim.js");
 const domShimPath = path.join(process.cwd(), "react-dom-shim.js");
 const domClientShimPath = path.join(process.cwd(), "react-dom-client-shim.js");
+const schedulerShimPath = path.join(process.cwd(), "scheduler-shim.js");
+const reactIsShimPath = path.join(process.cwd(), "react-is-shim.js");
+
+// Exact package names that should be aliased to shims
+// Using a Set for O(1) lookup
+const REACT_SHIM_PACKAGES = new Set([
+  "react",
+  "react/jsx-runtime",
+  "react/jsx-dev-runtime",
+  "preact",
+  "preact/compat",
+  "preact/hooks",
+  "preact/jsx-runtime"
+]);
+
+const REACT_DOM_SHIM_PACKAGES = new Set([
+  "react-dom",
+  "react-dom/server",
+  "react-dom/server.browser",
+  "react-dom/test-utils"
+]);
+
+const REACT_DOM_CLIENT_SHIM_PACKAGES = new Set([
+  "react-dom/client"
+]);
+
+const SCHEDULER_SHIM_PACKAGES = new Set([
+  "scheduler",
+  "scheduler/tracing"
+]);
+
+const REACT_IS_SHIM_PACKAGES = new Set([
+  "react-is"
+]);
+
+// Check if a path matches a React package (exact match or subpath)
+function isReactPackage(importPath) {
+  // Exact match checks first (fast path)
+  if (REACT_SHIM_PACKAGES.has(importPath)) return { shim: "react" };
+  if (REACT_DOM_CLIENT_SHIM_PACKAGES.has(importPath)) return { shim: "react-dom-client" };
+  if (REACT_DOM_SHIM_PACKAGES.has(importPath)) return { shim: "react-dom" };
+  if (SCHEDULER_SHIM_PACKAGES.has(importPath)) return { shim: "scheduler" };
+  if (REACT_IS_SHIM_PACKAGES.has(importPath)) return { shim: "react-is" };
+
+  // Check for subpaths (e.g., "react/cjs/react.production.min.js")
+  for (const pkg of REACT_SHIM_PACKAGES) {
+    if (importPath === pkg || importPath.startsWith(pkg + "/")) {
+      return { shim: "react" };
+    }
+  }
+  for (const pkg of REACT_DOM_CLIENT_SHIM_PACKAGES) {
+    if (importPath === pkg || importPath.startsWith(pkg + "/")) {
+      return { shim: "react-dom-client" };
+    }
+  }
+  for (const pkg of REACT_DOM_SHIM_PACKAGES) {
+    if (importPath === pkg || importPath.startsWith(pkg + "/")) {
+      return { shim: "react-dom" };
+    }
+  }
+  for (const pkg of SCHEDULER_SHIM_PACKAGES) {
+    if (importPath === pkg || importPath.startsWith(pkg + "/")) {
+      return { shim: "scheduler" };
+    }
+  }
+  for (const pkg of REACT_IS_SHIM_PACKAGES) {
+    if (importPath === pkg || importPath.startsWith(pkg + "/")) {
+      return { shim: "react-is" };
+    }
+  }
+
+  return null;
+}
+
+// Parse a URL pathname to extract the package name
+// Handles CDN URL formats like:
+//   /react@18.2.0 -> react
+//   /v135/react@18.2.0/es2022/react.mjs -> react
+//   /@tanstack/react-virtual@3.0.0 -> @tanstack/react-virtual
+function extractPackageFromUrlPath(urlPath) {
+  // Remove leading slash
+  let p = urlPath.startsWith("/") ? urlPath.slice(1) : urlPath;
+
+  // Remove version prefix like "v135/" or "stable/"
+  p = p.replace(/^(v\\d+|stable)\\//, "");
+
+  // Handle scoped packages (@org/pkg)
+  let pkgName;
+  if (p.startsWith("@")) {
+    // Scoped package: @org/pkg@version or @org/pkg/subpath
+    const match = p.match(/^(@[^/]+\\/[^/@]+)/);
+    if (match) {
+      pkgName = match[1];
+    }
+  } else {
+    // Regular package: pkg@version or pkg/subpath
+    const match = p.match(/^([^/@]+)/);
+    if (match) {
+      pkgName = match[1];
+    }
+  }
+
+  if (!pkgName) return null;
+
+  // Remove version suffix (@18.2.0)
+  pkgName = pkgName.replace(/@[^/]+$/, "");
+
+  // Get the rest of the path after the package name
+  const restStart = p.indexOf(pkgName) + pkgName.length;
+  let rest = p.slice(restStart);
+
+  // Remove version from rest if present
+  rest = rest.replace(/^@[^/]+/, "");
+
+  // Clean up subpath
+  if (rest.startsWith("/")) {
+    rest = rest.slice(1);
+  }
+
+  // Build the full import path
+  if (rest && !rest.includes(".")) {
+    // It's a subpath like "jsx-runtime"
+    return pkgName + "/" + rest.split("/")[0];
+  }
+
+  return pkgName;
+}
+
+// Map shim type to path
+function getShimPath(shimType) {
+  switch (shimType) {
+    case "react": return shimPath;
+    case "react-dom": return domShimPath;
+    case "react-dom-client": return domClientShimPath;
+    case "scheduler": return schedulerShimPath;
+    case "react-is": return reactIsShimPath;
+    default: return null;
+  }
+}
+
+const DEBUG = process.env.VIBE_BUNDLE_DEBUG === "1";
 
 const reactAlias = {
   name: "react-alias",
   setup(build) {
-    const aliasMap = {
-      "react": shimPath,
-      "react/jsx-runtime": shimPath,
-      "react-dom": domShimPath,
-      "react-dom/client": domClientShimPath,
-      "preact": shimPath,
-      "preact/compat": shimPath,
-      "preact/hooks": shimPath
-    };
     build.onResolve({ filter: /.*/ }, (args) => {
-      if (args.path.startsWith("/react-dom/client")) {
-        return { path: domClientShimPath };
-      }
-      if (args.path.startsWith("/react-dom")) {
-        return { path: domShimPath };
-      }
-      if (args.path.startsWith("/react/jsx-runtime")) {
-        return { path: shimPath };
-      }
-      if (args.path.startsWith("/react") || args.path.startsWith("/preact")) {
-        return { path: shimPath };
-      }
-      if (args.path.startsWith("http://") || args.path.startsWith("https://")) {
+      const importPath = args.path;
+
+      // Handle HTTP/HTTPS URLs (CDN imports)
+      if (importPath.startsWith("http://") || importPath.startsWith("https://")) {
         try {
-          const parsed = new URL(args.path);
-          const path = parsed.pathname || "";
-          if (path.startsWith("/react-dom/client")) {
-            return { path: domClientShimPath };
-          }
-          if (path.startsWith("/react-dom")) {
-            return { path: domShimPath };
-          }
-          if (path.startsWith("/react/jsx-runtime")) {
-            return { path: shimPath };
-          }
-          if (path.startsWith("/react")) {
-            return { path: shimPath };
-          }
-          if (path.startsWith("/preact")) {
-            return { path: shimPath };
+          const parsed = new URL(importPath);
+          const pkgName = extractPackageFromUrlPath(parsed.pathname);
+          if (pkgName) {
+            const result = isReactPackage(pkgName);
+            if (result) {
+              const resolvedPath = getShimPath(result.shim);
+              if (DEBUG) console.error(`[react-alias] URL ${importPath} -> ${result.shim} shim`);
+              if (resolvedPath) return { path: resolvedPath };
+            }
           }
         } catch (err) {
           // ignore URL parse errors
         }
+        // Let http-loader handle non-React URLs
+        return null;
       }
-      if (aliasMap[args.path]) {
-        return { path: aliasMap[args.path] };
+
+      // Handle bare imports (from node_modules or direct)
+      const result = isReactPackage(importPath);
+      if (result) {
+        const resolvedShimPath = getShimPath(result.shim);
+        if (DEBUG) console.error(`[react-alias] ${importPath} -> ${result.shim} shim`);
+        if (resolvedShimPath) return { path: resolvedShimPath };
       }
+
       return null;
     });
   }
@@ -215,17 +348,61 @@ const reactAlias = {
 const httpPlugin = {
   name: "http-loader",
   setup(build) {
-    build.onResolve({ filter: /^https?:\\/\\// }, (args) => ({
-      path: args.path,
-      namespace: "http-url"
-    }));
+    build.onResolve({ filter: /^https?:\\/\\// }, (args) => {
+      // First check if this URL points to a React package
+      try {
+        const parsed = new URL(args.path);
+        const pkgName = extractPackageFromUrlPath(parsed.pathname);
+        if (pkgName) {
+          const result = isReactPackage(pkgName);
+          if (result) {
+            const resolvedPath = getShimPath(result.shim);
+            if (DEBUG) console.error(`[http-plugin] URL ${args.path} -> ${result.shim} shim`);
+            if (resolvedPath) return { path: resolvedPath };
+          }
+        }
+      } catch (err) {
+        // ignore URL parse errors
+      }
+      return {
+        path: args.path,
+        namespace: "http-url"
+      };
+    });
 
     build.onResolve({ filter: /.*/, namespace: "http-url" }, (args) => {
       if (!args.importer) {
         return null;
       }
+
+      // CRITICAL: Check if this is a React package import from within CDN code
+      // e.g., react-window from esm.sh imports 'react' which should be shimmed
+      const result = isReactPackage(args.path);
+      if (result) {
+        const resolvedPath = getShimPath(result.shim);
+        if (DEBUG) console.error(`[http-plugin] CDN internal import ${args.path} -> ${result.shim} shim`);
+        if (resolvedPath) return { path: resolvedPath };
+      }
+
       try {
         const resolved = new URL(args.path, args.importer).toString();
+
+        // Also check the resolved URL for React packages
+        try {
+          const parsed = new URL(resolved);
+          const pkgName = extractPackageFromUrlPath(parsed.pathname);
+          if (pkgName) {
+            const pkgResult = isReactPackage(pkgName);
+            if (pkgResult) {
+              const resolvedShimPath = getShimPath(pkgResult.shim);
+              if (DEBUG) console.error(`[http-plugin] Resolved URL ${resolved} -> ${pkgResult.shim} shim`);
+              if (resolvedShimPath) return { path: resolvedShimPath };
+            }
+          }
+        } catch (err) {
+          // ignore URL parse errors
+        }
+
         return { path: resolved, namespace: "http-url" };
       } catch (err) {
         return null;
@@ -278,20 +455,34 @@ if (!React) {
 }
 
 export default React;
+
+// Core classes
+export const Component = React.Component;
+export const PureComponent = React.PureComponent;
+
+// Core utilities
 export const Children = React.Children;
 export const Fragment = React.Fragment;
+export const Profiler = React.Profiler;
 export const StrictMode = React.StrictMode;
 export const Suspense = React.Suspense;
+
+// Element creation
 export const cloneElement = React.cloneElement;
 export const createContext = React.createContext;
 export const createElement = React.createElement;
+export const createFactory = React.createFactory;
 export const createRef = React.createRef;
+
+// Higher-order components
 export const forwardRef = React.forwardRef;
-export const isValidElement = React.isValidElement;
 export const lazy = React.lazy;
 export const memo = React.memo;
-export const startTransition = React.startTransition;
-export const use = React.use;
+
+// Element validation
+export const isValidElement = React.isValidElement;
+
+// Hooks
 export const useCallback = React.useCallback;
 export const useContext = React.useContext;
 export const useDebugValue = React.useDebugValue;
@@ -307,26 +498,297 @@ export const useRef = React.useRef;
 export const useState = React.useState;
 export const useSyncExternalStore = React.useSyncExternalStore;
 export const useTransition = React.useTransition;
+
+// Concurrent features
+export const startTransition = React.startTransition;
+export const use = React.use;
+
+// Version
 export const version = React.version;
+
+// JSX runtime (for react/jsx-runtime compatibility)
 export const jsx = React.jsx || React.createElement;
 export const jsxs = React.jsxs || React.createElement;
 export const jsxDEV = React.jsxDEV || React.createElement;
+
+// Legacy APIs (some packages still use these)
+export const __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 """
 
 
 def _react_dom_shim_source() -> str:
     return """const ReactDOM = globalThis.__VIBE_REACT_DOM || {};
+const ReactDOMClient = globalThis.__VIBE_REACT_DOM_CLIENT || ReactDOM;
+
+// Modern APIs
 export const createPortal = ReactDOM.createPortal;
 export const flushSync = ReactDOM.flushSync;
+export const createRoot = ReactDOMClient.createRoot;
+export const hydrateRoot = ReactDOMClient.hydrateRoot;
+
+// Legacy APIs (some packages still use these, they may be undefined in React 19)
+export const render = ReactDOM.render;
+export const hydrate = ReactDOM.hydrate;
+export const unmountComponentAtNode = ReactDOM.unmountComponentAtNode;
+export const findDOMNode = ReactDOM.findDOMNode;
+
+// Version
+export const version = ReactDOM.version;
+
 export default ReactDOM;
 """
 
 
 def _react_dom_client_shim_source() -> str:
     return """const ReactDOMClient = globalThis.__VIBE_REACT_DOM_CLIENT || globalThis.__VIBE_REACT_DOM || {};
+
 export const createRoot = ReactDOMClient.createRoot;
+export const hydrateRoot = ReactDOMClient.hydrateRoot;
+
 export default ReactDOMClient;
 """
+
+
+def _scheduler_shim_source() -> str:
+    # Minimal scheduler shim - React's internal scheduler
+    # Most of these are no-ops or use the host React's internals
+    return """// Scheduler shim - provides minimal scheduler API
+// These are React internals that some packages import directly
+
+export const unstable_ImmediatePriority = 1;
+export const unstable_UserBlockingPriority = 2;
+export const unstable_NormalPriority = 3;
+export const unstable_IdlePriority = 5;
+export const unstable_LowPriority = 4;
+
+export function unstable_runWithPriority(priority, callback) {
+  return callback();
+}
+
+export function unstable_scheduleCallback(priority, callback) {
+  const id = setTimeout(callback, 0);
+  return { id };
+}
+
+export function unstable_cancelCallback(task) {
+  if (task && task.id) clearTimeout(task.id);
+}
+
+export function unstable_wrapCallback(callback) {
+  return callback;
+}
+
+export function unstable_getCurrentPriorityLevel() {
+  return unstable_NormalPriority;
+}
+
+export function unstable_shouldYield() {
+  return false;
+}
+
+export function unstable_requestPaint() {}
+
+export function unstable_now() {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now();
+}
+
+export function unstable_forceFrameRate() {}
+
+export function unstable_pauseExecution() {}
+
+export function unstable_continueExecution() {}
+
+export function unstable_getFirstCallbackNode() {
+  return null;
+}
+
+// For scheduler/tracing
+export const __interactionsRef = { current: new Set() };
+export const __subscriberRef = { current: null };
+export function unstable_clear(callback) { return callback(); }
+export function unstable_getCurrent() { return null; }
+export function unstable_getThreadID() { return 0; }
+export function unstable_subscribe() {}
+export function unstable_unsubscribe() {}
+export function unstable_trace(name, timestamp, callback) { return callback(); }
+export function unstable_wrap(callback) { return callback; }
+
+export default {
+  unstable_ImmediatePriority,
+  unstable_UserBlockingPriority,
+  unstable_NormalPriority,
+  unstable_IdlePriority,
+  unstable_LowPriority,
+  unstable_runWithPriority,
+  unstable_scheduleCallback,
+  unstable_cancelCallback,
+  unstable_wrapCallback,
+  unstable_getCurrentPriorityLevel,
+  unstable_shouldYield,
+  unstable_requestPaint,
+  unstable_now,
+  unstable_forceFrameRate,
+  unstable_pauseExecution,
+  unstable_continueExecution,
+  unstable_getFirstCallbackNode
+};
+"""
+
+
+def _react_is_shim_source() -> str:
+    # react-is shim - type checking utilities for React elements
+    return """const React = globalThis.__VIBE_REACT;
+
+// Type symbols - use React's if available, or create placeholders
+const REACT_ELEMENT_TYPE = Symbol.for('react.element');
+const REACT_PORTAL_TYPE = Symbol.for('react.portal');
+const REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+const REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
+const REACT_PROFILER_TYPE = Symbol.for('react.profiler');
+const REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+const REACT_CONTEXT_TYPE = Symbol.for('react.context');
+const REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
+const REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
+const REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
+const REACT_MEMO_TYPE = Symbol.for('react.memo');
+const REACT_LAZY_TYPE = Symbol.for('react.lazy');
+
+function typeOf(object) {
+  if (typeof object === 'object' && object !== null) {
+    const $$typeof = object.$$typeof;
+    if ($$typeof === REACT_ELEMENT_TYPE) {
+      const type = object.type;
+      if (typeof type === 'function') return null;
+      if (typeof type === 'string') return REACT_ELEMENT_TYPE;
+      switch (type) {
+        case REACT_FRAGMENT_TYPE: return REACT_FRAGMENT_TYPE;
+        case REACT_PROFILER_TYPE: return REACT_PROFILER_TYPE;
+        case REACT_STRICT_MODE_TYPE: return REACT_STRICT_MODE_TYPE;
+        case REACT_SUSPENSE_TYPE: return REACT_SUSPENSE_TYPE;
+        case REACT_SUSPENSE_LIST_TYPE: return REACT_SUSPENSE_LIST_TYPE;
+      }
+      if (typeof type === 'object') {
+        switch (type.$$typeof) {
+          case REACT_CONTEXT_TYPE: return REACT_CONTEXT_TYPE;
+          case REACT_PROVIDER_TYPE: return REACT_PROVIDER_TYPE;
+          case REACT_FORWARD_REF_TYPE: return REACT_FORWARD_REF_TYPE;
+          case REACT_MEMO_TYPE: return REACT_MEMO_TYPE;
+          case REACT_LAZY_TYPE: return REACT_LAZY_TYPE;
+        }
+      }
+    } else if ($$typeof === REACT_PORTAL_TYPE) {
+      return REACT_PORTAL_TYPE;
+    }
+  }
+  return undefined;
+}
+
+export { typeOf };
+
+export const ContextConsumer = REACT_CONTEXT_TYPE;
+export const ContextProvider = REACT_PROVIDER_TYPE;
+export const Element = REACT_ELEMENT_TYPE;
+export const ForwardRef = REACT_FORWARD_REF_TYPE;
+export const Fragment = REACT_FRAGMENT_TYPE;
+export const Lazy = REACT_LAZY_TYPE;
+export const Memo = REACT_MEMO_TYPE;
+export const Portal = REACT_PORTAL_TYPE;
+export const Profiler = REACT_PROFILER_TYPE;
+export const StrictMode = REACT_STRICT_MODE_TYPE;
+export const Suspense = REACT_SUSPENSE_TYPE;
+export const SuspenseList = REACT_SUSPENSE_LIST_TYPE;
+
+export function isValidElementType(type) {
+  return typeof type === 'string' ||
+    typeof type === 'function' ||
+    type === REACT_FRAGMENT_TYPE ||
+    type === REACT_PROFILER_TYPE ||
+    type === REACT_STRICT_MODE_TYPE ||
+    type === REACT_SUSPENSE_TYPE ||
+    type === REACT_SUSPENSE_LIST_TYPE ||
+    (typeof type === 'object' && type !== null && (
+      type.$$typeof === REACT_LAZY_TYPE ||
+      type.$$typeof === REACT_MEMO_TYPE ||
+      type.$$typeof === REACT_PROVIDER_TYPE ||
+      type.$$typeof === REACT_CONTEXT_TYPE ||
+      type.$$typeof === REACT_FORWARD_REF_TYPE
+    ));
+}
+
+export function isAsyncMode() { return false; }
+export function isConcurrentMode() { return false; }
+export function isContextConsumer(object) { return typeOf(object) === REACT_CONTEXT_TYPE; }
+export function isContextProvider(object) { return typeOf(object) === REACT_PROVIDER_TYPE; }
+export function isElement(object) { return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE; }
+export function isForwardRef(object) { return typeOf(object) === REACT_FORWARD_REF_TYPE; }
+export function isFragment(object) { return typeOf(object) === REACT_FRAGMENT_TYPE; }
+export function isLazy(object) { return typeOf(object) === REACT_LAZY_TYPE; }
+export function isMemo(object) { return typeOf(object) === REACT_MEMO_TYPE; }
+export function isPortal(object) { return typeOf(object) === REACT_PORTAL_TYPE; }
+export function isProfiler(object) { return typeOf(object) === REACT_PROFILER_TYPE; }
+export function isStrictMode(object) { return typeOf(object) === REACT_STRICT_MODE_TYPE; }
+export function isSuspense(object) { return typeOf(object) === REACT_SUSPENSE_TYPE; }
+export function isSuspenseList(object) { return typeOf(object) === REACT_SUSPENSE_LIST_TYPE; }
+
+export default {
+  typeOf,
+  ContextConsumer,
+  ContextProvider,
+  Element,
+  ForwardRef,
+  Fragment,
+  Lazy,
+  Memo,
+  Portal,
+  Profiler,
+  StrictMode,
+  Suspense,
+  SuspenseList,
+  isValidElementType,
+  isAsyncMode,
+  isConcurrentMode,
+  isContextConsumer,
+  isContextProvider,
+  isElement,
+  isForwardRef,
+  isFragment,
+  isLazy,
+  isMemo,
+  isPortal,
+  isProfiler,
+  isStrictMode,
+  isSuspense,
+  isSuspenseList
+};
+"""
+
+
+# Packages that are shimmed by the bundler and should NOT be npm installed
+SHIMMED_PACKAGES = frozenset([
+    "react",
+    "react-dom",
+    "preact",
+    "scheduler",
+    "react-is",
+])
+
+
+def _has_react_import(source: str) -> bool:
+    """Check if source already imports React."""
+    if not source:
+        return False
+    # Check for various React import patterns
+    patterns = [
+        r"import\s+React",  # import React from 'react'
+        r"import\s+\*\s+as\s+React",  # import * as React from 'react'
+        r"import\s+{[^}]*}\s+from\s+['\"]react['\"]",  # import { useState } from 'react'
+        r"from\s+['\"]react['\"]",  # any from 'react'
+        r"require\s*\(\s*['\"]react['\"]\s*\)",  # require('react')
+    ]
+    for pattern in patterns:
+        if re.search(pattern, source):
+            return True
+    return False
 
 
 def _extract_package_names(source: str) -> set[str]:
@@ -343,6 +805,9 @@ def _extract_package_names(source: str) -> set[str]:
                 name = "/".join(parts[:2])
         else:
             name = spec.split("/", 1)[0]
+        # Skip shimmed packages - they're provided by the host runtime
+        if name in SHIMMED_PACKAGES:
+            continue
         packages.add(name)
     return packages
 
