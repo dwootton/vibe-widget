@@ -18,8 +18,6 @@ class GenerationCancelled(Exception):
 class GenerationService:
     """Generation runner with synchronous helpers and async orchestration."""
 
-    MAX_RETRIES = 2
-
     def __init__(
         self,
         llm_provider: LLMProvider,
@@ -171,31 +169,6 @@ class GenerationService:
                 on_error(exc)
             else:
                 raise
-
-    def fix_runtime_error(
-        self,
-        *,
-        code: str,
-        error_message: str,
-        data_info: dict[str, Any],
-        retry_count: int,
-        progress_callback: Callable[[str, str], None] | None = None,
-        agent_run_config: AgentRunConfig | None = None,
-    ) -> tuple[str, bool]:
-        """Attempt to fix runtime errors with bounded retries."""
-        if not error_message or retry_count >= self.MAX_RETRIES:
-            return code, False
-        try:
-            fixed_code = self.orchestrator.fix_runtime_error(
-                code=code,
-                error_message=error_message,
-                data_info=clean_for_json(data_info),
-                progress_callback=progress_callback,
-                agent_run_config=agent_run_config,
-            )
-            return fixed_code, False
-        except Exception:
-            return code, retry_count + 1 < self.MAX_RETRIES
 
     def revise_code(
         self,
