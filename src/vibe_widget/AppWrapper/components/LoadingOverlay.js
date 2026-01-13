@@ -22,18 +22,25 @@ export default function LoadingOverlay({ logs, hasExistingWidget }) {
           style={{
             width: "100%",
             height: "100%",
-            padding: "12px"
+            padding: "12px",
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0
           }}
         >
-          <ProgressMap logs={logs} fullHeight={true} debugLabel="LoadingOverlay" />
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ProgressMap logs={logs} fullHeight={true} debugLabel="LoadingOverlay" />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
-      <ProgressMap logs={logs} fullHeight={true} debugLabel="LoadingOverlay" />
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <ProgressMap logs={logs} fullHeight={true} debugLabel="LoadingOverlay" />
+      </div>
     </div>
   );
 }

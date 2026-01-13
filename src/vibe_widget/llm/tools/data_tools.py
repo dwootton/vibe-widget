@@ -1,6 +1,4 @@
-"""Data-related tools for loading, profiling, and wrangling data."""
-
-import json
+"""Data-related tools for loading and profiling data."""
 import pandas as pd
 from typing import Any
 
@@ -59,7 +57,7 @@ class DataLoadTool(Tool):
                         ".xlsx", ".xls", ".pdf", ".txt",
                     )
                     candidates = [
-                        path for path in sorted(source_path.iterdir())
+                        path for path in sorted(source_path.rglob("*"))
                         if path.is_file() and path.suffix.lower() in supported_exts
                     ]
                     if not candidates:
@@ -489,85 +487,6 @@ class DataProfileTool(Tool):
                 profile["columns"][col] = col_profile
 
             return ToolResult(success=True, output=profile, metadata={"dataframe": dataframe})
-
-        except Exception as e:
-            return ToolResult(success=False, output={}, error=str(e))
-
-
-class DataWrangleTool(Tool):
-    """Tool for generating Python code to transform/prepare data."""
-
-    def __init__(self, llm_provider):
-        super().__init__(
-            name="data_wrangle",
-            description=(
-                "Generate Python pandas code to transform, clean, or prepare data based on requirements. "
-                "Returns executable Python code that can be applied to the dataframe. "
-                "Use this when data needs filtering, aggregation, reshaping, or feature engineering."
-            ),
-        )
-        self.llm_provider = llm_provider
-
-    @property
-    def parameters_schema(self) -> dict[str, Any]:
-        return {
-            "profile": {
-                "type": "object",
-                "description": "Data profile from data_profile tool",
-                "required": True,
-            },
-            "requirements": {
-                "type": "string",
-                "description": "Description of data transformation needed",
-                "required": True,
-            },
-        }
-
-    def execute(self, profile: dict[str, Any], requirements: str) -> ToolResult:
-        """Generate data wrangling code."""
-        try:
-            prompt = f"""Generate Python pandas code to transform data based on requirements.
-
-Data Profile:
-{json.dumps(profile, indent=2)}
-
-Requirements:
-{requirements}
-
-Generate ONLY executable Python code that:
-1. Assumes input dataframe is named 'df'
-2. Returns transformed dataframe as 'df'
-3. Includes comments explaining each transformation
-4. Handles missing values appropriately
-5. Preserves data types where possible
-
-Output format:
-```python
-# Your transformation code here
-df = df.copy()
-# ... transformations ...
-```
-
-Return ONLY the Python code block, no explanations before or after.
-"""
-
-            if not hasattr(self.llm_provider, 'client'):
-                return ToolResult(success=False, output={}, error="LLM provider does not support data wrangling.")
-
-            response = self.llm_provider.client.chat.completions.create(
-                model=self.llm_provider.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=2048,
-                temperature=0.3,
-            )
-
-            code = self.llm_provider.clean_code(response.choices[0].message.content or "")
-
-            return ToolResult(
-                success=True,
-                output={"code": code, "language": "python"},
-                metadata={"requirements": requirements},
-            )
 
         except Exception as e:
             return ToolResult(success=False, output={}, error=str(e))

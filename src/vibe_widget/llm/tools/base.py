@@ -22,9 +22,10 @@ class ToolResult:
 class Tool(ABC):
     """Base class for all tools in the agentic system."""
 
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, description: str, required_tier: int = 0):
         self.name = name
         self.description = description
+        self.required_tier = required_tier
 
     @abstractmethod
     def execute(self, **kwargs) -> ToolResult:
@@ -76,6 +77,32 @@ class Tool(ABC):
         if required:
             tool_def["input_schema"]["required"] = required
         
+        return tool_def
+
+    def to_openai_tool(self) -> dict[str, Any]:
+        """Convert tool to OpenAI tool format for API calls."""
+        properties = {}
+        required = []
+
+        for key, schema in self.parameters_schema.items():
+            prop_schema = {k: v for k, v in schema.items() if k != "required"}
+            properties[key] = prop_schema
+            if schema.get("required", False):
+                required.append(key)
+
+        tool_def = {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                },
+            },
+        }
+        if required:
+            tool_def["function"]["parameters"]["required"] = required
         return tool_def
 
 

@@ -129,6 +129,18 @@ class LLMProvider(ABC):
             input_summary = "\n".join([f"- {name}: {summary}" for name, summary in inputs.items()])
         else:
             input_summary = "No inputs"
+
+        file_access_section = ""
+        data_path = inputs.get("data_path")
+        if data_path:
+            file_access_section = f"""FILE ACCESS (AGENT TOOLS ONLY):
+- Local directory available: {data_path}
+- Use tools: fs.list, fs.glob, fs.read, fs.read_base64
+- Do not call fs.* from widget JS; filesystem access must happen via tools
+- From widget JS, call model.call_remote("fs.glob", {{ path: "{data_path}", pattern: "**/*.jpg" }})
+- From widget JS, call model.call_remote("fs.read_base64", {{ path }}) and use result.data_url in img src
+
+"""
         
         theme_section = ""
         if theme_description:
@@ -141,7 +153,7 @@ TASK: {description}
 Input summaries:
 {input_summary}
 
-{theme_section}{composition_section}{outputs_inputs_section}
+{file_access_section}{theme_section}{composition_section}{outputs_inputs_section}
 
 CRITICAL RENDERING SPECIFICATION (JSX + PREACT-COMPAT):
 
@@ -290,6 +302,18 @@ Begin the response with code immediately."""
         else:
             input_summary = "No inputs"
 
+        file_access_section = ""
+        data_path = inputs.get("data_path")
+        if data_path:
+            file_access_section = f"""FILE ACCESS (AGENT TOOLS ONLY):
+- Local directory available: {data_path}
+- Use tools: fs.list, fs.glob, fs.read, fs.read_base64
+- Do not call fs.* from widget JS; filesystem access must happen via tools
+- From widget JS, call model.call_remote("fs.glob", {{ path: "{data_path}", pattern: "**/*.jpg" }})
+- From widget JS, call model.call_remote("fs.read_base64", {{ path }}) and use result.data_url in img src
+
+"""
+
         # Build composition section if additional base code provided
         composition_section = ""
         if base_code:
@@ -311,6 +335,7 @@ CURRENT CODE:
 {theme_section}{composition_section}Input summaries:
 {input_summary}
 
+{file_access_section}
 {outputs_inputs_section}
 
 Follow the SAME constraints as generation:
@@ -350,6 +375,17 @@ Return only the full revised JavaScript code. No markdown fences or explanations
         else:
             input_summary = "No inputs"
 
+        file_access_section = ""
+        data_path = inputs.get("data_path")
+        if data_path:
+            file_access_section = f"""FILE ACCESS (AGENT TOOLS ONLY):
+- Local directory available: {data_path}
+- Use tools: fs.list, fs.glob, fs.read, fs.read_base64
+- Do not call fs.* from widget JS; filesystem access must happen via tools
+- For images, call fs.read_base64 and use the returned data_url in img src
+
+"""
+
         theme_section = ""
         if theme_description:
             theme_section = f"THEME:\n{theme_description}\n\n"
@@ -369,6 +405,7 @@ BROKEN CODE:
 Input summaries:
 {input_summary}
 
+{file_access_section}
 {theme_section}{outputs_inputs_section}
 
 MANDATORY FIX RULES:

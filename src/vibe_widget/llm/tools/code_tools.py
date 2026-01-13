@@ -102,8 +102,8 @@ class CodeValidateTool(Tool):
                 re.VERBOSE,
             )
             if react_import_pattern.search(code):
-                issues.append(
-                    "Do not import React/ReactDOM/Preact; the host injects a React-compatible runtime for you."
+                warnings.append(
+                    "React import detected. Bundling should shim React; direct React imports are discouraged."
                 )
 
             cdn_imports = re.findall(r'from\s+["\']https://esm\.sh/([^"\']+)["\']', code)

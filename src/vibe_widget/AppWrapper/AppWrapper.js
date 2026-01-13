@@ -105,6 +105,7 @@ function AppWrapper({ model }) {
     status,
     logs,
     code,
+    renderCode,
     errorMessage,
     widgetError,
     lastRuntimeError,
@@ -125,7 +126,7 @@ function AppWrapper({ model }) {
   const approvalMode = executionMode === "approve";
 
   const {
-    renderCode,
+    renderCode: flowRenderCode,
     showSource,
     sourceError,
     setShowSource,
@@ -140,8 +141,9 @@ function AppWrapper({ model }) {
     executionApproved
   });
 
-  const { containerRef, containerBounds, minHeight } = useContainerMetrics(renderCode);
-  const hasCode = renderCode && renderCode.length > 0;
+  const effectiveRenderCode = renderCode || flowRenderCode;
+  const { containerRef, containerBounds, minHeight } = useContainerMetrics(effectiveRenderCode);
+  const hasCode = effectiveRenderCode && effectiveRenderCode.length > 0;
   const isApproved = executionApproved || !approvalMode;
   const hasRuntimeError = !!(widgetError || lastRuntimeError);
   const runtimeCheck = executionState?.runtime_check === true;
@@ -254,7 +256,7 @@ function AppWrapper({ model }) {
           style={
             runtimeCheck && status === "ready"
               ? { position: "absolute", inset: 0, zIndex: 20 }
-              : undefined
+              : { width: "100%", height: "100%", minHeight: 0, display: "flex" }
           }
         >
           <StateViewer
@@ -274,7 +276,7 @@ function AppWrapper({ model }) {
       {status === "ready" && shouldRenderWidget && (
         <WidgetViewer
           model={model}
-          code={renderCode}
+          code={effectiveRenderCode}
           containerBounds={containerBounds}
           onViewSource={handleViewSource}
           highAuditCount={highAuditCount}

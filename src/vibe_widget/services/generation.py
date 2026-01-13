@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import Any, Callable
 import threading
 
-from vibe_widget.llm.agentic import AgenticOrchestrator
+from vibe_widget.llm.agentic_agents import AgentSdkOrchestrator
+from vibe_widget.llm.agents.config import AgentRunConfig
 from vibe_widget.llm.providers.base import LLMProvider
 from vibe_widget.utils.serialization import clean_for_json
 
@@ -19,9 +20,19 @@ class GenerationService:
 
     MAX_RETRIES = 2
 
-    def __init__(self, llm_provider: LLMProvider):
+    def __init__(
+        self,
+        llm_provider: LLMProvider,
+        *,
+        agent_run_config: AgentRunConfig | None = None,
+        stream: bool | None = None,
+    ):
         self.llm_provider = llm_provider
-        self.orchestrator = AgenticOrchestrator(provider=llm_provider)
+        self.orchestrator = AgentSdkOrchestrator(
+            provider=llm_provider,
+            run_config=agent_run_config,
+            stream=True if stream is None else bool(stream),
+        )
         self._run_id = 0
         self._cancel_event: threading.Event | None = None
         self._thread: threading.Thread | None = None
@@ -91,6 +102,7 @@ class GenerationService:
         base_components: list[str] | None,
         theme_description: str | None,
         progress_callback: Callable[[str, str], None] | None = None,
+        agent_run_config: AgentRunConfig | None = None,
     ) -> tuple[str, dict[str, Any]]:
         """Generate widget code via the LLM."""
         return self.orchestrator.generate(
@@ -104,6 +116,7 @@ class GenerationService:
             base_components=base_components,
             theme_description=theme_description,
             progress_callback=progress_callback,
+            agent_run_config=agent_run_config,
         )
 
     def _generation_worker(
@@ -167,6 +180,7 @@ class GenerationService:
         data_info: dict[str, Any],
         retry_count: int,
         progress_callback: Callable[[str, str], None] | None = None,
+        agent_run_config: AgentRunConfig | None = None,
     ) -> tuple[str, bool]:
         """Attempt to fix runtime errors with bounded retries."""
         if not error_message or retry_count >= self.MAX_RETRIES:
@@ -177,6 +191,7 @@ class GenerationService:
                 error_message=error_message,
                 data_info=clean_for_json(data_info),
                 progress_callback=progress_callback,
+                agent_run_config=agent_run_config,
             )
             return fixed_code, False
         except Exception:
@@ -189,6 +204,7 @@ class GenerationService:
         revision_request: str,
         data_info: dict[str, Any],
         progress_callback: Callable[[str, str], None] | None = None,
+        agent_run_config: AgentRunConfig | None = None,
     ) -> str:
         """Apply revision requests to existing code."""
         return self.orchestrator.revise_code(
@@ -196,4 +212,5 @@ class GenerationService:
             revision_request=revision_request,
             data_info=clean_for_json(data_info),
             progress_callback=progress_callback,
+            agent_run_config=agent_run_config,
         )

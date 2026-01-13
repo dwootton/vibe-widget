@@ -7,12 +7,88 @@ import { captureRuntimeError } from "../utils/runtimeError";
 import { debugLog } from "../utils/debug";
 
 const FORBIDDEN_REACT_IMPORT =
-  /from\s+["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?|preact(?:\/compat)?|preact\/hooks)["']|require\(\s*["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?|preact(?:\/compat)?|preact\/hooks)["']\s*\)|from\s+["']https?:\/\/[^"']*react[^"']*["']/;
+  /from\s+["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?|preact(?:\/compat)?|preact\/hooks)["']|require\(\s*["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?|preact(?:\/compat)?|preact\/hooks)["']\s*\)/;
+
+const REACT_PACKAGE_NAMES = new Set([
+  "react",
+  "react-dom",
+  "react/jsx-runtime",
+  "react/jsx-dev-runtime",
+  "react-dom/client",
+  "react-dom/server",
+  "preact",
+  "preact/compat",
+  "preact/hooks",
+  "preact/jsx-runtime",
+  "scheduler",
+  "scheduler/tracing",
+  "react-is",
+]);
+
+// Match React packages in URL paths, ensuring we don't match react-window, react-query, etc.
+// Matches: /react, /react@18.0.0, /react/jsx-runtime, /v135/react@18.0.0/...
+// Does NOT match: /react-window, /react-query, /@tanstack/react-virtual
+const REACT_URL_PATH_PATTERN = /(?:^|\/)(react|react-dom|preact|scheduler|react-is)(?:@[\d.]+)?(?:\/|$)/i;
+
+function extractImportSpecifiers(source) {
+  if (!source) return [];
+  const specs = [];
+  const importRe = /from\s+["']([^"']+)["']/g;
+  const requireRe = /require\(\s*["']([^"']+)["']\s*\)/g;
+  let match = importRe.exec(source);
+  while (match) {
+    specs.push(match[1]);
+    match = importRe.exec(source);
+  }
+  match = requireRe.exec(source);
+  while (match) {
+    specs.push(match[1]);
+    match = requireRe.exec(source);
+  }
+  return specs;
+}
+
+function isBundledSource(source) {
+  if (!source) return false;
+  const trimmed = source.trimStart();
+  return trimmed.startsWith("/*__VIBE_BUNDLED__*/");
+}
+
+function isReactImportForbidden(source) {
+  if (!source) return false;
+  if (FORBIDDEN_REACT_IMPORT.test(source)) return true;
+  const specs = extractImportSpecifiers(source);
+  for (const spec of specs) {
+    if (!spec) continue;
+    const normalized = spec.trim();
+    if (REACT_PACKAGE_NAMES.has(normalized)) {
+      return true;
+    }
+    if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+      try {
+        const parsed = new URL(normalized);
+        if (REACT_URL_PATH_PATTERN.test(parsed.pathname)) {
+          return true;
+        }
+      } catch (err) {
+        // ignore malformed URL
+      }
+    }
+  }
+  return false;
+}
 
 // Expose a stable React runtime for transformed widgets.
 // Use the full namespace import (React) which includes all hooks.
 if (typeof globalThis !== "undefined") {
   globalThis.__VIBE_REACT = React;
+  globalThis.__VIBE_REACT_DOM = {
+    createRoot,
+    flushSync
+  };
+  globalThis.__VIBE_REACT_DOM_CLIENT = {
+    createRoot
+  };
 }
 
 let sandboxInstanceCounter = 0;
@@ -25,6 +101,9 @@ function SandboxedRunner({ code, model, runKey }) {
   const logQueueRef = React.useRef([]);
   const flushTimerRef = React.useRef(null);
   const lastConsoleErrorRef = React.useRef("");
+  const lastRuntimeEventRef = React.useRef("");
+  const remoteCallIdRef = React.useRef(0);
+  const remoteCallPendingRef = React.useRef(new Map());
 
   const flushLogs = React.useCallback(() => {
     if (!logQueueRef.current.length) return;
@@ -63,6 +142,31 @@ function SandboxedRunner({ code, model, runKey }) {
       error: console.error,
     };
 
+    const handleWindowError = (event) => {
+      const message = event?.error || event?.message || "Unknown runtime error";
+      const key = String(message);
+      if (key && key === lastRuntimeEventRef.current) {
+        return;
+      }
+      lastRuntimeEventRef.current = key;
+      const err = message instanceof Error ? message : new Error(String(message));
+      captureRuntimeError({ model, enqueueLog, err });
+    };
+
+    const handleUnhandledRejection = (event) => {
+      const reason = event?.reason || "Unhandled promise rejection";
+      const key = String(reason);
+      if (key && key === lastRuntimeEventRef.current) {
+        return;
+      }
+      lastRuntimeEventRef.current = key;
+      const err = reason instanceof Error ? reason : new Error(String(reason));
+      captureRuntimeError({ model, enqueueLog, err });
+    };
+
+    window.addEventListener("error", handleWindowError);
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+
     console.log = (...args) => {
       const message = args.map(String).join(" ");
       if (!shouldIgnoreConsole(message)) {
@@ -99,6 +203,8 @@ function SandboxedRunner({ code, model, runKey }) {
       console.log = original.log;
       console.warn = original.warn;
       console.error = original.error;
+      window.removeEventListener("error", handleWindowError);
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
       if (flushTimerRef.current) {
         clearTimeout(flushTimerRef.current);
         flushTimerRef.current = null;
@@ -232,6 +338,70 @@ function SandboxedRunner({ code, model, runKey }) {
       model.save_changes = guardCall(originalSave);
     }
 
+    const handleRemoteMessage = (content) => {
+      if (!content || content.type !== "remote_call_result") {
+        return;
+      }
+      const pending = remoteCallPendingRef.current.get(content.id);
+      if (!pending) {
+        return;
+      }
+      remoteCallPendingRef.current.delete(content.id);
+      if (content.error) {
+        pending.reject(new Error(content.error));
+      } else {
+        pending.resolve(content.result);
+      }
+    };
+
+    const callRemote = (name, args = {}, options = {}) => {
+      if (!model || typeof model.send !== "function") {
+        return Promise.reject(new Error("Widget comm not available."));
+      }
+      const timeoutMs =
+        typeof options.timeout === "number" && options.timeout > 0
+          ? options.timeout
+          : 20000;
+      const id = `remote-${Date.now()}-${remoteCallIdRef.current++}`;
+      return new Promise((resolve, reject) => {
+        remoteCallPendingRef.current.set(id, { resolve, reject });
+        let timeout = null;
+        if (timeoutMs) {
+          timeout = setTimeout(() => {
+            if (!remoteCallPendingRef.current.has(id)) return;
+            remoteCallPendingRef.current.delete(id);
+            reject(new Error("Remote call timed out."));
+          }, timeoutMs);
+        }
+        try {
+          model.send({ type: "remote_call", id, name, args });
+        } catch (err) {
+          if (timeout) clearTimeout(timeout);
+          remoteCallPendingRef.current.delete(id);
+          reject(err);
+        }
+      });
+    };
+
+    if (model && typeof model.on === "function") {
+      model.on("msg:custom", handleRemoteMessage);
+      trackDisposer(() => model.off("msg:custom", handleRemoteMessage));
+    }
+    model.call_remote = callRemote;
+    trackDisposer(() => {
+      if (model.call_remote === callRemote) {
+        model.call_remote = undefined;
+      }
+      remoteCallPendingRef.current.forEach((pending) => {
+        try {
+          pending.reject(new Error("Remote call cancelled."));
+        } catch (err) {
+          // ignore
+        }
+      });
+      remoteCallPendingRef.current.clear();
+    });
+
     model.__vibeOnCommClosed = () => {
       if (typeof previousCommClosed === "function") {
         previousCommClosed();
@@ -251,6 +421,9 @@ function SandboxedRunner({ code, model, runKey }) {
     trackDisposer(() => window.removeEventListener("unhandledrejection", handleWindowError));
 
     const transformWidgetCode = (source) => {
+      if (isBundledSource(source)) {
+        return source;
+      }
       const wrapped = `const React = globalThis.__VIBE_REACT;
 const tw = globalThis.__VIBE_TW;
 const css = globalThis.__VIBE_CSS;
@@ -267,7 +440,7 @@ ${source}`;
       debugLog(model, "[vibe][debug] executeCode called", { instanceId });
       try {
         setGuestWidget(null);
-        if (FORBIDDEN_REACT_IMPORT.test(code)) {
+        if (!isBundledSource(code) && isReactImportForbidden(code)) {
           throw new Error(
             "Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead."
           );

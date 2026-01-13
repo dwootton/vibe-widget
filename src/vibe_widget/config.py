@@ -140,6 +140,8 @@ class Config:
     theme: Any = None
     execution: str = "auto"  # "auto" or "approve"
     retry: int = 2  # Runtime repair attempts before blocking
+    agent_preset: str = "project"
+    agent_run: dict[str, Any] | None = None
 
     def __repr__(self) -> str:  # pragma: no cover
         masked_key = "****" if self.api_key else None
@@ -152,7 +154,9 @@ class Config:
             f"mode={self.mode!r}, "
             f"theme={self.theme!r}, "
             f"execution={self.execution!r}, "
-            f"retry={self.retry!r}"
+            f"retry={self.retry!r}, "
+            f"agent_preset={self.agent_preset!r}, "
+            f"agent_run={self.agent_run!r}"
             ")"
         )
 
@@ -212,6 +216,8 @@ class Config:
             "theme": theme_value,
             "execution": self.execution,
             "retry": self.retry,
+            "agent_preset": self.agent_preset,
+            "agent_run": self.agent_run,
         }
     
     @classmethod
@@ -277,6 +283,8 @@ def config(
     theme: Any = None,
     execution: str = None,
     retry: int = None,
+    agent_preset: str = None,
+    agent_run: dict[str, Any] | None = None,
     **kwargs
 ) -> Config:
     """
@@ -321,6 +329,8 @@ def config(
             theme=theme,
             execution=execution or "auto",
             retry=retry if retry is not None else 2,
+            agent_preset=agent_preset or "project",
+            agent_run=agent_run,
             **kwargs
         )
     else:
@@ -358,6 +368,12 @@ def config(
             if not isinstance(retry, int) or retry < 0:
                 raise ValueError("retry must be a non-negative integer")
             _global_config.retry = retry
+
+        if agent_preset is not None:
+            _global_config.agent_preset = agent_preset
+
+        if agent_run is not None:
+            _global_config.agent_run = agent_run
         
         for key, value in kwargs.items():
             if hasattr(_global_config, key):
