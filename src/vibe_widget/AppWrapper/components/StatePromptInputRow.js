@@ -9,7 +9,7 @@ const logTextClass = tw("flex-1 flex items-center gap-1");
 const logTextTopClass = tw("flex-1 flex items-start gap-1");
 const inputWrapperClass = tw("relative flex-1 min-w-0");
 const textareaClass = tw(
-  "w-full bg-transparent text-text-primary border-none outline-none focus:outline-none focus-visible:outline-none shadow-none p-0 m-0 resize-none font-mono text-[12px] leading-[1.4] caret-transparent disabled:text-[rgba(242,240,233,0.55)] appearance-none"
+  "w-full bg-transparent text-text-primary border-none outline-none focus:outline-none focus-visible:outline-none shadow-none p-0 pl-[1ch] m-0 resize-none font-mono text-[12px] leading-[1.4] caret-transparent disabled:text-[rgba(242,240,233,0.55)] appearance-none"
 );
 const mirrorClass = css({
   position: "absolute",
@@ -18,6 +18,7 @@ const mirrorClass = css({
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
   padding: 0,
+  paddingLeft: "1ch",
   margin: 0,
   fontFamily:
     "JetBrains Mono, Space Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace",

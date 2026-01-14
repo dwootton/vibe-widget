@@ -13,8 +13,7 @@ class DataLoadTool(Tool):
             name="data_load",
             description=(
                 "Load data from files (CSV, JSON, Parquet, NetCDF (.nc), XML, ISF seismic data) or pandas DataFrame. "
-                "Returns basic metadata about loaded data including shape, columns, dtypes. "
-                "For large datasets (>10k rows or >50MB files), automatically samples to prevent memory issues."
+                "Returns basic metadata about loaded data including shape, columns, dtypes."
             ),
         )
 
@@ -28,14 +27,13 @@ class DataLoadTool(Tool):
             },
             "sample_size": {
                 "type": "integer",
-                "description": "Maximum rows to load. Default 10000 for large files. Use -1 for all data.",
+                "description": "Ignored (sampling disabled).",
                 "required": False,
             },
         }
 
-    def execute(self, source: Any, sample_size: int = 10000, df: pd.DataFrame | None = None) -> ToolResult:
+    def execute(self, source: Any, sample_size: int = -1, df: pd.DataFrame | None = None) -> ToolResult:
         """Unified data loader supporting many formats and sources."""
-        import os
         from pathlib import Path
         import json as json_lib
         try:
@@ -72,11 +70,7 @@ class DataLoadTool(Tool):
                     data = self._load_web(source)
                 elif source_str.endswith('.csv') or source_str.endswith('.tsv'):
                     sep = '\t' if source_str.endswith('.tsv') else ','
-                    file_size = os.path.getsize(source)
-                    if file_size > 50 * 1024 * 1024 and sample_size > 0:
-                        data = pd.read_csv(source, sep=sep, nrows=sample_size)
-                    else:
-                        data = pd.read_csv(source, sep=sep)
+                    data = pd.read_csv(source, sep=sep)
                 elif source_str.endswith(('.json', '.geojson')):
                     # Use DataProcessor's logic for geojson
                     with open(source, 'r') as f:
@@ -285,12 +279,19 @@ class DataLoadTool(Tool):
             else:
                 return ToolResult(success=False, output={}, error=f"Unsupported data source type: {type(source)}")
 
-            # Apply sampling if needed
-            if sample_size > 0 and len(data) > sample_size:
-                data = data.sample(n=sample_size, random_state=42)
-                sampled = True
-            else:
-                sampled = False
+            from vibe_widget.config import get_global_config
+
+            if len(data) > 100_000 and not get_global_config().bypass_row_guard:
+                return ToolResult(
+                    success=False,
+                    output={},
+                    error=(
+                        "[vibe_widget] We can't support datasets over 100,000 rows yet "
+                        f"({len(data)} rows received). Please upvote "
+                        "https://github.com/dwootton/vibe-widget/issues/25 so we can prioritize "
+                        "large dataset support."
+                    ),
+                )
 
             # Generate metadata
             metadata = {
@@ -298,7 +299,7 @@ class DataLoadTool(Tool):
                 "columns": [str(col) for col in data.columns],
                 "dtypes": {str(col): str(dtype) for col, dtype in data.dtypes.items()},
                 "null_counts": {str(k): v for k, v in data.isnull().sum().to_dict().items()},
-                "sampled": sampled,
+                "sampled": False,
                 "original_rows": len(df) if df is not None else None,
             }
 
