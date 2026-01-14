@@ -1391,7 +1391,9 @@ class VibeWidget(anywidget.AnyWidget):
             self._apply_code(result.code)
             self._set_status("ready")
             self.error_message = ""
-            self.retry_count = 0
+            # Don't reset retry_count here - only reset on successful execution
+            # or when user triggers a new generation. This prevents infinite
+            # repair loops when the LLM keeps producing broken code.
             return
 
         self._append_log(result.message or "Fix attempt failed")

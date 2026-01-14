@@ -6,6 +6,16 @@ import json
 from typing import Any, Callable
 
 from vibe_widget.llm.agents.config import AgentRunConfig, resolve_agent_run_config
+
+DEFAULT_MAX_TOKENS = 16384
+
+
+class MaxTokensExceeded(Exception):
+    """Raised when LLM response was truncated due to hitting max_tokens limit."""
+
+    def __init__(self, message: str, max_tokens_used: int):
+        super().__init__(message)
+        self.max_tokens_used = max_tokens_used
 from vibe_widget.llm.agents.context import AgentHarnessContext
 from vibe_widget.llm.providers.agent_provider_adapter import AgentProviderAdapter
 from vibe_widget.llm.providers.base import LLMProvider
@@ -65,6 +75,7 @@ class AgentSdkOrchestrator:
         progress_callback: Callable[[str, str], None] | None,
         run_config: AgentRunConfig,
         context: AgentHarnessContext,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
     ) -> str:
         # Filter tools by permission tier so LLM only sees tools it can use
         tools = self.tool_registry.to_openai_tools(tier=run_config.permission_tier)
@@ -76,16 +87,18 @@ class AgentSdkOrchestrator:
             if turn > 0:
                 self._emit(progress_callback, "step", "Agent continuation")
             streamed = False
+            finish_reason: str | None = None
             if self.stream:
                 try:
                     stream = self.adapter.chat_complete_stream(
                         messages=messages,
                         tools=tools,
                         tool_choice="auto",
-                        max_tokens=8192,
+                        max_tokens=max_tokens,
                         temperature=0.7,
                     )
                     message = self._consume_stream(stream, progress_callback)
+                    finish_reason = getattr(message, "finish_reason", None)
                     streamed = True
                 except Exception:
                     message = None
@@ -94,10 +107,11 @@ class AgentSdkOrchestrator:
                     messages=messages,
                     tools=tools,
                     tool_choice="auto",
-                    max_tokens=8192,
+                    max_tokens=max_tokens,
                     temperature=0.7,
                 )
                 message = response.choices[0].message
+                finish_reason = response.choices[0].finish_reason
 
             raw_tool_calls = getattr(message, "tool_calls", None) or []
             tool_calls = []
@@ -130,6 +144,12 @@ class AgentSdkOrchestrator:
             messages.append(assistant_message)
 
             if not tool_calls:
+                # Check if response was truncated due to max_tokens
+                if finish_reason == "length":
+                    raise MaxTokensExceeded(
+                        f"Response truncated at {max_tokens} tokens",
+                        max_tokens_used=max_tokens,
+                    )
                 return self.provider.clean_code(message.content or "")
 
             for call in tool_calls:
@@ -184,11 +204,14 @@ class AgentSdkOrchestrator:
         content_chunks: list[str] = []
         tool_calls: dict[int, dict[str, Any]] = {}
         role = "assistant"
+        finish_reason: str | None = None
 
         for chunk in stream:
             if not chunk or not chunk.choices:
                 continue
             choice = chunk.choices[0]
+            if getattr(choice, "finish_reason", None):
+                finish_reason = choice.finish_reason
             delta = getattr(choice, "delta", None)
             if delta is None:
                 continue
@@ -225,12 +248,13 @@ class AgentSdkOrchestrator:
         tool_call_list = [tool_calls[idx] for idx in sorted(tool_calls.keys())]
 
         class _Message:
-            def __init__(self, role_value: str, content_value: str, calls: list[dict[str, Any]]):
+            def __init__(self, role_value: str, content_value: str, calls: list[dict[str, Any]], finish: str | None):
                 self.role = role_value
                 self.content = content_value
                 self.tool_calls = calls
+                self.finish_reason = finish
 
-        return _Message(role, "".join(content_chunks), tool_call_list)
+        return _Message(role, "".join(content_chunks), tool_call_list, finish_reason)
 
     def _build_context(self, run_config: AgentRunConfig) -> AgentHarnessContext:
         return AgentHarnessContext(
@@ -348,6 +372,7 @@ class AgentSdkOrchestrator:
         data_info: dict[str, Any],
         progress_callback: Callable[[str, str], None] | None = None,
         agent_run_config: AgentRunConfig | None = None,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
     ) -> str:
         run_config = agent_run_config or self.run_config
         context = self._build_context(run_config)
@@ -357,6 +382,7 @@ class AgentSdkOrchestrator:
             prompt=prompt,
             progress_callback=progress_callback,
             run_config=run_config,
+            max_tokens=max_tokens,
             context=context,
         )
         return fixed
