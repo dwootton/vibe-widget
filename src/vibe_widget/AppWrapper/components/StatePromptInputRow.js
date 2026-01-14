@@ -59,17 +59,24 @@ export default function StatePromptInputRow({
   const updateCaretPosition = useCallback(() => {
     const marker = markerRef.current;
     const textarea = textareaRef.current;
-    if (!marker || !textarea) return;
-    const lineHeightValue = parseFloat(window.getComputedStyle(textarea).lineHeight || "14");
+    const wrapper = wrapperRef.current;
+    if (!marker || !textarea || !wrapper) return;
+    const textareaStyle = window.getComputedStyle(textarea);
+    const lineHeightValue = parseFloat(textareaStyle.lineHeight || "14");
     const lineHeight = Number.isFinite(lineHeightValue) ? lineHeightValue : 14;
     const scrollTop = textarea.scrollTop || 0;
     const scrollLeft = textarea.scrollLeft || 0;
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const markerRect = marker.getBoundingClientRect();
+    const paddingLeftValue = parseFloat(textareaStyle.paddingLeft || "0");
+    const paddingLeft = Number.isFinite(paddingLeftValue) ? paddingLeftValue : 0;
+    const isEmpty = normalizedValue.length === 0;
     setCaretStyle({
-      left: marker.offsetLeft - scrollLeft,
-      top: marker.offsetTop - scrollTop,
+      left: isEmpty ? paddingLeft : markerRect.left - wrapperRect.left - scrollLeft,
+      top: isEmpty ? 0 : markerRect.top - wrapperRect.top - scrollTop,
       height: lineHeight
     });
-  }, []);
+  }, [normalizedValue]);
 
   const autoResize = useCallback(() => {
     const textarea = textareaRef.current;
