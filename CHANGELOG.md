@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-01-15
+
+### Fixed
+- Preserve rerun parameters across widget reruns
+- Add copy button for source viewer code
+- Gate noisy AppWrapper render debug logs behind debug mode
+
 ## [0.2.3] - 2024-12-24
 
 ### Fixed
