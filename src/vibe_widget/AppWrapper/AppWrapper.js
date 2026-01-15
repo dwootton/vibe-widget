@@ -20,11 +20,17 @@ let appWrapperCounter = 0;
 
 function AppWrapper({ model }) {
   const instanceId = React.useRef(++appWrapperCounter).current;
-  debugLog(model, "[vibe][debug] AppWrapper render", { instanceId });
-  console.log("[vibe][debug] AppWrapper render", {
-    instanceId,
-    modelId: model?.cid || model?.model_id || model?.id || model?.get?.("_model_id")
-  });
+  const debugEnabled =
+    typeof globalThis !== "undefined" &&
+    (globalThis.__VIBE_DEBUG === true ||
+      (model && typeof model.get === "function" && model.get("debug_mode") === true));
+  if (debugEnabled) {
+    debugLog(model, "[vibe][debug] AppWrapper render", { instanceId });
+    console.log("[vibe][debug] AppWrapper render", {
+      instanceId,
+      modelId: model?.cid || model?.model_id || model?.id || model?.get?.("_model_id")
+    });
+  }
 
   useEffect(() => {
     if (!model) return;
@@ -47,6 +53,12 @@ function AppWrapper({ model }) {
       if (model.comm && typeof model.comm.off === "function") {
         model.comm.off("close", handleCommClose);
       }
+      model.__vibeCommClosed = true;
+      try {
+        model?.close?.();
+      } catch (err) {
+        // Ignore close failures during teardown.
+      }
     };
   }, [model]);
 
@@ -54,9 +66,10 @@ function AppWrapper({ model }) {
     if (!model || typeof model.save_changes !== "function") return;
     const originalSave = model.save_changes.bind(model);
     model.save_changes = (...args) => {
-      if (model.__vibeCommClosed) return;
       try {
-        return originalSave(...args);
+        const result = originalSave(...args);
+        model.__vibeCommClosed = false;
+        return result;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err || "");
         if (message.toLowerCase().includes("cannot send")) {

@@ -154,6 +154,32 @@ class VibeWidget(anywidget.AnyWidget):
         except Exception:
             pass
 
+    def save_changes(self, *args, **kwargs) -> None:
+        """Guard against sends after the comm is closed."""
+        if self._is_closed:
+            return
+        try:
+            super().save_changes(*args, **kwargs)
+        except Exception as exc:
+            message = str(exc).lower()
+            if "cannot send" in message:
+                self._is_closed = True
+                return
+            raise
+
+    def send(self, *args, **kwargs) -> None:
+        """Guard custom messages after the comm is closed."""
+        if self._is_closed:
+            return
+        try:
+            super().send(*args, **kwargs)
+        except Exception as exc:
+            message = str(exc).lower()
+            if "cannot send" in message:
+                self._is_closed = True
+                return
+            raise
+
     def __del__(self) -> None:
         """Best-effort cleanup when widget is garbage collected."""
         try:
@@ -1036,6 +1062,19 @@ class VibeWidget(anywidget.AnyWidget):
             execution_mode=self.execution_mode,
             execution_approved=None,
             execution_approved_hash=self.execution_approved_hash,
+        )
+        widget._store_creation_params(
+            description=params.get("description"),
+            data_source=data,
+            data_type=type(data) if data is not None else params.get("data_type"),
+            data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else params.get("data_columns"),
+            exports=params.get("exports"),
+            imports=imports,
+            model=params.get("model_resolved"),
+            theme=params.get("theme"),
+            base_code=params.get("base_code"),
+            base_components=params.get("base_components"),
+            base_widget_id=params.get("base_widget_id"),
         )
         return widget
 

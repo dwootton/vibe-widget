@@ -63,6 +63,7 @@ export default function EditorViewer({
   const [editingText, setEditingText] = useState("");
   const [codeChangeRanges, setCodeChangeRanges] = useState(initialCodeChangeRanges || []);
   const [terminalPrompt, setTerminalPrompt] = useState("");
+  const [copyLabel, setCopyLabel] = useState("Copy");
   const baseCodeRef = React.useRef(code || "");
 
   React.useEffect(() => {
@@ -184,6 +185,31 @@ export default function EditorViewer({
     if (event.target !== event.currentTarget) return;
     onClose();
   };
+  const handleCopy = async () => {
+    const text = draftCode || code || "";
+    if (!text) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "true");
+        textarea.style.position = "absolute";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopyLabel("Copied");
+      setTimeout(() => setCopyLabel("Copy"), 1200);
+    } catch (err) {
+      console.error("Copy failed:", err);
+      setCopyLabel("Failed");
+      setTimeout(() => setCopyLabel("Copy"), 1200);
+    }
+  };
   const formatCodeRange = (range) => {
     if (typeof range === "string") return range;
     if (!range || typeof range !== "object") return "";
@@ -272,6 +298,9 @@ export default function EditorViewer({
           showAuditPanel={showAuditPanel}
           onToggleAuditPanel={() => setShowAuditPanel(!showAuditPanel)}
           onRunAudit={handleAuditAction}
+          onCopy={handleCopy}
+          copyLabel={copyLabel}
+          copyDisabled={!draftCode && !code}
           onApprove={onApprove}
           onClose={onClose}
         />
