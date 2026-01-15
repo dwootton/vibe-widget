@@ -77,6 +77,20 @@ def _import_to_json_value(value: Any, widget: Any) -> Any:
 
 _CLASS_CACHE: dict[frozenset[str], type] = {}
 
+def _running_in_colab() -> bool:
+    if (
+        os.environ.get("COLAB_RELEASE_TAG")
+        or os.environ.get("COLAB_BACKEND_VERSION")
+        or os.environ.get("COLAB_GPU")
+    ):
+        return True
+    try:
+        import google.colab  # noqa: F401
+
+        return True
+    except Exception:
+        return False
+
 
 def _get_widget_class(
     base_cls: type,
@@ -135,6 +149,7 @@ class VibeWidget(anywidget.AnyWidget):
     last_runtime_error = traitlets.Unicode("").tag(sync=True)
     widget_logs = traitlets.List([]).tag(sync=True)
     retry_count = traitlets.Int(0).tag(sync=True)
+    frontend_ready = traitlets.Bool(False).tag(sync=True)
     grab_edit_request = traitlets.Dict({}).tag(sync=True)
     state_prompt_request = traitlets.Dict({}).tag(sync=True)
     action_event = traitlets.Dict({}).tag(sync=True)
@@ -435,6 +450,7 @@ class VibeWidget(anywidget.AnyWidget):
         self.observe(self._on_audit_state, names='audit_state')
         self.observe(self._on_code_change, names='code')
         self.observe(self._on_execution_state, names='execution_state')
+        self.observe(self._on_frontend_ready, names='frontend_ready')
         self.observe(self._on_debug_event, names='debug_event')
         self.on_msg(self._handle_custom_msg)
         
@@ -454,10 +470,14 @@ class VibeWidget(anywidget.AnyWidget):
                 resolved_path = Path(self._data_path).resolve()
                 if resolved_path not in agent_run_config.allowed_roots:
                     agent_run_config.allowed_roots.append(resolved_path)
+            stream_setting = getattr(config, "streaming", True)
+            if stream_setting and _running_in_colab():
+                stream_setting = False
+                self._append_log("Colab detected: disabling streaming updates")
             self._generation_service = GenerationService(
                 provider,
                 agent_run_config=agent_run_config,
-                stream=getattr(config, "streaming", True),
+                stream=stream_setting,
             )
             self._audit_service = AuditService()
             self._llm_provider = provider
@@ -528,6 +548,10 @@ class VibeWidget(anywidget.AnyWidget):
                 "theme_description": self._theme.description if self._theme else None,
                 "revision_parent": self._base_widget_id,
             }
+            self._pending_generation = (
+                description,
+                inputs_for_prompt,
+            )
             
             store = WidgetStore()
             cached_widget = None
@@ -571,6 +595,7 @@ class VibeWidget(anywidget.AnyWidget):
                     action_params=self._action_params,
                     theme_description=self._theme.description if self._theme else None,
                 )
+                self._pending_generation = None
                 return
             
             self._append_log("Generating widget code")
@@ -583,7 +608,12 @@ class VibeWidget(anywidget.AnyWidget):
                 "theme_description": self._theme.description if self._theme else None,
                 "revision_parent": self._base_widget_id,
             }
-            self._start_generation(description, inputs_for_prompt)
+            self._pending_generation = (
+                description,
+                inputs_for_prompt,
+            )
+            if self.frontend_ready:
+                self._start_generation(description, inputs_for_prompt)
             return
             
         except Exception as e:
@@ -1906,6 +1936,17 @@ Find this element in the code and apply the requested change. The element should
         updated = dict(new_state)
         updated["approved_hash"] = current_hash
         self.execution_state = updated
+
+    def _on_frontend_ready(self, change) -> None:
+        """Start pending generation once the frontend signals readiness."""
+        if not change.get("new"):
+            return
+        pending = getattr(self, "_pending_generation", None)
+        if not pending:
+            return
+        self._pending_generation = None
+        description, inputs_for_prompt = pending
+        self._start_generation(description, inputs_for_prompt)
 
     def _on_debug_event(self, change):
         """Persist frontend debug events to logs.txt."""

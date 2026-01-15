@@ -85,6 +85,16 @@ function AppWrapper({ model }) {
   }, [model]);
 
   useEffect(() => {
+    if (!model) return;
+    try {
+      model.set("frontend_ready", true);
+      model.save_changes?.();
+    } catch (err) {
+      // Ignore frontend readiness failures.
+    }
+  }, [model]);
+
+  useEffect(() => {
     if (typeof globalThis === "undefined") return;
     const sink = (payload) => {
       const debugEnabled =
