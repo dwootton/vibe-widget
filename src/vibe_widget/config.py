@@ -142,6 +142,7 @@ class Config:
     retry: int = 2  # Runtime repair attempts before blocking
     agent_preset: str = "project"
     agent_run: dict[str, Any] | None = None
+    bypass_row_guard: bool = False
 
     def __repr__(self) -> str:  # pragma: no cover
         masked_key = "****" if self.api_key else None
@@ -156,7 +157,8 @@ class Config:
             f"execution={self.execution!r}, "
             f"retry={self.retry!r}, "
             f"agent_preset={self.agent_preset!r}, "
-            f"agent_run={self.agent_run!r}"
+            f"agent_run={self.agent_run!r}, "
+            f"bypass_row_guard={self.bypass_row_guard!r}"
             ")"
         )
 
@@ -218,6 +220,7 @@ class Config:
             "retry": self.retry,
             "agent_preset": self.agent_preset,
             "agent_run": self.agent_run,
+            "bypass_row_guard": self.bypass_row_guard,
         }
     
     @classmethod
@@ -226,6 +229,9 @@ class Config:
         if "retry" not in data:
             data = dict(data)
             data["retry"] = 2
+        if "bypass_row_guard" not in data:
+            data = dict(data)
+            data["bypass_row_guard"] = False
         return cls(**data)
     
     def save(self, path: Optional[Path] = None):
@@ -285,6 +291,7 @@ def config(
     retry: int = None,
     agent_preset: str = None,
     agent_run: dict[str, Any] | None = None,
+    bypass_row_guard: bool | None = None,
     **kwargs
 ) -> Config:
     """
@@ -316,6 +323,7 @@ def config(
         >>> vw.config(theme="financial times")
         >>> vw.config(execution="approve")
         >>> vw.config(retry=3)
+        >>> vw.config(bypass_row_guard=True)
     """
     global _global_config
     
@@ -331,6 +339,7 @@ def config(
             retry=retry if retry is not None else 2,
             agent_preset=agent_preset or "project",
             agent_run=agent_run,
+            bypass_row_guard=bool(bypass_row_guard) if bypass_row_guard is not None else False,
             **kwargs
         )
     else:
@@ -374,6 +383,9 @@ def config(
 
         if agent_run is not None:
             _global_config.agent_run = agent_run
+
+        if bypass_row_guard is not None:
+            _global_config.bypass_row_guard = bool(bypass_row_guard)
         
         for key, value in kwargs.items():
             if hasattr(_global_config, key):

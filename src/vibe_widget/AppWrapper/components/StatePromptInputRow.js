@@ -9,7 +9,7 @@ const logTextClass = tw("flex-1 flex items-center gap-1");
 const logTextTopClass = tw("flex-1 flex items-start gap-1");
 const inputWrapperClass = tw("relative flex-1 min-w-0");
 const textareaClass = tw(
-  "w-full bg-transparent text-text-primary border-none outline-none focus:outline-none focus-visible:outline-none shadow-none p-0 m-0 resize-none font-mono text-[12px] leading-[1.4] caret-transparent disabled:text-[rgba(242,240,233,0.55)] appearance-none"
+  "w-full bg-transparent text-text-primary border-none outline-none focus:outline-none focus-visible:outline-none shadow-none p-0 pl-[1ch] m-0 resize-none font-mono text-[12px] leading-[1.4] caret-transparent disabled:text-[rgba(242,240,233,0.55)] appearance-none"
 );
 const mirrorClass = css({
   position: "absolute",
@@ -18,6 +18,7 @@ const mirrorClass = css({
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
   padding: 0,
+  paddingLeft: "1ch",
   margin: 0,
   fontFamily:
     "JetBrains Mono, Space Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace",
@@ -58,17 +59,24 @@ export default function StatePromptInputRow({
   const updateCaretPosition = useCallback(() => {
     const marker = markerRef.current;
     const textarea = textareaRef.current;
-    if (!marker || !textarea) return;
-    const lineHeightValue = parseFloat(window.getComputedStyle(textarea).lineHeight || "14");
+    const wrapper = wrapperRef.current;
+    if (!marker || !textarea || !wrapper) return;
+    const textareaStyle = window.getComputedStyle(textarea);
+    const lineHeightValue = parseFloat(textareaStyle.lineHeight || "14");
     const lineHeight = Number.isFinite(lineHeightValue) ? lineHeightValue : 14;
     const scrollTop = textarea.scrollTop || 0;
     const scrollLeft = textarea.scrollLeft || 0;
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const markerRect = marker.getBoundingClientRect();
+    const paddingLeftValue = parseFloat(textareaStyle.paddingLeft || "0");
+    const paddingLeft = Number.isFinite(paddingLeftValue) ? paddingLeftValue : 0;
+    const isEmpty = normalizedValue.length === 0;
     setCaretStyle({
-      left: marker.offsetLeft - scrollLeft,
-      top: marker.offsetTop - scrollTop,
+      left: isEmpty ? paddingLeft : markerRect.left - wrapperRect.left - scrollLeft,
+      top: isEmpty ? 0 : markerRect.top - wrapperRect.top - scrollTop,
       height: lineHeight
     });
-  }, []);
+  }, [normalizedValue]);
 
   const autoResize = useCallback(() => {
     const textarea = textareaRef.current;

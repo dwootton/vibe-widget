@@ -18,6 +18,9 @@ export default function EditorHeader({
   showAuditPanel,
   onToggleAuditPanel,
   onRunAudit,
+  onCopy,
+  copyLabel,
+  copyDisabled,
   onApprove,
   onClose
 }) {
@@ -27,6 +30,11 @@ export default function EditorHeader({
         <span>Source Viewer</span>
       </div>
       <div class={actionsClass}>
+        {onCopy && (
+          <button class={subtleButton} disabled={copyDisabled} onClick={onCopy}>
+            {copyLabel || "Copy"}
+          </button>
+        )}
         {!hasAuditPayload && (
           <button
             class={primaryButton}

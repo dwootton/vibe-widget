@@ -170,6 +170,7 @@ MUST FOLLOW EXACTLY:
 10. Avoid 100vh/100vw—use fixed heights (360–640px) or flex layouts that respect notebook constraints
 11. Use style objects (style={{{{ ... }}}}) and className in JSX
 12. Never wrap the output in markdown code fences
+13. Ensure strong contrast between all text/labels and background colors (avoid light gray on white)
 
 CORRECT Template:
 ```javascript
@@ -345,6 +346,7 @@ Follow the SAME constraints as generation:
 - Thorough cleanup in every React.useEffect
 - Inline styles must be object literals (style={{{{ ... }}}}), never strings; convert any CSS strings to an object with camelCased keys.
 - Export reusable components as named exports when appropriate (JSX components)
+- Ensure strong contrast between all text/labels and background colors (avoid light gray on white)
 
 Focus on making ONLY the requested changes. Reuse existing code structure where possible.
 
@@ -416,6 +418,7 @@ MANDATORY FIX RULES:
 5. Restore all cleanup handlers
 6. Initialize outputs and call model.save_changes()
 7. Inline styles must be object literals (style={{{{ ... }}}}); convert any string-based style to an object with camelCased keys and quoted values.
+8. Ensure strong contrast between all text/labels and background colors (avoid light gray on white).
 
 Return ONLY the corrected JavaScript code."""
 

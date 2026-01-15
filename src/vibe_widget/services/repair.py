@@ -88,35 +88,20 @@ class RepairService:
             return RepairResult(code=code, applied=False, retryable=False, message="Max retry attempts reached.")
 
         try:
-            try:
-                full_error = self.build_error_context(
-                    error_message=error_message,
-                    widget_error=widget_error,
-                    last_runtime_error=last_runtime_error,
-                    widget_logs=widget_logs,
-                    code_path=code_path,
-                    user_prompt=user_prompt,
-                )
-                fixed_code = self.orchestrator.fix_runtime_error(
-                    code=code,
-                    error_message=full_error,
-                    data_info=clean_for_json(data_info),
-                    progress_callback=progress_callback,
-                )
-            except TypeError:
-                full_error = self.build_error_context(
-                    error_message=error_message,
-                    widget_error=widget_error,
-                    last_runtime_error=last_runtime_error,
-                    widget_logs=widget_logs,
-                    code_path=code_path,
-                    user_prompt=user_prompt,
-                )
-                fixed_code = self.orchestrator.fix_runtime_error(
-                    code=code,
-                    error_message=full_error,
-                    data_info=clean_for_json(data_info),
-                )
+            full_error = self.build_error_context(
+                error_message=error_message,
+                widget_error=widget_error,
+                last_runtime_error=last_runtime_error,
+                widget_logs=widget_logs,
+                code_path=code_path,
+                user_prompt=user_prompt,
+            )
+            fixed_code = self.orchestrator.fix_runtime_error(
+                code=code,
+                error_message=full_error,
+                data_info=clean_for_json(data_info),
+                progress_callback=progress_callback,
+            )
         except Exception as exc:
             retryable = retry_count + 1 < self.max_retries
             return RepairResult(

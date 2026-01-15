@@ -252,8 +252,12 @@ function SandboxedRunner({ code, model, runKey }) {
       return fn;
     };
 
-    const teardown = () => {
-      debugLog(model, "[vibe][debug] teardown called", { instanceId, alreadyClosed: guardState.closed });
+    const teardown = (reason = "unmount") => {
+      debugLog(model, "[vibe][debug] teardown called", {
+        instanceId,
+        alreadyClosed: guardState.closed,
+        reason
+      });
       if (guardState.closed) return;
       guardState.closed = true;
       while (disposers.length) {
@@ -268,9 +272,18 @@ function SandboxedRunner({ code, model, runKey }) {
       window.setInterval = originalSetInterval;
       window.setTimeout = originalSetTimeout;
       window.requestAnimationFrame = originalRaf;
-      // After teardown, prevent further sync attempts on this model
-      model.set = () => undefined;
-      model.save_changes = () => undefined;
+      if (reason === "comm-closed") {
+        // After comm closure, prevent further sync attempts on this model
+        model.set = () => undefined;
+        model.save_changes = () => undefined;
+      } else {
+        if (originalSet) {
+          model.set = originalSet;
+        }
+        if (originalSave) {
+          model.save_changes = originalSave;
+        }
+      }
       setGuestWidget(null);
       if (model.__vibeOnCommClosed === teardown) {
         model.__vibeOnCommClosed = previousCommClosed;
@@ -294,26 +307,6 @@ function SandboxedRunner({ code, model, runKey }) {
       return id;
     };
 
-    // Patch model.on/off if available to auto-unsubscribe
-    if (model && typeof model.on === "function" && typeof model.off === "function") {
-      const originalOn = model.on.bind(model);
-      const originalOff = model.off.bind(model);
-      model.on = (event, handler, ...rest) => {
-        originalOn(event, handler, ...rest);
-        trackDisposer(() => {
-          try {
-            originalOff(event, handler, ...rest);
-          } catch (_) {
-            /* ignore */
-          }
-        });
-      };
-      trackDisposer(() => {
-        model.on = originalOn;
-        model.off = originalOff;
-      });
-    }
-
     // Guard model.set/save_changes to halt on closed comm
     const guardCall = (fn) => (...args) => {
       if (guardState.closed || !fn) return;
@@ -324,7 +317,7 @@ function SandboxedRunner({ code, model, runKey }) {
         if (msg.toLowerCase().includes("cannot send")) {
           model.__vibeCommClosed = true;
           enqueueLog("warn", "Widget comm closed; tearing down widget runtime.");
-          teardown();
+          teardown("comm-closed");
           return;
         }
         throw err;

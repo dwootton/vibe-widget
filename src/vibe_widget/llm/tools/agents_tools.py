@@ -205,7 +205,7 @@ class DataLoadAgentTool(Tool):
             },
             "sample_size": {
                 "type": "integer",
-                "description": "Maximum rows to load (default 10000).",
+                "description": "Ignored (sampling disabled).",
                 "required": False,
             },
         }
@@ -215,7 +215,7 @@ class DataLoadAgentTool(Tool):
         context: AgentHarnessContext,
         source: str,
         registry_key: str | None = None,
-        sample_size: int = 10000,
+        sample_size: int = -1,
     ) -> ToolResult:
         if cancelled := _check_cancelled(context):
             return cancelled
