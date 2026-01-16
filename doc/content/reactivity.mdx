@@ -3,7 +3,122 @@ export const frontmatter = {
   description: 'Connect widgets with reactive inputs and outputs.'
 };
 
-Outputs are reactive state handles that can be passed into other widgets.
+Vibe Widgets stay synchronized with Python through a simple reactivity model. This page explains how
+data flows between your notebook and your widgets and how to wire widgets together.
+
+## The three primitives
+
+| Primitive | Direction | Persistence | Use for |
+| --- | --- | --- | --- |
+| Input | Python → JS | State (sticky) | Data, configuration, selections from other widgets |
+| Output | JS → Python | State (sticky) | User selections, computed values, filters |
+| Action | Python → JS | Event (fire-once) | Commands like reset, focus, export |
+
+### Inputs
+
+Inputs are values that flow into your widget from Python. Use them for anything the widget needs to
+display or respond to. Inputs are persistent: the widget holds onto the value until you change it.
+
+```python
+# Set an input from Python
+widget.inputs.threshold = 0.5
+widget.inputs.data = df
+```
+
+You can also wire one widget's output to another widget's input:
+
+```python
+# Slider selection flows into chart's highlight
+chart = vw.create(
+    "scatter plot with brush selection",
+    df,
+    outputs=vw.outputs(selected_indices="indices of selected points")
+)
+
+histogram = vw.create(
+    "histogram with highlighted bars for selected data",
+    vw.inputs(df, selected_indices=chart.outputs.selected_indices)
+)
+```
+
+### Outputs
+
+Outputs are values that flow out of your widget to Python. Use them for anything the widget
+produces that Python might care about. Like inputs, outputs are persistent state.
+
+```python
+# Read the current selection
+print(widget.outputs.selected_indices.value)
+
+# React to changes
+def on_selection(change):
+    print(f"Selection changed: {change.new}")
+
+widget.outputs.selected_indices.observe(on_selection)
+```
+
+### Actions
+
+Actions are one-time commands from Python to the widget. Use them for behavior that should happen
+once, not persist as state.
+
+```python
+widget = vw.create(
+    "interactive scatter plot",
+    df,
+    actions=vw.actions(reset_view="Reset zoom and pan")
+)
+
+widget.actions.reset_view()
+```
+
+After an action fires, it's done. The widget doesn't "remember" that it was reset.
+
+## Choosing the right primitive
+
+Ask yourself: should this value stick around?
+
+- Yes → Input or Output. Use input if the value comes from Python; use output if it comes from the widget.
+- No → Action. Use an action if it's a one-time command.
+
+## Why actions exist
+
+If you try to model a one-time command as an input, it becomes sticky:
+
+```python
+# Avoid this
+widget.inputs.should_reset = True
+```
+
+The widget would reset and keep resetting because the input is still true. Actions avoid that
+behavior by firing once and not lingering.
+
+## Events from widgets (JS → Python)
+
+There is no separate "JS → Python action" primitive. Widgets report events by updating an output,
+and Python reacts by observing it.
+
+```javascript
+// In your widget JS
+function handleResetClick() {
+  model.set("last_event", { type: "reset_clicked", ts: Date.now() });
+  model.save_changes();
+}
+```
+
+```python
+def on_event(change):
+    if change.new["type"] == "reset_clicked":
+        print("User clicked reset!")
+
+widget.outputs.last_event.observe(on_event)
+```
+
+The timestamp ensures the observer fires even if the same event happens twice in a row.
+
+## Wiring widgets together
+
+The real power of this model shows up when you connect widgets:
 
 ```python
 scatter = vw.create(
@@ -18,4 +133,5 @@ histogram = vw.create(
 )
 ```
 
-When you select points in the scatter plot, the histogram updates via trait syncing. Outputs are exposed under `widget.outputs.<name>`.
+When you select points in the scatter plot, the histogram updates via trait syncing. Outputs are
+exposed under `widget.outputs.<name>`.
