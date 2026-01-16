@@ -10,7 +10,7 @@ Configure model settings and API keys.
 ```python
 import vibe_widget as vw
 
-vw.config(model="openai/gpt-5.2-codex")
+vw.config(model="openai/gpt-5.1-codex")
 vw.config(mode="premium", model="openrouter")
 vw.config(execution="approve")
 ```
@@ -40,6 +40,18 @@ We recommend avoiding hardcoded keys in notebooks to prevent accidental leaks.
 vw.models()
 vw.models(show="all")
 vw.models(verbose=False)
+```
+
+## Common configuration options
+
+```python
+vw.config(
+    execution="auto",  # "auto" or "approve"
+    retry=2,            # Runtime repair attempts
+    agent_preset="project",
+    agent_run={"tier": 1},
+    bypass_row_guard=False,
+)
 ```
 
 ## Privacy and telemetry

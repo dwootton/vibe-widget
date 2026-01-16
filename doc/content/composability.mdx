@@ -1,6 +1,49 @@
 export const frontmatter = {
-  title: 'Composability',
-  description: 'Compose widgets using components and outputs.'
+  title: 'Load & Save',
+  description: 'Persist widgets to disk and reload them later.'
 };
 
-This documentation section is under construction.
+Widgets can be saved to disk as portable bundles and reloaded later. This is useful for sharing,
+versioning, and avoiding re-generation.
+
+## Save a widget
+
+```python
+widget = vw.create("scatter plot with brush selection", df)
+widget.save("my_widget.vw")
+```
+
+Save inputs alongside the widget:
+
+```python
+widget.save("my_widget_with_inputs.vw", include_inputs=True)
+```
+
+## Load a widget
+
+```python
+loaded = vw.load("my_widget.vw")
+loaded
+```
+
+By default, loading uses approval mode so you can review before running:
+
+```python
+loaded = vw.load("my_widget.vw", approval=True)
+```
+
+To auto-run a trusted widget:
+
+```python
+loaded = vw.load("my_widget.vw", approval=False)
+```
+
+## What gets stored
+
+Bundles include the widget code, metadata, and output/input signatures. When you save with
+`include_inputs=True`, input values are embedded in the bundle for reproducible reloads.
+
+## Security notes
+
+Loaded widgets can execute JavaScript in the notebook frontend. Keep `approval=True` for untrusted
+files and review code before running.

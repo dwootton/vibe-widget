@@ -25,6 +25,17 @@ Component-level edits are ideal when the widget exposes named subcomponents and 
 v3 = v1.component.colo_legend.edit("style the legend with a muted palette", inputs=df)
 ```
 
+You can also add or modify actions during edits:
+
+```python
+v2 = v1.edit(
+    "add a reset control for the view",
+    actions=vw.actions(reset_view="Reset zoom and pan")
+)
+
+v2.actions.reset_view()
+```
+
 ## UI edits
 
 Use UI edits for fast, interactive iteration inside the widget runtime. These are best for targeted adjustments, quick fixes, and diagnostics without switching to code.

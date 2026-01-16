@@ -37,6 +37,19 @@ scatter = vw.create(
 scatter.outputs.selected_indices.value
 ```
 
+Actions are one-time commands from Python to the widget. Use them for behavior that should happen
+once (reset, focus, export) instead of persistent state.
+
+```python
+widget = vw.create(
+    "interactive scatter plot",
+    df,
+    actions=vw.actions(reset_view="Reset zoom and pan")
+)
+
+widget.actions.reset_view()
+```
+
 ## Dataflow and I/O contract
 
 `vw.create` converts data to a list of record dicts and cleans non-JSON values (NaN/NaT/inf to `None`). Inputs and outputs are synced traitlets. When providing another widget output, Vibe Widget reads the current value once, then keeps it in sync via trait updates. Outputs start as `None` and are updated by generated JS code.
