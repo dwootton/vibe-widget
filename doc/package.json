@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@babel/standalone": "^7.26.0",
     "@mdx-js/react": "^3.1.0",
     "@types/d3": "^7.4.3",
     "animejs": "3.2.1",
