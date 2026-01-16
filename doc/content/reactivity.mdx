@@ -22,7 +22,7 @@ display or respond to. Inputs are persistent: the widget holds onto the value un
 ```python
 # Set an input from Python
 widget.inputs.threshold = 0.5
-widget.inputs.data = df
+widget.inputs.data = new_df # resets the data in the widget
 ```
 
 You can also wire one widget's output to another widget's input:
@@ -81,8 +81,6 @@ Ask yourself: should this value stick around?
 - Yes → Input or Output. Use input if the value comes from Python; use output if it comes from the widget.
 - No → Action. Use an action if it's a one-time command.
 
-## Why actions exist
-
 If you try to model a one-time command as an input, it becomes sticky:
 
 ```python
@@ -92,29 +90,6 @@ widget.inputs.should_reset = True
 
 The widget would reset and keep resetting because the input is still true. Actions avoid that
 behavior by firing once and not lingering.
-
-## Events from widgets (JS → Python)
-
-There is no separate "JS → Python action" primitive. Widgets report events by updating an output,
-and Python reacts by observing it.
-
-```javascript
-// In your widget JS
-function handleResetClick() {
-  model.set("last_event", { type: "reset_clicked", ts: Date.now() });
-  model.save_changes();
-}
-```
-
-```python
-def on_event(change):
-    if change.new["type"] == "reset_clicked":
-        print("User clicked reset!")
-
-widget.outputs.last_event.observe(on_event)
-```
-
-The timestamp ensures the observer fires even if the same event happens twice in a row.
 
 ## Wiring widgets together
 
