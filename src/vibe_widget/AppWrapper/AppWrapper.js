@@ -11,7 +11,7 @@ import useAuditFlow from "./hooks/useAuditFlow";
 import useCodeFlow from "./hooks/useCodeFlow";
 import useContainerMetrics from "./hooks/useContainerMetrics";
 import useModelSync from "./hooks/useModelSync";
-import { requestStatePrompt } from "./actions/modelActions";
+import { appendWidgetLogs, requestSaveWidget, requestStatePrompt } from "./actions/modelActions";
 import { debugLog } from "./utils/debug";
 
 ensureGlobalStyles();
@@ -261,6 +261,35 @@ function AppWrapper({ model }) {
     acceptAudit();
   };
 
+  const handleSaveWidget = async () => {
+    if (typeof window === "undefined") return;
+    const defaultName = "widget.vw";
+    const filename = window.prompt("Save widget as:", defaultName);
+    if (!filename) return;
+    try {
+      const savedPath = await requestSaveWidget(model, { path: filename });
+      const message = savedPath ? `Saved widget to ${savedPath}` : `Saved widget to ${filename}`;
+      appendWidgetLogs(model, [
+        {
+          timestamp: Date.now() / 1000,
+          message,
+          level: "info",
+          source: "ui"
+        }
+      ]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err || "Save failed.");
+      appendWidgetLogs(model, [
+        {
+          timestamp: Date.now() / 1000,
+          message: `Save failed: ${message}`,
+          level: "error",
+          source: "ui"
+        }
+      ]);
+    }
+  };
+
   return (
     <div
       class="vibe-container"
@@ -302,6 +331,7 @@ function AppWrapper({ model }) {
           code={effectiveRenderCode}
           containerBounds={containerBounds}
           onViewSource={handleViewSource}
+          onSave={handleSaveWidget}
           highAuditCount={highAuditCount}
         />
       )}

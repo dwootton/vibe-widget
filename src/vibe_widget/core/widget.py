@@ -380,6 +380,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._max_retries = RepairService.MAX_RETRIES
         self._last_logged_runtime_error = ""
         self._widget_metadata: dict[str, Any] | None = None
+        self._prompt_history = list((existing_metadata or {}).get("prompt_history") or [])
         self._data_path = data_root
         
         app_wrapper_dir = Path(__file__).resolve().parents[1]
@@ -439,6 +440,9 @@ class VibeWidget(anywidget.AnyWidget):
         self._lifecycle = WidgetLifecycle(self)
         # Track whether we should render immediately (not in tests/headless)
         self._display_widget = display_widget
+
+        if existing_code is None:
+            self._append_prompt_history(description, source="create")
 
         if display_widget:
             _display_widget(self)
@@ -502,6 +506,7 @@ class VibeWidget(anywidget.AnyWidget):
                 self._set_status("ready")
                 self.description = description
                 self._widget_metadata = existing_metadata or {}
+                self._sync_prompt_history_metadata()
                 if self._theme and "theme_description" not in self._widget_metadata:
                     self._widget_metadata["theme_description"] = self._theme.description
                     self._widget_metadata["theme_name"] = self._theme.name
@@ -750,6 +755,7 @@ class VibeWidget(anywidget.AnyWidget):
                 theme_description=context.get("theme_description"),
                 notebook_path=store.get_notebook_path(),
                 revision_parent=context.get("revision_parent"),
+                prompt_history=list(self._prompt_history or []),
             )
 
             self._extend_logs([
@@ -759,6 +765,7 @@ class VibeWidget(anywidget.AnyWidget):
             self._apply_code(widget_code)
             self._set_status("ready")
             self.description = description
+            widget_entry["prompt_history"] = list(self._prompt_history or [])
             self._widget_metadata = widget_entry
 
             self.data_info = LLMProvider.build_data_info(
@@ -1008,6 +1015,7 @@ class VibeWidget(anywidget.AnyWidget):
             "model": metadata.get("model"),
             "audit": metadata.get("audit"),
             "save_inputs": save_inputs,
+            "prompt_history": list(self._prompt_history or []),
         }
 
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -1245,6 +1253,30 @@ class VibeWidget(anywidget.AnyWidget):
                 self.send({"type": "editor_bundle", "code": bundle})
             except Exception as exc:
                 self.send({"type": "editor_bundle_error", "error": str(exc)})
+            return
+        if msg_type == "save_widget":
+            request_id = content.get("request_id")
+            path = content.get("path") or "widget.vw"
+            include_inputs = bool(content.get("include_inputs"))
+            try:
+                saved_path = self.save(path, include_inputs=include_inputs)
+                self.send(
+                    {
+                        "type": "save_widget_result",
+                        "request_id": request_id,
+                        "path": str(saved_path),
+                        "success": True,
+                    }
+                )
+            except Exception as exc:
+                self.send(
+                    {
+                        "type": "save_widget_result",
+                        "request_id": request_id,
+                        "error": str(exc),
+                        "success": False,
+                    }
+                )
             return
         if msg_type != "remote_call":
             return
@@ -1485,6 +1517,38 @@ class VibeWidget(anywidget.AnyWidget):
         if len(logs) > 200:
             logs = logs[-200:]
         self.widget_logs = logs
+
+    def _append_prompt_history(
+        self,
+        prompt: str,
+        *,
+        source: str,
+        meta: dict[str, Any] | None = None,
+    ) -> None:
+        cleaned = str(prompt or "").strip()
+        if not cleaned:
+            return
+        entry = {
+            "prompt": cleaned,
+            "source": source,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if meta:
+            entry["meta"] = clean_for_json(meta)
+        history = list(self._prompt_history or [])
+        history.append(entry)
+        self._prompt_history = history
+        self._sync_prompt_history_metadata()
+
+    def _sync_prompt_history_metadata(self) -> None:
+        if self._widget_metadata is None:
+            return
+        self._widget_metadata["prompt_history"] = list(self._prompt_history or [])
+
+    @property
+    def prompt_history(self) -> list[dict[str, Any]]:
+        """Return collected prompts for this widget instance."""
+        return list(self._prompt_history or [])
     
     def _widget_file_path(self) -> str | None:
         metadata = getattr(self, "_widget_metadata", {}) or {}
@@ -1654,6 +1718,11 @@ class VibeWidget(anywidget.AnyWidget):
         
         if not user_prompt:
             return
+        self._append_prompt_history(
+            user_prompt,
+            source="grab_edit",
+            meta={"element": element_desc.get("description") or element_desc.get("tag")},
+        )
         if self._generation_service is None:
             self._set_status("error")
             self._reset_logs(["✘ Edit failed: LLM service unavailable"])
@@ -1745,7 +1814,9 @@ class VibeWidget(anywidget.AnyWidget):
                 theme_description=self._theme.description if self._theme else None,
                 notebook_path=store.get_notebook_path(),
                 revision_parent=parent_cache_key,
+                prompt_history=list(self._prompt_history or []),
             )
+            widget_entry["prompt_history"] = list(self._prompt_history or [])
             self._widget_metadata = widget_entry
             var_name = widget_entry.get('var_name', 'widget')
             self._append_log(f"Saved: {var_name} (cache: {widget_entry['cache_key'][:8]}...)")
@@ -1771,6 +1842,11 @@ class VibeWidget(anywidget.AnyWidget):
         if not user_prompt:
             self.state_prompt_request = {}
             return
+        self._append_prompt_history(
+            user_prompt,
+            source="state_prompt",
+            meta={"mode": str(request.get("mode") or "")},
+        )
 
         base_code = request.get("base_code")
         if isinstance(base_code, str) and base_code.strip():
@@ -2551,6 +2627,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> "Widg
             "version": payload.get("version"),
             "created_at": payload.get("created_at"),
             "audit": payload.get("audit"),
+            "prompt_history": payload.get("prompt_history") or [],
         }
         model = payload.get("model") or DEFAULT_MODEL
         data_rows_embedded = data_rows if embedded else None
@@ -2580,6 +2657,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> "Widg
             "cache_key": cached_entry.get("cache_key"),
             "var_name": cached_entry.get("var_name"),
             "revision_parent": cached_entry.get("revision_parent"),
+            "prompt_history": cached_entry.get("prompt_history") or [],
         }
         model = cached_entry.get("model") or DEFAULT_MODEL
         data_rows_embedded = None

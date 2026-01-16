@@ -36,6 +36,7 @@ export default function FloatingMenu({
   onToggle,
   onGrabModeStart,
   onViewSource,
+  onSave,
   highAuditCount,
   isEditMode
 }) {
@@ -53,11 +54,11 @@ export default function FloatingMenu({
       <button type="button" class={menuOptionButtonClass} onClick={onViewSource}>
         Edit Code
       </button>
-      <button type="button" class={menuOptionButtonClass} disabled>
-        Export (TBD)
+      <button type="button" class={menuOptionButtonClass} onClick={onSave}>
+        Save Widget
       </button>
     </div>
-  ), [onGrabModeStart, onViewSource]);
+  ), [onGrabModeStart, onViewSource, onSave]);
 
   return (
     <div class={containerClass}>

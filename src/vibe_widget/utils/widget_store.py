@@ -641,6 +641,7 @@ class WidgetStore:
         theme_description: str | None = None,
         notebook_path: str | None = None,
         revision_parent: str | None = None,
+        prompt_history: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """
         Save a newly generated widget to the store.
@@ -663,6 +664,7 @@ class WidgetStore:
             theme_description: Theme description for signature
             notebook_path: Path to notebook (stored for reference, not in cache key)
             revision_parent: Cache key of parent widget (for edit chains)
+            prompt_history: Prompt history snapshots for this widget
         
         Returns:
             Widget metadata dict with var_name
@@ -748,6 +750,7 @@ class WidgetStore:
             "notebook_path": notebook_path,
             "components": components,
             "revision_parent": revision_parent,
+            "prompt_history": prompt_history or [],
         }
         
         # Initialize var_name group if needed
