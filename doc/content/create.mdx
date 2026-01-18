@@ -16,63 +16,20 @@ widget = vw.create(
 widget
 ```
 
-## Inputs and outputs
-
-Use `vw.inputs` to pass multiple inputs, and `vw.outputs` to define reactive state your widget exposes.
-
-```python
-vw.create(
-    "...",
-    vw.inputs(df, selected_indices=other_widget.outputs.selected_indices)
-)
-```
-
-```python
-scatter = vw.create(
-    "scatter with brush selection",
-    df,
-    outputs=vw.outputs(selected_indices="indices of selected points")
-)
-
-scatter.outputs.selected_indices.value
-```
-
-Actions are one-time commands from Python to the widget. Use them for behavior that should happen
-once (reset, focus, export) instead of persistent state.
-
-```python
-widget = vw.create(
-    "interactive scatter plot",
-    df,
-    actions=vw.actions(reset_view="Reset zoom and pan")
-)
-
-widget.actions.reset_view()
-```
-
-## Dataflow and I/O contract
-
-`vw.create` converts data to a list of record dicts and cleans non-JSON values (NaN/NaT/inf to `None`). Inputs and outputs are synced traitlets. When providing another widget output, Vibe Widget reads the current value once, then keeps it in sync via trait updates. Outputs start as `None` and are updated by generated JS code.
-
-## Supported data sources
-
-- `pandas.DataFrame`
-- local file paths (CSV/TSV, JSON/GeoJSON, Parquet, NetCDF, XML, ISF, Excel, PDF, TXT)
-- URLs (via `crawl4ai`, best-effort)
-
-Some loaders require optional dependencies (for example, `xarray` for NetCDF or `camelot` for PDF).
-
-## Theming
+## Themes
 
 Themes are natural-language design specs that guide code generation.
 
 ```python
 vw.create("...", df, theme="financial_times")
-
-vw.create("...", df, theme="like national geographic but greener")
 ```
 
-Built-in themes are listed via `vw.themes()`. Theme prompts are cached for the session and can be saved locally.
+Use `vw.theme(...)` to generate a custom theme description and pass it in.
+
+## Inputs, outputs, and actions
+
+You can also add inputs, outputs, and actions to wire widgets together or trigger behavior from
+Python. For the full model and examples, see [Reactivity](/docs/reactivity).
 
 ## Safety warning
 

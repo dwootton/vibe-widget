@@ -3,7 +3,7 @@ Core VibeWidget implementation.
 Clean, robust widget generation without legacy profile logic.
 """
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Union, TYPE_CHECKING
 from datetime import datetime, timezone
 import json
 import inspect
@@ -12,8 +12,21 @@ import time
 import os
 
 import anywidget
-import pandas as pd
 import traitlets
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+def _is_dataframe(obj: Any) -> bool:
+    """Check if obj is a pandas DataFrame without importing pandas."""
+    return type(obj).__module__.startswith("pandas") and type(obj).__name__ == "DataFrame"
+
+
+def _get_pandas():
+    """Lazy import pandas."""
+    import pandas as pd
+    return pd
 
 from vibe_widget.api import (
     ExportHandle,
@@ -255,7 +268,7 @@ class VibeWidget(anywidget.AnyWidget):
     def _create_with_dynamic_traits(
         cls,
         description: str,
-        df: pd.DataFrame,
+        df: "pd.DataFrame",
         model: str = DEFAULT_MODEL,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
@@ -317,9 +330,9 @@ class VibeWidget(anywidget.AnyWidget):
         )
 
     def __init__(
-        self, 
-        description: str, 
-        df: pd.DataFrame, 
+        self,
+        description: str,
+        df: "pd.DataFrame",
         model: str = DEFAULT_MODEL,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
@@ -494,7 +507,7 @@ class VibeWidget(anywidget.AnyWidget):
             inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
             if self._data_path:
                 inputs_for_prompt.setdefault("data_path", str(self._data_path))
-            if df is not None and isinstance(df, pd.DataFrame) and "data" not in inputs_for_prompt:
+            if df is not None and _is_dataframe(df) and "data" not in inputs_for_prompt:
                 try:
                     inputs_for_prompt["data"] = summarize_for_prompt(df)
                 except Exception:
@@ -514,7 +527,7 @@ class VibeWidget(anywidget.AnyWidget):
                 if self._imports:
                     for import_name in self._imports.keys():
                         imports_serialized[import_name] = f"<imported_trait:{import_name}>"
-                if isinstance(df, pd.DataFrame) and "data" not in imports_serialized:
+                if _is_dataframe(df) and "data" not in imports_serialized:
                     imports_serialized["data"] = "<input>"
                 self._generation_context = {
                     "var_name": var_name,
@@ -539,9 +552,7 @@ class VibeWidget(anywidget.AnyWidget):
             if self._imports:
                 for import_name in self._imports.keys():
                     imports_serialized[import_name] = f"<imported_trait:{import_name}>"
-            if isinstance(df, pd.DataFrame) and "data" not in imports_serialized:
-                imports_serialized["data"] = "<input>"
-            if isinstance(df, pd.DataFrame) and "data" not in imports_serialized:
+            if _is_dataframe(df) and "data" not in imports_serialized:
                 imports_serialized["data"] = "<input>"
 
             self._generation_context = {
@@ -1075,7 +1086,7 @@ class VibeWidget(anywidget.AnyWidget):
         existing_code = getattr(self, "code", None)
         existing_metadata = getattr(self, "_widget_metadata", None)
 
-        if params.get("data_columns") and isinstance(df, pd.DataFrame):
+        if params.get("data_columns") and _is_dataframe(df):
             missing = set(params.get("data_columns")) - set(df.columns)
             if missing:
                 raise ValueError(
@@ -1105,7 +1116,7 @@ class VibeWidget(anywidget.AnyWidget):
             description=params.get("description"),
             data_source=data,
             data_type=type(data) if data is not None else params.get("data_type"),
-            data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else params.get("data_columns"),
+            data_columns=list(df.columns) if _is_dataframe(df) else params.get("data_columns"),
             exports=params.get("exports"),
             imports=imports,
             model=params.get("model_resolved"),
@@ -1119,7 +1130,7 @@ class VibeWidget(anywidget.AnyWidget):
     def edit(
         self,
         description: str,
-        data: pd.DataFrame | str | Path | None = None,
+        data: "pd.DataFrame | str | Path | None" = None,
         outputs: dict[str, str] | OutputBundle | None = None,
         inputs: dict[str, Any] | InputsBundle | None = None,
         actions: dict[str, str] | ActionBundle | None = None,
@@ -1652,6 +1663,7 @@ class VibeWidget(anywidget.AnyWidget):
         
         # Get data from parent widget
         data = self.data
+        pd = _get_pandas()
         df = pd.DataFrame(data) if data else pd.DataFrame()
         
         # Create the component widget
@@ -1884,7 +1896,7 @@ class VibeWidget(anywidget.AnyWidget):
         inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
         if "data" not in inputs_for_prompt and self.data:
             try:
-                inputs_for_prompt["data"] = summarize_for_prompt(pd.DataFrame(self.data))
+                inputs_for_prompt["data"] = summarize_for_prompt(_get_pandas().DataFrame(self.data))
             except Exception:
                 inputs_for_prompt["data"] = "<data>"
 
@@ -2212,7 +2224,7 @@ def _normalize_api_inputs(
 
 def create(
     description: str,
-    data: pd.DataFrame | str | Path | None = None,
+    data: "pd.DataFrame | str | Path | None" = None,
     outputs: dict[str, str] | OutputBundle | None = None,
     inputs: dict[str, Any] | InputsBundle | None = None,
     actions: dict[str, str] | ActionBundle | None = None,
@@ -2257,7 +2269,7 @@ def create(
         candidate = Path(data)
         if candidate.exists() and candidate.is_dir():
             data_path = candidate.resolve()
-            df = pd.DataFrame()
+            df = _get_pandas().DataFrame()
         else:
             df = load_data(data)
     else:
@@ -2299,7 +2311,7 @@ def create(
         description=description,
         data_source=data,
         data_type=type(data) if data is not None else None,
-        data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
+        data_columns=list(df.columns) if _is_dataframe(df) else None,
         exports=outputs,
         imports=inputs,
         model=model,
@@ -2317,7 +2329,7 @@ class _SourceInfo:
         code: str,
         metadata: dict[str, Any] | None,
         components: list[str],
-        df: pd.DataFrame | None,
+        df: "pd.DataFrame | None",
         theme: Theme | None,
         target_component: str | None = None,
     ):
@@ -2387,17 +2399,17 @@ def _resolve_source(
                 code=source.code,  # The standalone wrapper code
                 metadata=source._widget_metadata,
                 components=[source_component],
-                df=pd.DataFrame(source.data) if source.data else None,
+                df=_get_pandas().DataFrame(source.data) if source.data else None,
                 theme=source._theme,
                 target_component=None,  # Not needed - standalone code already focuses on component
             )
-        
+
         # Regular widget
         return _SourceInfo(
             code=source.code,
             metadata=source._widget_metadata,
             components=source._widget_metadata.get("components", []) if source._widget_metadata else [],
-            df=pd.DataFrame(source.data) if source.data else None,
+            df=_get_pandas().DataFrame(source.data) if source.data else None,
             theme=source._theme,
             target_component=None,
         )
@@ -2435,7 +2447,7 @@ def _resolve_source(
 def edit(
     description: str,
     source: "VibeWidget | WidgetHandle | str | Path",
-    data: pd.DataFrame | str | Path | None = None,
+    data: "pd.DataFrame | str | Path | None" = None,
     outputs: dict[str, str] | OutputBundle | None = None,
     inputs: dict[str, Any] | InputsBundle | None = None,
     actions: dict[str, str] | ActionBundle | None = None,
@@ -2518,7 +2530,7 @@ def edit(
         description=description,  # Store original description in recipe
         data_source=data if data is not None else source_info.df,
         data_type=type(data) if data is not None else (type(source_info.df) if source_info.df is not None else None),
-        data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
+        data_columns=list(df.columns) if _is_dataframe(df) else None,
         exports=outputs,
         imports=inputs,
         model=model,
@@ -2591,6 +2603,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> "Widg
         if embedded and isinstance(input_values, dict):
             data_rows = input_values.pop("data", [])
 
+        pd = _get_pandas()
         df = pd.DataFrame(data_rows) if isinstance(data_rows, list) else pd.DataFrame()
 
         imports: dict[str, Any] = {}
@@ -2635,7 +2648,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> "Widg
         description = cached_entry.get("description") or "Loaded widget"
         outputs = {}
         imports = {}
-        df = pd.DataFrame()
+        df = _get_pandas().DataFrame()
         components = cached_entry.get("components") or WidgetStore().extract_components(code)
         theme_name = cached_entry.get("theme_name")
         theme_description = cached_entry.get("theme_description")
@@ -2699,7 +2712,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> "Widg
         description=description,
         data_source=data_rows_embedded,
         data_type=type(data_rows_embedded) if data_rows_embedded is not None else None,
-        data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
+        data_columns=list(df.columns) if _is_dataframe(df) else None,
         exports=outputs,
         imports=imports,
         model=model,

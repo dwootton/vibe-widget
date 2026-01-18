@@ -54,16 +54,9 @@ export const DOC_PAGES = [
     source: 'reactivity.mdx',
   },
   {
-    id: 'data-sources',
-    path: '/docs/data-sources',
-    label: 'Data Sources',
-    section: 'Core Concepts',
-    source: 'data-sources.mdx',
-  },
-  {
     id: 'composability',
     path: '/docs/composability',
-    label: 'Composability',
+    label: 'Load & Save',
     section: 'Core Concepts',
     source: 'composability.mdx',
   },
