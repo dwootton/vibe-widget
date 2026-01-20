@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import "./styles/setup.js";
 import { ensureGlobalStyles } from "./utils/styles";
 import AuditNotice from "./components/AuditNotice";
+import SaveDialog from "./components/SaveDialog";
 import StateViewer from "./components/StateViewer";
 import WidgetViewer from "./components/WidgetViewer";
 import EditorViewer from "./components/editor/EditorViewer";
@@ -189,6 +190,7 @@ function AppWrapper({ model }) {
   const [editorDraft, setEditorDraft] = React.useState(null);
   const [editorCodeRanges, setEditorCodeRanges] = React.useState([]);
   const editorBaseRef = React.useRef(code || "");
+  const [showSaveDialog, setShowSaveDialog] = React.useState(false);
 
   React.useEffect(() => {
     if (!code) return;
@@ -261,10 +263,12 @@ function AppWrapper({ model }) {
     acceptAudit();
   };
 
-  const handleSaveWidget = async () => {
-    if (typeof window === "undefined") return;
-    const defaultName = "widget.vw";
-    const filename = window.prompt("Save widget as:", defaultName);
+  const handleSaveWidget = () => {
+    setShowSaveDialog(true);
+  };
+
+  const handleSaveConfirm = async (filename) => {
+    setShowSaveDialog(false);
     if (!filename) return;
     try {
       const savedPath = await requestSaveWidget(model, { path: filename });
@@ -290,6 +294,10 @@ function AppWrapper({ model }) {
     }
   };
 
+  const handleSaveCancel = () => {
+    setShowSaveDialog(false);
+  };
+
   return (
     <div
       class="vibe-container"
@@ -302,6 +310,13 @@ function AppWrapper({ model }) {
       }}
     >
       {showAudit && <AuditNotice onAccept={handleAuditAccept} />}
+
+      <SaveDialog
+        isOpen={showSaveDialog}
+        onSave={handleSaveConfirm}
+        onCancel={handleSaveCancel}
+        defaultName="widget.vw"
+      />
 
       {(status !== "ready" || hasRuntimeError || runtimeCheck) && (
         <div
