@@ -10,8 +10,11 @@ Themes are natural-language design specs that guide code generation.
 ```python
 import vibe_widget as vw
 
-vw.themes()
+themes = vw.themes()
+themes
 ```
+
+`vw.themes()` pretty-prints a concise list in notebooks. To get the full dict, use `dict(themes)`.
 
 ## Create a custom theme
 
@@ -28,4 +31,20 @@ vw.create("...", df, theme=theme.description)
 
 ```python
 vw.create("...", df, theme="financial_times")
+```
+
+## Iterate with themes
+
+Edits reuse the existing theme by default, so your visual language stays consistent as you refine
+behavior or layout.
+
+```python
+v1 = vw.create("basic scatter", df, theme="financial_times")
+v2 = v1.edit("add hover tooltips and a right-side legend")
+```
+
+You can override the theme on an edit when you want a new look:
+
+```python
+v3 = v2.edit("soften the palette and reduce gridlines", theme="paper_white")
 ```

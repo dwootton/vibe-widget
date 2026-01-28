@@ -7,11 +7,45 @@ Get up and running with Vibe Widget in seconds.
 
 <InstallCommand command="pip install vibe-widget" />
 
-Vibe Widget requires Python 3.8+ and an OpenRouter API key.
+Vibe Widget requires Python 3.9+ and an OpenRouter API key.
 
 ```bash
 export OPENROUTER_API_KEY='your-key'
 ```
+
+Need help setting API keys in Jupyter? See this guide:
+https://docs.google.com/document/d/e/2PACX-1vST8sEHdo90NsTdTFNjLi27YFT-81u2WQa7--qr0u4yk2aByE6Q5WIj-p8JYueEING5-fNdFNu2Aa3t/pub
+
+Get an OpenRouter API key:
+https://openrouter.ai/
+
+## Quick start (3 minutes)
+
+```bash
+pip install vibe-widget
+```
+
+```bash
+# macOS/Linux (temporary for current shell)
+export OPENROUTER_API_KEY="your-key"
+```
+
+```powershell
+# Windows PowerShell (temporary for current session)
+$env:OPENROUTER_API_KEY="your-key"
+```
+
+```python
+import pandas as pd
+import vibe_widget as vw
+
+df = pd.read_csv("sales.csv")
+widget = vw.create("bar chart of revenue by region", df)
+widget
+```
+
+If you want the key to persist across sessions, add the `export` line to your shell profile
+(for example `~/.zshrc` or `~/.bashrc`).
 
 ## Quick start
 

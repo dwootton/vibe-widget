@@ -112,5 +112,11 @@ class RepairService:
             )
 
         applied = fixed_code != code
-        message = "Repair applied." if applied else "Repair produced no changes."
-        return RepairResult(code=fixed_code, applied=applied, retryable=False, message=message)
+        if applied:
+            message = "Repair applied."
+            retryable = False
+        else:
+            # Allow retry when LLM produces no changes - next attempt may succeed
+            message = "Repair produced no changes - will retry."
+            retryable = retry_count + 1 < self.max_retries
+        return RepairResult(code=fixed_code, applied=applied, retryable=retryable, message=message)

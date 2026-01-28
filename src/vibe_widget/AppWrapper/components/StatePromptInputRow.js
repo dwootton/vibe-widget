@@ -142,9 +142,15 @@ export default function StatePromptInputRow({
                 autoResize();
               }}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  onSubmit();
+                if (event.key === "Enter") {
+                  if (event.shiftKey) {
+                    // Shift+Enter: insert newline, but stop propagation to prevent Jupyter from running the cell
+                    event.stopPropagation();
+                  } else {
+                    // Enter without shift: submit
+                    event.preventDefault();
+                    onSubmit();
+                  }
                 }
               }}
               onFocus={() => {

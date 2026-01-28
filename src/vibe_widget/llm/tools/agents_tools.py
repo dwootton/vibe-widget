@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 import re
 from urllib.parse import urlparse
 import base64
 import mimetypes
 
-import pandas as pd
 import requests
 
 from vibe_widget.llm.agents.context import AgentHarnessContext
@@ -18,6 +17,20 @@ from vibe_widget.llm.tools.base import Tool, ToolResult
 from vibe_widget.llm.tools.data_tools import DataLoadTool, DataProfileTool
 from vibe_widget.utils.serialization import clean_for_json
 from vibe_widget.utils.util import summarize_for_prompt
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+def _get_pandas():
+    """Lazy import pandas."""
+    import pandas as pd
+    return pd
+
+
+def _is_dataframe(obj: Any) -> bool:
+    """Check if obj is a pandas DataFrame without importing pandas."""
+    return type(obj).__module__.startswith("pandas") and type(obj).__name__ == "DataFrame"
 
 
 DEFAULT_MAX_READ_BYTES = 2_000_000
@@ -170,10 +183,10 @@ class DataProfileAgentTool(Tool):
             return ToolResult(success=False, output={}, error="no_data")
 
         try:
-            if isinstance(target, pd.DataFrame):
+            if _is_dataframe(target):
                 df = target
             else:
-                df = pd.DataFrame(target)
+                df = _get_pandas().DataFrame(target)
             return self._tool.execute(dataframe=df)
         except Exception as exc:  # noqa: BLE001
             return ToolResult(success=False, output={}, error=str(exc))

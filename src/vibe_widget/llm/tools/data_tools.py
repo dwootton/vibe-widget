@@ -1,8 +1,16 @@
 """Data-related tools for loading and profiling data."""
-import pandas as pd
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from vibe_widget.llm.tools.base import Tool, ToolResult
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+def _get_pandas():
+    """Lazy import pandas."""
+    import pandas as pd
+    return pd
 
 
 class DataLoadTool(Tool):
@@ -32,10 +40,11 @@ class DataLoadTool(Tool):
             },
         }
 
-    def execute(self, source: Any, sample_size: int = -1, df: pd.DataFrame | None = None) -> ToolResult:
+    def execute(self, source: Any, sample_size: int = -1, df: "pd.DataFrame | None" = None) -> ToolResult:
         """Unified data loader supporting many formats and sources."""
         from pathlib import Path
         import json as json_lib
+        pd = _get_pandas()
         try:
             # Handle ExportHandle by resolving to actual value
             if hasattr(source, '__vibe_export__'):
@@ -287,7 +296,8 @@ class DataLoadTool(Tool):
                     output={},
                     error=(
                         "[vibe_widget] We can't support datasets over 100,000 rows yet "
-                        f"({len(data)} rows received). Please upvote "
+                        f"({len(data)} rows received). You can disable this check with "
+                        "vw.config(bypass_row_guard=True). Please upvote "
                         "https://github.com/dwootton/vibe-widget/issues/25 so we can prioritize "
                         "large dataset support."
                     ),
@@ -318,7 +328,8 @@ class DataLoadTool(Tool):
             return ToolResult(success=False, output={}, error=str(e))
 
     # --- Additional loader for web ---
-    def _load_web(self, source: str) -> pd.DataFrame:
+    def _load_web(self, source: str) -> "pd.DataFrame":
+        pd = _get_pandas()
         try:
             from crawl4ai import AsyncWebCrawler
             import asyncio
@@ -373,7 +384,8 @@ class DataLoadTool(Tool):
                 markdown_content = result.markdown
         return pd.DataFrame({'content': [markdown_content[:5000]] if markdown_content else ['No content']})
 
-    def _parse_web_content(self, html: str, url: str) -> pd.DataFrame:
+    def _parse_web_content(self, html: str, url: str) -> "pd.DataFrame":
+        pd = _get_pandas()
         try:
             from bs4 import BeautifulSoup
         except ImportError:
@@ -447,8 +459,9 @@ class DataProfileTool(Tool):
             }
         }
 
-    def execute(self, data: dict[str, Any], df: pd.DataFrame | None = None) -> ToolResult:
+    def execute(self, data: dict[str, Any], df: "pd.DataFrame | None" = None) -> ToolResult:
         """Generate data profile."""
+        pd = _get_pandas()
         try:
             # If df is provided directly (from orchestrator), use it
             if df is not None:
@@ -456,7 +469,7 @@ class DataProfileTool(Tool):
             else:
                 # Otherwise extract from data dict (from previous tool result)
                 dataframe = data.get("dataframe")
-            
+
             if dataframe is None:
                 return ToolResult(success=False, output={}, error="No dataframe in data")
 

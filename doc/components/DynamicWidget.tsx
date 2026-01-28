@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { loadDataFile, createWidgetModel, EXAMPLE_DATA_CONFIG, isDataCached, getCachedData } from '../utils/exampleDataLoader';
+import { resolvePublicUrl } from '../utils/resolvePublicUrl';
+import { transformWidgetModule } from '../utils/transformWidgetModule';
 
 interface DynamicWidgetProps {
   moduleUrl?: string; // runtime-loaded ESM from public
@@ -147,19 +149,25 @@ export default function DynamicWidget({
 
   const [Loaded, setLoaded] = useState<any>(null);
 
+  const resolvedModuleUrl = useMemo(() => {
+    if (!moduleUrl) return undefined;
+    return resolvePublicUrl(moduleUrl);
+  }, [moduleUrl]);
+
   useEffect(() => {
     let cancelled = false;
     let blobUrl: string | null = null;
 
     async function load() {
       try {
-        if (moduleUrl) {
+        if (resolvedModuleUrl) {
           // Fetch the module code and create a blob URL to avoid Vite's public folder import restriction
-          const response = await fetch(moduleUrl);
+          const response = await fetch(resolvedModuleUrl);
           if (!response.ok) throw new Error(`Failed to fetch module: ${response.statusText}`);
 
           const code = await response.text();
-          const blob = new Blob([code], { type: 'application/javascript' });
+          const compiled = await transformWidgetModule(code);
+          const blob = new Blob([compiled], { type: 'application/javascript' });
           blobUrl = URL.createObjectURL(blob);
 
           const mod = await import(/* @vite-ignore */ blobUrl);
@@ -178,7 +186,7 @@ export default function DynamicWidget({
       cancelled = true;
       if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
-  }, [moduleUrl]);
+  }, [resolvedModuleUrl]);
 
   // Show blur while loading data (only for widgets that need data)
   const showBlur = showLoadingBlur && needsData && isDataLoading && !dataLoaded;

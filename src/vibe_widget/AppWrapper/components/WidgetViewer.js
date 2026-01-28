@@ -16,6 +16,7 @@ export default function WidgetViewer({
   code,
   containerBounds,
   onViewSource,
+  onSave,
   highAuditCount
 }) {
   const instanceId = React.useRef(++widgetViewerCounter).current;
@@ -44,6 +45,10 @@ export default function WidgetViewer({
           onViewSource={() => {
             setMenuOpen(false);
             onViewSource();
+          }}
+          onSave={() => {
+            setMenuOpen(false);
+            onSave?.();
           }}
           highAuditCount={highAuditCount}
           isEditMode={!!grabMode}

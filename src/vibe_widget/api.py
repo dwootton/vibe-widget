@@ -48,6 +48,7 @@ class InputsBundle:
 
     inputs: dict[str, Any]
     sample: bool = False
+    data: Any = None
 
 
 @dataclass

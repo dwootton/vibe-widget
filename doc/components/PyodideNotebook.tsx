@@ -6,6 +6,8 @@ import { materialLight, materialDark } from 'react-syntax-highlighter/dist/cjs/s
 import DynamicWidget from './DynamicWidget';
 import { EXAMPLES } from '../data/examples';
 import { useIsMobile } from '../utils/useIsMobile';
+import { resolvePublicUrl } from '../utils/resolvePublicUrl';
+import { transformWidgetModule } from '../utils/transformWidgetModule';
 
 
 /**
@@ -574,11 +576,12 @@ function WidgetRenderer({ moduleUrl, model }: { moduleUrl: string; model: Widget
     async function loadWidget() {
       try {
         // Fetch the module code and create a blob URL to avoid Vite's public folder import restriction
-        const response = await fetch(moduleUrl);
+        const response = await fetch(resolvePublicUrl(moduleUrl));
         if (!response.ok) throw new Error(`Failed to fetch module: ${response.statusText}`);
 
         const code = await response.text();
-        const blob = new Blob([code], { type: 'application/javascript' });
+        const compiled = await transformWidgetModule(code);
+        const blob = new Blob([compiled], { type: 'application/javascript' });
         blobUrl = URL.createObjectURL(blob);
 
         const mod = await import(/* @vite-ignore */ blobUrl);

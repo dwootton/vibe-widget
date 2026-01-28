@@ -3,7 +3,7 @@ Core VibeWidget implementation.
 Clean, robust widget generation without legacy profile logic.
 """
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Union, TYPE_CHECKING
 from datetime import datetime, timezone
 import json
 import inspect
@@ -12,8 +12,21 @@ import time
 import os
 
 import anywidget
-import pandas as pd
 import traitlets
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+def _is_dataframe(obj: Any) -> bool:
+    """Check if obj is a pandas DataFrame without importing pandas."""
+    return type(obj).__module__.startswith("pandas") and type(obj).__name__ == "DataFrame"
+
+
+def _get_pandas():
+    """Lazy import pandas."""
+    import pandas as pd
+    return pd
 
 from vibe_widget.api import (
     ExportHandle,
@@ -50,6 +63,7 @@ from vibe_widget.llm.agents.config import resolve_agent_run_config
 from vibe_widget.llm.agents.context import AgentHarnessContext
 from vibe_widget.llm.tools.agents_tools import default_agent_tools
 from vibe_widget.services.repair import RepairService
+from vibe_widget.llm.agentic_agents import MaxTokensExceeded
 from vibe_widget.services.theme import ThemeService
 from vibe_widget.services.bundling import BundleService
 from vibe_widget.utils.logging import get_logger
@@ -255,7 +269,7 @@ class VibeWidget(anywidget.AnyWidget):
     def _create_with_dynamic_traits(
         cls,
         description: str,
-        df: pd.DataFrame,
+        df: "pd.DataFrame",
         model: str = DEFAULT_MODEL,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
@@ -317,9 +331,9 @@ class VibeWidget(anywidget.AnyWidget):
         )
 
     def __init__(
-        self, 
-        description: str, 
-        df: pd.DataFrame, 
+        self,
+        description: str,
+        df: "pd.DataFrame",
         model: str = DEFAULT_MODEL,
         exports: dict[str, str] | None = None,
         imports: dict[str, Any] | None = None,
@@ -378,8 +392,10 @@ class VibeWidget(anywidget.AnyWidget):
         self._last_bundle_hash = ""
         self._last_bundle_error = ""
         self._max_retries = RepairService.MAX_RETRIES
+        self._repair_in_progress = False
         self._last_logged_runtime_error = ""
         self._widget_metadata: dict[str, Any] | None = None
+        self._prompt_history = list((existing_metadata or {}).get("prompt_history") or [])
         self._data_path = data_root
         
         app_wrapper_dir = Path(__file__).resolve().parents[1]
@@ -392,7 +408,7 @@ class VibeWidget(anywidget.AnyWidget):
         if not self._editor_bundle_path.exists():
             self._editor_bundle_path = app_wrapper_dir / "AppWrapper.editor.bundle.js"
         
-        data_json = df.to_dict(orient="records")
+        data_json = df.to_dict(orient="records") if df is not None else []
         data_json = clean_for_json(data_json)
         
         if execution_mode is None:
@@ -439,6 +455,9 @@ class VibeWidget(anywidget.AnyWidget):
         self._lifecycle = WidgetLifecycle(self)
         # Track whether we should render immediately (not in tests/headless)
         self._display_widget = display_widget
+
+        if existing_code is None:
+            self._append_prompt_history(description, source="create")
 
         if display_widget:
             _display_widget(self)
@@ -490,7 +509,7 @@ class VibeWidget(anywidget.AnyWidget):
             inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
             if self._data_path:
                 inputs_for_prompt.setdefault("data_path", str(self._data_path))
-            if df is not None and isinstance(df, pd.DataFrame) and "data" not in inputs_for_prompt:
+            if df is not None and _is_dataframe(df) and "data" not in inputs_for_prompt:
                 try:
                     inputs_for_prompt["data"] = summarize_for_prompt(df)
                 except Exception:
@@ -502,6 +521,7 @@ class VibeWidget(anywidget.AnyWidget):
                 self._set_status("ready")
                 self.description = description
                 self._widget_metadata = existing_metadata or {}
+                self._sync_prompt_history_metadata()
                 if self._theme and "theme_description" not in self._widget_metadata:
                     self._widget_metadata["theme_description"] = self._theme.description
                     self._widget_metadata["theme_name"] = self._theme.name
@@ -509,11 +529,11 @@ class VibeWidget(anywidget.AnyWidget):
                 if self._imports:
                     for import_name in self._imports.keys():
                         imports_serialized[import_name] = f"<imported_trait:{import_name}>"
-                if isinstance(df, pd.DataFrame) and "data" not in imports_serialized:
+                if _is_dataframe(df) and "data" not in imports_serialized:
                     imports_serialized["data"] = "<input>"
                 self._generation_context = {
                     "var_name": var_name,
-                    "data_shape": df.shape,
+                    "data_shape": df.shape if df is not None else None,
                     "resolved_model": resolved_model,
                     "imports_serialized": imports_serialized,
                     "theme_name": self._theme.name if self._theme else None,
@@ -534,14 +554,12 @@ class VibeWidget(anywidget.AnyWidget):
             if self._imports:
                 for import_name in self._imports.keys():
                     imports_serialized[import_name] = f"<imported_trait:{import_name}>"
-            if isinstance(df, pd.DataFrame) and "data" not in imports_serialized:
-                imports_serialized["data"] = "<input>"
-            if isinstance(df, pd.DataFrame) and "data" not in imports_serialized:
+            if _is_dataframe(df) and "data" not in imports_serialized:
                 imports_serialized["data"] = "<input>"
 
             self._generation_context = {
                 "var_name": var_name,
-                "data_shape": df.shape,
+                "data_shape": df.shape if df is not None else None,
                 "resolved_model": resolved_model,
                 "imports_serialized": imports_serialized,
                 "theme_name": self._theme.name if self._theme else None,
@@ -559,7 +577,7 @@ class VibeWidget(anywidget.AnyWidget):
                 cached_widget = store.lookup(
                     description=description,
                     var_name=var_name,
-                    data_shape=df.shape,
+                    data_shape=df.shape if df is not None else None,
                     exports=self._exports,
                     imports_serialized=imports_serialized,
                     theme_description=self._theme.description if self._theme else None,
@@ -601,7 +619,7 @@ class VibeWidget(anywidget.AnyWidget):
             self._append_log("Generating widget code")
             self._generation_context = {
                 "var_name": var_name,
-                "data_shape": df.shape,
+                "data_shape": df.shape if df is not None else None,
                 "resolved_model": resolved_model,
                 "imports_serialized": imports_serialized,
                 "theme_name": self._theme.name if self._theme else None,
@@ -750,6 +768,7 @@ class VibeWidget(anywidget.AnyWidget):
                 theme_description=context.get("theme_description"),
                 notebook_path=store.get_notebook_path(),
                 revision_parent=context.get("revision_parent"),
+                prompt_history=list(self._prompt_history or []),
             )
 
             self._extend_logs([
@@ -759,6 +778,7 @@ class VibeWidget(anywidget.AnyWidget):
             self._apply_code(widget_code)
             self._set_status("ready")
             self.description = description
+            widget_entry["prompt_history"] = list(self._prompt_history or [])
             self._widget_metadata = widget_entry
 
             self.data_info = LLMProvider.build_data_info(
@@ -771,7 +791,16 @@ class VibeWidget(anywidget.AnyWidget):
 
         def handle_error(exc: Exception) -> None:
             self._set_status("error")
-            self._append_log(f"Error: {str(exc)}")
+            error_msg = str(exc)
+            # Store the error message so repair flow can access it
+            self.error_message = error_msg
+
+            # Special handling for truncation errors
+            if isinstance(exc, MaxTokensExceeded):
+                self._append_log(f"⚠ {error_msg}")
+                self._append_log("Try: 'make it simpler' or 'reduce complexity'")
+            else:
+                self._append_log(f"Error: {error_msg}")
             logger.exception("Widget generation failed")
 
         if getattr(self, "_display_widget", True):
@@ -1008,6 +1037,7 @@ class VibeWidget(anywidget.AnyWidget):
             "model": metadata.get("model"),
             "audit": metadata.get("audit"),
             "save_inputs": save_inputs,
+            "prompt_history": list(self._prompt_history or []),
         }
 
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -1067,7 +1097,7 @@ class VibeWidget(anywidget.AnyWidget):
         existing_code = getattr(self, "code", None)
         existing_metadata = getattr(self, "_widget_metadata", None)
 
-        if params.get("data_columns") and isinstance(df, pd.DataFrame):
+        if params.get("data_columns") and _is_dataframe(df):
             missing = set(params.get("data_columns")) - set(df.columns)
             if missing:
                 raise ValueError(
@@ -1097,7 +1127,7 @@ class VibeWidget(anywidget.AnyWidget):
             description=params.get("description"),
             data_source=data,
             data_type=type(data) if data is not None else params.get("data_type"),
-            data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else params.get("data_columns"),
+            data_columns=list(df.columns) if _is_dataframe(df) else params.get("data_columns"),
             exports=params.get("exports"),
             imports=imports,
             model=params.get("model_resolved"),
@@ -1111,7 +1141,7 @@ class VibeWidget(anywidget.AnyWidget):
     def edit(
         self,
         description: str,
-        data: pd.DataFrame | str | Path | None = None,
+        data: "pd.DataFrame | str | Path | None" = None,
         outputs: dict[str, str] | OutputBundle | None = None,
         inputs: dict[str, Any] | InputsBundle | None = None,
         actions: dict[str, str] | ActionBundle | None = None,
@@ -1245,6 +1275,30 @@ class VibeWidget(anywidget.AnyWidget):
                 self.send({"type": "editor_bundle", "code": bundle})
             except Exception as exc:
                 self.send({"type": "editor_bundle_error", "error": str(exc)})
+            return
+        if msg_type == "save_widget":
+            request_id = content.get("request_id")
+            path = content.get("path") or "widget.vw"
+            include_inputs = bool(content.get("include_inputs"))
+            try:
+                saved_path = self.save(path, include_inputs=include_inputs)
+                self.send(
+                    {
+                        "type": "save_widget_result",
+                        "request_id": request_id,
+                        "path": str(saved_path),
+                        "success": True,
+                    }
+                )
+            except Exception as exc:
+                self.send(
+                    {
+                        "type": "save_widget_result",
+                        "request_id": request_id,
+                        "error": str(exc),
+                        "success": False,
+                    }
+                )
             return
         if msg_type != "remote_call":
             return
@@ -1404,6 +1458,7 @@ class VibeWidget(anywidget.AnyWidget):
         """Called when frontend reports a runtime error."""
         error_msg = change["new"]
 
+        # Log error regardless of repair state
         if error_msg:
             logger.error("Frontend runtime error:\n%s", error_msg)
             _write_debug_log("runtime_error_received", f"status={self.status} retry={self.retry_count}")
@@ -1416,6 +1471,15 @@ class VibeWidget(anywidget.AnyWidget):
                 self._append_log(f"Runtime error: {preview}{hint_suffix}")
                 self._last_logged_runtime_error = preview
 
+        # Skip if this is a clear event (empty string)
+        if not error_msg:
+            return
+
+        # Prevent re-entrance during repair
+        if self._repair_in_progress:
+            _write_debug_log("repair_skipped", "repair already in progress")
+            return
+
         orchestrator = getattr(self, "orchestrator", None)
         if self._repair_service is None:
             if orchestrator is None or not hasattr(orchestrator, "fix_runtime_error"):
@@ -1424,53 +1488,60 @@ class VibeWidget(anywidget.AnyWidget):
         elif orchestrator is not None and getattr(self._repair_service, "orchestrator", None) is not orchestrator:
             self._repair_service = RepairService(orchestrator, max_retries=self._max_retries)
 
-        if not error_msg:
-            return
-
         if self.retry_count >= self._max_retries:
             self._set_status("blocked")
             self._append_log("Repair blocked: retry limit reached")
             _write_debug_log("repair_blocked", f"retry={self.retry_count}")
-            self.error_message = ""
             return
 
-        self.retry_count += 1
-        self._set_status("retrying")
-        _write_debug_log("repair_attempt_start", f"retry={self.retry_count}")
+        self._repair_in_progress = True
+        try:
+            self.retry_count += 1
+            self._set_status("retrying")
+            _write_debug_log("repair_attempt_start", f"retry={self.retry_count}")
 
-        error_preview = error_msg.split("\n")[0][:100]
-        path_hint = self._widget_file_path()
-        hint_suffix = f" | Code file: {path_hint}" if path_hint else ""
-        self._extend_logs([f"Runtime error: {error_preview}{hint_suffix}", "Repairing code..."])
+            error_preview = error_msg.split("\n")[0][:100]
+            path_hint = self._widget_file_path()
+            hint_suffix = f" | Code file: {path_hint}" if path_hint else ""
+            self._extend_logs([f"Runtime error: {error_preview}{hint_suffix}", "Repairing code..."])
 
-        result = self._repair_service.fix_runtime_error(
-            code=self.code,
-            error_message=error_msg,
-            data_info=self.data_info,
-            retry_count=self.retry_count,
-            widget_error=self.widget_error,
-            last_runtime_error=self.last_runtime_error,
-            widget_logs=list(self.widget_logs or []),
-            code_path=self._widget_file_path(),
-        )
-        _write_debug_log("repair_result", f"applied={result.applied} retryable={result.retryable}")
+            result = self._repair_service.fix_runtime_error(
+                code=self.code,
+                error_message=error_msg,
+                data_info=self.data_info,
+                retry_count=self.retry_count,
+                widget_error=self.widget_error,
+                last_runtime_error=self.last_runtime_error,
+                widget_logs=list(self.widget_logs or []),
+                code_path=self._widget_file_path(),
+            )
+            _write_debug_log("repair_result", f"applied={result.applied} retryable={result.retryable}")
 
-        if result.applied:
-            self._append_log("Code fixed, retrying")
-            self._apply_code(result.code)
-            self._set_status("ready")
-            self.error_message = ""
-            # Don't reset retry_count here - only reset on successful execution
-            # or when user triggers a new generation. This prevents infinite
-            # repair loops when the LLM keeps producing broken code.
-            return
+            if result.applied:
+                self._append_log("Code fixed, retrying")
+                bundle_success = self._apply_code(result.code)
+                if bundle_success:
+                    self._set_status("ready")
+                    # Reset retry count and clear error state so frontend renders widget
+                    self.retry_count = 0
+                    self.error_message = ""
+                    self.widget_error = ""
+                    self.last_runtime_error = ""
+                    self.widget_logs = []  # Clear old error logs
+                    _write_debug_log("repair_success", "fix applied and bundled")
+                else:
+                    # Bundling failed - _apply_code will set error_message
+                    self._append_log("Fix applied but bundling failed")
+                    _write_debug_log("repair_bundle_failed", "fix applied but bundling failed")
+                return
 
-        self._append_log(result.message or "Fix attempt failed")
-        if result.retryable:
-            self._set_status("error")
-        else:
-            self._set_status("blocked")
-        self.error_message = ""
+            self._append_log(result.message or "Fix attempt failed")
+            if result.retryable:
+                self._set_status("error")
+            else:
+                self._set_status("blocked")
+        finally:
+            self._repair_in_progress = False
 
     def _append_widget_log(self, message: str, *, level: str = "info", source: str = "python") -> None:
         logs = list(self.widget_logs or [])
@@ -1485,6 +1556,38 @@ class VibeWidget(anywidget.AnyWidget):
         if len(logs) > 200:
             logs = logs[-200:]
         self.widget_logs = logs
+
+    def _append_prompt_history(
+        self,
+        prompt: str,
+        *,
+        source: str,
+        meta: dict[str, Any] | None = None,
+    ) -> None:
+        cleaned = str(prompt or "").strip()
+        if not cleaned:
+            return
+        entry = {
+            "prompt": cleaned,
+            "source": source,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if meta:
+            entry["meta"] = clean_for_json(meta)
+        history = list(self._prompt_history or [])
+        history.append(entry)
+        self._prompt_history = history
+        self._sync_prompt_history_metadata()
+
+    def _sync_prompt_history_metadata(self) -> None:
+        if self._widget_metadata is None:
+            return
+        self._widget_metadata["prompt_history"] = list(self._prompt_history or [])
+
+    @property
+    def prompt_history(self) -> list[dict[str, Any]]:
+        """Return collected prompts for this widget instance."""
+        return list(self._prompt_history or [])
     
     def _widget_file_path(self) -> str | None:
         metadata = getattr(self, "_widget_metadata", {}) or {}
@@ -1588,6 +1691,7 @@ class VibeWidget(anywidget.AnyWidget):
         
         # Get data from parent widget
         data = self.data
+        pd = _get_pandas()
         df = pd.DataFrame(data) if data else pd.DataFrame()
         
         # Create the component widget
@@ -1654,6 +1758,11 @@ class VibeWidget(anywidget.AnyWidget):
         
         if not user_prompt:
             return
+        self._append_prompt_history(
+            user_prompt,
+            source="grab_edit",
+            meta={"element": element_desc.get("description") or element_desc.get("tag")},
+        )
         if self._generation_service is None:
             self._set_status("error")
             self._reset_logs(["✘ Edit failed: LLM service unavailable"])
@@ -1745,7 +1854,9 @@ class VibeWidget(anywidget.AnyWidget):
                 theme_description=self._theme.description if self._theme else None,
                 notebook_path=store.get_notebook_path(),
                 revision_parent=parent_cache_key,
+                prompt_history=list(self._prompt_history or []),
             )
+            widget_entry["prompt_history"] = list(self._prompt_history or [])
             self._widget_metadata = widget_entry
             var_name = widget_entry.get('var_name', 'widget')
             self._append_log(f"Saved: {var_name} (cache: {widget_entry['cache_key'][:8]}...)")
@@ -1771,6 +1882,11 @@ class VibeWidget(anywidget.AnyWidget):
         if not user_prompt:
             self.state_prompt_request = {}
             return
+        self._append_prompt_history(
+            user_prompt,
+            source="state_prompt",
+            meta={"mode": str(request.get("mode") or "")},
+        )
 
         base_code = request.get("base_code")
         if isinstance(base_code, str) and base_code.strip():
@@ -1808,7 +1924,7 @@ class VibeWidget(anywidget.AnyWidget):
         inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
         if "data" not in inputs_for_prompt and self.data:
             try:
-                inputs_for_prompt["data"] = summarize_for_prompt(pd.DataFrame(self.data))
+                inputs_for_prompt["data"] = summarize_for_prompt(_get_pandas().DataFrame(self.data))
             except Exception:
                 inputs_for_prompt["data"] = "<data>"
 
@@ -1857,11 +1973,16 @@ class VibeWidget(anywidget.AnyWidget):
                 progress_callback=None,
             )
             if result.applied:
-                self._apply_code(result.code)
-                self.error_message = ""
-                self.widget_error = ""
-                self.retry_count = 0
-                self._set_status("ready")
+                bundle_success = self._apply_code(result.code)
+                if bundle_success:
+                    self.error_message = ""
+                    self.widget_error = ""
+                    self.last_runtime_error = ""
+                    self.widget_logs = []  # Clear old error logs
+                    self.retry_count = 0
+                    self._set_status("ready")
+                else:
+                    self._append_log("Fix applied but bundling failed")
                 return
             self._append_log(result.message or "Repair did not change the code")
             self._set_status("error")
@@ -1960,33 +2081,52 @@ Find this element in the code and apply the requested change. The element should
         parts = [part for part in [meta, label, message] if part]
         _write_debug_log(event, " | ".join(parts))
 
-    def _refresh_render_code(self, source: str) -> None:
-        """Ensure render_code stays in sync with the current source code."""
+    def _refresh_render_code(self, source: str) -> bool:
+        """Ensure render_code stays in sync with the current source code.
+
+        Returns True if bundling succeeded (or fallback to unbundled), False otherwise.
+        """
         if not source:
             self.render_code = ""
             self._last_bundle_hash = ""
-            return
+            return False
         source_hash = self._bundle_service.bundle_key(source)
         if self._last_bundle_hash == source_hash and self.render_code:
-            return
+            return True
         bundle_result = self._bundle_service.bundle(source)
         if bundle_result.code and bundle_result.bundled:
             self.render_code = bundle_result.code
-        elif os.getenv("VIBE_ALLOW_UNBUNDLED") == "1":
-            self.render_code = source
-        else:
-            self.render_code = ""
-        if bundle_result.error and bundle_result.error != self._last_bundle_error:
-            self._append_log(f"Bundling failed: {bundle_result.error}")
-            self._last_bundle_error = bundle_result.error
-            if self.render_code == "":
-                self._set_status("error")
-        self._last_bundle_hash = source_hash
+            self._last_bundle_hash = source_hash
+            return True
 
-    def _apply_code(self, source: str) -> None:
-        """Set source + render code together."""
+        # Bundling failed - check if we can fall back to unbundled (Babel in browser)
+        # Environment errors (no node/esbuild) are safe to fall back
+        env_errors = {"bundler_unavailable", "no_source", "npm_not_available"}
+        is_env_error = bundle_result.error in env_errors
+
+        if is_env_error or os.getenv("VIBE_ALLOW_UNBUNDLED") == "1":
+            # Fall back to raw source - frontend Babel will transform it
+            self.render_code = source
+            self._last_bundle_hash = source_hash
+            return True
+        else:
+            # Code-related bundle error - this is a real error
+            self.render_code = ""
+            self._last_bundle_hash = source_hash
+            if bundle_result.error and bundle_result.error != self._last_bundle_error:
+                self._append_log(f"Bundling failed: {bundle_result.error}")
+                self._last_bundle_error = bundle_result.error
+                self.error_message = f"Bundling failed: {bundle_result.error}"
+            self._set_status("error")
+            return False
+
+    def _apply_code(self, source: str) -> bool:
+        """Set source + render code together.
+
+        Returns True if bundling succeeded, False otherwise.
+        """
         self.code = source
-        self._refresh_render_code(source)
+        return self._refresh_render_code(source)
 
 
 
@@ -2090,6 +2230,43 @@ def _resolve_model(
     return resolved_model, config
 
 
+def _looks_like_data(value: Any) -> bool:
+    """Check if a value looks like data (DataFrame, file path, URL) vs a plain value like a token."""
+    # DataFrame or pandas object
+    if _is_dataframe(value):
+        return True
+    # Path object
+    if isinstance(value, Path):
+        return True
+    # String that looks like a file path or URL
+    if isinstance(value, str):
+        # URL
+        if value.startswith(("http://", "https://")):
+            return True
+        # File path with known data extension
+        lower = value.lower()
+        data_extensions = (
+            ".csv", ".tsv", ".json", ".geojson", ".parquet",
+            ".nc", ".nc4", ".netcdf", ".xml", ".xlsx", ".xls", ".pdf", ".txt"
+        )
+        if any(lower.endswith(ext) for ext in data_extensions):
+            return True
+        # Existing file or directory
+        try:
+            if Path(value).exists():
+                return True
+        except (OSError, ValueError):
+            pass
+    # Dict that looks like data (has features for GeoJSON, or data/results keys)
+    if isinstance(value, dict):
+        if "features" in value or any(k in value for k in ("data", "results", "items", "records")):
+            return True
+    # List of dicts (records)
+    if isinstance(value, list) and value and isinstance(value[0], dict):
+        return True
+    return False
+
+
 def _normalize_api_inputs(
     data: Any,
     outputs: dict[str, str] | OutputBundle | None,
@@ -2108,7 +2285,17 @@ def _normalize_api_inputs(
     if isinstance(normalized_data, InputsBundle):
         bundle_inputs = normalized_data.inputs or {}
         if len(bundle_inputs) == 1:
-            normalized_data = next(iter(bundle_inputs.values()))
+            candidate = next(iter(bundle_inputs.values()))
+            # Only treat as data if it looks like actual data, not a plain value like a token
+            if _looks_like_data(candidate):
+                normalized_data = candidate
+            else:
+                # Keep as input, not data
+                if isinstance(normalized_inputs, InputsBundle):
+                    normalized_inputs = {**bundle_inputs, **(normalized_inputs.inputs or {})}
+                else:
+                    normalized_inputs = {**bundle_inputs, **(normalized_inputs or {})}
+                normalized_data = None
         else:
             if isinstance(normalized_inputs, InputsBundle):
                 normalized_inputs = {**bundle_inputs, **(normalized_inputs.inputs or {})}
@@ -2122,8 +2309,13 @@ def _normalize_api_inputs(
     if isinstance(normalized_inputs, InputsBundle):
         bundle_inputs = normalized_inputs.inputs or {}
         if normalized_data is None and len(bundle_inputs) == 1:
-            normalized_data = next(iter(bundle_inputs.values()))
-            normalized_inputs = {}
+            candidate = next(iter(bundle_inputs.values()))
+            # Only promote to data if it looks like actual data, not a plain value like a token
+            if _looks_like_data(candidate):
+                normalized_data = candidate
+                normalized_inputs = {}
+            else:
+                normalized_inputs = bundle_inputs
         else:
             normalized_inputs = bundle_inputs
 
@@ -2136,7 +2328,7 @@ def _normalize_api_inputs(
 
 def create(
     description: str,
-    data: pd.DataFrame | str | Path | None = None,
+    data: "pd.DataFrame | str | Path | None" = None,
     outputs: dict[str, str] | OutputBundle | None = None,
     inputs: dict[str, Any] | InputsBundle | None = None,
     actions: dict[str, str] | ActionBundle | None = None,
@@ -2181,7 +2373,7 @@ def create(
         candidate = Path(data)
         if candidate.exists() and candidate.is_dir():
             data_path = candidate.resolve()
-            df = pd.DataFrame()
+            df = _get_pandas().DataFrame()
         else:
             df = load_data(data)
     else:
@@ -2223,7 +2415,7 @@ def create(
         description=description,
         data_source=data,
         data_type=type(data) if data is not None else None,
-        data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
+        data_columns=list(df.columns) if _is_dataframe(df) else None,
         exports=outputs,
         imports=inputs,
         model=model,
@@ -2241,7 +2433,7 @@ class _SourceInfo:
         code: str,
         metadata: dict[str, Any] | None,
         components: list[str],
-        df: pd.DataFrame | None,
+        df: "pd.DataFrame | None",
         theme: Theme | None,
         target_component: str | None = None,
     ):
@@ -2311,17 +2503,17 @@ def _resolve_source(
                 code=source.code,  # The standalone wrapper code
                 metadata=source._widget_metadata,
                 components=[source_component],
-                df=pd.DataFrame(source.data) if source.data else None,
+                df=_get_pandas().DataFrame(source.data) if source.data else None,
                 theme=source._theme,
                 target_component=None,  # Not needed - standalone code already focuses on component
             )
-        
+
         # Regular widget
         return _SourceInfo(
             code=source.code,
             metadata=source._widget_metadata,
             components=source._widget_metadata.get("components", []) if source._widget_metadata else [],
-            df=pd.DataFrame(source.data) if source.data else None,
+            df=_get_pandas().DataFrame(source.data) if source.data else None,
             theme=source._theme,
             target_component=None,
         )
@@ -2359,7 +2551,7 @@ def _resolve_source(
 def edit(
     description: str,
     source: "VibeWidget | WidgetHandle | str | Path",
-    data: pd.DataFrame | str | Path | None = None,
+    data: "pd.DataFrame | str | Path | None" = None,
     outputs: dict[str, str] | OutputBundle | None = None,
     inputs: dict[str, Any] | InputsBundle | None = None,
     actions: dict[str, str] | ActionBundle | None = None,
@@ -2442,7 +2634,7 @@ def edit(
         description=description,  # Store original description in recipe
         data_source=data if data is not None else source_info.df,
         data_type=type(data) if data is not None else (type(source_info.df) if source_info.df is not None else None),
-        data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
+        data_columns=list(df.columns) if _is_dataframe(df) else None,
         exports=outputs,
         imports=inputs,
         model=model,
@@ -2455,12 +2647,458 @@ def edit(
     return WidgetHandle(widget)
 
 
-def load(path: str | Path, approval: bool = True, display: bool = True) -> "WidgetHandle":
+_WIDGET_SELECTOR_ESM = """
+function render({ model, el }) {
+  const widgets = model.get('widgets') || [];
+  const container = document.createElement('div');
+  container.style.cssText = `
+    font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+    background: #000;
+    border-radius: 8px;
+    padding: 16px;
+    max-width: 800px;
+    outline: none;
+    border: 1px solid #333;
+  `;
+  container.tabIndex = 0;
+
+  let selectedIndex = 0;
+  let isActive = true;
+  const totalItems = widgets.length + 1; // +1 for Exit option
+
+  // Disable Jupyter keyboard shortcuts
+  function disableJupyterKeyboard() {
+    try {
+      if (typeof Jupyter !== 'undefined' && Jupyter.keyboard_manager) {
+        Jupyter.keyboard_manager.disable();
+      }
+    } catch (e) {}
+  }
+
+  function enableJupyterKeyboard() {
+    try {
+      if (typeof Jupyter !== 'undefined' && Jupyter.keyboard_manager) {
+        Jupyter.keyboard_manager.enable();
+      }
+    } catch (e) {}
+  }
+
+  function finishSelection(index) {
+    if (!isActive) return;
+    isActive = false;
+    enableJupyterKeyboard();
+    model.set('selected_index', index);
+    model.save_changes();
+    // Hide the selector
+    container.style.display = 'none';
+  }
+
+  function renderList() {
+    if (!isActive) return;
+
+    const header = `
+      <div style="color: #f97316; font-size: 12px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.1em;">
+        Cached Widgets (${widgets.length} total)
+      </div>
+      <div style="color: #64748b; font-size: 11px; margin-bottom: 12px;">
+        ↑↓ Navigate • Enter Select • Esc Exit
+      </div>
+    `;
+
+    let rows = '';
+    const maxShow = Math.min(widgets.length, 20);
+    for (let i = 0; i < maxShow; i++) {
+      const w = widgets[i];
+      const isSelected = i === selectedIndex;
+      const bgColor = isSelected ? '#1e293b' : 'transparent';
+      const borderLeft = isSelected ? '3px solid #f97316' : '3px solid transparent';
+
+      const shape = w.data_shape;
+      const shapeStr = shape && shape.length >= 2 ? shape[0] + '×' + shape[1] : '-';
+      const created = (w.created_at || '').slice(0, 19).replace('T', ' ');
+      const descShort = (w.description || '').slice(0, 40) + ((w.description || '').length > 40 ? '...' : '');
+
+      rows += '<div data-index="' + i + '" style="display:flex;align-items:center;padding:8px 12px;background:' + bgColor + ';border-left:' + borderLeft + ';cursor:pointer;">' +
+        '<span style="width:30px;color:#f97316;font-weight:600;">' + i + '</span>' +
+        '<span style="width:140px;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (w.var_name || 'unknown') + '</span>' +
+        '<span style="flex:1;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + descShort + '</span>' +
+        '<span style="width:70px;color:#64748b;text-align:right;">' + shapeStr + '</span>' +
+        '<span style="width:140px;color:#64748b;text-align:right;">' + created + '</span>' +
+        '</div>';
+    }
+
+    if (widgets.length > 20) {
+      rows += '<div style="color:#64748b;padding:8px 12px;">... and ' + (widgets.length - 20) + ' more</div>';
+    }
+
+    // Exit option
+    const exitSelected = selectedIndex === widgets.length;
+    const exitBg = exitSelected ? '#1e293b' : 'transparent';
+    const exitBorder = exitSelected ? '3px solid #f97316' : '3px solid transparent';
+    rows += '<div data-index="' + widgets.length + '" style="display:flex;align-items:center;padding:8px 12px;margin-top:8px;border-top:1px solid #333;background:' + exitBg + ';border-left:' + exitBorder + ';cursor:pointer;">' +
+      '<span style="color:#ef4444;">✕ Exit (cancel selection)</span></div>';
+
+    // Description panel
+    let descPanel = '';
+    if (selectedIndex < widgets.length && widgets[selectedIndex]) {
+      const selected = widgets[selectedIndex];
+      descPanel = '<div style="margin-top:12px;padding:12px;background:#111;border-radius:4px;border:1px solid #333;">' +
+        '<div style="color:#f97316;font-size:10px;text-transform:uppercase;margin-bottom:4px;">Description</div>' +
+        '<div style="color:#e2e8f0;font-size:12px;line-height:1.5;">' + (selected.description || 'No description') + '</div></div>';
+    }
+
+    container.innerHTML = header +
+      '<div style="font-size:12px;">' +
+      '<div style="display:flex;padding:6px 12px;border-bottom:1px solid #333;color:#64748b;text-transform:uppercase;font-size:10px;">' +
+      '<span style="width:30px;">#</span>' +
+      '<span style="width:140px;">Name</span>' +
+      '<span style="flex:1;">Description</span>' +
+      '<span style="width:70px;text-align:right;">Shape</span>' +
+      '<span style="width:140px;text-align:right;">Created</span>' +
+      '</div>' + rows + '</div>' + descPanel;
+
+    // Add click handlers - single click selects, double click confirms
+    container.querySelectorAll('[data-index]').forEach(function(row) {
+      row.onclick = function() {
+        const idx = parseInt(row.dataset.index, 10);
+        selectedIndex = idx;
+        renderList();
+        container.focus(); // Keep focus for keyboard nav
+      };
+      row.ondblclick = function() {
+        const idx = parseInt(row.dataset.index, 10);
+        if (idx >= widgets.length) {
+          finishSelection(-1); // Exit
+        } else {
+          finishSelection(idx);
+        }
+      };
+    });
+  }
+
+  function processKey(key) {
+    if (!isActive) return false;
+
+    if (key === 'ArrowDown') {
+      selectedIndex = Math.min(selectedIndex + 1, totalItems - 1);
+      renderList();
+      return true;
+    } else if (key === 'ArrowUp') {
+      selectedIndex = Math.max(selectedIndex - 1, 0);
+      renderList();
+      return true;
+    } else if (key === 'Enter') {
+      if (selectedIndex >= widgets.length) {
+        finishSelection(-1);
+      } else {
+        finishSelection(selectedIndex);
+      }
+      return true;
+    } else if (key === 'Escape') {
+      finishSelection(-1);
+      return true;
+    }
+    return false;
+  }
+
+  function handleKey(e) {
+    if (!isActive) return;
+    // Only handle if our container is focused or contains focus
+    if (document.activeElement !== container && !container.contains(document.activeElement)) {
+      return;
+    }
+
+    if (processKey(e.key)) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      return false;
+    }
+  }
+
+  // Container-level handler (for when container has focus)
+  container.addEventListener('keydown', function(e) {
+    if (!isActive) return;
+    if (processKey(e.key)) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      return false;
+    }
+  }, true);
+
+  // Document-level capture to intercept before Jupyter
+  document.addEventListener('keydown', handleKey, true);
+
+  el.appendChild(container);
+  renderList();
+
+  // Auto-focus with multiple attempts and keep trying
+  function tryFocus() {
+    if (isActive && document.body.contains(container)) {
+      container.focus();
+      disableJupyterKeyboard();
+    }
+  }
+  setTimeout(tryFocus, 50);
+  setTimeout(tryFocus, 150);
+  setTimeout(tryFocus, 300);
+  setTimeout(tryFocus, 500);
+
+  // Also focus when container is clicked
+  container.addEventListener('click', function() {
+    if (isActive) {
+      container.focus();
+      disableJupyterKeyboard();
+    }
+  });
+
+  // Cleanup
+  return function() {
+    isActive = false;
+    enableJupyterKeyboard();
+    document.removeEventListener('keydown', handleKey, true);
+  };
+}
+export default { render };
+"""
+
+
+class WidgetSelector(anywidget.AnyWidget):
+    """Interactive widget selector with keyboard navigation."""
+
+    _esm = _WIDGET_SELECTOR_ESM
+    widgets = traitlets.List([]).tag(sync=True)
+    selected_index = traitlets.Int(-2).tag(sync=True)  # -2 = pending, -1 = exit, 0+ = widget index
+
+
+class WidgetBrowser:
+    """Non-blocking widget browser returned by vw.load().
+
+    Displays an interactive selector. After selection, call directly with data:
+        widget = vw.load()
+        # ... navigate and press Enter to select ...
+        widget(data)  # Renders the selected widget with your data
+    """
+
+    def __init__(
+        self,
+        widgets_data: list[dict[str, Any]],
+        approval: bool = True,
+        display_widget: bool = True,
+    ):
+        self._widgets_data = widgets_data
+        self._approval = approval
+        self._display_widget = display_widget
+        self._selector: WidgetSelector | None = None
+        self._result: "WidgetHandle | None" = None
+        self._finished = False
+        self._selected_name: str | None = None
+
+        if not widgets_data:
+            print("No cached widgets found.")
+            self._finished = True
+            return
+
+        # Prepare widget data for JS
+        js_widgets = []
+        for w in widgets_data[:50]:
+            js_widgets.append({
+                "var_name": w.get("var_name", "unknown"),
+                "description": w.get("description", ""),
+                "data_shape": w.get("data_shape"),
+                "created_at": w.get("created_at", ""),
+                "_index": w.get("_index", 0),
+            })
+
+        self._selector = WidgetSelector(widgets=js_widgets, selected_index=-2)
+
+        # Watch for selection
+        self._selector.observe(self._on_selection, names=['selected_index'])
+
+        # Display immediately
+        from IPython.display import display
+        display(self._selector)
+
+    def _on_selection(self, change):
+        """Called when user makes a selection."""
+        idx = change['new']
+        if idx == -2:  # Still pending
+            return
+
+        self._finished = True
+
+        if idx == -1:  # Exit/cancel
+            self._result = None
+            print("Selection cancelled.")
+        elif 0 <= idx < len(self._widgets_data):
+            # Load the selected widget (don't display yet - user will call widget(data))
+            selected = self._widgets_data[idx]
+            var_name = selected.get("var_name")
+            self._selected_name = var_name
+            widget_idx = selected.get("_index", 0)
+
+            store = WidgetStore()
+            result = store.load_by_var_name(var_name, widget_idx)
+            if result:
+                widget_entry, code = result
+                self._result = _load_from_cached_entry(
+                    widget_entry,
+                    code,
+                    approval=self._approval,
+                    display=False,  # Don't display - just store it
+                )
+                desc = selected.get("description", "")[:60]
+                if len(selected.get("description", "")) > 60:
+                    desc += "..."
+                print(f"✓ Selected: {var_name}")
+                print(f"  {desc}")
+                print(f"  Use: widget(data) to render")
+
+    def __call__(self, data=None, *, inputs=None, display=True, **kwargs):
+        """Render the selected widget with data.
+
+        Args:
+            data: DataFrame or data to pass to the widget
+            inputs: Dict of additional inputs to pass to the widget
+            display: Whether to display the widget (default True)
+            **kwargs: Additional arguments passed to the widget
+
+        Returns:
+            The rendered widget, or None if no selection was made
+        """
+        if self._result is None:
+            if self.is_pending:
+                print("No widget selected yet. Navigate and press Enter to select.")
+            else:
+                print("No widget selected (cancelled).")
+            return None
+        return self._result(data, inputs=inputs, display=display, **kwargs)
+
+    @property
+    def selected(self) -> "WidgetHandle | None":
+        """Get the selected widget (None if cancelled or not yet selected)."""
+        return self._result
+
+    @property
+    def is_pending(self) -> bool:
+        """True if user hasn't made a selection yet."""
+        return not self._finished
+
+    def __repr__(self):
+        if self._finished:
+            if self._result:
+                name = self._selected_name or "widget"
+                return f"WidgetBrowser(selected='{name}') - call with widget(data) to render"
+            return "WidgetBrowser(cancelled)"
+        return "WidgetBrowser(pending - navigate and press Enter)"
+
+
+def _show_widget_selector(
+    widgets_data: list[dict[str, Any]],
+    approval: bool = True,
+    display_widget: bool = True,
+) -> "WidgetBrowser":
+    """Show interactive widget selector (non-blocking)."""
+    return WidgetBrowser(
+        widgets_data=widgets_data,
+        approval=approval,
+        display_widget=display_widget,
+    )
+
+
+def _load_from_cached_entry(
+    cached_entry: dict[str, Any],
+    code: str,
+    approval: bool = True,
+    display: bool = True,
+) -> "WidgetHandle":
+    """Load a widget from a cached entry and code."""
+    description = cached_entry.get("description") or "Loaded widget"
+    outputs = cached_entry.get("outputs") or {}
+    theme = None
+
+    theme_desc = cached_entry.get("theme_description")
+    theme_name = cached_entry.get("theme_name")
+    if theme_desc or theme_name:
+        theme = Theme(description=theme_desc or "", name=theme_name)
+
+    metadata = dict(cached_entry)
+    model = cached_entry.get("model") or DEFAULT_MODEL
+
+    execution_mode = "approve" if approval else "auto"
+    execution_approved = not approval
+    approved_hash = compute_code_hash(code) if not approval else ""
+
+    widget = VibeWidget._create_with_dynamic_traits(
+        description=description,
+        df=None,
+        model=model,
+        exports=outputs,
+        imports={},
+        theme=theme,
+        var_name=cached_entry.get("var_name"),
+        existing_code=code,
+        existing_metadata=metadata,
+        display_widget=display,
+        cache=False,
+        execution_mode=execution_mode,
+        execution_approved=execution_approved,
+        execution_approved_hash=approved_hash,
+    )
+
+    # Store creation params to enable rerun with new data
+    widget._store_creation_params(
+        description=description,
+        data_source=None,
+        data_type=None,
+        data_columns=None,
+        exports=outputs,
+        imports={},
+        model=model,
+        theme=theme,
+    )
+
+    return WidgetHandle(widget)
+
+
+def load(
+    path: str | Path | None = None,
+    approval: bool = True,
+    display: bool = True
+) -> "WidgetHandle | WidgetBrowser | None":
     """Load a widget bundle or cached widget file from disk.
 
+    Args:
+        path: Path to .vw bundle or cached widget file. If None, shows
+              an interactive selector for cached widgets (non-blocking).
+        approval: Whether to require approval before running code
+        display: Whether to display the widget immediately
+
     Returns:
-        WidgetHandle for the loaded widget
+        - If path provided: WidgetHandle for the loaded widget
+        - If no path: WidgetBrowser (non-blocking). Navigate with ↑↓, Enter to
+          select, Esc to cancel. Access result via `browser.selected`
+
+    Example:
+        # Load specific widget
+        widget = vw.load("my_widget.vw")
+
+        # Browse cached widgets (non-blocking)
+        browser = vw.load()
+        # ... navigate and press Enter ...
+        widget = browser.selected  # WidgetHandle or None if cancelled
     """
+    # No path provided - show interactive selector (non-blocking)
+    if path is None:
+        store = WidgetStore()
+        widgets_data = store.get_recent_widgets(limit=100)
+        return _show_widget_selector(
+            widgets_data,
+            approval=approval,
+            display_widget=display,
+        )
+
     target = Path(path)
 
     payload: dict[str, Any] | None = None
@@ -2515,6 +3153,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> "Widg
         if embedded and isinstance(input_values, dict):
             data_rows = input_values.pop("data", [])
 
+        pd = _get_pandas()
         df = pd.DataFrame(data_rows) if isinstance(data_rows, list) else pd.DataFrame()
 
         imports: dict[str, Any] = {}
@@ -2551,6 +3190,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> "Widg
             "version": payload.get("version"),
             "created_at": payload.get("created_at"),
             "audit": payload.get("audit"),
+            "prompt_history": payload.get("prompt_history") or [],
         }
         model = payload.get("model") or DEFAULT_MODEL
         data_rows_embedded = data_rows if embedded else None
@@ -2558,7 +3198,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> "Widg
         description = cached_entry.get("description") or "Loaded widget"
         outputs = {}
         imports = {}
-        df = pd.DataFrame()
+        df = _get_pandas().DataFrame()
         components = cached_entry.get("components") or WidgetStore().extract_components(code)
         theme_name = cached_entry.get("theme_name")
         theme_description = cached_entry.get("theme_description")
@@ -2580,6 +3220,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> "Widg
             "cache_key": cached_entry.get("cache_key"),
             "var_name": cached_entry.get("var_name"),
             "revision_parent": cached_entry.get("revision_parent"),
+            "prompt_history": cached_entry.get("prompt_history") or [],
         }
         model = cached_entry.get("model") or DEFAULT_MODEL
         data_rows_embedded = None
@@ -2621,7 +3262,7 @@ def load(path: str | Path, approval: bool = True, display: bool = True) -> "Widg
         description=description,
         data_source=data_rows_embedded,
         data_type=type(data_rows_embedded) if data_rows_embedded is not None else None,
-        data_columns=list(df.columns) if isinstance(df, pd.DataFrame) else None,
+        data_columns=list(df.columns) if _is_dataframe(df) else None,
         exports=outputs,
         imports=imports,
         model=model,

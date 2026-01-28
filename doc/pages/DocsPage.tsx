@@ -7,7 +7,6 @@ const ThemingPage = React.lazy(() => import('./docs/ThemingPage'));
 const EditPage = React.lazy(() => import('./docs/EditPage'));
 const AuditPage = React.lazy(() => import('./docs/AuditPage'));
 const ReactivityPage = React.lazy(() => import('./docs/ReactivityPage'));
-const DataSourcesPage = React.lazy(() => import('./docs/DataSourcesPage'));
 const ComposabilityPage = React.lazy(() => import('./docs/ComposabilityPage'));
 const WidgetariumPage = React.lazy(() => import('./docs/WidgetariumPage'));
 const CrossWidgetExamplePage = React.lazy(() => import('./docs/examples/CrossWidgetExamplePage'));
@@ -63,7 +62,6 @@ const DocsPage = () => {
                         <Route path="edit" element={<EditPage />} />
                         <Route path="audit" element={<AuditPage />} />
                         <Route path="reactivity" element={<ReactivityPage />} />
-                        <Route path="data-sources" element={<DataSourcesPage />} />
                         <Route path="composability" element={<ComposabilityPage />} />
                         <Route path="widgetarium" element={<WidgetariumPage />} />
                         <Route path="examples/cross-widget" element={<CrossWidgetExamplePage />} />

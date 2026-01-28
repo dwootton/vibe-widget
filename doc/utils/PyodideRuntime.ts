@@ -233,6 +233,30 @@ class OutputHandle:
     def value(self):
         return self()
 
+    def observe(self, callback):
+        self._widget.observe(callback, names=self._trait_name)
+
+    def unobserve(self, callback):
+        self._widget.unobserve(callback, names=self._trait_name)
+
+class ActionDefinition:
+    def __init__(self, description, params=None):
+        self.description = description
+        self.params = params or {}
+
+class ActionsNamespace:
+    def __init__(self, widget):
+        self._widget = widget
+
+    def __getattr__(self, name):
+        if name in self._widget._actions:
+            def action_caller(**kwargs):
+                event = {"action": name, "params": kwargs}
+                self._widget.action_event = event
+            action_caller.__doc__ = self._widget._actions.get(name, "")
+            return action_caller
+        raise AttributeError(f"actions has no attribute '{name}'")
+
 class OutputsNamespace:
     def __init__(self, widget):
         self._widget = widget
@@ -245,14 +269,16 @@ class OutputsNamespace:
 class WidgetProxy:
     """Proxy for a vibe widget that interfaces with pre-generated JS modules"""
     
-    def __init__(self, widget_id, module_url, outputs=None, inputs=None):
+    def __init__(self, widget_id, module_url, outputs=None, inputs=None, actions=None):
         self._widget_id = widget_id
         self._module_url = module_url
         self._outputs = outputs or {}
         self._inputs = inputs or {}
+        self._actions = actions or {}
         self._traits = {}
         self._observers = {}
         self._outputs_ns = None
+        self._actions_ns = None
         _widgets[widget_id] = self
     
     def __getattr__(self, name):
@@ -262,6 +288,10 @@ class WidgetProxy:
             if self._outputs_ns is None:
                 self._outputs_ns = OutputsNamespace(self)
             return self._outputs_ns
+        if name == 'actions':
+            if self._actions_ns is None:
+                self._actions_ns = ActionsNamespace(self)
+            return self._actions_ns
         # Return trait value
         return self._traits.get(name)
     
@@ -291,6 +321,15 @@ class WidgetProxy:
             if name not in self._observers:
                 self._observers[name] = []
             self._observers[name].append(callback)
+
+    def unobserve(self, callback, names=None):
+        if names is None:
+            names = list(self._observers.keys())
+        if isinstance(names, str):
+            names = [names]
+        for name in names:
+            if name in self._observers and callback in self._observers[name]:
+                self._observers[name].remove(callback)
     
     def __repr__(self):
         # Trigger widget display via JS bridge
@@ -311,10 +350,22 @@ class WidgetProxy:
 def output(description):
     return OutputDefinition(description)
 
+def action(description, params=None):
+    return ActionDefinition(description, params=params)
+
 def outputs(**kwargs):
     resolved = {}
     for key, value in kwargs.items():
         if isinstance(value, OutputDefinition):
+            resolved[key] = value.description
+        else:
+            resolved[key] = value
+    return resolved
+
+def actions(**kwargs):
+    resolved = {}
+    for key, value in kwargs.items():
+        if isinstance(value, ActionDefinition):
             resolved[key] = value.description
         else:
             resolved[key] = value
@@ -375,7 +426,7 @@ def _match_widget(description):
         return 'line_chart', _WIDGET_URLS['line_chart']
     return None, None
 
-def create(description, data=None, outputs=None, inputs=None):
+def create(description, data=None, outputs=None, inputs=None, actions=None):
     global _widget_counter
     _widget_counter += 1
     
@@ -394,7 +445,7 @@ def create(description, data=None, outputs=None, inputs=None):
         module_url = _WIDGET_URLS.get('scatter')  # Default
     
     widget_id = f"{widget_type}_{_widget_counter}"
-    widget = WidgetProxy(widget_id, module_url, outputs, inputs)
+    widget = WidgetProxy(widget_id, module_url, outputs, inputs, actions)
     
     # Initialize data if provided
     if data is not None:
