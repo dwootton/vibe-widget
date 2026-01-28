@@ -94,7 +94,7 @@ export default function EditPromptPanel({
         />
       </div>
       <div class={footerClass}>
-        <button class={secondaryButtonClass} onClick={onCancel}>
+        <button class={secondaryButtonClass} onClick={() => onCancel(prompt)}>
           Cancel
         </button>
         <button

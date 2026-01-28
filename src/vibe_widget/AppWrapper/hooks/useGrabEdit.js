@@ -22,7 +22,7 @@ export default function useGrabEdit(model) {
   }, [grabMode, model]);
 
   const cancelEdit = React.useCallback((currentPrompt) => {
-    if (grabMode?.elementKey && currentPrompt) {
+    if (grabMode?.elementKey && typeof currentPrompt === "string" && currentPrompt) {
       setPromptCache((prev) => ({ ...prev, [grabMode.elementKey]: currentPrompt }));
     }
     setGrabMode(null);

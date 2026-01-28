@@ -569,10 +569,11 @@ class WidgetStore:
         imports_serialized: dict[str, str] | None,
         theme_description: str | None,
         revision_parent: str | None = None,
+        follow_revisions: bool = True,
     ) -> dict[str, Any] | None:
         """
         Look up a cached widget by cache key.
-        
+
         Args:
             description: Widget description
             var_name: Variable name for storage grouping (not part of cache key)
@@ -580,14 +581,18 @@ class WidgetStore:
             exports: Export trait definitions
             imports_serialized: Import trait values
             theme_description: Theme description for signature
-        
+            revision_parent: Cache key of the parent revision
+            follow_revisions: If True (default), returns the most recent version
+                in the revision chain. If the widget was edited after creation,
+                returns the latest edited version instead of the original.
+
         Returns:
             Widget metadata dict with var_name if found, None otherwise
         """
         exports_signature = self._compute_exports_signature(exports)
         imports_signature = self._compute_imports_signature(imports_serialized, data_shape)
         theme_signature = self._compute_theme_signature(theme_description)
-        
+
         cache_key = self._compute_cache_key(
             description=description,
             data_shape=data_shape,
@@ -596,32 +601,45 @@ class WidgetStore:
             theme_signature=theme_signature,
             revision_parent=revision_parent,
         )
-        
+
         # Use cache_index for O(1) lookup
         cache_index = self.index.get("cache_index", {})
         location = cache_index.get(cache_key)
-        
+
         if not location:
             return None
-        
+
         # Parse location "var_name/index"
         stored_var_name, idx_str = location.split("/")
         idx = int(idx_str)
-        
+
         widgets_dict = self.index.get("widgets", {})
         if stored_var_name not in widgets_dict:
             return None
-        
+
         widgets_list = widgets_dict[stored_var_name]
         if idx >= len(widgets_list):
             return None
-        
+
+        # If follow_revisions is True and this isn't already the newest,
+        # return the most recent widget in this var_name group instead
+        if follow_revisions and idx > 0:
+            # Get the newest widget (index 0) for this var_name
+            newest_entry = widgets_list[0]
+            widget_file = self.widgets_dir / newest_entry["file_name"]
+            if widget_file.exists():
+                result = dict(newest_entry)
+                result["var_name"] = stored_var_name
+                result["_index"] = 0
+                result["_original_cache_key"] = cache_key  # Track which key was looked up
+                return result
+
         widget_entry = widgets_list[idx]
         widget_file = self.widgets_dir / widget_entry["file_name"]
-        
+
         if not widget_file.exists():
             return None
-        
+
         # Return entry with var_name for reference
         result = dict(widget_entry)
         result["var_name"] = stored_var_name
@@ -775,39 +793,59 @@ class WidgetStore:
         widget_file = self.widgets_dir / widget_entry["file_name"]
         return widget_file.read_text(encoding='utf-8')
     
-    def load_by_cache_key(self, cache_key: str) -> tuple[dict[str, Any], str] | None:
+    def load_by_cache_key(
+        self,
+        cache_key: str,
+        follow_revisions: bool = True,
+    ) -> tuple[dict[str, Any], str] | None:
         """
         Load widget by cache key.
-        
+
         Args:
             cache_key: Full cache key hash
-        
+            follow_revisions: If True (default), returns the most recent version
+                in the revision chain. If the widget was edited after creation,
+                returns the latest edited version instead of the original.
+
         Returns:
             Tuple of (widget_entry, code) if found, None otherwise
         """
         cache_index = self.index.get("cache_index", {})
         location = cache_index.get(cache_key)
-        
+
         if not location:
             return None
-        
+
         var_name, idx_str = location.split("/")
         idx = int(idx_str)
-        
+
         widgets_dict = self.index.get("widgets", {})
         if var_name not in widgets_dict:
             return None
-        
+
         widgets_list = widgets_dict[var_name]
         if idx >= len(widgets_list):
             return None
-        
+
+        # If follow_revisions is True and this isn't already the newest,
+        # return the most recent widget in this var_name group instead
+        if follow_revisions and idx > 0:
+            newest_entry = widgets_list[0]
+            widget_file = self.widgets_dir / newest_entry["file_name"]
+            if widget_file.exists():
+                code = widget_file.read_text(encoding='utf-8')
+                result = dict(newest_entry)
+                result["var_name"] = var_name
+                result["_index"] = 0
+                result["_original_cache_key"] = cache_key
+                return result, code
+
         widget_entry = widgets_list[idx]
         widget_file = self.widgets_dir / widget_entry["file_name"]
-        
+
         if not widget_file.exists():
             return None
-        
+
         code = widget_file.read_text(encoding='utf-8')
         result = dict(widget_entry)
         result["var_name"] = var_name

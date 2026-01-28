@@ -40,15 +40,29 @@ const logEntryClass = css({
   gap: "4px",
   padding: "2px 0",
   color: "#94a3b8",
-  whiteSpace: "pre-wrap",
-  wordBreak: "break-word",
   textTransform: "uppercase"
 });
 const logIconClass = tw("flex-none w-[10px] ml-2 flex items-center justify-center text-text-muted");
 const logIconBlockClass = tw("w-[6px] h-[6px] rounded-none bg-[rgba(148,163,184,0.6)]");
-const logTextBaseClass = tw("flex-1 flex items-center gap-1 text-[12px] uppercase font-mono leading-snug text-text-muted");
+const logTextBaseClass = tw("flex-1 text-[12px] uppercase font-mono leading-snug text-text-muted");
 const ellipsisClass = tw("inline-block min-w-[1.6em] text-left");
 const footerClass = tw("pt-2");
+const chevronClass = tw("flex-none w-[10px] ml-[11px] cursor-pointer text-text-muted hover:text-accent transition-colors select-none text-[8px] leading-none");
+const expandedTextClass = tw("whitespace-pre-wrap break-words");
+const collapsedTextClass = tw("truncate");
+
+// Helper to check if log entry has multiple lines or is long
+function isMultiLine(text) {
+  if (!text) return false;
+  return text.includes('\n') || text.length > 80;
+}
+
+// Get first line/summary of a log entry
+function getLogSummary(text) {
+  if (!text) return "";
+  const firstLine = text.split('\n')[0];
+  return firstLine.length > 80 ? firstLine.slice(0, 77) + "..." : firstLine;
+}
 
 export default function ProgressMap({
   logs = [],
@@ -61,6 +75,7 @@ export default function ProgressMap({
   const isActive = status !== "ready" && status !== "error";
   const isDone = status === "ready";
   const [spinnerIndex, setSpinnerIndex] = React.useState(0);
+  const [expandedLogs, setExpandedLogs] = React.useState({});
   const spinnerFrames = ["|", "/", "-", "\\"];
   const logContainerRef = React.useRef(null);
   const hasInitialScroll = React.useRef(false);
@@ -68,6 +83,11 @@ export default function ProgressMap({
   const debugSink =
     typeof globalThis !== "undefined" ? globalThis.__VIBE_DEBUG_SINK : null;
   const debugEnabled = true;
+
+  // Toggle expand/collapse for a log entry
+  const toggleLogExpanded = (idx) => {
+    setExpandedLogs(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
 
   React.useEffect(() => {
     if (typeof debugSink === "function") {
@@ -151,6 +171,14 @@ export default function ProgressMap({
               const hasTrailingDots = isLive && text.endsWith("...");
               const baseText = hasTrailingDots ? text.slice(0, -3) : text;
               const ellipsisFrames = [".", "..", "..."];
+
+              // Determine if this log is collapsible (multi-line or long)
+              const collapsible = isMultiLine(baseText);
+              const isExpanded = !!expandedLogs[idx];
+
+              // Get display text based on collapsed/expanded state
+              const displayText = collapsible && !isExpanded ? getLogSummary(baseText) : baseText;
+
               const logTextColor = isTerminal
                 ? "#cbd5e1"
                 : isLive
@@ -161,21 +189,42 @@ export default function ProgressMap({
                 isLive ? "text-accent" : ""
               ].join(" ");
               const logIconStyle = isLive ? { color: "#f97316" } : undefined;
+
               return (
                 <li
                   key={idx}
                   class={logEntryClass}
                   style={{ "--entry-index": idx }}
                 >
-                  <span class={logIconClasses} style={logIconStyle}>
-                    {isLive ? (
-                      spinnerFrames[spinnerIndex]
-                    ) : (
-                      <span class={logIconBlockClass} />
-                    )}
-                  </span>
-                  <span class={logTextBaseClass} style={{ color: logTextColor }}>
-                    {baseText}
+                  {/* Chevron for collapsible logs, spinner/block for others */}
+                  {collapsible ? (
+                    <span
+                      class={chevronClass}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleLogExpanded(idx);
+                      }}
+                      title={isExpanded ? "Collapse" : "Expand"}
+                      style={{ color: isLive ? "#f97316" : undefined }}
+                    >
+                      {isExpanded ? "\u25BC" : "\u25B6"}
+                    </span>
+                  ) : (
+                    <span class={logIconClasses} style={logIconStyle}>
+                      {isLive ? (
+                        spinnerFrames[spinnerIndex]
+                      ) : (
+                        <span class={logIconBlockClass} />
+                      )}
+                    </span>
+                  )}
+
+                  <span
+                    class={`${logTextBaseClass} ${collapsible && !isExpanded ? collapsedTextClass : expandedTextClass}`}
+                    style={{ color: logTextColor, cursor: collapsible ? "pointer" : "default" }}
+                    onClick={collapsible ? () => toggleLogExpanded(idx) : undefined}
+                  >
+                    {displayText}
                     {hasTrailingDots && (
                       <span class={ellipsisClass}>{ellipsisFrames[spinnerIndex % ellipsisFrames.length]}</span>
                     )}
