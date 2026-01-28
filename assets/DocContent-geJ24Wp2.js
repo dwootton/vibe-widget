@@ -1,0 +1,1 @@
+import{j as s}from"./index-BJAQU8i5.js";const n=({title:o,children:a})=>s.jsxs("div",{className:"max-w-3xl w-full min-w-0",children:[s.jsx("h1",{className:"text-5xl font-display font-bold mb-8",children:o}),s.jsx("div",{className:"prose prose-slate max-w-none font-sans break-words",children:a})]});export{n as D};

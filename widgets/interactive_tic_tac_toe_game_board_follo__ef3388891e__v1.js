@@ -52,20 +52,44 @@ export default function TicTacToeWidget({ model, React }) {
     }
   };
 
+  const applyAiMove = (index) => {
+    if (typeof index !== "number") return;
+    if (index < 0 || index > 8) return;
+    if (turn === "o" && !winner) {
+      makeMove(index, "o");
+    }
+  };
+
   // Handle AI Move from Trait
   React.useEffect(() => {
     const handleAiMove = () => {
       const move = model.get("ai_move");
       if (move && typeof move.row === 'number' && typeof move.col === 'number') {
         const index = move.row * 3 + move.col;
-        if (turn === 'o' && !winner) {
-          makeMove(index, 'o');
-        }
+        applyAiMove(index);
       }
     };
 
     model.on("change:ai_move", handleAiMove);
     return () => model.off("change:ai_move", handleAiMove);
+  }, [turn, winner, board]);
+
+  // Handle AI Move from action_event
+  React.useEffect(() => {
+    const handleAction = (event) => {
+      const actionEvent = event?.changed?.action_event || {};
+      if (actionEvent.action !== "ai_move") return;
+      const params = actionEvent.params || {};
+      const index = typeof params.index === "number"
+        ? params.index
+        : (typeof params.row === "number" && typeof params.col === "number")
+          ? (params.row * 3 + params.col)
+          : null;
+      applyAiMove(index);
+    };
+
+    model.on("change:action_event", handleAction);
+    return () => model.off("change:action_event", handleAction);
   }, [turn, winner, board]);
 
   const resetGame = () => {
