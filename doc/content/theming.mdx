@@ -38,8 +38,15 @@ vw.create("...", df, theme="financial_times")
 Edits reuse the existing theme by default, so your visual language stays consistent as you refine
 behavior or layout.
 
+<WidgetPreview src="/widgets/scatter_themed_ft.js" height={380} />
+
 ```python
 v1 = vw.create("basic scatter", df, theme="financial_times")
+```
+
+<WidgetPreview src="/widgets/scatter_tooltips_legend.js" height={420} />
+
+```python
 v2 = v1.edit("add hover tooltips and a right-side legend")
 ```
 

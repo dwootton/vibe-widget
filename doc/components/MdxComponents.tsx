@@ -3,6 +3,7 @@ import CodeBlock from './CodeBlock';
 import MediaPlaceholder from './MediaPlaceholder';
 import InstallCommand from './InstallCommand';
 import ExampleNotebook from './ExampleNotebook';
+import WidgetPreview from './WidgetPreview';
 
 const MdxPre = ({ children }: { children?: React.ReactNode }) => {
   if (!children || !React.isValidElement(children)) {
@@ -22,6 +23,7 @@ const mdxComponents = {
   MediaPlaceholder,
   InstallCommand,
   ExampleNotebook,
+  WidgetPreview,
 };
 
 export default mdxComponents;
