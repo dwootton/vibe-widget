@@ -5,6 +5,10 @@ from typing import Any, Callable
 import re
 
 
+def _safe_str(s: Any) -> str:
+    return s if isinstance(s, str) else str(s)
+
+
 class LLMProvider(ABC):
     """Abstract base class for LLM providers."""
     
@@ -126,7 +130,15 @@ class LLMProvider(ABC):
             composition_section = self._build_composition_section(base_code, base_components or [])
         
         if inputs:
-            input_summary = "\n".join([f"- {name}: {summary}" for name, summary in inputs.items()])
+            filtered_inputs = [
+                (name, summary)
+                for name, summary in inputs.items()
+                if _safe_str(summary).strip() != ""
+            ]
+            input_summary = "\n".join(
+                ["- " + name + ": " + _safe_str(summary) for name, summary in filtered_inputs]
+            )
+            input_summary = f"Inputs:\n {input_summary}"
         else:
             input_summary = "No inputs"
 
@@ -299,7 +311,9 @@ Begin the response with code immediately."""
         )
         
         if inputs:
-            input_summary = "\n".join([f"- {name}: {summary}" for name, summary in inputs.items()])
+            input_summary = "\n".join(
+                ["- " + name + ": " + _safe_str(summary) for name, summary in inputs.items()]
+            )
         else:
             input_summary = "No inputs"
 
@@ -373,7 +387,9 @@ Return only the full revised JavaScript code. No markdown fences or explanations
         )
         
         if inputs:
-            input_summary = "\n".join([f"- {name}: {summary}" for name, summary in inputs.items()])
+            input_summary = "\n".join(
+                ["- " + name + ": " + _safe_str(summary) for name, summary in inputs.items()]
+            )
         else:
             input_summary = "No inputs"
 
@@ -574,7 +590,9 @@ CODE WITH LINE NUMBERS:
         sections: list[str] = []
         
         if outputs:
-            output_list = "\n".join([f"- {name}: {desc}" for name, desc in outputs.items()])
+            output_list = "\n".join(
+                ["- " + name + ": " + _safe_str(desc) for name, desc in outputs.items()]
+            )
             output_names = ", ".join([f'"{name}"' for name in outputs.keys()])
             sections.append(f"""
 OUTPUTS (State shared with other widgets):
@@ -594,7 +612,9 @@ CRITICAL: Outputs are synced Python traits that you must update explicitly:
 Outputs to track: {output_names}""")
         
         if inputs:
-            input_list = "\n".join([f"- {name}: {desc}" for name, desc in inputs.items()])
+            input_list = "\n".join(
+                ["- " + name + ": " + _safe_str(desc) for name, desc in inputs.items()]
+            )
             sections.append(f"""
 INPUTS (State from other widgets):
 {input_list}
@@ -607,10 +627,12 @@ CRITICAL: Subscribe with model.on("change:trait", handler), unsubscribe in clean
             for name, desc in actions.items():
                 params = (action_params or {}).get(name)
                 if params:
-                    params_list = ", ".join([f"{key}: {val}" for key, val in params.items()])
-                    action_lines.append(f"- {name}: {desc} (params: {params_list})")
+                    params_list = ", ".join(
+                        [_safe_str(key) + ": " + _safe_str(val) for key, val in params.items()]
+                    )
+                    action_lines.append("- " + name + ": " + _safe_str(desc) + " (params: " + params_list + ")")
                 else:
-                    action_lines.append(f"- {name}: {desc}")
+                    action_lines.append("- " + name + ": " + _safe_str(desc))
                 action_handler_lines.append(
                     f'  // Action "{name}" (case-sensitive)\n'
                     f'  if (action === "{name}") {{\n'
