@@ -20,10 +20,18 @@ export const ExampleNotebook = ({ title }) => (
   )
 );
 
+export const WidgetPreview = ({ src }) => (
+  React.createElement('div', { className: 'placeholder' },
+    React.createElement('div', { className: 'placeholder-label' }, 'Widget Preview'),
+    React.createElement('div', { className: 'placeholder-caption' }, 'Open the live docs to see this interactive widget.')
+  )
+);
+
 const mdxStaticComponents = {
   MediaPlaceholder,
   InstallCommand,
   ExampleNotebook,
+  WidgetPreview,
 };
 
 export default mdxStaticComponents;
