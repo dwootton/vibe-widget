@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-01-29
+
+### Added
+- Interactive widget previews in documentation pages
+- WidgetPreview component for embedding live widget demos in MDX docs
+- Static build support for WidgetPreview in docs export pipeline
+
+### Changed
+- Gallery page uses uniform grid layout instead of variable-sized tiles
+- Docs sidebar replaces individual live example links with single gallery link
+- Removed context code cells from home page widget gallery
+
+### Fixed
+- Sync `__version__` in `__init__.py` with `pyproject.toml`
+
 ## [0.2.4] - 2026-01-15
 
 ### Fixed
