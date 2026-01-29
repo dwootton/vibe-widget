@@ -9,10 +9,6 @@ const AuditPage = React.lazy(() => import('./docs/AuditPage'));
 const ReactivityPage = React.lazy(() => import('./docs/ReactivityPage'));
 const ComposabilityPage = React.lazy(() => import('./docs/ComposabilityPage'));
 const WidgetariumPage = React.lazy(() => import('./docs/WidgetariumPage'));
-const CrossWidgetExamplePage = React.lazy(() => import('./docs/examples/CrossWidgetExamplePage'));
-const TicTacToeExamplePage = React.lazy(() => import('./docs/examples/TicTacToeExamplePage'));
-const PdfWebExamplePage = React.lazy(() => import('./docs/examples/PdfWebExamplePage'));
-const EditExamplePage = React.lazy(() => import('./docs/examples/EditExamplePage'));
 const ComingSoonPage = React.lazy(() => import('./docs/ComingSoonPage'));
 import { DOC_SECTIONS } from '../data/docsManifest';
 
@@ -64,10 +60,6 @@ const DocsPage = () => {
                         <Route path="reactivity" element={<ReactivityPage />} />
                         <Route path="composability" element={<ComposabilityPage />} />
                         <Route path="widgetarium" element={<WidgetariumPage />} />
-                        <Route path="examples/cross-widget" element={<CrossWidgetExamplePage />} />
-                        <Route path="examples/tictactoe" element={<TicTacToeExamplePage />} />
-                        <Route path="examples/pdf-web" element={<PdfWebExamplePage />} />
-                        <Route path="examples/edit" element={<EditExamplePage />} />
                         <Route path="*" element={<ComingSoonPage />} />
                     </Routes>
                 </Suspense>

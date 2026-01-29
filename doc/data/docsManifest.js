@@ -68,34 +68,6 @@ export const DOC_PAGES = [
     source: 'theming.mdx',
   },
   {
-    id: 'examples-cross-widget',
-    path: '/docs/examples/cross-widget',
-    label: 'Cross-Widget Demo',
-    section: 'Live Examples',
-    source: 'examples/cross-widget.mdx',
-  },
-  {
-    id: 'examples-tictactoe',
-    path: '/docs/examples/tictactoe',
-    label: 'Tic-Tac-Toe AI',
-    section: 'Live Examples',
-    source: 'examples/tictactoe.mdx',
-  },
-  {
-    id: 'examples-pdf-web',
-    path: '/docs/examples/pdf-web',
-    label: 'PDF & Web Data',
-    section: 'Live Examples',
-    source: 'examples/pdf-web.mdx',
-  },
-  {
-    id: 'examples-edit',
-    path: '/docs/examples/edit',
-    label: 'Edit Example',
-    section: 'Live Examples',
-    source: 'examples/edit.mdx',
-  },
-  {
     id: 'widgetarium',
     path: '/docs/widgetarium',
     label: 'Widgetarium',
@@ -120,18 +92,14 @@ export const DOC_SECTIONS = [
     })),
   },
   {
-    title: 'Live Examples',
-    links: DOC_PAGES.filter((page) => page.section === 'Live Examples').map((page) => ({
-      label: page.label,
-      path: page.path,
-    })),
-  },
-  {
-    title: 'Ecosystem',
-    links: DOC_PAGES.filter((page) => page.section === 'Ecosystem').map((page) => ({
-      label: page.label,
-      path: page.path,
-    })),
+    title: 'Explore',
+    links: [
+      { label: 'Example Gallery', path: '/gallery' },
+      ...DOC_PAGES.filter((page) => page.section === 'Ecosystem').map((page) => ({
+        label: page.label,
+        path: page.path,
+      })),
+    ],
   },
 ];
 
