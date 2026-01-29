@@ -27,6 +27,8 @@ widget.inputs.data = new_df # resets the data in the widget
 
 You can also wire one widget's output to another widget's input:
 
+<WidgetPreview src="/widgets/scatter_brush_linked.js" height={340} />
+
 ```python
 # Slider selection flows into chart's highlight
 chart = vw.create(
@@ -62,6 +64,8 @@ widget.outputs.selected_indices.observe(on_selection)
 Actions are one-time commands from Python to the widget. Use them for behavior that should happen
 once, not persist as state.
 
+<WidgetPreview src="/widgets/scatter_actions.js" height={380} />
+
 ```python
 widget = vw.create(
     "interactive scatter plot",
@@ -94,6 +98,8 @@ behavior by firing once and not lingering.
 ## Wiring widgets together
 
 The real power of this model shows up when you connect widgets:
+
+<WidgetPreview src="/widgets/scatter_brush_linked.js" height={340} />
 
 ```python
 scatter = vw.create(

@@ -278,7 +278,7 @@ const GalleryPage = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 auto-rows-[220px] sm:auto-rows-[260px] lg:auto-rows-[300px]"
+                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                         >
                             {filteredExamples.map((example, index) => (
                                 <GalleryCard
@@ -378,12 +378,6 @@ const GalleryPage = () => {
 };
 
 const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPLES[0]; index: number; model: any; onOpen: () => void }) => {
-    const sizeClasses = {
-        small: 'md:col-span-2 md:row-span-1',
-        medium: 'md:col-span-2 md:row-span-2',
-        large: 'md:col-span-4 md:row-span-2',
-    };
-
     const hasNotebook = !!NOTEBOOK_MAP[example.id];
 
     return (
@@ -394,9 +388,8 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.5, delay: index * 0.05, type: "spring", stiffness: 200, damping: 25 }}
             className={`
-                relative group bg-white border-2 border-slate rounded-2xl overflow-hidden shadow-hard hover:shadow-hard-lg transition-all
+                relative group bg-white border-2 border-slate rounded-2xl overflow-hidden shadow-hard hover:shadow-hard-lg transition-all flex flex-col
                 ${hasNotebook ? 'cursor-pointer' : 'cursor-default'}
-                ${sizeClasses[example.size as keyof typeof sizeClasses] || 'md:col-span-1 md:row-span-1'}
             `}
             onClick={hasNotebook ? onOpen : undefined}
             onKeyDown={(event) => {
@@ -410,7 +403,7 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
             tabIndex={hasNotebook ? 0 : -1}
         >
             {/* Preview Area */}
-            <div className="absolute inset-0 bg-slate/5 group-hover:bg-orange/5 transition-colors overflow-hidden">
+            <div className="relative h-[260px] bg-slate/5 group-hover:bg-orange/5 transition-colors overflow-hidden">
                 {example.gifUrl ? (
                     <img src={example.gifUrl} alt={example.label} className="w-full h-full object-cover" />
                 ) : (
@@ -426,26 +419,24 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
                 )}
 
                 {/* Hover Overlay for Navigation */}
-                <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 pointer-events-auto">
-                        {hasNotebook && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onOpen();
-                                }}
-                                className="bg-orange text-white p-3 rounded-xl shadow-hard-sm hover:scale-110 active:scale-95 transition-all"
-                                title="Open in Notebook"
-                            >
-                                <SquareArrowOutUpRight className="w-6 h-6" />
-                            </button>
-                        )}
+                {hasNotebook && (
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onOpen();
+                            }}
+                            className="bg-orange text-white p-2.5 rounded-xl shadow-hard-sm hover:scale-110 active:scale-95 transition-all"
+                            title="Open in Notebook"
+                        >
+                            <SquareArrowOutUpRight className="w-5 h-5" />
+                        </button>
                     </div>
-                </div>
+                )}
             </div>
 
-            {/* Content Overlay - Non-interactive part */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none">
+            {/* Content */}
+            <div className="p-5 border-t-2 border-slate/5">
                 <div className="flex items-center gap-2 mb-2">
                     {example.categories.map((cat: string) => (
                         <span key={cat} className="text-[9px] font-mono font-bold text-orange uppercase bg-orange/10 px-2 py-0.5 rounded tracking-widest">
@@ -453,16 +444,13 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
                         </span>
                     ))}
                 </div>
-                <h3 className="text-2xl font-display font-bold mb-2 group-hover:text-orange transition-colors">
+                <h3 className="text-lg font-display font-bold mb-1 group-hover:text-orange transition-colors">
                     {example.label}
                 </h3>
                 <p className="text-xs font-mono text-slate/50 line-clamp-2 italic">
                     "{example.prompt}"
                 </p>
             </div>
-
-            {/* Decorative Corner */}
-            <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-orange/20 rounded-tl-2xl pointer-events-none" />
         </motion.div>
     );
 };
