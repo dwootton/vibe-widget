@@ -1,4 +1,4 @@
-import{j as e}from"./index-BJAQU8i5.js";import{D as i}from"./DocMdxPage-2ZJ1a4cL.js";import"./DocContent-geJ24Wp2.js";const o={title:"Reactivity",description:"Connect widgets with reactive inputs and outputs."};function s(n){const t={code:"code",h2:"h2",h3:"h3",li:"li",p:"p",pre:"pre",table:"table",tbody:"tbody",td:"td",th:"th",thead:"thead",tr:"tr",ul:"ul",...n.components};return e.jsxs(e.Fragment,{children:[e.jsx(t.p,{children:`Vibe Widgets stay synchronized with Python through a simple reactivity model. This page explains how
+import{j as e}from"./index-CryjOFqx.js";import{D as o}from"./DocMdxPage-PotaL-Qx.js";import"./DocContent-3chbFH74.js";const r={title:"Reactivity",description:"Connect widgets with reactive inputs and outputs."};function i(n){const t={code:"code",h2:"h2",h3:"h3",li:"li",p:"p",pre:"pre",table:"table",tbody:"tbody",td:"td",th:"th",thead:"thead",tr:"tr",ul:"ul",...n.components},{WidgetPreview:s}=t;return s||c("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(t.p,{children:`Vibe Widgets stay synchronized with Python through a simple reactivity model. This page explains how
 data flows between your notebook and your widgets and how to wire widgets together.`}),`
 `,e.jsx(t.h2,{children:"The three primitives"}),`
 `,e.jsxs(t.table,{children:[e.jsx(t.thead,{children:e.jsxs(t.tr,{children:[e.jsx(t.th,{children:"Primitive"}),e.jsx(t.th,{children:"Direction"}),e.jsx(t.th,{children:"Persistence"}),e.jsx(t.th,{children:"Use for"})]})}),e.jsxs(t.tbody,{children:[e.jsxs(t.tr,{children:[e.jsx(t.td,{children:"Input"}),e.jsx(t.td,{children:"Python → JS"}),e.jsx(t.td,{children:"State (sticky)"}),e.jsx(t.td,{children:"Data, configuration, selections from other widgets"})]}),e.jsxs(t.tr,{children:[e.jsx(t.td,{children:"Output"}),e.jsx(t.td,{children:"JS → Python"}),e.jsx(t.td,{children:"State (sticky)"}),e.jsx(t.td,{children:"User selections, computed values, filters"})]}),e.jsxs(t.tr,{children:[e.jsx(t.td,{children:"Action"}),e.jsx(t.td,{children:"Python → JS"}),e.jsx(t.td,{children:"Event (fire-once)"}),e.jsx(t.td,{children:"Commands like reset, focus, export"})]})]})]}),`
@@ -10,6 +10,7 @@ widget.inputs.threshold = 0.5
 widget.inputs.data = new_df # resets the data in the widget
 `})}),`
 `,e.jsx(t.p,{children:"You can also wire one widget's output to another widget's input:"}),`
+`,e.jsx(s,{src:"/widgets/scatter_brush_linked.js",height:340}),`
 `,e.jsx(t.pre,{children:e.jsx(t.code,{className:"language-python",children:`# Slider selection flows into chart's highlight
 chart = vw.create(
     "scatter plot with brush selection",
@@ -37,6 +38,7 @@ widget.outputs.selected_indices.observe(on_selection)
 `,e.jsx(t.h3,{children:"Actions"}),`
 `,e.jsx(t.p,{children:`Actions are one-time commands from Python to the widget. Use them for behavior that should happen
 once, not persist as state.`}),`
+`,e.jsx(s,{src:"/widgets/scatter_actions.js",height:380}),`
 `,e.jsx(t.pre,{children:e.jsx(t.code,{className:"language-python",children:`widget = vw.create(
     "interactive scatter plot",
     df,
@@ -60,6 +62,7 @@ widget.inputs.should_reset = True
 behavior by firing once and not lingering.`}),`
 `,e.jsx(t.h2,{children:"Wiring widgets together"}),`
 `,e.jsx(t.p,{children:"The real power of this model shows up when you connect widgets:"}),`
+`,e.jsx(s,{src:"/widgets/scatter_brush_linked.js",height:340}),`
 `,e.jsx(t.pre,{children:e.jsx(t.code,{className:"language-python",children:`scatter = vw.create(
     "scatter plot with brush selection tool",
     df,
@@ -72,4 +75,4 @@ histogram = vw.create(
 )
 `})}),`
 `,e.jsxs(t.p,{children:[`When you select points in the scatter plot, the histogram updates via trait syncing without requiring any additional runs. Outputs are
-exposed under `,e.jsx(t.code,{children:"widget.outputs.<name>"}),"."]})]})}function r(n={}){const{wrapper:t}=n.components||{};return t?e.jsx(t,{...n,children:e.jsx(s,{...n})}):s(n)}const a=()=>e.jsx(i,{Content:r,meta:o});export{a as default};
+exposed under `,e.jsx(t.code,{children:"widget.outputs.<name>"}),"."]})]})}function d(n={}){const{wrapper:t}=n.components||{};return t?e.jsx(t,{...n,children:e.jsx(i,{...n})}):i(n)}function c(n,t){throw new Error("Expected component `"+n+"` to be defined: you likely forgot to import, pass, or provide it.")}const u=()=>e.jsx(o,{Content:d,meta:r});export{u as default};

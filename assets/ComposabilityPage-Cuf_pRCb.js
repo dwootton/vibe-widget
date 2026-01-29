@@ -1,6 +1,7 @@
-import{j as e}from"./index-BJAQU8i5.js";import{D as a}from"./DocMdxPage-2ZJ1a4cL.js";import"./DocContent-geJ24Wp2.js";const s={title:"Load & Save",description:"Persist widgets to disk and reload them later."};function t(d){const n={code:"code",h2:"h2",p:"p",pre:"pre",...d.components};return e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:`Widgets can be saved to disk as portable bundles and reloaded later. This is useful for sharing,
+import{j as e}from"./index-CryjOFqx.js";import{D as o}from"./DocMdxPage-PotaL-Qx.js";import"./DocContent-3chbFH74.js";const r={title:"Load & Save",description:"Persist widgets to disk and reload them later."};function i(t){const n={code:"code",h2:"h2",p:"p",pre:"pre",...t.components},{WidgetPreview:d}=n;return d||a("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:`Widgets can be saved to disk as portable bundles and reloaded later. This is useful for sharing,
 versioning, and avoiding re-generation.`}),`
 `,e.jsx(n.h2,{children:"Save a widget"}),`
+`,e.jsx(d,{src:"/widgets/scatter_brush.js",height:380}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`widget = vw.create("scatter plot with brush selection", df)
 widget.save("my_widget.vw")
 `})}),`
@@ -22,4 +23,4 @@ loaded
 `,e.jsx(n.code,{children:"include_inputs=True"}),", input values are embedded in the bundle for reproducible reloads."]}),`
 `,e.jsx(n.h2,{children:"Security notes"}),`
 `,e.jsxs(n.p,{children:["Loaded widgets can execute JavaScript in the notebook frontend. Keep ",e.jsx(n.code,{children:"approval=True"}),` for untrusted
-files and review code before running.`]})]})}function i(d={}){const{wrapper:n}=d.components||{};return n?e.jsx(n,{...d,children:e.jsx(t,{...d})}):t(d)}const c=()=>e.jsx(a,{Content:i,meta:s});export{c as default};
+files and review code before running.`]})]})}function s(t={}){const{wrapper:n}=t.components||{};return n?e.jsx(n,{...t,children:e.jsx(i,{...t})}):i(t)}function a(t,n){throw new Error("Expected component `"+t+"` to be defined: you likely forgot to import, pass, or provide it.")}const p=()=>e.jsx(o,{Content:s,meta:r});export{p as default};

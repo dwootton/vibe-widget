@@ -1,5 +1,5 @@
-import{j as e}from"./index-BJAQU8i5.js";import{D as o}from"./DocMdxPage-2ZJ1a4cL.js";import"./DocContent-geJ24Wp2.js";const i={title:"Installation",description:"Get up and running with Vibe Widget in seconds."};function r(s){const n={a:"a",code:"code",h2:"h2",p:"p",pre:"pre",...s.components},{InstallCommand:t}=n;return t||a("InstallCommand"),e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Get up and running with Vibe Widget in seconds."}),`
-`,e.jsx(t,{command:"pip install vibe-widget"}),`
+import{j as e}from"./index-CryjOFqx.js";import{D as d}from"./DocMdxPage-PotaL-Qx.js";import"./DocContent-3chbFH74.js";const a={title:"Installation",description:"Get up and running with Vibe Widget in seconds."};function i(s){const n={a:"a",code:"code",h2:"h2",p:"p",pre:"pre",...s.components},{InstallCommand:r,WidgetPreview:t}=n;return r||o("InstallCommand"),t||o("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Get up and running with Vibe Widget in seconds."}),`
+`,e.jsx(r,{command:"pip install vibe-widget"}),`
 `,e.jsx(n.p,{children:"Vibe Widget requires Python 3.9+ and an OpenRouter API key."}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-bash",children:`export OPENROUTER_API_KEY='your-key'
 `})}),`
@@ -16,6 +16,7 @@ export OPENROUTER_API_KEY="your-key"
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-powershell",children:`# Windows PowerShell (temporary for current session)
 $env:OPENROUTER_API_KEY="your-key"
 `})}),`
+`,e.jsx(t,{src:"/widgets/bar_chart_revenue.js",height:380}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`import pandas as pd
 import vibe_widget as vw
 
@@ -26,6 +27,7 @@ widget
 `,e.jsxs(n.p,{children:["If you want the key to persist across sessions, add the ",e.jsx(n.code,{children:"export"}),` line to your shell profile
 (for example `,e.jsx(n.code,{children:"~/.zshrc"})," or ",e.jsx(n.code,{children:"~/.bashrc"}),")."]}),`
 `,e.jsx(n.h2,{children:"Quick start"}),`
+`,e.jsx(t,{src:"/widgets/scatter_brush_linked.js",height:340}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`import pandas as pd
 import vibe_widget as vw
 
@@ -38,4 +40,4 @@ widget = vw.create(
 )
 
 widget
-`})})]})}function d(s={}){const{wrapper:n}=s.components||{};return n?e.jsx(n,{...s,children:e.jsx(r,{...s})}):r(s)}function a(s,n){throw new Error("Expected component `"+s+"` to be defined: you likely forgot to import, pass, or provide it.")}const h=()=>e.jsx(o,{Content:d,meta:i});export{h as default};
+`})})]})}function c(s={}){const{wrapper:n}=s.components||{};return n?e.jsx(n,{...s,children:e.jsx(i,{...s})}):i(s)}function o(s,n){throw new Error("Expected component `"+s+"` to be defined: you likely forgot to import, pass, or provide it.")}const u=()=>e.jsx(d,{Content:c,meta:a});export{u as default};
