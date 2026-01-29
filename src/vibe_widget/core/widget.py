@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import json
 import inspect
 import sys
+import threading
 import time
 import os
 
@@ -632,6 +633,21 @@ class VibeWidget(anywidget.AnyWidget):
             )
             if self.frontend_ready:
                 self._start_generation(description, inputs_for_prompt)
+            else:
+                # Fallback: if frontend_ready never arrives (e.g. Colab comm
+                # sync issues), start generation after a short delay.
+                def _frontend_ready_fallback():
+                    time.sleep(3)
+                    pending = getattr(self, "_pending_generation", None)
+                    if pending is not None:
+                        self._pending_generation = None
+                        self._append_log("Frontend ready timeout — starting generation")
+                        self._start_generation(*pending)
+
+                fallback = threading.Thread(
+                    target=_frontend_ready_fallback, daemon=True
+                )
+                fallback.start()
             return
             
         except Exception as e:
