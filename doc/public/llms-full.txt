@@ -14,13 +14,8 @@ Pages:
 - /docs/edit: Edit - Iterate on generated widgets using code or the UI.
 - /docs/audit: Audit - Review widget code and behavior for risks, usability issues, and design gaps.
 - /docs/reactivity: Reactivity - Connect widgets with reactive inputs and outputs.
-- /docs/data-sources: Data Sources - Supported inputs and loaders.
-- /docs/composability: Composability - Compose widgets using components and outputs.
+- /docs/composability: Load & Save - Persist widgets to disk and reload them later.
 - /docs/theming: Theming - Style widgets with natural-language design specs.
-- /docs/examples/cross-widget: Cross-Widget Interactions - Interactive notebook example for cross-widget state sharing.
-- /docs/examples/tictactoe: Tic-Tac-Toe AI - Interactive notebook example for game logic and UI.
-- /docs/examples/pdf-web: PDF & Web Data Extraction - Interactive notebook example for scraping and parsing.
-- /docs/examples/edit: Widget Editing - Interactive notebook example for editing workflows.
 - /docs/widgetarium: Widgetarium - The ecosystem of widgets and templates.
 
 Docs export:

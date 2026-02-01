@@ -15,10 +15,7 @@ Security model:
 - Widgets execute LLM-generated JavaScript in the notebook frontend. Treat outputs as untrusted and verify results with audits and your own checks.
 
 Examples:
-- /docs/examples/cross-widget
-- /docs/examples/tictactoe
-- /docs/examples/pdf-web
-- /docs/examples/edit
+- /gallery
 
 Docs export:
 - /docs.txt
