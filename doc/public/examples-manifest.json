@@ -1,0 +1,30 @@
+{
+  "$schema": "./examples-manifest.schema.json",
+  "version": "1.0",
+  "generated": true,
+  "examples": [
+    {
+      "id": "mnist-widget",
+      "label": "MNIST Widget",
+      "prompt": "Create a MNIST digit recognition widget with two-column layout:\n    LEFT SIDE is a Drawing Canvas:\n    - 28x28 drawing canvas scaled to 280x280px for visibility\n    - Mouse drag to draw with thick brush (3px)\n    - Clear and submit button\n    \n    RIGHT SIDE is a Prediction Display:\n    - Large predicted digit display (e.g., \"Predicted: 7\")\n    - Confidence percentage\n    - Horizontal bar chart showing all 10 digit probabilities (0-9)\n    - Highlight predicted digit's bar with percentage labels\n    \n    ",
+      "description": "Create a MNIST digit recognition widget with two-column layout:\n    LEFT SIDE is a Drawing Canvas:\n    - 28x28 drawing canvas scaled to 280x280px for visibility\n    - Mouse drag to draw with thick brush (3px)\n    - Clear and submit button\n    \n    RIGHT SIDE is a Prediction Display:\n    - Large predicted digit display (e.g., \"Predicted: 7\")\n    - Confidence percentage\n    - Horizontal bar chart showing all 10 digit probabilities (0-9)\n    - Highlight predicted digit's bar with percentage labels\n    \n    ",
+      "vwUrl": "/widgets/mnist_widget.vw",
+      "categories": [
+        "Featured",
+        "Data Viz"
+      ],
+      "size": "medium",
+      "gifUrl": "",
+      "outputs": {
+        "image_data": "array of 784 numbers (0-255) representing 28x28 grayscale image",
+        "submit_count": "integer counter incremented on each submit"
+      },
+      "inputs": {
+        "prediction_result": "<input>"
+      },
+      "hasEmbeddedData": false,
+      "dataUrl": "",
+      "dataType": "csv"
+    }
+  ]
+}

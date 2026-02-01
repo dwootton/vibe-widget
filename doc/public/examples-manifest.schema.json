@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Vibe Widget Gallery Examples Manifest",
+  "description": "Schema for examples-manifest.json used by the documentation site",
+  "type": "object",
+  "required": ["version", "examples"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string",
+      "description": "Manifest schema version"
+    },
+    "generated": {
+      "type": "boolean",
+      "description": "Whether this manifest was auto-generated"
+    },
+    "examples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "vwUrl", "categories"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the example (used in URLs)"
+          },
+          "label": {
+            "type": "string",
+            "description": "Display title for gallery card"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "The natural language prompt used to create the widget"
+          },
+          "description": {
+            "type": "string",
+            "description": "Longer description for gallery detail view"
+          },
+          "vwUrl": {
+            "type": "string",
+            "description": "Path to .vw bundle file (relative to public folder)"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["Featured", "Data Visualization", "Reactive", "3D"]
+            },
+            "description": "Categories for filtering in gallery"
+          },
+          "size": {
+            "type": "string",
+            "enum": ["small", "medium", "large"],
+            "default": "medium",
+            "description": "Card size in gallery grid"
+          },
+          "gifUrl": {
+            "type": "string",
+            "description": "Optional preview GIF URL"
+          },
+          "dataUrl": {
+            "type": "string",
+            "description": "External data file URL (if not embedded in .vw)"
+          },
+          "dataType": {
+            "type": "string",
+            "enum": ["csv", "json"],
+            "default": "csv",
+            "description": "Data file type"
+          },
+          "hasEmbeddedData": {
+            "type": "boolean",
+            "description": "Whether data is embedded in .vw bundle"
+          },
+          "outputs": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "Widget output traits"
+          },
+          "inputs": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "Widget input traits"
+          }
+        }
+      }
+    }
+  }
+}
