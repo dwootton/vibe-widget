@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
@@ -70,6 +71,21 @@ def clean_for_json(obj: Any) -> Any:
     return obj if isinstance(obj, (str, int, float, bool, type(None))) else str(obj)
 
 
+def _safe_json_initial_for_string(s: str) -> str:
+    """
+    If the string contains '{' but is not valid JSON, return '{}'.
+    This avoids JSON.parse() in generated widget code throwing when the
+    user passed a description (e.g. "result: {a, b}") as the input value.
+    """
+    if not isinstance(s, str) or "{" not in s:
+        return s
+    try:
+        json.loads(s)
+        return s
+    except (json.JSONDecodeError, TypeError):
+        return "{}"
+
+
 def prepare_input_for_widget(
     value: Any,
     *,
@@ -82,7 +98,10 @@ def prepare_input_for_widget(
     if is_pandas and pandas_type == "DataFrame":
         return clean_for_json(value.to_dict(orient="records"))
     if isinstance(value, (str, Path)):
-        return clean_for_json(value)
+        cleaned = clean_for_json(value)
+        if isinstance(cleaned, str):
+            cleaned = _safe_json_initial_for_string(cleaned)
+        return cleaned
     return clean_for_json(value)
 
 
