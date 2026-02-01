@@ -17,7 +17,7 @@ JSON index structure (v3):
         "scatter_plot": [  # Grouped by var_name, newest-first
             {
                 "created_at": ISO timestamp,
-                "file_name": "scatter_plot_sales_data_20241229_120000_c8ea84b720.js",
+                "file_name": "XX.js",
                 "cache_key": "abc123...",  # Full hash for cache lookup
                 "description": "scatter plot of sales data",
                 "data_shape": [100, 5],
@@ -107,7 +107,7 @@ def extract_prompt_keywords(description: str, max_words: int = 3) -> list[str]:
     meaningful_words = []
     for word in words[:15]:  # Look at first 15 words
         # Keep visualization keywords and skip common words
-                    "created_at": ISO timestamp,
+        if word in VIZ_KEYWORDS or (word not in SKIP_WORDS and len(word) > 2):
             meaningful_words.append(word)
 
         # Stop after collecting enough words
