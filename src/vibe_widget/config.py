@@ -4,7 +4,7 @@ Simplified configuration management for Vibe Widget.
 
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Literal
+from typing import Any, Dict, List, Optional, Literal, Union
 from pathlib import Path
 import json
 import time
@@ -22,8 +22,8 @@ MODELS_MANIFEST = _load_models_manifest()
 
 DEFAULT_MODEL = "google/gemini-3-flash-preview"
 
-_OPENROUTER_MODELS_CACHE: dict[str, Any] | None = None
-_OPENROUTER_MODELS_CACHE_TS: float | None = None
+_OPENROUTER_MODELS_CACHE: Optional[dict[str, Any]] = None
+_OPENROUTER_MODELS_CACHE_TS: Optional[float] = None
 
 
 class ModelsCatalog(dict):
@@ -55,7 +55,7 @@ def _fetch_openrouter_models(
     refresh: bool = True,
     cache_ttl_seconds: int = 3600,
     timeout_seconds: int = 10,
-) -> list[str] | None:
+) -> Optional[list[str]]:
     """Fetch the latest OpenRouter model IDs (best-effort)."""
     global _OPENROUTER_MODELS_CACHE, _OPENROUTER_MODELS_CACHE_TS
 
@@ -141,7 +141,7 @@ class Config:
     execution: str = "auto"  # "auto" or "approve"
     retry: int = 2  # Runtime repair attempts before blocking
     agent_preset: str = "project"
-    agent_run: dict[str, Any] | None = None
+    agent_run: Optional[dict[str, Any]] = None
     bypass_row_guard: bool = False
 
     def __repr__(self) -> str:  # pragma: no cover
@@ -290,8 +290,8 @@ def config(
     execution: str = None,
     retry: int = None,
     agent_preset: str = None,
-    agent_run: dict[str, Any] | None = None,
-    bypass_row_guard: bool | None = None,
+    agent_run: Optional[dict[str, Any]] = None,
+    bypass_row_guard: Optional[bool] = None,
     **kwargs
 ) -> Config:
     """

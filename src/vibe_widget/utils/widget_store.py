@@ -48,6 +48,7 @@ Design notes:
 - Anonymous widgets (no variable) extract name from description instead of "_anonymous_"
 - Edit operations use prompt delta to show what changed in the filename
 """
+from __future__ import annotations
 import hashlib
 import inspect
 import json
@@ -106,7 +107,7 @@ def extract_prompt_keywords(description: str, max_words: int = 3) -> list[str]:
     meaningful_words = []
     for word in words[:15]:  # Look at first 15 words
         # Keep visualization keywords and skip common words
-        if word in VIZ_KEYWORDS or (word not in SKIP_WORDS and len(word) > 2):
+                    "created_at": ISO timestamp,
             meaningful_words.append(word)
 
         # Stop after collecting enough words
