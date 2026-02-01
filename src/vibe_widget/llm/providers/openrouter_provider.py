@@ -1,7 +1,7 @@
 """OpenRouter provider implementation (OpenAI-compatible client)."""
 
 import os
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from openai import OpenAI
 
@@ -16,9 +16,9 @@ class OpenRouterProvider(LLMProvider):
     def __init__(
         self,
         model: str,
-        api_key: str | None = None,
-        site_url: str | None = None,
-        app_title: str | None = None,
+        api_key: Optional[str] = None,
+        site_url: Optional[str] = None,
+        app_title: Optional[str] = None,
     ):
         """
         Initialize OpenRouter provider.
@@ -53,7 +53,7 @@ class OpenRouterProvider(LLMProvider):
         self,
         description: str,
         data_info: dict[str, Any],
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Generate widget code using the configured OpenRouter model."""
         prompt = self._build_prompt(description, data_info)
@@ -82,9 +82,9 @@ class OpenRouterProvider(LLMProvider):
         current_code: str,
         revision_description: str,
         data_info: dict[str, Any],
-        base_code: str | None = None,
-        base_components: list[str] | None = None,
-        progress_callback: Callable[[str], None] | None = None,
+        base_code: Optional[str] = None,
+        base_components: Optional[list[str]] = None,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Revise existing widget code."""
         prompt = self._build_revision_prompt(
@@ -132,7 +132,7 @@ class OpenRouterProvider(LLMProvider):
         description: str,
         data_info: dict[str, Any],
         level: str,
-        changed_lines: list[int] | None = None,
+        changed_lines: Optional[list[int]] = None,
     ) -> str:
         """Generate an audit report for widget code."""
         prompt = self._build_audit_prompt(
@@ -153,7 +153,7 @@ class OpenRouterProvider(LLMProvider):
     def generate_text(
         self,
         prompt: str,
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Generate plain text from a prompt."""
         completion_params = {
@@ -186,7 +186,7 @@ class OpenRouterProvider(LLMProvider):
         self,
         description: str,
         data_info: dict[str, Any],
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Retry with a shorter prompt if context length exceeded."""
         reduced_info = data_info.copy()

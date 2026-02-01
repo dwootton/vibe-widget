@@ -94,3 +94,7 @@ src/vibe_widget/frontend/node_modules/.package-lock.json
 
 AGENTS.md
 logs.txt
+
+
+.claude/
+*.log

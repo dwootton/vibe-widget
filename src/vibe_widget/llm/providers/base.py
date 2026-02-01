@@ -1,7 +1,7 @@
 """Base class for LLM providers."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable
+from typing import Any, Callable, Optional, Union
 import re
 
 
@@ -17,7 +17,7 @@ class LLMProvider(ABC):
         self,
         description: str,
         data_info: dict[str, Any],
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Generate widget code from description and data info.
         
@@ -37,9 +37,9 @@ class LLMProvider(ABC):
         current_code: str,
         revision_description: str,
         data_info: dict[str, Any],
-        base_code: str | None = None,
-        base_components: list[str] | None = None,
-        progress_callback: Callable[[str], None] | None = None,
+        base_code: Optional[str] = None,
+        base_components: Optional[list[str]] = None,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Revise existing widget code based on a revision description.
         
@@ -82,7 +82,7 @@ class LLMProvider(ABC):
         description: str,
         data_info: dict[str, Any],
         level: str,
-        changed_lines: list[int] | None = None,
+        changed_lines: Optional[list[int]] = None,
     ) -> str:
         """Generate an audit report for widget code."""
         pass
@@ -91,7 +91,7 @@ class LLMProvider(ABC):
     def generate_text(
         self,
         prompt: str,
-        progress_callback: Callable[[str], None] | None = None,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Generate plain text from a prompt."""
         pass
@@ -100,8 +100,8 @@ class LLMProvider(ABC):
         self,
         description: str,
         data_info: dict[str, Any],
-        base_code: str | None = None,
-        base_components: list[str] | None = None,
+        base_code: Optional[str] = None,
+        base_components: Optional[list[str]] = None,
     ) -> str:
         """Build the prompt for code generation.
         
@@ -285,8 +285,8 @@ Begin the response with code immediately."""
         current_code: str,
         revision_description: str,
         data_info: dict[str, Any],
-        base_code: str | None = None,
-        base_components: list[str] | None = None,
+        base_code: Optional[str] = None,
+        base_components: Optional[list[str]] = None,
     ) -> str:
         """Build the prompt for code revision.
         
@@ -445,7 +445,7 @@ Return ONLY the corrected JavaScript code."""
         description: str,
         data_info: dict[str, Any],
         level: str,
-        changed_lines: list[int] | None = None,
+        changed_lines: Optional[list[int]] = None,
     ) -> str:
         """Build prompt for audit generation."""
         outputs = data_info.get("outputs", {})
@@ -581,7 +581,7 @@ CODE WITH LINE NUMBERS:
         outputs: dict,
         inputs: dict,
         actions: dict,
-        action_params: dict | None,
+        action_params: Optional[dict],
     ) -> str:
         """Build the outputs/inputs/actions section of the prompt."""
         if not outputs and not inputs and not actions:
@@ -704,11 +704,11 @@ Focus on modifying only what's necessary for the requested changes.
     @staticmethod
     def build_data_info(
         *,
-        outputs: dict[str, str] | None = None,
-        inputs: dict[str, str] | None = None,
-        actions: dict[str, str] | None = None,
-        action_params: dict[str, dict[str, str] | None] | None = None,
-        theme_description: str | None = None,
+        outputs: Optional[dict[str, str]] = None,
+        inputs: Optional[dict[str, str]] = None,
+        actions: Optional[dict[str, str]] = None,
+        action_params: Optional[dict[str, Optional[dict[str, str]]]] = None,
+        theme_description: Optional[str] = None,
     ) -> dict[str, Any]:
         """Build data info dictionary from summarized inputs."""
         outputs = outputs or {}

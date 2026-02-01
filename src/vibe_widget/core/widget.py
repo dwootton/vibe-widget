@@ -2,6 +2,7 @@
 Core VibeWidget implementation.
 Clean, robust widget generation without legacy profile logic.
 """
+from __future__ import annotations
 from pathlib import Path
 from typing import Any, Union, TYPE_CHECKING
 from datetime import datetime, timezone

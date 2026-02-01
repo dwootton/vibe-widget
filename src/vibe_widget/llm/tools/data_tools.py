@@ -1,4 +1,5 @@
 """Data-related tools for loading and profiling data."""
+from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
 from vibe_widget.llm.tools.base import Tool, ToolResult
