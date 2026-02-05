@@ -401,14 +401,10 @@ class VibeWidget(anywidget.AnyWidget):
 
         app_wrapper_dir = Path(__file__).resolve().parents[1]
         default_bundle = app_wrapper_dir / "AppWrapper.bundle.js"
-        vscode_bundle = app_wrapper_dir / "AppWrapper" / "AppWrapper.vscode.bundle.js"
         legacy_bundle = app_wrapper_dir / "app_wrapper.js"
 
         bundle_path = default_bundle
-        # VS Code webview/AMD cannot resolve bare React specifiers; use the full bundle there.
-        if os.getenv("VSCODE_PID") and vscode_bundle.exists():
-            bundle_path = vscode_bundle
-        elif not default_bundle.exists() and legacy_bundle.exists():
+        if not default_bundle.exists() and legacy_bundle.exists():
             bundle_path = legacy_bundle
 
         self._esm = bundle_path.read_text()
