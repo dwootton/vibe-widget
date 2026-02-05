@@ -1,4 +1,4 @@
-import{j as e}from"./index-CryjOFqx.js";import{D as o}from"./DocMdxPage-PotaL-Qx.js";import"./DocContent-3chbFH74.js";const r={title:"Load & Save",description:"Persist widgets to disk and reload them later."};function i(t){const n={code:"code",h2:"h2",p:"p",pre:"pre",...t.components},{WidgetPreview:d}=n;return d||a("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:`Widgets can be saved to disk as portable bundles and reloaded later. This is useful for sharing,
+import{j as e}from"./index-CHIWwMwg.js";import{D as o}from"./DocMdxPage-D_ZhWgKN.js";import"./DocContent-7XeB-9Bn.js";const r={title:"Load & Save",description:"Persist widgets to disk and reload them later."};function i(t){const n={code:"code",h2:"h2",p:"p",pre:"pre",...t.components},{WidgetPreview:d}=n;return d||a("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:`Widgets can be saved to disk as portable bundles and reloaded later. This is useful for sharing,
 versioning, and avoiding re-generation.`}),`
 `,e.jsx(n.h2,{children:"Save a widget"}),`
 `,e.jsx(d,{src:"/widgets/scatter_brush.js",height:380}),`

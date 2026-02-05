@@ -1,4 +1,4 @@
-import{j as e}from"./index-CryjOFqx.js";import{D as r}from"./DocMdxPage-PotaL-Qx.js";import"./DocContent-3chbFH74.js";const a={title:"Theming",description:"Style widgets with natural-language design specs."};function i(t){const n={code:"code",h2:"h2",p:"p",pre:"pre",...t.components},{WidgetPreview:s}=n;return s||c("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Themes are natural-language design specs that guide code generation."}),`
+import{j as e}from"./index-CHIWwMwg.js";import{D as r}from"./DocMdxPage-D_ZhWgKN.js";import"./DocContent-7XeB-9Bn.js";const a={title:"Theming",description:"Style widgets with natural-language design specs."};function i(t){const n={code:"code",h2:"h2",p:"p",pre:"pre",...t.components},{WidgetPreview:s}=n;return s||c("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Themes are natural-language design specs that guide code generation."}),`
 `,e.jsx(n.h2,{children:"List available themes"}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`import vibe_widget as vw
 

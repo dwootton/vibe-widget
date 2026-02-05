@@ -1,4 +1,4 @@
-import{j as e}from"./index-CryjOFqx.js";import{D as o}from"./DocMdxPage-PotaL-Qx.js";import"./DocContent-3chbFH74.js";const s={title:"Create",description:"Create widgets from natural language prompts and data sources."};function a(t){const n={a:"a",code:"code",h2:"h2",p:"p",pre:"pre",...t.components},{WidgetPreview:r}=n;return r||d("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Create widgets from natural language prompts and data sources."}),`
+import{j as e}from"./index-CHIWwMwg.js";import{D as o}from"./DocMdxPage-D_ZhWgKN.js";import"./DocContent-7XeB-9Bn.js";const s={title:"Create",description:"Create widgets from natural language prompts and data sources."};function a(t){const n={a:"a",code:"code",h2:"h2",p:"p",pre:"pre",...t.components},{WidgetPreview:r}=n;return r||d("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(n.p,{children:"Create widgets from natural language prompts and data sources."}),`
 `,e.jsx(r,{src:"/widgets/bar_chart_revenue.js",height:380}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`import vibe_widget as vw
 
