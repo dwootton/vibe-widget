@@ -15,6 +15,7 @@ const Navbar = () => {
   const navLinks = [
     { label: 'Docs', href: '/docs', prefix: '01.' },
     { label: 'Gallery', href: '/gallery', prefix: '02.' },
+    { label: 'Playground', href: '/playground', prefix: '03.' },
   ];
 
   return (

@@ -38,7 +38,7 @@ class BundleService:
         self._root.mkdir(parents=True, exist_ok=True)
         self._packages_dir.mkdir(parents=True, exist_ok=True)
         self._node_path = self._resolve_node_modules()
-        self._bundle_rev = "v10-auto-react-import"
+        self._bundle_rev = "v11-import-map-external-react"
 
     def _resolve_node_modules(self) -> str | None:
         repo_root = Path(__file__).resolve().parents[3]
@@ -82,11 +82,6 @@ class BundleService:
         with tempfile.TemporaryDirectory(prefix="vibe-bundle-") as tmpdir:
             tmp_path = Path(tmpdir)
             entry_path = tmp_path / "entry.jsx"
-            shim_path = tmp_path / "react-shim.js"
-            dom_shim_path = tmp_path / "react-dom-shim.js"
-            dom_client_shim_path = tmp_path / "react-dom-client-shim.js"
-            scheduler_shim_path = tmp_path / "scheduler-shim.js"
-            react_is_shim_path = tmp_path / "react-is-shim.js"
             build_path = tmp_path / "bundle.cjs"
             out_path = tmp_path / "bundle.js"
 
@@ -96,17 +91,15 @@ class BundleService:
             if not _has_react_import(source):
                 entry_source = "import React from 'react';\n" + source
             entry_path.write_text(entry_source, encoding="utf-8")
-            shim_path.write_text(_load_bundler_asset("react-shim.js"), encoding="utf-8")
-            dom_shim_path.write_text(_load_bundler_asset("react-dom-shim.js"), encoding="utf-8")
-            dom_client_shim_path.write_text(_load_bundler_asset("react-dom-client-shim.js"), encoding="utf-8")
-            scheduler_shim_path.write_text(_load_bundler_asset("scheduler-shim.js"), encoding="utf-8")
-            react_is_shim_path.write_text(_load_bundler_asset("react-is-shim.js"), encoding="utf-8")
             build_path.write_text(_load_bundler_asset("build.cjs"), encoding="utf-8")
 
             env = os.environ.copy()
             if self._node_path:
                 env["NODE_PATH"] = self._node_path
             env["VIBE_PKG_DIR"] = str(self._packages_dir)
+            # VS Code notebooks lack import-map support; include React in the bundle there.
+            if os.getenv("VSCODE_PID"):
+                env["VIBE_INCLUDE_REACT"] = "1"
 
             result = subprocess.run(
                 ["node", str(build_path), str(entry_path), str(out_path)],

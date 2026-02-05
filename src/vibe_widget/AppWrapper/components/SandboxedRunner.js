@@ -5,91 +5,12 @@ import * as Babel from "@babel/standalone";
 import { appendWidgetLogs } from "../actions/modelActions";
 import { captureRuntimeError } from "../utils/runtimeError";
 import { debugLog } from "../utils/debug";
-
-const FORBIDDEN_REACT_IMPORT =
-  /from\s+["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?|preact(?:\/compat)?|preact\/hooks)["']|require\(\s*["'](?:react(?:\/jsx-runtime)?|react-dom(?:\/client)?|preact(?:\/compat)?|preact\/hooks)["']\s*\)/;
-
-const REACT_PACKAGE_NAMES = new Set([
-  "react",
-  "react-dom",
-  "react/jsx-runtime",
-  "react/jsx-dev-runtime",
-  "react-dom/client",
-  "react-dom/server",
-  "preact",
-  "preact/compat",
-  "preact/hooks",
-  "preact/jsx-runtime",
-  "scheduler",
-  "scheduler/tracing",
-  "react-is",
-]);
-
-// Match React packages in URL paths, ensuring we don't match react-window, react-query, etc.
-// Matches: /react, /react@18.0.0, /react/jsx-runtime, /v135/react@18.0.0/...
-// Does NOT match: /react-window, /react-query, /@tanstack/react-virtual
-const REACT_URL_PATH_PATTERN = /(?:^|\/)(react|react-dom|preact|scheduler|react-is)(?:@[\d.]+)?(?:\/|$)/i;
-
-function extractImportSpecifiers(source) {
-  if (!source) return [];
-  const specs = [];
-  const importRe = /from\s+["']([^"']+)["']/g;
-  const requireRe = /require\(\s*["']([^"']+)["']\s*\)/g;
-  let match = importRe.exec(source);
-  while (match) {
-    specs.push(match[1]);
-    match = importRe.exec(source);
-  }
-  match = requireRe.exec(source);
-  while (match) {
-    specs.push(match[1]);
-    match = requireRe.exec(source);
-  }
-  return specs;
-}
-
-function isBundledSource(source) {
-  if (!source) return false;
-  const trimmed = source.trimStart();
-  return trimmed.startsWith("/*__VIBE_BUNDLED__*/");
-}
-
-function isReactImportForbidden(source) {
-  if (!source) return false;
-  if (FORBIDDEN_REACT_IMPORT.test(source)) return true;
-  const specs = extractImportSpecifiers(source);
-  for (const spec of specs) {
-    if (!spec) continue;
-    const normalized = spec.trim();
-    if (REACT_PACKAGE_NAMES.has(normalized)) {
-      return true;
-    }
-    if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
-      try {
-        const parsed = new URL(normalized);
-        if (REACT_URL_PATH_PATTERN.test(parsed.pathname)) {
-          return true;
-        }
-      } catch (err) {
-        // ignore malformed URL
-      }
-    }
-  }
-  return false;
-}
-
-// Expose a stable React runtime for transformed widgets.
-// Use the full namespace import (React) which includes all hooks.
-if (typeof globalThis !== "undefined") {
-  globalThis.__VIBE_REACT = React;
-  globalThis.__VIBE_REACT_DOM = {
-    createRoot,
-    flushSync
-  };
-  globalThis.__VIBE_REACT_DOM_CLIENT = {
-    createRoot
-  };
-}
+import {
+  isBundledSource,
+  REACT_PACKAGE_NAMES,
+  REACT_URL_PATH_PATTERN,
+} from "../utils/codeTransform";
+import { ES_MODULE_SHIMS_SOURCE } from "../vendor/esModuleShims";
 
 let sandboxInstanceCounter = 0;
 
@@ -104,6 +25,119 @@ function SandboxedRunner({ code, model, runKey }) {
   const lastRuntimeEventRef = React.useRef("");
   const remoteCallIdRef = React.useRef(0);
   const remoteCallPendingRef = React.useRef(new Map());
+
+  const ensureImportShim = React.useCallback(async () => {
+    // Must be set before es-module-shims loads so it activates shim mode
+    // (polyfill mode disables addImportMap which we need).
+    self.esmsInitOptions = { shimMode: true, mapOverrides: true };
+
+    // If importShim already exists, verify it's in shim mode by testing addImportMap.
+    // A stale polyfill-mode instance (from a previous load without shimMode) must be replaced.
+    if (typeof globalThis !== "undefined" && typeof globalThis.importShim === "function") {
+      try {
+        globalThis.importShim.addImportMap({ imports: {} });
+        return;
+      } catch (_) {
+        // Polyfill mode — remove stale script and reimport below.
+        const stale = document.querySelector('script[data-vibe-import-shim="1"]');
+        if (stale) stale.remove();
+        delete globalThis.importShim;
+      }
+    }
+    await new Promise((resolve, reject) => {
+      const shimInit = "self.esmsInitOptions={shimMode:true,mapOverrides:true};\n";
+      const blob = new Blob([shimInit, ES_MODULE_SHIMS_SOURCE], { type: "application/javascript" });
+      const url = URL.createObjectURL(blob);
+      const script = document.createElement("script");
+      script.type = "application/javascript";
+      script.async = true;
+      script.setAttribute("data-vibe-import-shim", "1");
+      script.src = url;
+      script.onload = () => { URL.revokeObjectURL(url); resolve(); };
+      script.onerror = () => { URL.revokeObjectURL(url); reject(new Error("es-module-shims failed to load")); };
+      document.head.appendChild(script);
+    });
+  }, []);
+
+  const installReactImportMap = React.useCallback(async () => {
+    await ensureImportShim();
+
+    // The blob modules read from globalThis.ReactProvided (always current),
+    // so the import map only needs to be registered once per page.
+    const existing = globalThis.importShim.getImportMap?.();
+    if (existing?.imports?.react) {
+      return;
+    }
+
+    const reactModule = `
+const React = globalThis.ReactProvided || globalThis.React;
+if (!React) { throw new Error("ReactProvided missing"); }
+export default React;
+export const Children = React.Children;
+export const Component = React.Component;
+export const Fragment = React.Fragment;
+export const Profiler = React.Profiler;
+export const PureComponent = React.PureComponent;
+export const StrictMode = React.StrictMode;
+export const Suspense = React.Suspense;
+export const createElement = React.createElement;
+export const cloneElement = React.cloneElement;
+export const createRef = React.createRef;
+export const createContext = React.createContext;
+export const forwardRef = React.forwardRef;
+export const lazy = React.lazy;
+export const memo = React.memo;
+export const startTransition = React.startTransition;
+export const use = React.use;
+export const useCallback = React.useCallback;
+export const useContext = React.useContext;
+export const useDebugValue = React.useDebugValue;
+export const useDeferredValue = React.useDeferredValue;
+export const useEffect = React.useEffect;
+export const useId = React.useId;
+export const useImperativeHandle = React.useImperativeHandle;
+export const useInsertionEffect = React.useInsertionEffect;
+export const useLayoutEffect = React.useLayoutEffect;
+export const useMemo = React.useMemo;
+export const useReducer = React.useReducer;
+export const useRef = React.useRef;
+export const useState = React.useState;
+export const useSyncExternalStore = React.useSyncExternalStore;
+export const useTransition = React.useTransition;
+export const version = React.version;
+export const jsx = React.jsx || React.createElement;
+export const jsxs = React.jsxs || React.createElement;
+export const jsxDEV = React.jsxDEV || React.createElement;
+`;
+
+    const reactDomModule = `
+const ReactDOM = globalThis.ReactDOMProvided;
+if (!ReactDOM) { throw new Error("ReactDOMProvided missing"); }
+export const createRoot = ReactDOM.createRoot;
+export const flushSync = ReactDOM.flushSync;
+export default ReactDOM;
+`;
+
+    const reactDomClientModule = `
+const ReactDOMClient = globalThis.ReactDOMClientProvided || globalThis.ReactDOMProvided;
+if (!ReactDOMClient) { throw new Error("ReactDOMClientProvided missing"); }
+export const createRoot = ReactDOMClient.createRoot;
+export default ReactDOMClient;
+`;
+    const reactUrl = URL.createObjectURL(new Blob([reactModule], { type: "text/javascript" }));
+    const reactDomUrl = URL.createObjectURL(new Blob([reactDomModule], { type: "text/javascript" }));
+    const reactDomClientUrl = URL.createObjectURL(new Blob([reactDomClientModule], { type: "text/javascript" }));
+
+    const imports = {
+      react: reactUrl,
+      "react/jsx-runtime": reactUrl,
+      "react/jsx-dev-runtime": reactUrl,
+      "react-dom": reactDomUrl,
+      "react-dom/client": reactDomClientUrl,
+    };
+
+    await globalThis.importShim.addImportMap({ imports });
+  }, [ensureImportShim]);
 
   const flushLogs = React.useCallback(() => {
     if (!logQueueRef.current.length) return;
@@ -413,16 +447,63 @@ function SandboxedRunner({ code, model, runKey }) {
     trackDisposer(() => window.removeEventListener("error", handleWindowError));
     trackDisposer(() => window.removeEventListener("unhandledrejection", handleWindowError));
 
+    const addExternalParams = (raw) => {
+      if (!raw) return raw;
+      const ensureList = ["react", "react-dom", "react/jsx-runtime", "react-dom/client"];
+      return raw.replace(/(['"])(https:\/\/esm\.sh\/[^'"]+)\1/g, (match, quote, url) => {
+        try {
+          const u = new URL(url);
+          const existing = u.searchParams.get("external") || "";
+          const current = existing.split(",").filter(Boolean);
+          const extras = [...new Set([...current, ...ensureList])];
+          u.searchParams.set("external", extras.join(","));
+          return `${quote}${u.toString()}${quote}`;
+        } catch (err) {
+          return match;
+        }
+      });
+    };
+
+    const stripReactImports = (raw) => {
+      if (!raw) return raw;
+      const isReact = (spec) => {
+        if (!spec) return false;
+        const normalized = spec.trim();
+        if (REACT_PACKAGE_NAMES.has(normalized)) return true;
+        if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+          try {
+            const u = new URL(normalized);
+            return REACT_URL_PATH_PATTERN.test(u.pathname);
+          } catch (err) {
+            return false;
+          }
+        }
+        return false;
+      };
+      // Remove static imports/requires of React-family packages (including CDN URLs).
+      const importPattern = /^\s*import\s+(?:[^;]*from\s+)?['"]([^'"]+)['"]\s*;?\s*$/gm;
+      const requirePattern =
+        /^\s*const\s+[^=]+=\s*require\(\s*['"]([^'"]+)['"]\s*\)\s*;?\s*$/gm;
+
+      const replacer = (full, spec) => (isReact(spec) ? "" : full);
+      return raw.replace(importPattern, replacer).replace(requirePattern, replacer);
+    };
+
     const transformWidgetCode = (source) => {
       if (isBundledSource(source)) {
         return source;
       }
-      const wrapped = `const React = globalThis.__VIBE_REACT;
+      // Ensure CDN-hosted React libs reuse the host React via import map.
+      const rewiredSource = addExternalParams(stripReactImports(source));
+      const wrapped = `const React = globalThis.ReactProvided || globalThis.React;
+const ReactDOM = globalThis.ReactDOMProvided || globalThis.ReactDOM;
+const ReactDOMClient = globalThis.ReactDOMClientProvided || globalThis.ReactDOMProvided;
 const tw = globalThis.__VIBE_TW;
 const css = globalThis.__VIBE_CSS;
-${source}`;
+${rewiredSource}`;
       const result = Babel.transform(wrapped, {
         presets: [["react", { runtime: "classic", pragma: "React.createElement", pragmaFrag: "React.Fragment" }]],
+        plugins: ["syntax-top-level-await"],
         sourceType: "module",
         filename: "widget.jsx"
       });
@@ -433,16 +514,12 @@ ${source}`;
       debugLog(model, "[vibe][debug] executeCode called", { instanceId });
       try {
         setGuestWidget(null);
-        if (!isBundledSource(code) && isReactImportForbidden(code)) {
-          throw new Error(
-            "Generated code must not import React/ReactDOM/Preact. Use the host-provided React runtime instead."
-          );
-        }
+        await installReactImportMap();
         const transformed = transformWidgetCode(code);
         const blob = new Blob([transformed], { type: "text/javascript" });
         const url = URL.createObjectURL(blob);
 
-        const module = await import(url);
+        const module = await globalThis.importShim(url);
         URL.revokeObjectURL(url);
 
         if (module.default && typeof module.default === "function") {

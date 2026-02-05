@@ -399,13 +399,16 @@ class VibeWidget(anywidget.AnyWidget):
         self._widget_metadata: dict[str, Any] | None = None
         self._prompt_history = list((existing_metadata or {}).get("prompt_history") or [])
         self._data_path = data_root
-        
+
         app_wrapper_dir = Path(__file__).resolve().parents[1]
-        app_wrapper_path = app_wrapper_dir / "AppWrapper.bundle.js"
-        if not app_wrapper_path.exists():
-            # Fallback for older builds
-            app_wrapper_path = app_wrapper_dir / "app_wrapper.js"
-        self._esm = app_wrapper_path.read_text()
+        default_bundle = app_wrapper_dir / "AppWrapper.bundle.js"
+        legacy_bundle = app_wrapper_dir / "app_wrapper.js"
+
+        bundle_path = default_bundle
+        if not default_bundle.exists() and legacy_bundle.exists():
+            bundle_path = legacy_bundle
+
+        self._esm = bundle_path.read_text()
         self._editor_bundle_path = app_wrapper_dir / "AppWrapper" / "AppWrapper.editor.bundle.js"
         if not self._editor_bundle_path.exists():
             self._editor_bundle_path = app_wrapper_dir / "AppWrapper.editor.bundle.js"
