@@ -64,6 +64,87 @@ vw.config(
 )
 ```
 
+## Safety and permissions
+
+Widgets execute LLM-generated JavaScript in the notebook frontend. Treat generated code as untrusted and review it before relying on the output.
+
+### Execution mode
+
+Control whether code runs immediately or requires manual approval first.
+
+```python
+vw.config(execution="approve")   # review code before it runs
+vw.config(execution="auto")      # run immediately (default)
+```
+
+In `"approve"` mode the widget tracks a SHA-256 hash of the approved code. If the code changes (e.g. after an edit or retry), approval resets and you must re-approve before execution.
+
+### Agent presets
+
+Agent presets control which tools the LLM agent can call. There are three levels:
+
+| Preset | Permission tier | File access | Network | Use case |
+| --- | --- | --- | --- | --- |
+| `"safe"` | 0 (read-only) | Sandbox only | No | Sensitive data, minimal risk |
+| `"project"` | 1 (read-write) | Working dir + sandbox | No | General use (default) |
+| `"connected"` | 2 (full) | Working dir + sandbox | HTTPS only | Fetching remote data |
+
+```python
+# Lock down to read-only tools
+vw.config(agent_preset="safe")
+
+# Default: read-write in your project directory
+vw.config(agent_preset="project")
+
+# Allow the agent to fetch URLs (HTTPS only)
+vw.config(agent_preset="connected")
+```
+
+**Tier 0 tools** – `data.profile`, `fs.list`, `fs.read`, `fs.exists`, `fs.glob`, `state.get`, `pls.describe`
+
+**Tier 1 adds** – `data.load`, `fs.write`, `fs.mkdir`, `fs.read_base64`, `widget.set_input`, `widget.set_output`, `state.put`
+
+**Tier 2 adds** – `net.fetch` (HTTPS, mime-type validated), `python.write_module`, `python.run_module` (AST-guarded to block dangerous imports)
+
+### Row guard
+
+By default, datasets over 100,000 rows are blocked to prevent memory exhaustion.
+
+```python
+# Keep the guard (default)
+vw.config(bypass_row_guard=False)
+
+# Disable if you need large datasets
+vw.config(bypass_row_guard=True)
+```
+
+### Model modes
+
+Models are grouped into two modes:
+
+| Mode | Models | Trade-off |
+| --- | --- | --- |
+| `"standard"` | Gemini 3 Flash, Claude Haiku 4.5, GPT-5.1 Codex Mini | Fast, lower cost |
+| `"premium"` | Gemini 3 Pro, Claude Opus 4.5, GPT-5.1 Codex | Higher quality, higher cost |
+
+```python
+vw.config(mode="standard")   # default
+vw.config(mode="premium")
+```
+
+### Recommended secure configuration
+
+For sensitive data or shared environments, lock things down:
+
+```python
+vw.config(
+    execution="approve",          # require manual approval
+    agent_preset="safe",          # read-only tools, sandboxed
+    bypass_row_guard=False,       # enforce row limit
+    retry=0,                      # no automatic code repairs
+)
+```
+
 ## Privacy and telemetry
 
 Vibe Widget sends the following to the model provider:

@@ -9,6 +9,7 @@ import WidgetGallery from './components/WidgetGallery';
 import Footer from './components/Footer';
 const DocsPage = React.lazy(() => import('./pages/DocsPage'));
 const GalleryPage = React.lazy(() => import('./pages/GalleryPage'));
+const PlaygroundPage = React.lazy(() => import('./pages/PlaygroundPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
 // const Cursor = () => {
@@ -102,6 +103,7 @@ const AppContent = () => {
           <Route path="/" element={<LandingPage />} />
           <Route path="/docs/*" element={<DocsPage />} />
           <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/playground" element={<PlaygroundPage />} />
           <Route path="/gallery/*" element={<NotFoundPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

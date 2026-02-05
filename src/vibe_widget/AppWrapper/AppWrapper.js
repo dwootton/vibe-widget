@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 
 import "./styles/setup.js";
 import { ensureGlobalStyles } from "./utils/styles";
@@ -14,6 +15,17 @@ import useContainerMetrics from "./hooks/useContainerMetrics";
 import useModelSync from "./hooks/useModelSync";
 import { appendWidgetLogs, requestSaveWidget, requestStatePrompt } from "./actions/modelActions";
 import { debugLog } from "./utils/debug";
+
+// Provide globals so dynamically imported widgets can reuse the same React runtime.
+if (typeof globalThis !== "undefined") {
+  globalThis.ReactProvided = React;
+  globalThis.ReactDOMProvided = { createRoot, flushSync };
+  globalThis.ReactDOMClientProvided = { createRoot };
+  // Also expose React on the canonical key to avoid fallback imports in constrained hosts.
+  if (!globalThis.React) globalThis.React = React;
+  if (!globalThis.ReactDOM) globalThis.ReactDOM = globalThis.ReactDOMProvided;
+  if (!globalThis.ReactDOMClient) globalThis.ReactDOMClient = globalThis.ReactDOMClientProvided;
+}
 
 ensureGlobalStyles();
 
