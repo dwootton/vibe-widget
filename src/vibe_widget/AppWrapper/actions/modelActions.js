@@ -24,6 +24,16 @@ export function requestGrabEdit(model, { element, prompt }) {
   });
 }
 
+export function requestBatchGrabEdit(model, { annotations }) {
+  withModelSync(model, () => {
+    model.set("grab_edit_request", {
+      annotations,
+      request_id: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    });
+    model.save_changes();
+  });
+}
+
 export function resetRuntimeErrorsForRetry(model) {
   withModelSync(model, () => {
     model.set("error_message", "");

@@ -31,6 +31,17 @@ const menuOptionAfter = css({
 });
 const menuOptionButtonClass = `${menuOptionClass} ${menuOptionAfter}`;
 
+// Annotation mode action icons row
+const actionsRowClass = tw("flex items-center gap-1.5 mr-2");
+const iconBtnBase = tw(
+  "w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all duration-150 text-[11px] leading-none border-none"
+);
+const iconBtnSubmit = tw("bg-accent text-surface-1 hover:brightness-110");
+const iconBtnClear = tw("bg-transparent text-text-muted border border-border-medium hover:text-text-primary hover:border-text-primary");
+const iconBtnCancel = tw("bg-transparent text-text-muted border border-border-medium hover:text-error hover:border-error");
+const iconBtnDisabled = tw("opacity-40 cursor-not-allowed");
+const annotCountClass = tw("text-[10px] font-mono text-text-muted whitespace-nowrap mr-0.5");
+
 export default function FloatingMenu({
   isOpen,
   onToggle,
@@ -38,7 +49,12 @@ export default function FloatingMenu({
   onViewSource,
   onSave,
   highAuditCount,
-  isEditMode
+  isEditMode,
+  annotationCount,
+  filledCount,
+  onAnnotationSubmit,
+  onAnnotationClear,
+  onAnnotationCancel
 }) {
   const badge = highAuditCount > 0 ? (
     <div class={badgeClass} title="High impact audit items">
@@ -60,15 +76,52 @@ export default function FloatingMenu({
     </div>
   ), [onGrabModeStart, onViewSource, onSave]);
 
+  const canSubmit = filledCount > 0;
+
   return (
-    <div class={containerClass}>
-      <div class={dotWrapperClass}>
-        <div class={`${dotClass} ${isEditMode ? "animate-spin-slow" : ""}`} onClick={onToggle}>
-          <div class={dotInnerClass}></div>
+    <div class={`floating-menu ${containerClass}`}>
+      <div class={tw("flex items-center")}>
+        {isEditMode && (
+          <div class={actionsRowClass}>
+            {annotationCount > 0 && (
+              <span class={annotCountClass}>{annotationCount}</span>
+            )}
+            <button
+              type="button"
+              class={`${iconBtnBase} ${iconBtnSubmit} ${!canSubmit ? iconBtnDisabled : ""}`}
+              onClick={onAnnotationSubmit}
+              disabled={!canSubmit}
+              title={canSubmit ? `Send ${filledCount} annotation${filledCount !== 1 ? "s" : ""}` : "Add prompts first"}
+            >
+              &#x2713;
+            </button>
+            <button
+              type="button"
+              class={`${iconBtnBase} ${iconBtnClear} ${annotationCount === 0 ? iconBtnDisabled : ""}`}
+              onClick={onAnnotationClear}
+              disabled={annotationCount === 0}
+              title="Clear all annotations"
+            >
+              &#x21BA;
+            </button>
+            <button
+              type="button"
+              class={`${iconBtnBase} ${iconBtnCancel}`}
+              onClick={onAnnotationCancel}
+              title="Cancel (Esc)"
+            >
+              &#x2715;
+            </button>
+          </div>
+        )}
+        <div class={dotWrapperClass}>
+          <div class={`${dotClass} ${isEditMode ? "animate-spin-slow" : ""}`} onClick={onToggle}>
+            <div class={dotInnerClass}></div>
+          </div>
+          {badge}
         </div>
-        {badge}
       </div>
-      {isOpen ? options : null}
+      {isOpen && !isEditMode ? options : null}
     </div>
   );
 }

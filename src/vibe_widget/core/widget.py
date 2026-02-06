@@ -1772,10 +1772,16 @@ class VibeWidget(anywidget.AnyWidget):
         request = change['new']
         if not request:
             return
-        
+
+        # Dispatch: batch annotations vs single element
+        annotations = request.get('annotations')
+        if isinstance(annotations, list) and len(annotations) > 0:
+            self._on_batch_grab_edit(request)
+            return
+
         element_desc = request.get('element', {})
         user_prompt = request.get('prompt', '')
-        
+
         if not user_prompt:
             return
         self._append_prompt_history(
@@ -2045,6 +2051,181 @@ TARGET ELEMENT:
 {sibling_hint}
 
 Find this element in the code and apply the requested change. The element should be identifiable by its tag, classes, text content, or SVG attributes. Modify ONLY this element or closely related code."""
+
+    def _on_batch_grab_edit(self, request):
+        """Handle batch annotation edit requests from frontend."""
+        annotations = request.get('annotations', [])
+        if not annotations:
+            return
+
+        # Record each annotation's prompt in history
+        for ann in annotations:
+            element_desc = ann.get('element', {})
+            user_prompt = ann.get('prompt', '')
+            if user_prompt:
+                self._append_prompt_history(
+                    user_prompt,
+                    source="grab_edit_batch",
+                    meta={"element": element_desc.get("description") or element_desc.get("tag")},
+                )
+
+        if self._generation_service is None:
+            self._set_status("error")
+            self._reset_logs(["✘ Batch edit failed: LLM service unavailable"])
+            return
+
+        n = len(annotations)
+        summary = f"Batch editing {n} annotation{'s' if n != 1 else ''}"
+        old_code = self.code
+        previous_metadata = self._widget_metadata
+        self._pending_old_code = old_code
+        self.edit_in_progress = True
+        self._set_status("generating")
+        self._reset_logs([summary])
+
+        old_position = 0
+        showed_analyzing = False
+        showed_applying = False
+
+        parser = RevisionStreamParser()
+
+        WINDOW_SIZE = 200
+
+        def progress_callback(event_type: str, message: str):
+            """Stream progress updates to frontend."""
+            nonlocal old_position, showed_analyzing, showed_applying
+
+            if event_type == "chunk":
+                chunk = message
+
+                if not showed_analyzing:
+                    self._append_log("Analyzing code")
+                    showed_analyzing = True
+
+                window_start = max(0, old_position - WINDOW_SIZE)
+                window_end = min(len(old_code), old_position + WINDOW_SIZE + len(chunk))
+                window = old_code[window_start:window_end]
+
+                found_at = window.find(chunk)
+
+                if found_at != -1:
+                    old_position = window_start + found_at + len(chunk)
+                else:
+                    if not showed_applying:
+                        self._append_log("Applying changes")
+                        showed_applying = True
+
+                    updates = parser.parse_chunk(chunk)
+                    if parser.has_new_pattern():
+                        for update in updates:
+                            if update["type"] == "micro_bubble":
+                                self._append_log(update["message"])
+                return
+
+            if event_type == "complete":
+                self._append_log(f"✓ {message}")
+            elif event_type == "error":
+                self._append_log(f"✘ {message}")
+
+        try:
+            revision_request = self._build_batch_grab_revision_request(annotations)
+
+            revised_code = self._generation_service.revise_code(
+                code=self.code,
+                revision_request=revision_request,
+                data_info=self.data_info,
+                progress_callback=progress_callback,
+            )
+
+            self._apply_code(revised_code)
+            self._set_status("ready")
+            self._append_log(f"✓ Batch edit applied ({n} annotations)")
+
+            store = WidgetStore()
+            imports_serialized = {}
+            if self._imports:
+                for import_name in self._imports.keys():
+                    imports_serialized[import_name] = f"<imported_trait:{import_name}>"
+
+            parent_cache_key = previous_metadata.get("cache_key") if previous_metadata else None
+
+            widget_entry = store.save(
+                widget_code=revised_code,
+                description=self.description,
+                var_name=self._widget_metadata.get('var_name') if self._widget_metadata else None,
+                data_shape=tuple(self._widget_metadata.get('data_shape', [0, 0])) if self._widget_metadata else (0, 0),
+                model=self._widget_metadata.get('model', 'unknown') if self._widget_metadata else 'unknown',
+                exports=self._exports,
+                imports_serialized=imports_serialized,
+                theme_name=self._theme.name if self._theme else None,
+                theme_description=self._theme.description if self._theme else None,
+                notebook_path=store.get_notebook_path(),
+                revision_parent=parent_cache_key,
+                prompt_history=list(self._prompt_history or []),
+            )
+            widget_entry["prompt_history"] = list(self._prompt_history or [])
+            self._widget_metadata = widget_entry
+            var_name = widget_entry.get('var_name', 'widget')
+            self._append_log(f"Saved: {var_name} (cache: {widget_entry['cache_key'][:8]}...)")
+
+        except Exception as e:
+            if "cancelled" in str(e).lower():
+                self._apply_code(old_code)
+                self._set_status("ready")
+                self._append_log("✗ Batch edit cancelled")
+            else:
+                self._set_status("error")
+                self._append_log(f"✘ Batch edit failed: {str(e)}")
+
+        self.edit_in_progress = False
+        self.grab_edit_request = {}
+
+    def _build_batch_grab_revision_request(self, annotations: list) -> str:
+        """Build a batch revision request combining multiple annotations."""
+        n = len(annotations)
+        parts = [f"BATCH EDIT REQUEST: The user has annotated {n} elements with individual change requests."]
+        parts.append("Apply ALL of the following changes in a single revision pass.\n")
+
+        for i, ann in enumerate(annotations, 1):
+            element_desc = ann.get('element', {})
+            user_prompt = ann.get('prompt', '')
+
+            sibling_count = element_desc.get('siblingCount', 1)
+            is_data_bound = element_desc.get('isDataBound', False)
+
+            sibling_hint = ""
+            if is_data_bound:
+                sibling_hint = (
+                    f"\n  NOTE: This element is likely DATA-BOUND (one of {sibling_count} "
+                    f"sibling <{element_desc.get('tag')}> elements).\n"
+                    f"  Modify the D3 selection code that creates these elements, not a static element."
+                )
+
+            style_info = ""
+            style_hints = element_desc.get('styleHints', {})
+            if style_hints:
+                style_parts = [f"{k}: {v}" for k, v in style_hints.items() if v and v != 'none']
+                if style_parts:
+                    style_info = f"\n  - Current styles: {', '.join(style_parts)}"
+
+            parts.append(f"--- ANNOTATION {i} ---")
+            parts.append(f"  REQUEST: {user_prompt}")
+            parts.append(f"  TARGET ELEMENT:")
+            parts.append(f"  - Tag: {element_desc.get('tag')}")
+            parts.append(f"  - Classes: {element_desc.get('classes', 'none')}")
+            parts.append(f"  - Text content: {element_desc.get('text', 'none')}")
+            parts.append(f"  - SVG/HTML attributes: {element_desc.get('attributes', 'none')}")
+            parts.append(f"  - Location in DOM: {element_desc.get('ancestors', '')} > {element_desc.get('tag')}")
+            parts.append(f"  - Sibling count: {sibling_count} (same tag in parent){style_info}")
+            parts.append(f"  - HTML representation: {element_desc.get('description', '')}")
+            if sibling_hint:
+                parts.append(sibling_hint)
+            parts.append("")
+
+        parts.append("IMPORTANT: Apply ALL changes. Each targets a different element.")
+        parts.append("If two annotations conflict, prioritize in order.")
+
+        return "\n".join(parts)
 
     def _on_code_change(self, change):
         """Reset approval when code changes unless it matches an approved hash."""

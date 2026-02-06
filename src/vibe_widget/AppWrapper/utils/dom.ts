@@ -19,6 +19,10 @@ export function isValidGrabbableElement(element: Element | null): element is Ele
   if (element.closest(".grab-overlay")) return false;
   if (element.closest(".edit-panel")) return false;
   if (element.closest(".loading-overlay")) return false;
+  if (element.closest(".annotation-marker")) return false;
+  if (element.closest(".annotation-toolbar")) return false;
+  if (element.closest(".inline-prompt-editor")) return false;
+  if (element.closest(".floating-menu")) return false;
 
   const skipTags = ["SCRIPT", "STYLE", "LINK", "META", "HEAD", "HTML", "BODY", "DEFS", "CLIPPATH"];
   if (skipTags.includes(element.tagName)) return false;

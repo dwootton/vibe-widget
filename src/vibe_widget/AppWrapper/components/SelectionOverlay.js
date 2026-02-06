@@ -1,13 +1,39 @@
 import React, { useEffect, useState } from "react";
 import { describeElement, getElementAtPosition } from "../utils/dom";
 
-export default function SelectionOverlay({ onElementSelect, onCancel }) {
+const UI_SELECTORS = [
+  ".floating-menu",
+  ".annotation-marker",
+  ".annotation-toolbar",
+  ".inline-prompt-editor"
+];
+
+function isUIElement(target) {
+  if (!(target instanceof Element)) return false;
+  return UI_SELECTORS.some((sel) => target.closest(sel));
+}
+
+export default function SelectionOverlay({
+  onElementSelect,
+  onCancel,
+  suppressHover = false,
+  showHint = true
+}) {
   const [hoveredEl, setHoveredEl] = useState(null);
   const [bounds, setBounds] = useState(null);
   const [tagName, setTagName] = useState(null);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
+      if (suppressHover || isUIElement(e.target)) {
+        if (hoveredEl) {
+          setHoveredEl(null);
+          setBounds(null);
+          setTagName(null);
+        }
+        return;
+      }
+
       const el = getElementAtPosition(e.clientX, e.clientY);
 
       if (el !== hoveredEl) {
@@ -31,6 +57,11 @@ export default function SelectionOverlay({ onElementSelect, onCancel }) {
     };
 
     const handleClick = (e) => {
+      if (suppressHover) return;
+
+      // Let clicks on UI elements (toolbar, markers, menu) pass through
+      if (isUIElement(e.target)) return;
+
       e.preventDefault();
       e.stopPropagation();
 
@@ -47,8 +78,6 @@ export default function SelectionOverlay({ onElementSelect, onCancel }) {
         };
         const description = describeElement(clickedEl);
         onElementSelect(description, clickBounds);
-      } else {
-        console.log("[Grab] No valid element at click position");
       }
     };
 
@@ -59,7 +88,7 @@ export default function SelectionOverlay({ onElementSelect, onCancel }) {
     document.addEventListener("mousemove", handleMouseMove, true);
     document.addEventListener("click", handleClick, true);
     document.addEventListener("keydown", handleEscape);
-    document.body.style.cursor = "crosshair";
+    document.body.style.cursor = suppressHover ? "" : "crosshair";
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove, true);
@@ -67,11 +96,11 @@ export default function SelectionOverlay({ onElementSelect, onCancel }) {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.cursor = "";
     };
-  }, [hoveredEl, onElementSelect, onCancel]);
+  }, [hoveredEl, onElementSelect, onCancel, suppressHover]);
 
   return (
     <div class="grab-overlay" style={{ position: "fixed", inset: 0, zIndex: 9999, pointerEvents: "none" }}>
-      {bounds && (
+      {bounds && !suppressHover && (
         <div
           class="highlight-box"
           style={{
@@ -110,24 +139,26 @@ export default function SelectionOverlay({ onElementSelect, onCancel }) {
           )}
         </div>
       )}
-      <div
-        class="grab-hint"
-        style={{
-          position: "fixed",
-          bottom: "20px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "rgba(0,0,0,0.85)",
-          color: "white",
-          padding: "10px 20px",
-          borderRadius: "8px",
-          fontSize: "13px",
-          pointerEvents: "none",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
-        }}
-      >
-        Click an element to edit • Escape to cancel
-      </div>
+      {showHint && (
+        <div
+          class="grab-hint"
+          style={{
+            position: "fixed",
+            bottom: "20px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.85)",
+            color: "white",
+            padding: "10px 20px",
+            borderRadius: "8px",
+            fontSize: "13px",
+            pointerEvents: "none",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
+          }}
+        >
+          Click elements to annotate · Escape to exit
+        </div>
+      )}
     </div>
   );
 }
