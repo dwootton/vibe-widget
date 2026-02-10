@@ -31,16 +31,18 @@ const menuOptionAfter = css({
 });
 const menuOptionButtonClass = `${menuOptionClass} ${menuOptionAfter}`;
 
-// Annotation mode action icons row
-const actionsRowClass = tw("flex items-center gap-1.5 mr-2");
-const iconBtnBase = tw(
-  "w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all duration-150 text-[11px] leading-none border-none"
+// --- Annotation toolbar styles ---
+const toolbarClass = tw(
+  "flex items-center h-7 rounded-[4px] border border-border-medium overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
 );
-const iconBtnSubmit = tw("bg-accent text-surface-1 hover:brightness-110");
-const iconBtnClear = tw("bg-transparent text-text-muted border border-border-medium hover:text-text-primary hover:border-text-primary");
-const iconBtnCancel = tw("bg-transparent text-text-muted border border-border-medium hover:text-error hover:border-error");
-const iconBtnDisabled = tw("opacity-40 cursor-not-allowed");
-const annotCountClass = tw("text-[10px] font-mono text-text-muted whitespace-nowrap mr-0.5");
+const toolbarCountClass = tw(
+  "flex items-center h-full px-2 text-[10px] font-mono text-text-muted bg-surface-2 select-none whitespace-nowrap"
+);
+const toolbarBtnClass = tw(
+  "flex items-center justify-center h-full w-7 cursor-pointer transition-colors duration-100 text-[12px] leading-none border-none outline-none"
+);
+const toolbarDivider = tw("w-px h-full bg-border-medium flex-none");
+const toolbarBtnDisabled = tw("opacity-30 cursor-not-allowed");
 
 export default function FloatingMenu({
   isOpen,
@@ -77,51 +79,68 @@ export default function FloatingMenu({
   ), [onGrabModeStart, onViewSource, onSave]);
 
   const canSubmit = filledCount > 0;
+  const hasAnnotations = annotationCount > 0;
+
+  if (isEditMode) {
+    return (
+      <div class={`floating-menu ${containerClass}`}>
+        <div class={toolbarClass} style={{ background: "rgba(0,0,0,0.88)" }}>
+          {hasAnnotations && (
+            <span class={toolbarCountClass} style={{ background: "transparent" }}>
+              {annotationCount}
+            </span>
+          )}
+          {hasAnnotations && <span class={toolbarDivider} />}
+
+          <button
+            type="button"
+            class={`${toolbarBtnClass} ${!canSubmit ? toolbarBtnDisabled : ""}`}
+            style={{ color: canSubmit ? "#f97316" : undefined, background: "transparent" }}
+            onClick={onAnnotationSubmit}
+            disabled={!canSubmit}
+            title={canSubmit ? `Send ${filledCount} annotation${filledCount !== 1 ? "s" : ""}` : "Add prompts first"}
+          >
+            &#x2713;
+          </button>
+
+          <span class={toolbarDivider} />
+
+          <button
+            type="button"
+            class={`${toolbarBtnClass} ${!hasAnnotations ? toolbarBtnDisabled : ""}`}
+            style={{ color: "rgba(242,240,233,0.55)", background: "transparent" }}
+            onClick={onAnnotationClear}
+            disabled={!hasAnnotations}
+            title="Clear all annotations"
+          >
+            &#x21BA;
+          </button>
+
+          <span class={toolbarDivider} />
+
+          <button
+            type="button"
+            class={toolbarBtnClass}
+            style={{ color: "rgba(242,240,233,0.55)", background: "transparent" }}
+            onClick={onAnnotationCancel}
+            title="Cancel (Esc)"
+          >
+            &#x2715;
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div class={`floating-menu ${containerClass}`}>
-      <div class={tw("flex items-center")}>
-        {isEditMode && (
-          <div class={actionsRowClass}>
-            {annotationCount > 0 && (
-              <span class={annotCountClass}>{annotationCount}</span>
-            )}
-            <button
-              type="button"
-              class={`${iconBtnBase} ${iconBtnSubmit} ${!canSubmit ? iconBtnDisabled : ""}`}
-              onClick={onAnnotationSubmit}
-              disabled={!canSubmit}
-              title={canSubmit ? `Send ${filledCount} annotation${filledCount !== 1 ? "s" : ""}` : "Add prompts first"}
-            >
-              &#x2713;
-            </button>
-            <button
-              type="button"
-              class={`${iconBtnBase} ${iconBtnClear} ${annotationCount === 0 ? iconBtnDisabled : ""}`}
-              onClick={onAnnotationClear}
-              disabled={annotationCount === 0}
-              title="Clear all annotations"
-            >
-              &#x21BA;
-            </button>
-            <button
-              type="button"
-              class={`${iconBtnBase} ${iconBtnCancel}`}
-              onClick={onAnnotationCancel}
-              title="Cancel (Esc)"
-            >
-              &#x2715;
-            </button>
-          </div>
-        )}
-        <div class={dotWrapperClass}>
-          <div class={`${dotClass} ${isEditMode ? "animate-spin-slow" : ""}`} onClick={onToggle}>
-            <div class={dotInnerClass}></div>
-          </div>
-          {badge}
+      <div class={dotWrapperClass}>
+        <div class={dotClass} onClick={onToggle}>
+          <div class={dotInnerClass}></div>
         </div>
+        {badge}
       </div>
-      {isOpen && !isEditMode ? options : null}
+      {isOpen ? options : null}
     </div>
   );
 }

@@ -631,6 +631,15 @@ class VibeWidget(anywidget.AnyWidget):
                 "theme_description": self._theme.description if self._theme else None,
                 "revision_parent": self._base_widget_id,
             }
+            # Initialize data_info early so error/repair handlers can access it
+            # before the async generation completes.
+            self.data_info = LLMProvider.build_data_info(
+                outputs=self._exports,
+                inputs=inputs_for_prompt,
+                actions=self._actions,
+                action_params=self._action_params,
+                theme_description=self._theme.description if self._theme else None,
+            )
             self._pending_generation = (
                 description,
                 inputs_for_prompt,
@@ -2301,9 +2310,23 @@ Find this element in the code and apply the requested change. The element should
             return True
 
         # Bundling failed - check if we can fall back to unbundled (Babel in browser)
-        # Environment errors (no node/esbuild) are safe to fall back
+        # Environment errors (no node/esbuild) are safe to fall back.
+        # Also fall back when the error is a missing shimmed package (e.g. react)
+        # since the browser runtime provides these via shims.
         env_errors = {"bundler_unavailable", "no_source", "npm_not_available"}
         is_env_error = bundle_result.error in env_errors
+
+        # Detect shimmed-package resolution failures
+        # (e.g. 'Could not resolve "react"' or 'Could not resolve "react/jsx-runtime"')
+        if not is_env_error and bundle_result.error:
+            import re as _re
+            from vibe_widget.services.bundling import SHIMMED_PACKAGES
+            unresolved = _re.findall(r'Could not resolve "([^"]+)"', bundle_result.error)
+            for mod in unresolved:
+                base = mod.split("/")[0]
+                if base in SHIMMED_PACKAGES:
+                    is_env_error = True
+                    break
 
         if is_env_error or os.getenv("VIBE_ALLOW_UNBUNDLED") == "1":
             # Fall back to raw source - frontend Babel will transform it

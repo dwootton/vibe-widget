@@ -54,7 +54,10 @@ esbuild.build({
   target: "es2020",
   outfile,
   absWorkingDir: process.env.VIBE_PKG_DIR || process.cwd(),
-  nodePaths: process.env.VIBE_PKG_DIR ? [path.join(process.env.VIBE_PKG_DIR, "node_modules")] : [],
+  nodePaths: [
+    ...(process.env.VIBE_PKG_DIR ? [path.join(process.env.VIBE_PKG_DIR, "node_modules")] : []),
+    ...(process.env.NODE_PATH ? process.env.NODE_PATH.split(path.delimiter) : []),
+  ],
   logLevel: "silent",
   plugins: [httpPlugin],
   jsx: "transform",
