@@ -16,6 +16,8 @@ import os
 import anywidget
 import traitlets
 
+from vibe_widget.utils.platform import is_emscripten
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -460,6 +462,8 @@ class VibeWidget(anywidget.AnyWidget):
         self._lifecycle = WidgetLifecycle(self)
         # Track whether we should render immediately (not in tests/headless)
         self._display_widget = display_widget
+        # Initialise data_info early so error handlers can access it safely.
+        self.data_info: dict = {}
 
         if existing_code is None:
             self._append_prompt_history(description, source="create")
@@ -498,10 +502,13 @@ class VibeWidget(anywidget.AnyWidget):
             if stream_setting and _running_in_colab():
                 stream_setting = False
                 self._append_log("Colab detected: disabling streaming updates")
+            if stream_setting and is_emscripten():
+                stream_setting = False
+                self._append_log("Emscripten detected: disabling streaming updates")
             self._generation_service = GenerationService(
                 provider,
                 agent_run_config=agent_run_config,
-                stream=stream_setting,
+                stream=False,
             )
             self._audit_service = AuditService()
             self._llm_provider = provider
@@ -636,6 +643,12 @@ class VibeWidget(anywidget.AnyWidget):
                 inputs_for_prompt,
             )
             if self.frontend_ready:
+                self._start_generation(description, inputs_for_prompt)
+            elif is_emscripten():
+                # Pyodide/JupyterLite: threading is unavailable, start
+                # generation immediately instead of using a fallback thread.
+                self._append_log("Emscripten detected — starting generation (no thread)")
+                self._pending_generation = None
                 self._start_generation(description, inputs_for_prompt)
             else:
                 # Fallback: if frontend_ready never arrives (e.g. Colab comm
@@ -1528,7 +1541,7 @@ class VibeWidget(anywidget.AnyWidget):
             result = self._repair_service.fix_runtime_error(
                 code=self.code,
                 error_message=error_msg,
-                data_info=self.data_info,
+                data_info=getattr(self, "data_info", {}),
                 retry_count=self.retry_count,
                 widget_error=self.widget_error,
                 last_runtime_error=self.last_runtime_error,

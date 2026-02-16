@@ -1,11 +1,15 @@
 """Execution, diagnostics, and repair tools."""
 
 import re
-import subprocess
 import tempfile
 from typing import Any
 
 from vibe_widget.llm.tools.base import Tool, ToolResult
+from vibe_widget.utils.platform import is_emscripten
+
+# subprocess is unavailable on Pyodide/emscripten; import lazily.
+if not is_emscripten():
+    import subprocess
 
 
 class CLIExecuteTool(Tool):
@@ -38,6 +42,10 @@ class CLIExecuteTool(Tool):
 
     def execute(self, command: str, purpose: str) -> ToolResult:
         """Execute CLI command safely."""
+        if is_emscripten():
+            return ToolResult(
+                success=False, output="", error="CLI execution unavailable in Pyodide/emscripten"
+            )
         try:
             # Safety check: disallow dangerous commands
             dangerous_patterns = [
@@ -116,31 +124,32 @@ class RuntimeTestTool(Tool):
         try:
             issues = []
 
-            # Test 1: Check for syntax errors using Node.js
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
-                f.write(code)
-                temp_file = f.name
+            # Test 1: Check for syntax errors using Node.js (skip on Pyodide)
+            if not is_emscripten():
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
+                    f.write(code)
+                    temp_file = f.name
 
-            try:
-                # Try to parse with node --check
-                result = subprocess.run(
-                    ["node", "--check", temp_file],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
+                try:
+                    # Try to parse with node --check
+                    result = subprocess.run(
+                        ["node", "--check", temp_file],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
 
-                if result.returncode != 0:
-                    issues.append(f"Syntax error: {result.stderr}")
+                    if result.returncode != 0:
+                        issues.append(f"Syntax error: {result.stderr}")
 
-            except FileNotFoundError:
-                pass
-            except Exception as e:
-                pass
-            finally:
-                import os
+                except FileNotFoundError:
+                    pass
+                except Exception as e:
+                    pass
+                finally:
+                    import os
 
-                os.unlink(temp_file)
+                    os.unlink(temp_file)
 
             # Test 2: Check for common runtime issues
             if "undefined" in code and "typeof" not in code:

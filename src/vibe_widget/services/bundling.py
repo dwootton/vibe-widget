@@ -12,6 +12,7 @@ import json
 import re
 
 from vibe_widget.utils.audit_store import compute_code_hash
+from vibe_widget.utils.platform import is_emscripten
 
 
 # Path to bundler assets
@@ -35,8 +36,10 @@ class BundleService:
         base_dir = store_dir or Path.cwd()
         self._root = base_dir / ".vibewidget" / "bundles"
         self._packages_dir = base_dir / ".vibewidget" / "packages"
-        self._root.mkdir(parents=True, exist_ok=True)
-        self._packages_dir.mkdir(parents=True, exist_ok=True)
+        # Skip directory creation on Pyodide — bundling is never available there.
+        if not is_emscripten():
+            self._root.mkdir(parents=True, exist_ok=True)
+            self._packages_dir.mkdir(parents=True, exist_ok=True)
         self._node_path = self._resolve_node_modules()
         self._bundle_rev = "v11-import-map-external-react"
 
@@ -48,6 +51,8 @@ class BundleService:
         return None
 
     def _bundler_available(self) -> bool:
+        if is_emscripten():
+            return False
         if os.getenv("VIBE_DISABLE_BUNDLING") == "1":
             return False
         if shutil.which("node") is None:

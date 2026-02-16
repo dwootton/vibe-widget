@@ -6,6 +6,7 @@ from typing import Any, Callable, Optional
 from openai import OpenAI
 
 from vibe_widget.llm.providers.base import LLMProvider
+from vibe_widget.utils.platform import is_emscripten
 
 MAX_TOKENS = 20000
 
@@ -22,7 +23,7 @@ class OpenRouterProvider(LLMProvider):
     ):
         """
         Initialize OpenRouter provider.
-        
+
         Args:
             model: Model name or shortcut (resolved by Config/manifest)
             api_key: Optional API key (otherwise uses environment)
@@ -43,10 +44,23 @@ class OpenRouterProvider(LLMProvider):
         if app_title:
             default_headers["X-Title"] = app_title
 
+        # In Pyodide / JupyterLite the default httpx jsfetch transport can
+        # fail with "TypeError: Failed to fetch".  Use a custom transport
+        # that calls pyfetch() with explicit CORS-friendly options.
+        http_client = None
+        if is_emscripten():
+            try:
+                from vibe_widget.utils.pyodide_http import make_pyodide_http_client
+
+                http_client = make_pyodide_http_client()
+            except Exception:
+                pass  # fall back to default transport
+
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
             default_headers=default_headers or None,
+            http_client=http_client,
         )
 
     def generate_widget_code(
@@ -94,7 +108,7 @@ class OpenRouterProvider(LLMProvider):
             base_code=base_code,
             base_components=base_components,
         )
-        
+
         completion_params = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
