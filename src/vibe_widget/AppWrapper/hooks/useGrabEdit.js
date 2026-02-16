@@ -18,12 +18,17 @@ export default function useGrabEdit(model) {
   const addAnnotation = React.useCallback((elementDescription, elementBounds) => {
     const elementKey = `${elementDescription.tag}-${elementDescription.classes}-${elementDescription.text?.slice(0, 20)}`;
 
+    let activateId = null;
+
     setAnnotations((prev) => {
-      // Deduplicate: if elementKey already exists, activate that annotation instead
+      // Deduplicate: if elementKey already exists, reuse that annotation
       const existing = prev.find((a) => a.elementKey === elementKey);
       if (existing) {
-        setActiveAnnotationId(existing.id);
-        return prev;
+        activateId = existing.id;
+        // Update bounds in case the element moved after a code revision
+        return prev.map((a) =>
+          a.id === existing.id ? { ...a, bounds: elementBounds, element: elementDescription } : a
+        );
       }
 
       // Warn at 5+, soft cap at 10
@@ -31,6 +36,7 @@ export default function useGrabEdit(model) {
 
       annotationCounter += 1;
       const id = `ann-${Date.now()}-${annotationCounter}`;
+      activateId = id;
       const annotation = {
         id,
         number: annotationCounter,
@@ -40,10 +46,13 @@ export default function useGrabEdit(model) {
         prompt: ""
       };
 
-      // Auto-close current editor when adding new annotation
-      setActiveAnnotationId(id);
       return [...prev, annotation];
     });
+
+    // Activate outside the updater so Preact always processes it
+    if (activateId) {
+      setActiveAnnotationId(activateId);
+    }
   }, []);
 
   const removeAnnotation = React.useCallback((annotationId) => {
