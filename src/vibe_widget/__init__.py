@@ -10,7 +10,7 @@ from vibe_widget.namespaces import (
     presets,
 )
 
-__version__ = "0.2.6"
+__version__ = "0.2.7"
 __all__ = [
     "VibeWidget",
     "WidgetHandle",

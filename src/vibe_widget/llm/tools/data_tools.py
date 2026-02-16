@@ -343,26 +343,36 @@ class DataLoadTool(Tool):
                 result = await crawler.arun(url=url)
                 return result
         try:
-            try:
-                loop = asyncio.get_running_loop()
+            from vibe_widget.utils.platform import is_emscripten
+
+            if is_emscripten():
+                # Pyodide: use run_sync to bridge async → sync in the browser event loop.
+                from pyodide.ffi import run_sync  # type: ignore[import-not-found]
+
+                result = run_sync(_crawl_url(source))
+            else:
                 try:
-                    import nest_asyncio
-                    nest_asyncio.apply()
+                    loop = asyncio.get_running_loop()
+                    try:
+                        import nest_asyncio
+                        nest_asyncio.apply()
+                        result = asyncio.run(_crawl_url(source))
+                    except ImportError:
+                        import concurrent.futures
+
+                        def run_in_thread():
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                return new_loop.run_until_complete(_crawl_url(source))
+                            finally:
+                                new_loop.close()
+
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(run_in_thread)
+                            result = future.result()
+                except RuntimeError:
                     result = asyncio.run(_crawl_url(source))
-                except ImportError:
-                    import concurrent.futures
-                    def run_in_thread():
-                        new_loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(new_loop)
-                        try:
-                            return new_loop.run_until_complete(_crawl_url(source))
-                        finally:
-                            new_loop.close()
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(run_in_thread)
-                        result = future.result()
-            except RuntimeError:
-                result = asyncio.run(_crawl_url(source))
         except Exception as e:
             raise ValueError(f"Failed to crawl URL: {source}. Error: {e}")
         if not result.success:

@@ -88,6 +88,7 @@ class AgentSdkOrchestrator:
                 self._emit(progress_callback, "step", "Agent continuation")
             streamed = False
             finish_reason: str | None = None
+            message = None
             if self.stream:
                 try:
                     stream = self.adapter.chat_complete_stream(

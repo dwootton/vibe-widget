@@ -99,3 +99,7 @@ logs.txt
 
 .claude/
 *.log
+
+
+demo/
+_output/
