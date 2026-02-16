@@ -8,7 +8,7 @@ from typing import Any, Callable
 from vibe_widget.llm.agentic_agents import AgentSdkOrchestrator
 from vibe_widget.llm.agents.config import AgentRunConfig
 from vibe_widget.llm.providers.base import LLMProvider
-from vibe_widget.utils.platform import is_emscripten
+from vibe_widget.utils.platform import is_restricted_env
 from vibe_widget.utils.serialization import clean_for_json
 
 
@@ -86,8 +86,10 @@ class GenerationService:
         )
         self._thread = thread
 
-        if is_emscripten():
-            # Pyodide/JupyterLite: threads are unavailable, run synchronously.
+        if is_restricted_env():
+            # Pyodide/JupyterLite: threads are unavailable.
+            # Colab: threads cause widget comm sync issues.
+            # In both cases, run synchronously.
             self._generation_worker(
                 run_id,
                 cancel_event,
