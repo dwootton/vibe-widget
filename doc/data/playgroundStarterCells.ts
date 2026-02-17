@@ -27,7 +27,7 @@ import numpy as np
 # Add your OpenRouter API key to enable live widget generation
 vw.config(
     model="google/gemini-2.5-flash",
-    api_key="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"  # paste your OpenRouter key here
+    api_key="",  # paste your OpenRouter key here or set OPENROUTER_API_KEY env
 )`,
   },
   {
