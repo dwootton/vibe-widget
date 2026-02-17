@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 // @ts-ignore
 import { pyodideRuntime, PyodideState, WidgetModel } from "../utils/PyodideRuntime";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { materialLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import { oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import CodeMirror from "@uiw/react-codemirror";
+import { python } from "@codemirror/lang-python";
+import { autocompletion } from "@codemirror/autocomplete";
+import type { CompletionContext } from "@codemirror/autocomplete";
+import { keymap } from "@codemirror/view";
 import VibeWidget from "./VibeWidget";
 import { getNotebook } from "../data/notebooks";
 import type { NotebookCell } from "../data/notebooks";
@@ -709,7 +714,16 @@ function ReadOnlyCell({
       </div>
 
       {!state.codeCollapsed && (
-        <SyntaxHighlighter language="python" style={materialLight} showLineNumbers>
+        <SyntaxHighlighter
+          language="python"
+          style={oneLight}
+          showLineNumbers
+          customStyle={{ margin: 0, padding: "12px 16px", fontSize: "13px", lineHeight: 1.5 }}
+          codeTagProps={{ style: { fontFamily: "ui-monospace, monospace" } }}
+          lineNumberStyle={{ minWidth: "2.25em" }}
+          useInlineStyles
+          wrapLongLines
+        >
           {cell.content}
         </SyntaxHighlighter>
       )}
@@ -807,6 +821,43 @@ function AddCellDivider({
   );
 }
 
+/** Vibe-widget API completions for playground code cells */
+function vibeWidgetCompletions(context: CompletionContext) {
+  const match = context.matchBefore(/\bvw\.\w*$/);
+  if (!match) return null;
+  const options = [
+    { label: "create", type: "function", info: "Create a widget from a description and optional data. vw.create(description, data=None, outputs=None, inputs=None)" },
+    { label: "config", type: "function", info: "Set global config. vw.config(model=..., api_key=...)" },
+    { label: "outputs", type: "function", info: "Declare widget outputs. vw.outputs(name='description', ...)" },
+    { label: "inputs", type: "function", info: "Declare widget inputs or link from another widget. vw.inputs(data, trait=other.outputs.trait)" },
+    { label: "edit", type: "function", info: "Edit an existing widget. vw.edit(widget, prompt)" },
+    { label: "load", type: "function", info: "Load a saved widget. vw.load(path)" },
+    { label: "theme", type: "function", info: "Generate theme from description. vw.theme(description)" },
+    { label: "themes", type: "function", info: "List built-in themes. vw.themes()" },
+    { label: "models", type: "function", info: "List available LLM models. vw.models(refresh=False)" },
+  ];
+  return { from: match.from, options };
+}
+
+function makePlaygroundExtensions(onRun: () => void) {
+  return [
+    python(),
+    autocompletion({
+      override: [vibeWidgetCompletions],
+      activateOnTyping: true,
+    }),
+    keymap.of([
+      {
+        key: "Shift-Enter",
+        run: () => {
+          onRun();
+          return true;
+        },
+      },
+    ]),
+  ];
+}
+
 interface EditableCodeCellProps {
   cell: PlaygroundCell;
   index: number;
@@ -838,33 +889,7 @@ function EditableCodeCell({
   isFirst,
   isLast,
 }: EditableCodeCellProps): React.ReactElement {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const autoResize = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = "auto";
-    ta.style.height = `${Math.max(ta.scrollHeight, 60)}px`;
-  }, []);
-  useEffect(() => {
-    autoResize();
-  }, [cell.content, autoResize]);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && e.shiftKey) {
-      e.preventDefault();
-      onRun();
-    }
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const ta = e.currentTarget;
-      const start = ta.selectionStart;
-      const end = ta.selectionEnd;
-      onChange(ta.value.substring(0, start) + "    " + ta.value.substring(end));
-      requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = start + 4;
-      });
-    }
-  };
+  const extensions = useMemo(() => makePlaygroundExtensions(onRun), [onRun]);
 
   const hasOutput = state.outputs.length > 0 || state.running;
   const executionLabel = state.executed ? `[${index + 1}]` : "[ ]";
@@ -905,15 +930,35 @@ function EditableCodeCell({
           </button>
         </div>
       </div>
-      <textarea
-        ref={textareaRef}
-        value={cell.content}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        spellCheck={false}
-        className="w-full px-4 py-3 font-mono text-sm bg-slate/5 text-slate border-t border-slate/10 resize-none outline-none leading-relaxed"
-        style={{ minHeight: 60, tabSize: 4 }}
-      />
+      <div className="border-t border-slate/10">
+        <CodeMirror
+          value={cell.content}
+          height="auto"
+          minHeight="120px"
+          extensions={extensions}
+          onChange={(value) => onChange(value)}
+          basicSetup={{
+            lineNumbers: true,
+            highlightActiveLineGutter: true,
+            highlightSpecialChars: true,
+            history: true,
+            foldGutter: false,
+            drawSelection: true,
+            indentOnInput: true,
+            syntaxHighlighting: true,
+            bracketMatching: true,
+            closeBrackets: true,
+            autocompletion: true,
+            highlightActiveLine: true,
+            tabSize: 4,
+            defaultKeymap: true,
+            historyKeymap: true,
+            completionKeymap: true,
+          }}
+          style={{ fontSize: "13px" }}
+          className="[&_.cm-editor]:outline-none [&_.cm-scroller]:font-mono [&_.cm-content]:min-h-[80px]"
+        />
+      </div>
       {hasOutput && (
         <div className="border-t-2 border-slate/10">
           <div className="px-4 py-2 bg-bone/30 font-mono text-xs text-slate/50">Out [{state.executed ? index + 1 : " "}]:</div>

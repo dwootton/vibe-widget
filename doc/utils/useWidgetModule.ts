@@ -39,6 +39,14 @@ export function useWidgetModule(moduleUrl: string | undefined): UseWidgetModuleR
         }
 
         const text = await response.text();
+        const trimmed = text.trim().toLowerCase();
+        if (trimmed.startsWith("<!") || trimmed.startsWith("<html")) {
+          throw new Error(
+            `Module URL returned HTML instead of JavaScript (status ${response.status}). ` +
+              "The path may be wrong or the server may be returning the app's index page. " +
+              "Ensure the widget file exists (e.g. under /widgets/) and the URL is correct."
+          );
+        }
         let code: string;
 
         if (moduleUrl.endsWith(".vw")) {

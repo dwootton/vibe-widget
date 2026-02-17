@@ -727,6 +727,8 @@ vw._widgets = _widgets
       '        raise RuntimeError(f"LLM API error ({xhr.status}): {str(xhr.responseText)[:300]}")',
       '    resp = json.loads(str(xhr.responseText))',
       '    code = resp["choices"][0]["message"]["content"]',
+      '    if isinstance(code, str) and code.strip().lower().startswith("<"):',
+      '        raise RuntimeError("LLM returned HTML instead of code. The API may have returned an error page. Check your API key and model.")',
       '    # Strip markdown fences if present',
       '    fence = chr(96) * 3',
       '    if code.startswith(fence):',
