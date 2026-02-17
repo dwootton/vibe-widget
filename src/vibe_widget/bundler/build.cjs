@@ -46,6 +46,14 @@ const httpPlugin = {
 const externalizeReact = process.env.VIBE_EXTERNALIZE_REACT === "1";
 const includeReact = !externalizeReact;
 
+const nodePaths = [];
+if (process.env.VIBE_PKG_DIR) {
+  nodePaths.push(path.join(process.env.VIBE_PKG_DIR, "node_modules"));
+}
+if (includeReact && process.env.VIBE_NODE_MODULES) {
+  nodePaths.push(process.env.VIBE_NODE_MODULES);
+}
+
 esbuild.build({
   entryPoints: [entry],
   bundle: true,
@@ -54,7 +62,7 @@ esbuild.build({
   target: "es2020",
   outfile,
   absWorkingDir: process.env.VIBE_PKG_DIR || process.cwd(),
-  nodePaths: process.env.VIBE_PKG_DIR ? [path.join(process.env.VIBE_PKG_DIR, "node_modules")] : [],
+  nodePaths,
   logLevel: "silent",
   plugins: [httpPlugin],
   jsx: "transform",
