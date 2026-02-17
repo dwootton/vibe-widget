@@ -7,8 +7,56 @@ import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { autocompletion } from "@codemirror/autocomplete";
 import type { CompletionContext } from "@codemirror/autocomplete";
-import { keymap } from "@codemirror/view";
+import { keymap, EditorView } from "@codemirror/view";
 import VibeWidget from "./VibeWidget";
+
+/** CodeMirror theme matching doc site: bone/cream background, slate text, orange accents */
+const playgroundEditorTheme = EditorView.theme({
+  "&": {
+    backgroundColor: "#fafaf9",
+    borderRadius: "0",
+  },
+  "&.cm-focused": {
+    outline: "none",
+  },
+  ".cm-content": {
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontSize: "13px",
+    lineHeight: "1.6",
+    color: "#1a1a1a",
+    caretColor: "#ea580c",
+    padding: "12px 16px",
+    minHeight: "80px",
+  },
+  ".cm-line": {
+    padding: "0",
+  },
+  ".cm-gutters": {
+    backgroundColor: "#f5f5f4",
+    borderRight: "1px solid #e7e5e4",
+    color: "#78716c",
+    minWidth: "2.25em",
+  },
+  ".cm-activeLineGutter": {
+    backgroundColor: "#fef3c7",
+    color: "#1a1a1a",
+  },
+  ".cm-activeLine": {
+    backgroundColor: "transparent",
+  },
+  "& .cm-activeLine": {
+    backgroundColor: "#fef3c7",
+  },
+  ".cm-selectionMatch": {
+    backgroundColor: "#fed7aa",
+  },
+  ".cm-selectionBackground, .cm-content ::selection": {
+    backgroundColor: "#ffedd5",
+  },
+  ".cm-cursor": {
+    borderLeftColor: "#ea580c",
+  },
+});
 import { getNotebook } from "../data/notebooks";
 import type { NotebookCell } from "../data/notebooks";
 import type { DataFileConfig } from "../utils/exampleDataLoader";
@@ -821,10 +869,14 @@ function AddCellDivider({
   );
 }
 
-/** Vibe-widget API completions for playground code cells */
+/** Vibe-widget API completions for playground code cells (after "vw." or "vw") */
 function vibeWidgetCompletions(context: CompletionContext) {
-  const match = context.matchBefore(/\bvw\.\w*$/);
+  // Match "vw." plus optional word chars, or just "vw" so we can suggest ".create" etc.
+  const matchDot = context.matchBefore(/\bvw\.\w*$/);
+  const matchVw = context.matchBefore(/\bvw$/);
+  const match = matchDot ?? matchVw;
   if (!match) return null;
+  const from = matchDot ? match.from + 3 : match.to; // replace only part after "vw." or insert after "vw"
   const options = [
     { label: "create", type: "function", info: "Create a widget from a description and optional data. vw.create(description, data=None, outputs=None, inputs=None)" },
     { label: "config", type: "function", info: "Set global config. vw.config(model=..., api_key=...)" },
@@ -835,16 +887,24 @@ function vibeWidgetCompletions(context: CompletionContext) {
     { label: "theme", type: "function", info: "Generate theme from description. vw.theme(description)" },
     { label: "themes", type: "function", info: "List built-in themes. vw.themes()" },
     { label: "models", type: "function", info: "List available LLM models. vw.models(refresh=False)" },
-  ];
-  return { from: match.from, options };
+  ].map((opt) =>
+    matchVw ? { ...opt, apply: "." + opt.label } : opt
+  );
+  return {
+    from,
+    options,
+    validFor: /^\w*$/,
+  };
 }
 
 function makePlaygroundExtensions(onRun: () => void) {
   return [
+    playgroundEditorTheme,
     python(),
     autocompletion({
       override: [vibeWidgetCompletions],
       activateOnTyping: true,
+      maxRenderedOptions: 12,
     }),
     keymap.of([
       {
@@ -950,13 +1010,14 @@ function EditableCodeCell({
             closeBrackets: true,
             autocompletion: true,
             highlightActiveLine: true,
+            highlightSelectionMatches: true,
             tabSize: 4,
             defaultKeymap: true,
             historyKeymap: true,
             completionKeymap: true,
           }}
-          style={{ fontSize: "13px" }}
-          className="[&_.cm-editor]:outline-none [&_.cm-scroller]:font-mono [&_.cm-content]:min-h-[80px]"
+          placeholder="Type vw. then choose a completion, or Ctrl+Space for suggestions"
+          className="[&_.cm-editor]:outline-none [&_.cm-scroller]:font-mono"
         />
       </div>
       {hasOutput && (

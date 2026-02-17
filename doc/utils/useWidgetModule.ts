@@ -39,8 +39,10 @@ export function useWidgetModule(moduleUrl: string | undefined): UseWidgetModuleR
         }
 
         const text = await response.text();
+        // Blob URLs return the actual module content; only check HTTP responses for HTML
+        const isBlob = moduleUrl.startsWith("blob:");
         const trimmed = text.trim().toLowerCase();
-        if (trimmed.startsWith("<!") || trimmed.startsWith("<html")) {
+        if (!isBlob && (trimmed.startsWith("<!") || trimmed.startsWith("<html"))) {
           throw new Error(
             `Module URL returned HTML instead of JavaScript (status ${response.status}). ` +
               "The path may be wrong or the server may be returning the app's index page. " +
