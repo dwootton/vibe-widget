@@ -3,7 +3,7 @@ import { Gamepad2 } from 'lucide-react';
 
 const Footer = () => {
   return (
-    <footer className="bg-slate text-bone py-20 px-4 md:px-12">
+    <footer className="bg-slate text-bone p-8 px-4 md:px-12">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
         <div>
            <h3 className="text-2xl font-display font-bold mb-4">VibeWidget</h3>
@@ -27,7 +27,7 @@ const Footer = () => {
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-bone/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-mono text-bone/40">
+      <div className="max-w-7xl mx-auto mt-8 pt-4 border-t border-bone/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-mono text-bone/40">
          <div>
             © {new Date().getFullYear()} Vibe Widget. MIT License.
          </div>

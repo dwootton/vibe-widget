@@ -111,23 +111,23 @@ const GalleryPage = () => {
     const focusedExample = useMemo(() => EXAMPLES.find(ex => ex.id === focusedId), [focusedId]);
 
     return (
-        <main className="relative pt-32 min-h-screen bg-bone z-20 overflow-x-hidden">
+        <main className="relative pt-12 min-h-screen bg-bone z-20 overflow-x-hidden">
             <div className="container mx-auto px-4 mb-12">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="flex flex-col md:flex-row md:items-end justify-between gap-8"
                 >
-                    <div>
+                    {/* <div>
                         <h1 className="text-6xl font-display font-bold mb-4 tracking-tight">
                             WIDGET <span className="text-orange">GALLERY</span>
                         </h1>
                         <p className="text-xl text-slate/60 font-mono max-w-2xl">
                             A collection of interactive widgets synthesized from natural language.
                         </p>
-                    </div>
+                    </div> */}
 
-                    <div className="flex flex-wrap gap-2 bg-slate/5 p-1.5 rounded-xl border border-slate/10 backdrop-blur-sm w-full md:w-auto">
+                    {/* <div className="flex flex-wrap gap-2 bg-slate/5 p-1.5 rounded-xl border border-slate/10 backdrop-blur-sm w-full md:w-auto">
                         <div ref={filterRef} className="relative w-full md:w-96 z-40">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate/40" />
@@ -248,11 +248,11 @@ const GalleryPage = () => {
                                 )}
                             </AnimatePresence>
                         </div>
-                    </div>
+                    </div> */}
                 </motion.div>
             </div>
 
-            <div className="container mx-auto px-4 pb-32">
+            <div className="mx-auto px-4">
                 <AnimatePresence mode="wait">
                     {!focusedId ? (
                         <motion.div
@@ -279,7 +279,7 @@ const GalleryPage = () => {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -100 }}
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            className="flex flex-col lg:flex-row gap-4 lg:gap-8 h-[calc(100vh-200px)] sm:h-[calc(100vh-250px)]"
+                            className="flex flex-col lg:flex-row gap-4 lg:gap-8 h-[calc(100vh-50px)] sm:h-[calc(100vh-100px)]"
                         >
                             {/* Sidebar List - Hidden on mobile */}
                             <div className="hidden lg:flex lg:w-80 flex-shrink-0 overflow-y-auto pr-2 custom-scrollbar">
@@ -326,7 +326,7 @@ const GalleryPage = () => {
                                     Back to Gallery
                                 </button>
 
-                                <div className="p-4 border-b-2 border-slate/5 flex items-center justify-between bg-bone/50">
+                                {/* <div className="p-4 border-b-2 border-slate/5 flex items-center justify-between bg-bone/50">
                                     <div className="flex items-center gap-3">
                                         <div className="w-3 h-3 rounded-full bg-red-400" />
                                         <div className="w-3 h-3 rounded-full bg-yellow-400" />
@@ -335,7 +335,7 @@ const GalleryPage = () => {
                                             Synthesis Environment / {focusedExample?.label}
                                         </span>
                                     </div>
-                                </div>
+                                </div> */}
                                 <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
                                     {focusedExample && focusedExample.notebookId && getNotebook(focusedExample.notebookId) ? (
                                         <Notebook
