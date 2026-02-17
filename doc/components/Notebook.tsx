@@ -9,6 +9,11 @@ import type { NotebookCell } from "../data/notebooks";
 import type { DataFileConfig } from "../utils/exampleDataLoader";
 import { useIsMobile } from "../utils/useIsMobile";
 import { EXAMPLES } from "../data/examples";
+import {
+  STARTER_CELLS,
+  nextCellId,
+  type PlaygroundCell,
+} from "../data/playgroundStarterCells";
 
 export interface NotebookProps {
   /** Read-only example notebook (false) or editable playground (true) */
@@ -71,7 +76,7 @@ export default function Notebook({
   dataFiles: propsDataFiles,
   title,
   notebookKey,
-}: NotebookProps): JSX.Element {
+}: NotebookProps): React.ReactElement {
   const { cells: resolvedCells, dataFiles } = useNotebookConfig(
     editable,
     propsCells,
@@ -101,6 +106,17 @@ export default function Notebook({
   const [widgets, setWidgets] = useState<Map<string, { moduleUrl: string; model: WidgetModel }>>(new Map());
   const loadedDataFilesRef = useRef<Set<string>>(new Set());
   const currentNotebookKeyRef = useRef<string | undefined>(undefined);
+
+  const [editableCells, setEditableCells] = useState<PlaygroundCell[]>(() =>
+    editable && resolvedCells.length > 0
+      ? resolvedCells.map((c) => ({
+          id: (c as { id?: string }).id ?? nextCellId(),
+          type: c.type as "code" | "markdown",
+          content: c.content,
+        }))
+      : []
+  );
+  const [runStatesById, setRunStatesById] = useState<Map<string, CellState>>(new Map());
 
   useEffect(() => {
     setCellStates(
@@ -132,8 +148,15 @@ export default function Notebook({
 
   useEffect(() => {
     if (isMobile) return;
-    pyodideRuntime.load().catch(console.error);
-  }, [isMobile]);
+    if (editable) {
+      pyodideRuntime
+        .load()
+        .then(() => pyodideRuntime.enablePlaygroundMode())
+        .catch((e: unknown) => console.error("Playground setup error:", e));
+    } else {
+      pyodideRuntime.load().catch(console.error);
+    }
+  }, [isMobile, editable]);
 
   useEffect(() => {
     if (isMobile || !pyodideState.ready || dataFiles.length === 0) return;
@@ -239,6 +262,138 @@ export default function Notebook({
     setCellStates((prev) => prev.map((s) => ({ ...s, codeCollapsed: false })));
   }, []);
 
+  const getRunStateById = useCallback(
+    (id: string): CellState =>
+      runStatesById.get(id) ?? {
+        running: false,
+        executed: false,
+        outputs: [],
+        codeCollapsed: false,
+        outputCollapsed: false,
+      },
+    [runStatesById]
+  );
+
+  const runCellById = useCallback(
+    async (id: string) => {
+      const cell = editableCells.find((c) => c.id === id);
+      if (!cell || cell.type !== "code") return;
+      if (!pyodideState.ready) {
+        try {
+          await pyodideRuntime.load();
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Failed to load Python runtime";
+          setRunStatesById((prev) => {
+            const next = new Map(prev);
+            next.set(id, {
+              running: false,
+              executed: true,
+              outputs: [{ type: "stderr", content: msg }],
+              codeCollapsed: false,
+              outputCollapsed: false,
+            });
+            return next;
+          });
+          return;
+        }
+      }
+      setRunStatesById((prev) => {
+        const next = new Map(prev);
+        next.set(id, {
+          ...getRunStateById(id),
+          running: true,
+          outputs: [],
+        });
+        return next;
+      });
+      const outputs: CellOutput[] = [];
+      try {
+        const result = await pyodideRuntime.runPython(cell.content, (text: string, type: "stdout" | "stderr") => {
+          if (text.trim()) outputs.push({ type, content: text });
+        });
+        if (result !== undefined && result !== null) outputs.push({ type: "result", content: String(result) });
+      } catch (err: unknown) {
+        outputs.push({
+          type: "stderr",
+          content: err instanceof Error ? err.message : String(err),
+        });
+      }
+      setRunStatesById((prev) => {
+        const next = new Map(prev);
+        next.set(id, {
+          ...getRunStateById(id),
+          running: false,
+          executed: true,
+          outputs,
+        });
+        return next;
+      });
+    },
+    [editableCells, pyodideState.ready, getRunStateById]
+  );
+
+  const updateEditableContent = useCallback((id: string, content: string) => {
+    setEditableCells((prev) => prev.map((c) => (c.id === id ? { ...c, content } : c)));
+  }, []);
+
+  const deleteEditableCell = useCallback((id: string) => {
+    setEditableCells((prev) => (prev.length <= 1 ? prev : prev.filter((c) => c.id !== id)));
+  }, []);
+
+  const addEditableCell = useCallback((afterId: string, type: "code" | "markdown") => {
+    const newCell: PlaygroundCell = {
+      id: nextCellId(),
+      type,
+      content: type === "code" ? "" : "<p>Double-click to edit</p>",
+    };
+    setEditableCells((prev) => {
+      const idx = prev.findIndex((c) => c.id === afterId);
+      if (idx === -1) return [...prev, newCell];
+      const next = [...prev];
+      next.splice(idx + 1, 0, newCell);
+      return next;
+    });
+  }, []);
+
+  const addEditableCellAtEnd = useCallback((type: "code" | "markdown") => {
+    setEditableCells((prev) => [
+      ...prev,
+      {
+        id: nextCellId(),
+        type,
+        content: type === "code" ? "" : "<p>Double-click to edit</p>",
+      },
+    ]);
+  }, []);
+
+  const moveEditableCell = useCallback((id: string, direction: -1 | 1) => {
+    setEditableCells((prev) => {
+      const idx = prev.findIndex((c) => c.id === id);
+      const targetIdx = idx + direction;
+      if (idx === -1 || targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
+      return next;
+    });
+  }, []);
+
+  const toggleEditableCellType = useCallback((id: string) => {
+    setEditableCells((prev) =>
+      prev.map((c) => (c.id !== id ? c : { ...c, type: c.type === "code" ? "markdown" : "code" }))
+    );
+  }, []);
+
+  const resetEditableNotebook = useCallback(() => {
+    setEditableCells(STARTER_CELLS.map((c) => ({ ...c, id: nextCellId() })));
+    setRunStatesById(new Map());
+  }, []);
+
+  const runAllEditableCells = useCallback(async () => {
+    for (const cell of editableCells) {
+      if (cell.type === "code") await runCellById(cell.id);
+    }
+  }, [editableCells, runCellById]);
+
   const mobilePreview = useMemo(() => {
     if (!notebookKey) return EXAMPLES[0];
     const byNotebookId = EXAMPLES.find((ex) => ex.notebookId === notebookKey);
@@ -268,6 +423,119 @@ export default function Notebook({
         <p className="mt-4 text-xs font-mono text-slate/60">
           Tip: open this doc on a larger screen to run Python in-browser with Pyodide.
         </p>
+      </div>
+    );
+  }
+
+  if (editable && editableCells.length > 0) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        {title && (
+          <div className="mb-8">
+            <h1 className="text-5xl font-display font-bold mb-4">{title}</h1>
+          </div>
+        )}
+        {!pyodideState.ready && (
+          <div className="mb-8 bg-white border-2 border-slate/20 rounded-lg p-6 shadow-sm">
+            {pyodideState.loading ? (
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-5 h-5 border-2 border-orange border-t-transparent rounded-full animate-spin" />
+                  <span className="font-mono text-sm">Loading Python runtime...</span>
+                </div>
+                <div className="w-full bg-slate/10 rounded-full h-2">
+                  <div
+                    className="bg-orange h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${pyodideState.loadProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate/50 mt-2 font-mono">
+                  Loading vibe-widget, pandas, numpy ({pyodideState.loadProgress}%)
+                </p>
+              </div>
+            ) : pyodideState.error ? (
+              <div className="text-red-600">
+                <p className="font-bold">Failed to load Python runtime</p>
+                <p className="text-sm font-mono mt-2">{pyodideState.error}</p>
+              </div>
+            ) : (
+              <button
+                onClick={() => pyodideRuntime.load()}
+                className="bg-orange text-white px-4 py-2 rounded-lg font-mono text-sm hover:bg-orange/80 transition-colors"
+              >
+                Load Python Runtime
+              </button>
+            )}
+          </div>
+        )}
+        {pyodideState.ready && (
+          <div className="mb-6 flex flex-wrap gap-3 items-center">
+            <button
+              onClick={runAllEditableCells}
+              className="bg-orange text-white px-4 py-2 rounded-lg font-mono text-sm hover:bg-orange/80 transition-colors flex items-center gap-2"
+            >
+              <span>▶</span> Run All Cells
+            </button>
+            <button
+              onClick={() => addEditableCellAtEnd("code")}
+              className="bg-slate/10 text-slate px-3 py-2 rounded-lg font-mono text-xs hover:bg-slate/20 transition-colors"
+            >
+              + Code Cell
+            </button>
+            <button
+              onClick={() => addEditableCellAtEnd("markdown")}
+              className="bg-slate/10 text-slate px-3 py-2 rounded-lg font-mono text-xs hover:bg-slate/20 transition-colors"
+            >
+              + Markdown Cell
+            </button>
+            <button
+              onClick={resetEditableNotebook}
+              className="bg-slate/10 text-slate px-3 py-2 rounded-lg font-mono text-xs hover:bg-slate/20 transition-colors"
+            >
+              Reset
+            </button>
+            <span className="text-slate/50 text-sm font-mono">Python ready • pandas, numpy, sklearn</span>
+          </div>
+        )}
+        <div className="space-y-4">
+          {editableCells.map((cell, index) => (
+            <React.Fragment key={cell.id}>
+              {cell.type === "code" ? (
+                <EditableCodeCell
+                  cell={cell}
+                  index={index}
+                  state={getRunStateById(cell.id)}
+                  widgets={widgets}
+                  pyodideReady={pyodideState.ready}
+                  onRun={() => runCellById(cell.id)}
+                  onChange={(content) => updateEditableContent(cell.id, content)}
+                  onDelete={() => deleteEditableCell(cell.id)}
+                  onMoveUp={() => moveEditableCell(cell.id, -1)}
+                  onMoveDown={() => moveEditableCell(cell.id, 1)}
+                  onToggleType={() => toggleEditableCellType(cell.id)}
+                  isFirst={index === 0}
+                  isLast={index === editableCells.length - 1}
+                />
+              ) : (
+                <EditableMarkdownCell
+                  cell={cell}
+                  index={index}
+                  onChange={(content) => updateEditableContent(cell.id, content)}
+                  onDelete={() => deleteEditableCell(cell.id)}
+                  onMoveUp={() => moveEditableCell(cell.id, -1)}
+                  onMoveDown={() => moveEditableCell(cell.id, 1)}
+                  onToggleType={() => toggleEditableCellType(cell.id)}
+                  isFirst={index === 0}
+                  isLast={index === editableCells.length - 1}
+                />
+              )}
+              <AddCellDivider
+                onAddCode={() => addEditableCell(cell.id, "code")}
+                onAddMarkdown={() => addEditableCell(cell.id, "markdown")}
+              />
+            </React.Fragment>
+          ))}
+        </div>
       </div>
     );
   }
@@ -377,7 +645,7 @@ function ReadOnlyCell({
   onRun,
   onToggleCode,
   onToggleOutput,
-}: ReadOnlyCellProps): JSX.Element {
+}: ReadOnlyCellProps): React.ReactElement {
   const [markdownCollapsed, setMarkdownCollapsed] = useState(cell.defaultCollapsed ?? false);
 
   if (cell.type === "markdown") {
@@ -483,7 +751,7 @@ function CellOutputRender({
 }: {
   output: CellOutput;
   widgets: Map<string, { moduleUrl: string; model: WidgetModel }>;
-}): JSX.Element | null {
+}): React.ReactElement | null {
   if (output.type === "stdout") {
     return <pre className="font-mono text-sm text-slate whitespace-pre-wrap mb-2">{output.content}</pre>;
   }
@@ -510,4 +778,248 @@ function CellOutputRender({
     return <pre className="font-mono text-sm text-slate whitespace-pre-wrap mb-2">{output.content}</pre>;
   }
   return null;
+}
+
+function AddCellDivider({
+  onAddCode,
+  onAddMarkdown,
+}: {
+  onAddCode: () => void;
+  onAddMarkdown: () => void;
+}): React.ReactElement {
+  return (
+    <div className="flex items-center justify-center gap-2 py-1 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity">
+      <div className="flex-1 h-px bg-slate/10" />
+      <button
+        onClick={onAddCode}
+        className="px-2 py-0.5 text-xs font-mono text-slate/40 hover:text-orange hover:bg-orange/10 rounded transition-colors"
+      >
+        + Code
+      </button>
+      <button
+        onClick={onAddMarkdown}
+        className="px-2 py-0.5 text-xs font-mono text-slate/40 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
+      >
+        + Markdown
+      </button>
+      <div className="flex-1 h-px bg-slate/10" />
+    </div>
+  );
+}
+
+interface EditableCodeCellProps {
+  cell: PlaygroundCell;
+  index: number;
+  state: CellState;
+  widgets: Map<string, { moduleUrl: string; model: WidgetModel }>;
+  pyodideReady: boolean;
+  onRun: () => void;
+  onChange: (content: string) => void;
+  onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onToggleType: () => void;
+  isFirst: boolean;
+  isLast: boolean;
+}
+
+function EditableCodeCell({
+  cell,
+  index,
+  state,
+  widgets,
+  pyodideReady,
+  onRun,
+  onChange,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  onToggleType,
+  isFirst,
+  isLast,
+}: EditableCodeCellProps): React.ReactElement {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const autoResize = useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.max(ta.scrollHeight, 60)}px`;
+  }, []);
+  useEffect(() => {
+    autoResize();
+  }, [cell.content, autoResize]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && e.shiftKey) {
+      e.preventDefault();
+      onRun();
+    }
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const ta = e.currentTarget;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      onChange(ta.value.substring(0, start) + "    " + ta.value.substring(end));
+      requestAnimationFrame(() => {
+        ta.selectionStart = ta.selectionEnd = start + 4;
+      });
+    }
+  };
+
+  const hasOutput = state.outputs.length > 0 || state.running;
+  const executionLabel = state.executed ? `[${index + 1}]` : "[ ]";
+
+  return (
+    <div className="bg-white border-2 border-slate/20 rounded-lg overflow-hidden shadow-sm">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate/5 border-b border-slate/10">
+        <div className="flex items-center gap-3">
+          <ChevronIcon expanded className="text-slate/40" />
+          <span className="font-mono text-xs text-slate/50">In {executionLabel}:</span>
+          {pyodideReady && (
+            <button
+              onClick={onRun}
+              disabled={state.running}
+              className="text-xs bg-orange/10 text-orange px-2 py-1 rounded hover:bg-orange/20 transition-colors disabled:opacity-50 font-mono"
+            >
+              {state.running ? "⏳ Running..." : "▶ Run"}
+            </button>
+          )}
+          <span className="text-xs text-slate/40 font-mono">Shift+Enter</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={onToggleType} className="px-1.5 py-0.5 rounded hover:bg-slate/10 text-slate/50 font-mono text-xs" title="Toggle to markdown">
+            M
+          </button>
+          {!isFirst && (
+            <button onClick={onMoveUp} className="px-1.5 py-0.5 rounded hover:bg-slate/10 text-slate/50" title="Move up">
+              ↑
+            </button>
+          )}
+          {!isLast && (
+            <button onClick={onMoveDown} className="px-1.5 py-0.5 rounded hover:bg-slate/10 text-slate/50" title="Move down">
+              ↓
+            </button>
+          )}
+          <button onClick={onDelete} className="px-1.5 py-0.5 rounded hover:bg-red-100 text-red-400 hover:text-red-600" title="Delete cell">
+            ×
+          </button>
+        </div>
+      </div>
+      <textarea
+        ref={textareaRef}
+        value={cell.content}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        spellCheck={false}
+        className="w-full px-4 py-3 font-mono text-sm bg-slate/5 text-slate border-t border-slate/10 resize-none outline-none leading-relaxed"
+        style={{ minHeight: 60, tabSize: 4 }}
+      />
+      {hasOutput && (
+        <div className="border-t-2 border-slate/10">
+          <div className="px-4 py-2 bg-bone/30 font-mono text-xs text-slate/50">Out [{state.executed ? index + 1 : " "}]:</div>
+          <div className="p-4 bg-bone/30">
+            {state.running && (
+              <div className="flex items-center gap-2 text-slate/50 font-mono text-xs mb-2">
+                <div className="w-3 h-3 border-2 border-orange border-t-transparent rounded-full animate-spin" />
+                Executing...
+              </div>
+            )}
+            {state.outputs.map((output, i) => (
+              <CellOutputRender key={i} output={output} widgets={widgets} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface EditableMarkdownCellProps {
+  cell: PlaygroundCell;
+  index: number;
+  onChange: (content: string) => void;
+  onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onToggleType: () => void;
+  isFirst: boolean;
+  isLast: boolean;
+}
+
+function EditableMarkdownCell({
+  cell,
+  onChange,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  onToggleType,
+  isFirst,
+  isLast,
+}: EditableMarkdownCellProps): React.ReactElement {
+  const [editing, setEditing] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (editing && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.max(textareaRef.current.scrollHeight, 60)}px`;
+    }
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <div className="bg-white border-2 border-slate/20 rounded-lg overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between px-4 py-2 bg-slate/5 border-b border-slate/10">
+          <span className="font-mono text-xs text-slate/50">Markdown (editing)</span>
+          <button
+            onClick={() => setEditing(false)}
+            className="text-xs bg-orange/10 text-orange px-2 py-1 rounded hover:bg-orange/20 font-mono"
+          >
+            Done
+          </button>
+        </div>
+        <textarea
+          ref={textareaRef}
+          value={cell.content}
+          onChange={(e) => {
+            onChange(e.target.value);
+            if (textareaRef.current) {
+              textareaRef.current.style.height = "auto";
+              textareaRef.current.style.height = `${Math.max(textareaRef.current.scrollHeight, 60)}px`;
+            }
+          }}
+          onKeyDown={(e) => e.key === "Escape" && setEditing(false)}
+          spellCheck={false}
+          className="w-full px-4 py-3 font-mono text-sm bg-slate/5 text-slate resize-none outline-none leading-relaxed"
+          style={{ minHeight: 60 }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border-2 border-slate/10 rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-slate/10">
+        <span className="font-mono text-xs text-slate/50">Markdown</span>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setEditing(true)} className="px-1.5 py-0.5 rounded hover:bg-slate/10 text-slate/50 font-mono text-xs">
+            Edit
+          </button>
+          <button onClick={onToggleType} className="px-1.5 py-0.5 rounded hover:bg-slate/10 text-slate/50 font-mono text-xs" title="Toggle to code">
+            Code
+          </button>
+          {!isFirst && <button onClick={onMoveUp} className="px-1.5 py-0.5 rounded hover:bg-slate/10 text-slate/50" title="Move up">↑</button>}
+          {!isLast && <button onClick={onMoveDown} className="px-1.5 py-0.5 rounded hover:bg-slate/10 text-slate/50" title="Move down">↓</button>}
+          <button onClick={onDelete} className="px-1.5 py-0.5 rounded hover:bg-red-100 text-red-400 hover:text-red-600" title="Delete">×</button>
+        </div>
+      </div>
+      <div
+        className="px-6 pb-6 pt-2 cursor-pointer hover:bg-slate/5 transition-colors"
+        onDoubleClick={() => setEditing(true)}
+      >
+        <div className="prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: cell.content }} />
+      </div>
+    </div>
+  );
 }
