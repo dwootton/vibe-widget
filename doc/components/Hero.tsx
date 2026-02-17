@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { Terminal, Copy, ChevronDown, Sparkles } from 'lucide-react';
 import { EXAMPLES } from '../data/examples';
-import DynamicWidget from './DynamicWidget';
+import VibeWidget from "./VibeWidget";
 import { useIsMobile } from '../utils/useIsMobile';
 
 const RetroCat = () => {
@@ -413,11 +413,9 @@ const Hero = () => {
                                             className="w-full h-full bg-white border border-slate/10 shadow-sm rounded overflow-hidden flex flex-col"
                                         >
                                             <div className="flex-1 p-2 h-full min-h-0">
-                                                <DynamicWidget
+                                                <VibeWidget
                                                     moduleUrl={selectedExample.moduleUrl}
-                                                    exampleId={selectedExample.id}
-                                                    dataUrl={selectedExample.dataUrl}
-                                                    dataType={selectedExample.dataType}
+                                                    dataFiles={selectedExample.dataFiles}
                                                 />
                                             </div>
                                         </motion.div>

@@ -1,18 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { EXAMPLES, Category } from '../data/examples';
-import {
-    CROSS_WIDGET_NOTEBOOK,
-    TICTACTOE_NOTEBOOK,
-    PDF_WEB_NOTEBOOK,
-    REVISE_NOTEBOOK,
-    WEATHER_DATA_FILES,
-    TICTACTOE_DATA_FILES,
-    PDF_WEB_DATA_FILES,
-    REVISE_DATA_FILES,
-} from '../data/pyodideNotebooks';
-import PyodideNotebook from '../components/PyodideNotebook';
-import DynamicWidget from '../components/DynamicWidget';
+import { getNotebook } from "../data/notebooks";
+import Notebook from "../components/Notebook";
+import VibeWidget from "../components/VibeWidget";
 import { createWidgetModel } from '../utils/exampleDataLoader';
 import { SquareArrowOutUpRight, X, Zap, Box, BarChart3, LayoutGrid, ChevronDown, Search } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -23,15 +14,6 @@ const CATEGORIES: { label: Category; icon: any }[] = [
     { label: 'Reactive', icon: LayoutGrid },
     { label: '3D', icon: Box },
 ];
-
-const NOTEBOOK_MAP: Record<string, any> = {
-    'tic-tac-toe': { cells: TICTACTOE_NOTEBOOK, dataFiles: TICTACTOE_DATA_FILES },
-    'weather-scatter': { cells: CROSS_WIDGET_NOTEBOOK, dataFiles: WEATHER_DATA_FILES },
-    'weather-bars': { cells: CROSS_WIDGET_NOTEBOOK, dataFiles: WEATHER_DATA_FILES },
-    'solar-system': { cells: PDF_WEB_NOTEBOOK, dataFiles: PDF_WEB_DATA_FILES },
-    'hn-clone': { cells: PDF_WEB_NOTEBOOK, dataFiles: PDF_WEB_DATA_FILES },
-    'covid-trends': { cells: REVISE_NOTEBOOK, dataFiles: REVISE_DATA_FILES },
-};
 
 const GalleryPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -116,8 +98,8 @@ const GalleryPage = () => {
         setSearchParams({});
     };
 
-    const getModelForExample = (example: typeof EXAMPLES[0]) => {
-        const dataUrl = example.dataUrl;
+    const getModelForExample = (example: (typeof EXAMPLES)[0]) => {
+        const dataUrl = example.dataFiles?.[0]?.url;
         if (!dataUrl) return undefined;
 
         if (!modelsRef.current.has(dataUrl)) {
@@ -355,11 +337,10 @@ const GalleryPage = () => {
                                     </div>
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
-                                    {focusedExample && NOTEBOOK_MAP[focusedExample.id] ? (
-                                        <PyodideNotebook
-                                            cells={NOTEBOOK_MAP[focusedExample.id].cells}
-                                            dataFiles={NOTEBOOK_MAP[focusedExample.id].dataFiles}
-                                            notebookKey={focusedExample.id}
+                                    {focusedExample && focusedExample.notebookId && getNotebook(focusedExample.notebookId) ? (
+                                        <Notebook
+                                            cells={[]}
+                                            notebookKey={focusedExample.notebookId}
                                         />
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-full text-slate/30 font-mono">
@@ -377,8 +358,8 @@ const GalleryPage = () => {
     );
 };
 
-const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPLES[0]; index: number; model: any; onOpen: () => void }) => {
-    const hasNotebook = !!NOTEBOOK_MAP[example.id];
+const GalleryCard = ({ example, index, model, onOpen }: { example: (typeof EXAMPLES)[0]; index: number; model: any; onOpen: () => void }) => {
+    const hasNotebook = !!example.notebookId && !!getNotebook(example.notebookId);
 
     return (
         <motion.div
@@ -408,12 +389,10 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
                     <img src={example.gifUrl} alt={example.label} className="w-full h-full object-cover" />
                 ) : (
                     <div className="w-full h-full p-4">
-                        <DynamicWidget
+                        <VibeWidget
                             moduleUrl={example.moduleUrl}
                             model={model}
-                            exampleId={example.id}
-                            dataUrl={example.dataUrl}
-                            dataType={example.dataType}
+                            dataFiles={example.dataFiles}
                         />
                     </div>
                 )}

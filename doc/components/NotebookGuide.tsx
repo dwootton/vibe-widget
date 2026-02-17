@@ -233,8 +233,8 @@ const NotebookGuide = () => {
                             icon={<Package />}
                             code={`import vibe_widget as vw
 
-# Configure runtime environment
-vw.config(theme="vibe-widgets")`}
+# Configure runtime (model, mode, execution)
+vw.config.set(model="openrouter", mode="premium")`}
                             output={
                                 <div className="text-slate/60 text-xs font-mono leading-relaxed">
                                     [SYSTEM] Initializing Vibe-Engine v.1.0.4...<br />
@@ -298,7 +298,7 @@ vw.config(theme="vibe-widgets")`}
                         <NotebookCell
                             index={4}
                             icon={<Upload />}
-                            code={`# Apply audit fix\ndashboard.edit(\n  "use a perceptually uniform palette and filter to just europe",\n)`}
+                            code={`# Refine with vw.edit()\nrefined = vw.edit(\n  "use a perceptually uniform palette and filter to just europe",\n  dashboard,\n  data=emissions_df\n)`}
                             output={
                                 <div className="bg-white border-2 border-slate p-2 rounded-xl shadow-sm h-40 flex flex-col overflow-hidden">
                                     <div className="grid grid-cols-10 gap-0.5 w-full h-full p-2">

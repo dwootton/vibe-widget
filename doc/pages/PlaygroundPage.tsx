@@ -1,18 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from "react";
 // @ts-ignore
-import { pyodideRuntime, PyodideState, WidgetModel } from '../utils/PyodideRuntime';
-import { resolvePublicUrl } from '../utils/resolvePublicUrl';
-import { transformWidgetModule } from '../utils/transformWidgetModule';
+import { pyodideRuntime, PyodideState, WidgetModel } from "../utils/PyodideRuntime";
+import VibeWidget from "../components/VibeWidget";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-
-interface PlaygroundCell {
-  id: string;
-  type: 'code' | 'markdown';
-  content: string;
-}
 
 interface CellOutput {
   type: 'stdout' | 'stderr' | 'result';
@@ -29,89 +22,11 @@ interface CellRunState {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-let cellIdCounter = 0;
-function nextId() {
-  return `cell-${++cellIdCounter}-${Date.now()}`;
-}
-
-const STARTER_CELLS: PlaygroundCell[] = [
-  {
-    id: nextId(),
-    type: 'markdown',
-    content:
-      '<h2>Vibe Widget Playground</h2>\n<p>Write Python below and press <strong>Shift + Enter</strong> to run a cell. <code>vibe_widget</code>, <code>pandas</code>, and <code>numpy</code> are pre-installed.</p>\n<p>Add your <a href="https://openrouter.ai/keys" target="_blank">OpenRouter API key</a> to generate widgets live, or leave it blank to use pre-generated examples.</p>',
-  },
-  {
-    id: nextId(),
-    type: 'code',
-    content: `import vibe_widget as vw
-import pandas as pd
-import numpy as np
-
-# Add your OpenRouter API key to enable live widget generation
-vw.config(
-    model="google/gemini-2.5-flash",
-    api_key=""  # paste your OpenRouter key here
-)`,
-  },
-  {
-    id: nextId(),
-    type: 'code',
-    content: '# Try: vw.create("interactive scatter plot of x vs y", data=pd.DataFrame({"x": range(20), "y": [v**2 for v in range(20)]}))\n',
-  },
-];
-
-/* ------------------------------------------------------------------ */
-/*  Widget renderer (same pattern as PyodideNotebook)                   */
-/* ------------------------------------------------------------------ */
-
-function WidgetRenderer({ moduleUrl, model }: { moduleUrl: string; model: WidgetModel }) {
-  const [Widget, setWidget] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let blobUrl: string | null = null;
-
-    async function loadWidget() {
-      try {
-        const response = await fetch(resolvePublicUrl(moduleUrl));
-        if (!response.ok) throw new Error(`Failed to fetch module: ${response.statusText}`);
-        const code = await response.text();
-        const compiled = await transformWidgetModule(code);
-        const blob = new Blob([compiled], { type: 'application/javascript' });
-        blobUrl = URL.createObjectURL(blob);
-        const mod = await import(/* @vite-ignore */ blobUrl);
-        const fn = mod?.default ?? mod;
-        if (typeof fn !== 'function') throw new Error('Widget module must export a default function');
-        if (!cancelled) {
-          setWidget(() => fn);
-          setError(null);
-        }
-      } catch (e: any) {
-        if (!cancelled) setError(e.message || 'Failed to load widget');
-      }
-    }
-
-    loadWidget();
-    return () => {
-      cancelled = true;
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
-    };
-  }, [moduleUrl]);
-
-  if (error) {
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700 font-mono text-xs">
-        Error loading widget: {error}
-      </div>
-    );
-  }
-  if (!Widget) {
-    return <div className="p-4 text-slate/50 font-mono text-xs animate-pulse">Loading widget...</div>;
-  }
-  return <Widget model={model} React={React} />;
-}
+import {
+  STARTER_CELLS,
+  nextCellId,
+  type PlaygroundCell,
+} from "../data/playgroundStarterCells";
 
 /* ------------------------------------------------------------------ */
 /*  Editable code cell                                                 */
@@ -253,7 +168,7 @@ function CodeCell({
               if (widget) {
                 return (
                   <div key={i} className="bg-white border border-slate/10 rounded-lg p-4 mb-2">
-                    <WidgetRenderer moduleUrl={widget.moduleUrl} model={widget.model} />
+                    <VibeWidget moduleUrl={widget.moduleUrl} model={widget.model} />
                   </div>
                 );
               }
@@ -409,7 +324,7 @@ function AddCellDivider({ onAddCode, onAddMarkdown }: { onAddCode: () => void; o
 
 export default function PlaygroundPage() {
   const [cells, setCells] = useState<PlaygroundCell[]>(() =>
-    STARTER_CELLS.map((c) => ({ ...c, id: nextId() }))
+    STARTER_CELLS.map((c) => ({ ...c, id: nextCellId() }))
   );
   const [runStates, setRunStates] = useState<Map<string, CellRunState>>(new Map());
   const [widgets, setWidgets] = useState<Map<string, { moduleUrl: string; model: WidgetModel }>>(new Map());
@@ -518,7 +433,7 @@ export default function PlaygroundPage() {
 
   const addCell = useCallback((afterId: string, type: 'code' | 'markdown') => {
     const newCell: PlaygroundCell = {
-      id: nextId(),
+      id: nextCellId(),
       type,
       content: type === 'code' ? '' : '<p>Double-click to edit</p>',
     };
@@ -533,9 +448,9 @@ export default function PlaygroundPage() {
 
   const addCellAtEnd = useCallback((type: 'code' | 'markdown') => {
     const newCell: PlaygroundCell = {
-      id: nextId(),
+      id: nextCellId(),
       type,
-      content: type === 'code' ? '' : '<p>Double-click to edit</p>',
+      content: type === "code" ? "" : "<p>Double-click to edit</p>",
     };
     setCells((prev) => [...prev, newCell]);
   }, []);
@@ -564,7 +479,7 @@ export default function PlaygroundPage() {
   }, []);
 
   const resetNotebook = useCallback(() => {
-    setCells(STARTER_CELLS.map((c) => ({ ...c, id: nextId() })));
+    setCells(STARTER_CELLS.map((c) => ({ ...c, id: nextCellId() })));
     setRunStates(new Map());
   }, []);
 

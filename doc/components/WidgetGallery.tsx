@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
-import DynamicWidget from './DynamicWidget';
+import VibeWidget from "./VibeWidget";
 import { EXAMPLES } from '../data/examples';
 import { createWidgetModel } from '../utils/exampleDataLoader';
 import { ArrowRight } from 'lucide-react';
@@ -39,12 +39,10 @@ const GalleryItem = ({
       <div className="h-[200px] sm:h-[240px] lg:h-[280px] bg-bone border-2 border-slate/5 rounded-lg overflow-hidden relative shadow-inner group-hover:border-orange/20 transition-colors">
         <div className="absolute inset-0 bg-grid-pattern opacity-[0.05] pointer-events-none" />
         <div className="h-full w-full overflow-hidden">
-          <DynamicWidget
+          <VibeWidget
             moduleUrl={example.moduleUrl}
             model={model}
-            exampleId={example.id}
-            dataUrl={example.dataUrl}
-            dataType={example.dataType}
+            dataFiles={example.dataFiles}
           />
         </div>
       </div>
@@ -71,8 +69,8 @@ const WidgetGallery = ({ mode }: WidgetGalleryProps) => {
   // Shared models for cross-widget reactivity (using dataUrl as key)
   const modelsRef = useRef<Map<string, any>>(new Map());
 
-  const getModelForExample = (example: typeof EXAMPLES[0]) => {
-    const dataUrl = example.dataUrl;
+  const getModelForExample = (example: (typeof EXAMPLES)[0]) => {
+    const dataUrl = example.dataFiles?.[0]?.url;
     if (!dataUrl) return undefined;
 
     if (!modelsRef.current.has(dataUrl)) {

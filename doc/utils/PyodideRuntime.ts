@@ -395,7 +395,7 @@ def config(model=None, api_key=None):
     print(f"[Demo Mode] Config set - model: {model}")
     print("[Demo Mode] Using pre-generated widgets, no LLM calls needed")
 
-# Widget URL mapping (pre-generated widgets)
+# Widget URL mapping (pre-generated widgets; keep in sync with doc/data/examples.ts)
 _WIDGET_URLS = {
     'scatter': '/widgets/temperature_across_days_seattle_colored__1e5a77bc87__v1.js',
     'bars': '/widgets/horizontal_bar_chart_weather_conditions__b7796577c1__v2.js',

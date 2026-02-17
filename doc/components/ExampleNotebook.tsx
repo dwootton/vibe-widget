@@ -1,77 +1,32 @@
-import React, { useEffect, useState, Suspense } from 'react';
+import React from "react";
+import Notebook from "./Notebook";
+import { getNotebook } from "../data/notebooks";
 
-const PyodideNotebook = React.lazy(() => import('./PyodideNotebook'));
+interface ExampleNotebookProps {
+  exampleId: string;
+  title?: string;
+}
 
-type NotebookConfig = {
-  cells: any[];
-  dataFiles: { url: string; varName: string; type?: string }[];
-  title: string;
-};
+/**
+ * Renders a read-only example notebook by id (e.g. "cross-widget", "tictactoe", "pdf-web", "edit").
+ */
+export default function ExampleNotebook({ exampleId, title }: ExampleNotebookProps): React.ReactElement {
+  const spec = getNotebook(exampleId);
 
-const ExampleNotebook = ({ exampleId, title }: { exampleId: string; title?: string }) => {
-  const [config, setConfig] = useState<NotebookConfig | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-
-    import('../data/pyodideNotebooks').then((mod) => {
-      const notebooks: Record<string, NotebookConfig> = {
-        'cross-widget': {
-          cells: mod.CROSS_WIDGET_NOTEBOOK,
-          dataFiles: mod.WEATHER_DATA_FILES,
-          title: 'Cross-Widget Interactions',
-        },
-        tictactoe: {
-          cells: mod.TICTACTOE_NOTEBOOK,
-          dataFiles: mod.TICTACTOE_DATA_FILES,
-          title: 'Tic-Tac-Toe AI',
-        },
-        'pdf-web': {
-          cells: mod.PDF_WEB_NOTEBOOK,
-          dataFiles: mod.PDF_WEB_DATA_FILES,
-          title: 'PDF & Web Data Extraction',
-        },
-        edit: {
-          cells: mod.REVISE_NOTEBOOK,
-          dataFiles: mod.REVISE_DATA_FILES,
-          title: 'Widget Editing',
-        },
-      };
-
-      if (mounted) {
-        setConfig(notebooks[exampleId] || null);
-      }
-    });
-
-    return () => {
-      mounted = false;
-    };
-  }, [exampleId]);
-
-  if (!config) {
+  if (!spec) {
     return (
       <div className="bg-white border-2 border-slate rounded-2xl p-6 shadow-hard-sm">
-        <p className="text-sm text-slate/70 font-mono">Loading notebook...</p>
+        <p className="text-sm text-slate/70 font-mono">Notebook not found: {exampleId}</p>
       </div>
     );
   }
 
   return (
-    <Suspense
-      fallback={(
-        <div className="bg-white border-2 border-slate rounded-2xl p-6 shadow-hard-sm">
-          <p className="text-sm text-slate/70 font-mono">Loading notebook...</p>
-        </div>
-      )}
-    >
-      <PyodideNotebook
-        cells={config.cells}
-        title={title || config.title}
-        dataFiles={config.dataFiles}
-        notebookKey={exampleId}
-      />
-    </Suspense>
+    <Notebook
+      editable={false}
+      cells={[]}
+      title={title}
+      notebookKey={exampleId}
+    />
   );
-};
-
-export default ExampleNotebook;
+}
