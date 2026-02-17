@@ -35,10 +35,9 @@ vw.config(
     type: "code",
     content: `scatter = vw.create(
   "interactive scatter plot of x and y", 
-  data=pd.DataFrame({"x": range(20), "y": [v**2 for v in range(20)]}),
+  data=pd.DataFrame({"x": range(1000), "y": [v**2 for v in range(1000)], "category": ["A"] * 200 + ["B"] * 200 + ["C"] * 200 + ["D"] * 200 + ["E"] * 200}),
   outputs=vw.outputs(
-    x="x values selected",
-    y="y values selected"
+    selected_indices="indices of selected points"
   )
 )
 scatter`,
@@ -46,19 +45,13 @@ scatter`,
   {
     id: nextCellId(),
     type: "code",
-    content: `scatter.outputs.x.value
-scatter.outputs.y.value`,
-  },
-  {
-    id: nextCellId(),
-    type: "code",
-    content: `barchart = vw.create(
-  "horizontal bar chart of y values",
-  data=pd.DataFrame({"y": [v**2 for v in range(20)]}),
+    content: `histogram = vw.create(
+  "histogram of y values",
+  data=pd.DataFrame({"y": [v**2 for v in range(1000)]}),
   inputs=vw.inputs(
-    x=scatter.outputs.x.value
+    selected_indices=scatter.outputs.selected_indices
   )
 )
-barchart`,
+histogram`,
   },
 ];
