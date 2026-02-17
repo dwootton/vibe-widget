@@ -41,7 +41,7 @@ class BundleService:
             self._root.mkdir(parents=True, exist_ok=True)
             self._packages_dir.mkdir(parents=True, exist_ok=True)
         self._node_path = self._resolve_node_modules()
-        self._bundle_rev = "v11-import-map-external-react"
+        self._bundle_rev = "v12-external-react-default"
 
     def _resolve_node_modules(self) -> str | None:
         repo_root = Path(__file__).resolve().parents[3]
@@ -102,9 +102,15 @@ class BundleService:
             if self._node_path:
                 env["NODE_PATH"] = self._node_path
             env["VIBE_PKG_DIR"] = str(self._packages_dir)
+            # Externalize React so the host provides it via import map; avoids "Could not resolve react"
+            # when bundling in a temp dir that has no node_modules.
+            env["VIBE_EXTERNALIZE_REACT"] = "1"
             # VS Code notebooks lack import-map support; include React in the bundle there.
             if os.getenv("VSCODE_PID"):
                 env["VIBE_INCLUDE_REACT"] = "1"
+                env["VIBE_EXTERNALIZE_REACT"] = "0"
+                if self._node_path:
+                    env["VIBE_NODE_MODULES"] = self._node_path
 
             result = subprocess.run(
                 ["node", str(build_path), str(entry_path), str(out_path)],
