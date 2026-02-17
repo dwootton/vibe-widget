@@ -25,6 +25,48 @@ function looksLikeJsx(code: string): boolean {
   return /<[A-Za-z][^>]*>/.test(code);
 }
 
+/**
+ * Normalize common LLM-generated JSX mistakes that cause "Unexpected token '<'":
+ * - Broken closing tags: "< \n/svg>", "<\n  /div>", "<\n  /\n  div>" → "</svg>" / "</div>"
+ * - Broken opening tags: "< \ndiv", "<\n  svg" → "<div" / "<svg"
+ * - Spaces in JSX props: "ref = {" → "ref={"
+ * Run multiple passes so one fix doesn't leave another pattern behind.
+ */
+function normalizeJsx(code: string): string {
+  let out = code;
+  for (let i = 0; i < 3; i++) {
+    const prev = out;
+    out = out
+      // Closing tags: < + newline(s) + / + optional space/newline + tagname + >
+      .replace(/<\s*\n[\s\n]*\/[\s\n]*(\w+)\s*>/g, "</$1>")
+      .replace(/<\s*\/\s*(\w+)\s*>/g, "</$1>")
+      // Opening tags: < + newline(s) + optional space/newline + tagname (word)
+      .replace(/<\s*\n[\s\n]*(\w+)/g, "<$1")
+      // JSX props with spaces: prop = { → prop={
+      .replace(/(\w+)\s*=\s*\{/g, "$1={");
+    if (out === prev) break;
+  }
+  return out;
+}
+
+/**
+ * Strip Preact hook imports so the widget uses React (host) instead.
+ * The doc site runs in React; Preact's hooks use __H and crash when run inside React.
+ * We remove the import and provide React hooks in the outer scope.
+ */
+function stripPreactHookImports(code: string): string {
+  return code
+    .replace(
+      /import\s*\{[^}]*\}\s*from\s*["'](?:https:\/\/esm\.sh\/)?preact(?:@[^"']*)?\/hooks["'];?\s*\n?/g,
+      ""
+    )
+    .replace(
+      /import\s*\{[^}]*\}\s*from\s*["'](?:https:\/\/esm\.sh\/)?preact(?:@[^"']*)?["'];?\s*\n?/g,
+      ""
+    )
+    .trim();
+}
+
 export async function transformWidgetModule(code: string): Promise<string> {
   if (looksLikeHtml(code)) {
     throw new Error(
@@ -34,10 +76,14 @@ export async function transformWidgetModule(code: string): Promise<string> {
   }
   if (!looksLikeJsx(code)) return code;
 
+  let normalized = normalizeJsx(code);
+  const hadPreactHooks = /import\s*.*\s*from\s*["'].*preact.*\/hooks["']/.test(normalized);
+  normalized = stripPreactHookImports(normalized);
+
   const Babel = await loadBabel();
   let result;
   try {
-    result = Babel.transform(code, {
+    result = Babel.transform(normalized, {
       presets: [['react', { runtime: 'classic' }]],
       filename: 'widget.js',
     });
@@ -53,5 +99,9 @@ export async function transformWidgetModule(code: string): Promise<string> {
   }
 
   const compiled = result?.code || code;
-  return `const React = window.React;\n${compiled}`;
+  const reactSetup =
+    hadPreactHooks
+      ? "const React = window.React;\nconst { useEffect, useRef, useState, useCallback, useMemo } = React;\n"
+      : "const React = window.React;\n";
+  return reactSetup + compiled;
 }

@@ -10,6 +10,11 @@ import type { CompletionContext } from "@codemirror/autocomplete";
 import { keymap, EditorView } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import VibeWidget from "./VibeWidget";
+import { duotoneLight } from '@uiw/codemirror-theme-duotone';
+
+// lucide icons
+import { LoaderCircle, Play, Terminal, ChevronDown, ChevronUp, ChevronLeft, ArrowUp, ArrowDown } from 'lucide-react';
+
 
 /** CodeMirror theme matching doc site: bone/cream background, slate text, orange accents */
 const playgroundEditorTheme = EditorView.theme({
@@ -49,7 +54,7 @@ const playgroundEditorTheme = EditorView.theme({
     backgroundColor: "#fef3c7",
   },
   ".cm-selectionMatch": {
-    backgroundColor: "#fed7aa",
+    backgroundColor: "#fff7d9",
   },
   ".cm-selectionBackground": {
     backgroundColor: "#ffedd5",
@@ -791,7 +796,9 @@ function ReadOnlyCell({
             className="w-full flex items-center gap-2 px-4 py-2 bg-bone/30 hover:bg-bone/50 transition-colors text-left"
           >
             <ChevronIcon expanded={!state.outputCollapsed} className="text-slate/40" />
-            <span className="font-mono text-xs text-slate/50">Out [{state.executed ? index + 1 : " "}]:</span>
+            <span className="font-mono text-xs text-slate/50">
+              Out [{state.executed ? index + 1 : " "}]:
+            </span>
             {state.outputCollapsed && hasWidget && (
               <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded font-mono">Widget</span>
             )}
@@ -804,6 +811,7 @@ function ReadOnlyCell({
           </button>
           {!state.outputCollapsed && (
             <div className="p-4 bg-bone/30">
+              <Terminal className="w-4 h-4 text-orange" />
               {state.outputs.map((output, i) => (
                 <CellOutputRender key={i} output={output} widgets={widgets} />
               ))}
@@ -907,7 +915,7 @@ function vibeWidgetCompletions(context: CompletionContext) {
 
 function makePlaygroundExtensions(onRun: () => void) {
   return [
-    playgroundEditorTheme,
+    duotoneLight,
     // High precedence so Shift-Enter runs the cell instead of inserting newline
     Prec.high(
       keymap.of([
@@ -975,9 +983,9 @@ function EditableCodeCell({
             <button
               onClick={onRun}
               disabled={state.running}
-              className="text-xs bg-orange/10 text-orange px-2 py-1 rounded hover:bg-orange/20 transition-colors disabled:opacity-50 font-mono"
+              className="text-xs flex items-center gap-2 hover:bg-slate/10 rounded px-1 py-0.5 transition-colors"
             >
-              {state.running ? "⏳ Running..." : "▶ Run"}
+              {state.running ? <div className="w-4 h-4 border-2 border-orange border-t-transparent rounded-full animate-spin" /> : <Play className="w-4 h-4 text-orange" />}
             </button>
           )}
           <span className="text-xs text-slate/40 font-mono">Shift+Enter</span>
@@ -988,12 +996,12 @@ function EditableCodeCell({
           </button>
           {!isFirst && (
             <button onClick={onMoveUp} className="px-1.5 py-0.5 rounded hover:bg-slate/10 text-slate/50" title="Move up">
-              ↑
+              <ArrowUp className="w-4 h-4" />
             </button>
           )}
           {!isLast && (
             <button onClick={onMoveDown} className="px-1.5 py-0.5 rounded hover:bg-slate/10 text-slate/50" title="Move down">
-              ↓
+              <ArrowDown className="w-4 h-4" />
             </button>
           )}
           <button onClick={onDelete} className="px-1.5 py-0.5 rounded hover:bg-red-100 text-red-400 hover:text-red-600" title="Delete cell">

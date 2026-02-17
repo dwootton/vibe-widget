@@ -27,12 +27,38 @@ import numpy as np
 # Add your OpenRouter API key to enable live widget generation
 vw.config(
     model="google/gemini-2.5-flash",
-    api_key=""  # paste your OpenRouter key here
+    api_key="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"  # paste your OpenRouter key here
 )`,
   },
   {
     id: nextCellId(),
     type: "code",
-    content: '# Try: vw.create("interactive scatter plot of x vs y", data=pd.DataFrame({"x": range(20), "y": [v**2 for v in range(20)]}))\n',
+    content: `scatter = vw.create(
+  "interactive scatter plot of x and y", 
+  data=pd.DataFrame({"x": range(20), "y": [v**2 for v in range(20)]}),
+  outputs=vw.outputs(
+    x="x values selected",
+    y="y values selected"
+  )
+)
+scatter`,
+  },
+  {
+    id: nextCellId(),
+    type: "code",
+    content: `scatter.outputs.x.value
+scatter.outputs.y.value`,
+  },
+  {
+    id: nextCellId(),
+    type: "code",
+    content: `barchart = vw.create(
+  "horizontal bar chart of y values",
+  data=pd.DataFrame({"y": [v**2 for v in range(20)]}),
+  inputs=vw.inputs(
+    x=scatter.outputs.x.value
+  )
+)
+barchart`,
   },
 ];

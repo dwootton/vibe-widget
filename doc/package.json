@@ -15,6 +15,7 @@
     "@codemirror/lang-python": "^6.2.1",
     "@mdx-js/react": "^3.1.0",
     "@types/d3": "^7.4.3",
+    "@uiw/codemirror-theme-duotone": "^4.25.4",
     "@uiw/react-codemirror": "^4.25.4",
     "animejs": "3.2.1",
     "d3": "^7.9.0",

@@ -17,6 +17,8 @@ export function useWidgetModule(moduleUrl: string | undefined): UseWidgetModuleR
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!moduleUrl);
   const blobUrlRef = useRef<string | null>(null);
+  /** True while load() is running (including during import()). Prevents cleanup from revoking the blob before import() resolves. */
+  const loadingInProgressRef = useRef(false);
 
   useEffect(() => {
     if (!moduleUrl) {
@@ -27,10 +29,19 @@ export function useWidgetModule(moduleUrl: string | undefined): UseWidgetModuleR
     }
 
     let cancelled = false;
+    const previousBlobUrl = blobUrlRef.current;
+    blobUrlRef.current = null;
+    // Do NOT revoke previous blob if a load is still in progress (React Strict Mode
+    // remounts and re-runs the effect while the first load's import() is still in flight).
+    if (previousBlobUrl && !loadingInProgressRef.current) {
+      URL.revokeObjectURL(previousBlobUrl);
+    }
     setLoading(true);
     setError(null);
 
     async function load(): Promise<void> {
+      loadingInProgressRef.current = true;
+      let createdBlobUrl: string | null = null;
       try {
         const resolved = resolvePublicUrl(moduleUrl!);
         const response = await fetch(resolved);
@@ -68,10 +79,10 @@ export function useWidgetModule(moduleUrl: string | undefined): UseWidgetModuleR
 
         const compiled = await transformWidgetModule(code);
         const blob = new Blob([compiled], { type: "application/javascript" });
-        const blobUrl = URL.createObjectURL(blob);
-        blobUrlRef.current = blobUrl;
+        createdBlobUrl = URL.createObjectURL(blob);
+        blobUrlRef.current = createdBlobUrl;
 
-        const mod = await import(/* @vite-ignore */ blobUrl);
+        const mod = await import(/* @vite-ignore */ createdBlobUrl);
         const fn = mod?.default ?? mod;
 
         if (typeof fn !== "function") {
@@ -90,8 +101,13 @@ export function useWidgetModule(moduleUrl: string | undefined): UseWidgetModuleR
         }
         console.error("useWidgetModule:", e);
       } finally {
+        loadingInProgressRef.current = false;
         if (!cancelled) {
           setLoading(false);
+        }
+        if (cancelled && createdBlobUrl) {
+          URL.revokeObjectURL(createdBlobUrl);
+          if (blobUrlRef.current === createdBlobUrl) blobUrlRef.current = null;
         }
       }
     }
@@ -100,7 +116,7 @@ export function useWidgetModule(moduleUrl: string | undefined): UseWidgetModuleR
 
     return () => {
       cancelled = true;
-      if (blobUrlRef.current) {
+      if (!loadingInProgressRef.current && blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;
       }
