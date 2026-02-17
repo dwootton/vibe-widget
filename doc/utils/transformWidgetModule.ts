@@ -7,12 +7,18 @@ async function loadBabel(): Promise<any> {
   return babelLoader;
 }
 
-function looksLikeHtml(text: string): boolean {
-  const trimmed = text.trim();
+export function isLikelyHtml(text: string): boolean {
+  const trimmed = text.replace(/\uFEFF/g, "").trim();
+  const head = trimmed.slice(0, 500).toLowerCase();
   return (
-    trimmed.toLowerCase().startsWith("<!") ||
-    (trimmed.toLowerCase().startsWith("<html") && /<html[\s>]/i.test(trimmed))
+    head.startsWith("<!") ||
+    /<\s*!?\s*doctype\s/i.test(head) ||
+    /<\s*html[\s>]/i.test(head)
   );
+}
+
+function looksLikeHtml(text: string): boolean {
+  return isLikelyHtml(text);
 }
 
 function looksLikeJsx(code: string): boolean {
@@ -29,10 +35,22 @@ export async function transformWidgetModule(code: string): Promise<string> {
   if (!looksLikeJsx(code)) return code;
 
   const Babel = await loadBabel();
-  const result = Babel.transform(code, {
-    presets: [['react', { runtime: 'classic' }]],
-    filename: 'widget.js',
-  });
+  let result;
+  try {
+    result = Babel.transform(code, {
+      presets: [['react', { runtime: 'classic' }]],
+      filename: 'widget.js',
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/Unexpected token\s*[<(]|expected/i.test(msg)) {
+      throw new Error(
+        "Widget code looks like HTML or invalid JS (e.g. a 404 page). " +
+          "Use vw.config(api_key=...) for live generation, or ensure the widget URL points to a real .js file."
+      );
+    }
+    throw e;
+  }
 
   const compiled = result?.code || code;
   return `const React = window.React;\n${compiled}`;

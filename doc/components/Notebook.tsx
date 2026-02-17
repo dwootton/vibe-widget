@@ -8,6 +8,7 @@ import { python } from "@codemirror/lang-python";
 import { autocompletion } from "@codemirror/autocomplete";
 import type { CompletionContext } from "@codemirror/autocomplete";
 import { keymap, EditorView } from "@codemirror/view";
+import { Prec } from "@codemirror/state";
 import VibeWidget from "./VibeWidget";
 
 /** CodeMirror theme matching doc site: bone/cream background, slate text, orange accents */
@@ -50,8 +51,15 @@ const playgroundEditorTheme = EditorView.theme({
   ".cm-selectionMatch": {
     backgroundColor: "#fed7aa",
   },
-  ".cm-selectionBackground, .cm-content ::selection": {
+  ".cm-selectionBackground": {
     backgroundColor: "#ffedd5",
+  },
+  "& .cm-content ::selection": {
+    backgroundColor: "#ffedd5",
+    color: "#1a1a1a",
+  },
+  ".cm-line ::selection": {
+    color: "#1a1a1a",
   },
   ".cm-cursor": {
     borderLeftColor: "#ea580c",
@@ -900,21 +908,24 @@ function vibeWidgetCompletions(context: CompletionContext) {
 function makePlaygroundExtensions(onRun: () => void) {
   return [
     playgroundEditorTheme,
+    // High precedence so Shift-Enter runs the cell instead of inserting newline
+    Prec.high(
+      keymap.of([
+        {
+          key: "Shift-Enter",
+          run: () => {
+            onRun();
+            return true;
+          },
+        },
+      ])
+    ),
     python(),
     autocompletion({
       override: [vibeWidgetCompletions],
       activateOnTyping: true,
       maxRenderedOptions: 12,
     }),
-    keymap.of([
-      {
-        key: "Shift-Enter",
-        run: () => {
-          onRun();
-          return true;
-        },
-      },
-    ]),
   ];
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { resolvePublicUrl } from "./resolvePublicUrl";
-import { transformWidgetModule } from "./transformWidgetModule";
+import { transformWidgetModule, isLikelyHtml } from "./transformWidgetModule";
 
 export interface UseWidgetModuleResult {
   Widget: ((props: { model: any; React: any }) => JSX.Element) | null;
@@ -57,6 +57,13 @@ export function useWidgetModule(moduleUrl: string | undefined): UseWidgetModuleR
           if (!code) throw new Error(".vw bundle has no code");
         } else {
           code = text;
+        }
+
+        if (isLikelyHtml(code)) {
+          throw new Error(
+            "Module returned HTML instead of JavaScript (e.g. 404 or SPA index). " +
+              "Use vw.config(api_key=...) for live widget generation, or ensure the widget URL is correct."
+          );
         }
 
         const compiled = await transformWidgetModule(code);
