@@ -84,8 +84,6 @@ class RepairService:
     ) -> RepairResult:
         if not error_message:
             return RepairResult(code=code, applied=False, retryable=False, message="No error message to repair.")
-        if retry_count >= self.max_retries:
-            return RepairResult(code=code, applied=False, retryable=False, message="Max retry attempts reached.")
 
         try:
             full_error = self.build_error_context(

@@ -5,10 +5,13 @@ const overlayClass = tw(
   "absolute inset-0 z-[1200] flex items-center justify-center bg-[rgba(6,6,6,0.72)] backdrop-blur-[4px]"
 );
 const cardClass = tw(
-  "w-[min(520px,92%)] bg-[#0f172a] text-text-primary border-2 border-[rgba(248,113,113,0.65)] rounded-[12px] p-5 shadow-[0_18px_45px_rgba(0,0,0,0.4)] font-mono"
+  // The card pins a dark surface, so its text pins the light foreground too.
+  // text-text-primary follows --jp-ui-font-color0 and turns black in a light
+  // host (Quarto, JupyterLab light), leaving black text on dark navy.
+  "w-[min(520px,92%)] bg-[#0f172a] text-[#f2f0e9] border-2 border-[rgba(248,113,113,0.65)] rounded-[12px] p-5 shadow-[0_18px_45px_rgba(0,0,0,0.4)] font-mono"
 );
 const titleClass = tw("text-[14px] uppercase tracking-[0.08em] text-error-light mb-3");
-const bodyClass = tw("text-[13px] leading-[1.5] text-text-primary mb-4");
+const bodyClass = tw("text-[13px] leading-[1.5] text-[#f2f0e9] mb-4");
 const actionsClass = tw("flex justify-end gap-2");
 const acceptButtonClass = tw(
   "bg-accent text-[#0b0b0b] border-none rounded-[8px] px-4 py-2 text-[12px] font-semibold cursor-pointer transition-colors duration-150 hover:bg-[#fb923c]"

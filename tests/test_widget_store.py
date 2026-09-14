@@ -86,6 +86,27 @@ def test_column_rename_with_same_shape_misses(tmp_path: Path) -> None:
     assert _lookup(store, data_signature=_signature(["a", "b"], rows=999)) is not None
 
 
+def test_lookup_follows_only_its_own_revision_chain(tmp_path: Path) -> None:
+    store = WidgetStore(tmp_path)
+    first = _save(store, description="scatter plot of sales")
+    _save(store, description="bar chart of revenue", widget_code="export function Bar() {}")
+
+    found = _lookup(store, description="scatter plot of sales")
+    assert found is not None
+    assert found["cache_key"] == first["cache_key"]
+
+    revised = _save(
+        store,
+        description="scatter plot of sales, larger dots",
+        widget_code="export function Revised() {}",
+        revision_parent=first["cache_key"],
+    )
+    followed = _lookup(store, description="scatter plot of sales")
+    assert followed is not None
+    assert followed["cache_key"] == revised["cache_key"]
+    assert followed["_original_cache_key"] == first["cache_key"]
+
+
 def test_two_instances_do_not_lose_entries(tmp_path: Path) -> None:
     first = WidgetStore(tmp_path)
     second = WidgetStore(tmp_path)

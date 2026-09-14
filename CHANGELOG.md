@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Positron and Quarto are detected alongside VS Code, Colab and JupyterLite.
 - Requests adapt to endpoints that reject `max_tokens`, `temperature` or `stream_options`.
 - Users holding both `ANTHROPIC_API_KEY` and `OPENROUTER_API_KEY` now default to Anthropic; set `VIBE_API_KEY` and `VIBE_BASE_URL` to pin a provider.
+- Auto-repair budget is `retry` attempts per generation; a successful repair no longer refills it, and exhaustion sets status `blocked` with a hint.
+- Cached widgets load and render without an API key; the key is only needed for generation, edits, repairs and audits.
+- Cache lookups follow only the widget's own revision chain, so two prompts sharing a variable name no longer collide.
+- Quarto and nbconvert renders complete synchronously and the embedded widget state survives the HTML tokenizer; panels are legible on light themes.
 
 ### Removed
 - `vibe_widget.debug` module, which shipped caller locals and globals to the frontend

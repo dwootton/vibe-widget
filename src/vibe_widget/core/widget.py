@@ -40,7 +40,7 @@ from vibe_widget.core.lifecycle import WidgetLifecycle
 from vibe_widget.core.state import StateManager
 from vibe_widget.llm.agentic_agents import MaxTokensExceeded
 from vibe_widget.llm.agents.config import resolve_agent_run_config
-from vibe_widget.llm.providers.base import LLMProvider
+from vibe_widget.llm.providers.base import LLMProvider, ProviderError
 from vibe_widget.llm.providers.openrouter_provider import OpenRouterProvider
 from vibe_widget.services.audit import AuditService
 from vibe_widget.services.bundling import BundleService
@@ -59,6 +59,30 @@ from vibe_widget.utils.util import (
     summarize_for_prompt,
 )
 from vibe_widget.utils.widget_store import WidgetStore, build_data_signature
+
+
+def is_headless_render() -> bool:
+    """Return True when the notebook is executed with no frontend that will ever connect."""
+    if os.environ.get("QUARTO_DOCUMENT_PATH"):
+        return True
+    return "--HistoryManager.hist_file=:memory:" in sys.argv
+
+
+def html_script_safe(code: str) -> str:
+    """Append a no-op JS comment that closes any HTML comment the code opened.
+
+    Static exporters (Quarto, nbconvert) drop the widget state into an inline
+    <script> block. A bundle containing "<!--" followed by "<script" puts the
+    HTML tokenizer into the double-escaped script state, where the closing
+    </script> no longer ends the element, so the whole state blob fails to
+    parse and every widget on the page disappears. A trailing "-->" inside a
+    JS block comment resets the tokenizer and means nothing to JavaScript.
+    """
+    if not code:
+        return code
+    # ponytail: render_code sorts after code in the serialized state, so one
+    # terminator covers both; revisit if a later string trait can carry "<!--".
+    return code + "\n/* --> --> */\n"
 
 
 def _is_dataframe(obj: Any) -> bool:
@@ -345,6 +369,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._base_components = base_components or []
         self._base_widget_id = base_widget_id
         self._creation_params: dict[str, Any] = {}
+        self._model_override = model
         self._llm_provider = None
         self._generation_service: GenerationService | None = None
         self._audit_service: AuditService | None = None
@@ -439,41 +464,14 @@ class VibeWidget(anywidget.AnyWidget):
             self._reset_logs([f"Analyzing inputs: {input_count}"])
 
             resolved_model, config = _resolve_model(model)
-            provider = OpenRouterProvider(
-                resolved_model,
-                config.api_key,
-                base_url=getattr(config, "base_url", None),
-                temperature=getattr(config, "temperature", 0.7),
-                timeout=getattr(config, "timeout", 120.0),
-            )
-            agent_run_config = resolve_agent_run_config(
-                preset=getattr(config, "agent_preset", "project"),
-                overrides=getattr(config, "agent_run", None),
-            )
-            if self._data_path:
-                resolved_path = Path(self._data_path).resolve()
-                if resolved_path not in agent_run_config.allowed_roots:
-                    agent_run_config.allowed_roots.append(resolved_path)
-            stream_setting = getattr(config, "streaming", True)
-            if stream_setting and is_colab():
-                stream_setting = False
-                self._append_log("Colab detected: disabling streaming updates")
-            if stream_setting and is_emscripten():
-                stream_setting = False
-                self._append_log("Emscripten detected: disabling streaming updates")
-            self._generation_service = GenerationService(
-                provider,
-                agent_run_config=agent_run_config,
-                stream=stream_setting,
-            )
-            self._audit_service = AuditService()
-            self._llm_provider = provider
-            self.orchestrator = self._generation_service.orchestrator
             self._max_retries = max(0, int(getattr(config, "retry", RepairService.MAX_RETRIES)))
-            self._repair_service = RepairService(
-                self._generation_service.orchestrator,
-                max_retries=self._max_retries,
-            )
+            try:
+                self._init_llm(config, resolved_model)
+            except ProviderError as exc:
+                # Cached and existing code render without a key; the paths that
+                # do need the LLM raise this same error from _ensure_llm().
+                if exc.kind != "auth":
+                    raise
             inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
             if self._data_path:
                 inputs_for_prompt.setdefault("data_path", str(self._data_path))
@@ -584,6 +582,7 @@ class VibeWidget(anywidget.AnyWidget):
                 self._pending_generation = None
                 return
 
+            self._ensure_llm()
             self._append_log("Generating widget code")
             self._generation_context = {
                 "var_name": var_name,
@@ -600,12 +599,18 @@ class VibeWidget(anywidget.AnyWidget):
             )
             if self.frontend_ready:
                 self._start_generation(description, inputs_for_prompt)
-            elif is_restricted_env():
+            elif is_restricted_env() or is_headless_render():
                 # Pyodide/JupyterLite: threading is unavailable.
                 # Colab: threads cause widget comm sync issues.
-                # In both cases, start generation immediately and run
+                # Quarto render / nbconvert: no frontend ever connects and the
+                # kernel is torn down as soon as the last cell returns, so a
+                # background thread loses the generated code.
+                # In every case, start generation immediately and run
                 # synchronously (no background thread, no fallback timer).
-                env_label = "Emscripten" if is_emscripten() else "Colab"
+                if is_headless_render():
+                    env_label = "Headless render"
+                else:
+                    env_label = "Emscripten" if is_emscripten() else "Colab"
                 self._append_log(f"{env_label} detected — starting generation (no thread)")
                 self._pending_generation = None
                 self._start_generation(description, inputs_for_prompt)
@@ -650,6 +655,49 @@ class VibeWidget(anywidget.AnyWidget):
                 pass
         return super().__getattribute__(name)
 
+    def _init_llm(self, config: Config, resolved_model: str) -> None:
+        """Build the LLM provider and the services around it. Raises without an API key."""
+        provider = OpenRouterProvider(
+            resolved_model,
+            config.api_key,
+            base_url=getattr(config, "base_url", None),
+            temperature=getattr(config, "temperature", 0.7),
+            timeout=getattr(config, "timeout", 120.0),
+        )
+        agent_run_config = resolve_agent_run_config(
+            preset=getattr(config, "agent_preset", "project"),
+            overrides=getattr(config, "agent_run", None),
+        )
+        if self._data_path:
+            resolved_path = Path(self._data_path).resolve()
+            if resolved_path not in agent_run_config.allowed_roots:
+                agent_run_config.allowed_roots.append(resolved_path)
+        stream_setting = getattr(config, "streaming", True)
+        if stream_setting and is_colab():
+            stream_setting = False
+            self._append_log("Colab detected: disabling streaming updates")
+        if stream_setting and is_emscripten():
+            stream_setting = False
+            self._append_log("Emscripten detected: disabling streaming updates")
+        self._generation_service = GenerationService(
+            provider,
+            agent_run_config=agent_run_config,
+            stream=stream_setting,
+        )
+        self._audit_service = AuditService()
+        self._llm_provider = provider
+        self.orchestrator = self._generation_service.orchestrator
+        self._repair_service = RepairService(
+            self._generation_service.orchestrator,
+            max_retries=self._max_retries,
+        )
+
+    def _ensure_llm(self) -> None:
+        """Build the LLM services on first use. Raises ProviderError when no API key is set."""
+        if self._generation_service is None:
+            resolved_model, config = _resolve_model(self._model_override)
+            self._init_llm(config, resolved_model)
+
     def _set_status(self, status: str, *, force: bool = False) -> None:
         """Update widget lifecycle status through the lifecycle manager."""
         lifecycle = getattr(self, "_lifecycle", None)
@@ -682,6 +730,7 @@ class VibeWidget(anywidget.AnyWidget):
         inputs_for_prompt: dict[str, str],
     ) -> None:
 
+        self.retry_count = 0
         parser = CodeStreamParser()
         chunk_buffer: list[str] = []
         update_counter = 0
@@ -788,7 +837,7 @@ class VibeWidget(anywidget.AnyWidget):
                 self._append_log(f"Error ({kind}): {error_msg}" if kind else f"Error: {error_msg}")
             logger.exception("Widget generation failed")
 
-        if getattr(self, "_display_widget", True):
+        if getattr(self, "_display_widget", True) and not is_headless_render():
             # async path for interactive rendering
             self._generation_service.start_generation_async(
                 description=description,
@@ -1332,8 +1381,10 @@ class VibeWidget(anywidget.AnyWidget):
             return
         if self.audit_apply_status == "running":
             return
-        if self._generation_service is None:
-            self.audit_apply_error = "No LLM service available to apply changes."
+        try:
+            self._ensure_llm()
+        except Exception as exc:
+            self.audit_apply_error = str(exc)
             self.audit_apply_status = "error"
             self._update_audit_state(apply_request={})
             return
@@ -1427,14 +1478,20 @@ class VibeWidget(anywidget.AnyWidget):
         elif orchestrator is not None and getattr(self._repair_service, "orchestrator", None) is not orchestrator:
             self._repair_service = RepairService(orchestrator, max_retries=self._max_retries)
 
-        if self.retry_count >= self._max_retries:
-            self._set_status("blocked")
-            self._append_log("Repair blocked: retry limit reached")
+        attempts_used = self.retry_count
+        if attempts_used >= self._max_retries:
+            if self.status != "blocked":
+                self._set_status("blocked")
+                self._append_log(
+                    f"Auto-repair stopped after {self._max_retries} attempt(s). "
+                    "Describe the fix in the prompt box, or change the budget with "
+                    "vw.config(retry=N)."
+                )
             return
 
         self._repair_in_progress = True
         try:
-            self.retry_count += 1
+            self.retry_count = attempts_used + 1
             self._set_status("retrying")
 
             error_preview = error_msg.split("\n")[0][:100]
@@ -1446,7 +1503,7 @@ class VibeWidget(anywidget.AnyWidget):
                 code=self.code,
                 error_message=error_msg,
                 data_info=getattr(self, "data_info", {}),
-                retry_count=self.retry_count,
+                retry_count=attempts_used,
                 widget_error=self.widget_error,
                 last_runtime_error=self.last_runtime_error,
                 widget_logs=list(self.widget_logs or []),
@@ -1458,8 +1515,8 @@ class VibeWidget(anywidget.AnyWidget):
                 if bundle_success:
                     self._append_log("Code fixed, retrying")
                     self._set_status("ready")
-                    # Reset retry count and clear error state so frontend renders widget
-                    self.retry_count = 0
+                    # Clear error state so the frontend renders the widget. The
+                    # retry budget stays spent until the next generation.
                     self.error_message = ""
                     self.widget_error = ""
                     self.last_runtime_error = ""
@@ -1695,9 +1752,11 @@ class VibeWidget(anywidget.AnyWidget):
             source="grab_edit",
             meta={"element": element_desc.get("description") or element_desc.get("tag")},
         )
-        if self._generation_service is None:
+        try:
+            self._ensure_llm()
+        except Exception as exc:
             self._set_status("error")
-            self._reset_logs(["✘ Edit failed: LLM service unavailable"])
+            self._reset_logs([f"✘ Edit failed: {exc}"])
             return
 
         old_code = self.code
@@ -1843,9 +1902,11 @@ class VibeWidget(anywidget.AnyWidget):
             self._handle_repair_prompt(user_prompt, error_override)
 
     def _handle_regeneration_prompt(self, user_prompt: str) -> None:
-        if self._generation_service is None:
+        try:
+            self._ensure_llm()
+        except Exception as exc:
             self._set_status("error")
-            self._reset_logs(["✘ Regeneration failed: LLM service unavailable"])
+            self._reset_logs([f"✘ Regeneration failed: {exc}"])
             return
 
         self._set_status("generating")
@@ -1877,9 +1938,11 @@ class VibeWidget(anywidget.AnyWidget):
             self._append_log(f"✘ Regeneration failed: {exc}")
 
     def _handle_repair_prompt(self, user_prompt: str, error_override: str) -> None:
-        if self._generation_service is None or self.orchestrator is None:
+        try:
+            self._ensure_llm()
+        except Exception as exc:
             self._set_status("error")
-            self._reset_logs(["✘ Repair failed: LLM service unavailable"])
+            self._reset_logs([f"✘ Repair failed: {exc}"])
             return
 
         error_message = error_override or self.widget_error or self.error_message
@@ -1900,7 +1963,7 @@ class VibeWidget(anywidget.AnyWidget):
                 code=self.code,
                 error_message=error_message,
                 data_info=self.data_info,
-                retry_count=self.retry_count,
+                retry_count=0,
                 widget_error=self.widget_error,
                 last_runtime_error=self.last_runtime_error,
                 widget_logs=list(self.widget_logs or []),
@@ -1915,7 +1978,6 @@ class VibeWidget(anywidget.AnyWidget):
                     self.widget_error = ""
                     self.last_runtime_error = ""
                     self.widget_logs = []  # Clear old error logs
-                    self.retry_count = 0
                     self._set_status("ready")
                 else:
                     self._append_log(self._unrendered_reason())
@@ -2029,7 +2091,7 @@ Find this element in the code and apply the requested change. The element should
             return True
         bundle_result = self._bundle_service.bundle(source)
         if bundle_result.code and bundle_result.bundled:
-            self.render_code = bundle_result.code
+            self.render_code = html_script_safe(bundle_result.code)
             self._last_bundle_hash = source_hash
             return True
 
@@ -2040,7 +2102,7 @@ Find this element in the code and apply the requested change. The element should
 
         if is_env_error or os.getenv("VIBE_ALLOW_UNBUNDLED") == "1":
             # Fall back to raw source - frontend Babel will transform it
-            self.render_code = source
+            self.render_code = html_script_safe(source)
             self._last_bundle_hash = source_hash
             return True
         else:

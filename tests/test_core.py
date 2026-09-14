@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,9 @@ import pytest
 
 from vibe_widget.core import widget as widget_mod
 from vibe_widget.core.widget import VibeWidget
+from vibe_widget.llm.providers.base import ProviderError
+from vibe_widget.services.repair import RepairResult
+from vibe_widget.services.theme import ThemeService
 from vibe_widget.utils.widget_store import WidgetStore
 
 CODE = "export default function App() { return null; }"
@@ -113,6 +117,76 @@ def test_repair_under_approval_does_not_claim_the_fix_is_live(
     assert widget.render_code == ""
     assert widget.retry_count == 2
     assert "approve" in widget._unrendered_reason()
+
+
+class StubRepairService:
+    """Repair service that always succeeds without calling an LLM."""
+
+    def __init__(self, orchestrator: Any) -> None:
+        self.orchestrator = orchestrator
+        self.attempts: list[int] = []
+
+    def fix_runtime_error(self, **kwargs: Any) -> RepairResult:
+        self.attempts.append(kwargs["retry_count"])
+        return RepairResult(code=CODE, applied=True, retryable=False, message="")
+
+
+def test_auto_repair_budget_is_spent_once_per_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    widget = make_widget(tmp_path, monkeypatch)
+    widget._max_retries = 1
+    repair = StubRepairService(widget.orchestrator)
+    widget._repair_service = repair
+
+    widget.error_message = "TypeError: first"
+    assert repair.attempts == [0]
+    assert widget.retry_count == 1
+
+    widget.error_message = "TypeError: second"
+    assert repair.attempts == [0]
+    assert widget.status == "blocked"
+    assert any("vw.config(retry=" in line for line in widget.logs)
+
+    class StubGeneration:
+        """Generation service that returns code without calling an LLM."""
+
+        def generate(self, **kwargs: Any) -> tuple[str, dict[str, Any]]:
+            return CODE, {}
+
+    widget._generation_service = StubGeneration()
+    widget._start_generation("a fresh generation", {})
+    assert widget.retry_count == 0
+
+
+def test_cached_code_loads_without_an_api_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def no_key(*args: Any, **kwargs: Any) -> None:
+        raise ProviderError("Set OPENROUTER_API_KEY to use vibe_widget.", "auth")
+
+    monkeypatch.setattr(widget_mod, "OpenRouterProvider", no_key)
+    widget = make_widget(tmp_path, monkeypatch)
+
+    assert widget.status == "ready"
+    assert widget.code == CODE
+    assert widget._generation_service is None
+
+    widget._handle_repair_prompt("make it blue", "TypeError: boom")
+    assert any("OPENROUTER_API_KEY" in line for line in widget.logs)
+
+
+def test_named_theme_resolves_without_an_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    def no_key(*args: Any, **kwargs: Any) -> None:
+        raise ProviderError("Set OPENROUTER_API_KEY to use vibe_widget.", "auth")
+
+    # vibe_widget.themes is shadowed by the themes namespace on the package.
+    monkeypatch.setattr(import_module("vibe_widget.themes"), "OpenRouterProvider", no_key)
+
+    resolved = ThemeService().resolve("dark", model="stub/model", api_key=None, cache=False)
+
+    assert resolved is not None
+    assert resolved.description
 
 
 def test_reserved_names_are_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

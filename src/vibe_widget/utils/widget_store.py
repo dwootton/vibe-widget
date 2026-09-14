@@ -400,15 +400,24 @@ class WidgetStore:
         match: dict[str, Any],
         follow_revisions: bool,
     ) -> dict[str, Any] | None:
-        """Apply follow_revisions and drop entries whose code file is gone."""
-        if follow_revisions and match.get("_index", 0) > 0:
-            for entry in entries:
-                if entry["var_name"] == match["var_name"] and entry["_index"] == 0:
-                    if self._code_path(entry).exists():
-                        result = dict(entry)
-                        result["_original_cache_key"] = match["cache_key"]
-                        return result
+        """Follow the match's own revision chain and drop entries whose code file is gone."""
+        latest = match
+        if follow_revisions:
+            seen = {match["cache_key"]}
+            while True:
+                children = [
+                    entry for entry in entries
+                    if entry.get("revision_parent") == latest["cache_key"]
+                    and entry["cache_key"] not in seen
+                ]
+                if not children:
                     break
+                latest = children[0]
+                seen.add(latest["cache_key"])
+        if latest is not match and self._code_path(latest).exists():
+            result = dict(latest)
+            result["_original_cache_key"] = match["cache_key"]
+            return result
         if not self._code_path(match).exists():
             return None
         return dict(match)

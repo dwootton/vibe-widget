@@ -2,10 +2,10 @@ import React from "react";
 import { css, tw } from "../styles/setup.js";
 
 const bezelClass = tw(
-  "w-full h-full min-h-0 box-border text-text-secondary bg-[#050505] border border-border-medium shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] flex flex-col gap-2 px-[10px] py-[12px]"
+  "w-full h-full min-h-0 box-border text-[#e2e8f0] bg-[#050505] border border-border-medium shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] flex flex-col gap-2 px-[10px] py-[12px]"
 );
 const headingClass = tw(
-  "flex items-center gap-2 text-xs font-mono uppercase tracking-[0.05em] text-text-primary pl-[9px]"
+  "flex items-center gap-2 text-xs font-mono uppercase tracking-[0.05em] text-[#f2f0e9] pl-[9px]"
 );
 const statusDotBaseClass = tw(
   "w-2 h-2 rounded-none shadow-[0_0_0_4px_rgba(249,115,22,0.12)] flex-shrink-0"
@@ -42,12 +42,12 @@ const logEntryClass = css({
   color: "#94a3b8",
   textTransform: "uppercase"
 });
-const logIconClass = tw("flex-none w-[10px] ml-2 flex items-center justify-center text-text-muted");
+const logIconClass = tw("flex-none w-[10px] ml-2 flex items-center justify-center text-[#94a3b8]");
 const logIconBlockClass = tw("w-[6px] h-[6px] rounded-none bg-[rgba(148,163,184,0.6)]");
-const logTextBaseClass = tw("flex-1 text-[12px] uppercase font-mono leading-snug text-text-muted");
+const logTextBaseClass = tw("flex-1 text-[12px] uppercase font-mono leading-snug text-[#94a3b8]");
 const ellipsisClass = tw("inline-block min-w-[1.6em] text-left");
 const footerClass = tw("pt-2");
-const chevronClass = tw("flex-none w-[10px] ml-[11px] cursor-pointer text-text-muted hover:text-accent transition-colors select-none text-[8px] leading-none");
+const chevronClass = tw("flex-none w-[10px] ml-[11px] cursor-pointer text-[#94a3b8] hover:text-accent transition-colors select-none text-[8px] leading-none");
 const expandedTextClass = tw("whitespace-pre-wrap break-words");
 const collapsedTextClass = tw("truncate");
 

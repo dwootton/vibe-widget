@@ -9,7 +9,7 @@ import { tw } from "../../styles/setup.js";
 
 const wrapperClass = tw("relative w-full flex flex-col min-h-0 min-w-0");
 const editorClass = tw(
-  "flex-1 bg-[#0b0b0b] border border-[rgba(242,240,233,0.15)] rounded-[4px] text-[12px] text-text-primary font-mono overflow-auto flex flex-col min-h-0"
+  "flex-1 bg-[#0b0b0b] border border-[rgba(242,240,233,0.15)] rounded-[4px] text-[12px] text-[#f2f0e9] font-mono overflow-auto flex flex-col min-h-0"
 );
 const editorContainerClass = tw("flex-1 min-h-0");
 const messageClass = tw("px-3 py-2 text-[12px]");

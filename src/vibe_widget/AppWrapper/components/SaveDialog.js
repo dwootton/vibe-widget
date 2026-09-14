@@ -18,7 +18,9 @@ const actionsClass = tw("flex justify-end gap-2 mt-4");
 const baseButtonClass = tw(
   "rounded-[6px] px-3 py-1.5 text-[12px] font-semibold cursor-pointer transition-colors duration-150"
 );
-const primaryButtonClass = `${baseButtonClass} ${tw("bg-accent text-surface-1 border-none hover:bg-[#fb923c]")}`;
+// text-surface-1 follows --jp-layout-color0 and turns white in a light host,
+// leaving white on orange; pin the dark foreground the accent is tuned for.
+const primaryButtonClass = `${baseButtonClass} ${tw("bg-accent text-[#0b0b0b] border-none hover:bg-[#fb923c]")}`;
 const secondaryButtonClass = `${baseButtonClass} ${tw("bg-transparent text-text-primary border border-border-medium hover:bg-surface-3")}`;
 const disabledClass = tw("opacity-60 cursor-not-allowed");
 
