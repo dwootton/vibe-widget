@@ -24,11 +24,11 @@ Need help setting API keys in Jupyter? See [this guide](https://docs.google.com/
 
 
 ```bash
-export OPENROUTER_API_KEY='your-key'
+export VIBE_API_KEY='your-key'
 ```
 
 ```powershell
-$env:OPENROUTER_API_KEY="your-key"
+$env:VIBE_API_KEY="your-key"
 ```
 
 ```python
@@ -42,7 +42,34 @@ api_key = os.getenv("MY_SECRET_API_KEY")
 vw.config(api_key=api_key)
 ```
 
+The key is resolved in this order:
+
+1. an explicit `api_key=` passed to `vw.config(...)`
+2. `VIBE_API_KEY`
+3. `OPENROUTER_API_KEY`
+4. `OPENAI_API_KEY`, and only when `base_url` is set to something other than OpenRouter
+
 We recommend avoiding hardcoded keys in notebooks to prevent accidental leaks.
+
+## Endpoint
+
+OpenRouter is the default. Set `base_url` to use any other OpenAI-compatible server, including a
+local one.
+
+```python
+vw.config(base_url="http://localhost:11434/v1", model="qwen2.5-coder")
+vw.config(base_url="https://api.openai.com/v1", model="gpt-4o")
+```
+
+`base_url=None` (the default) means OpenRouter. The `VIBE_BASE_URL` environment variable seeds it,
+so you can pick an endpoint without editing the notebook.
+
+`timeout` is the HTTP timeout in seconds for a single model call, 120 by default. Raise it for slow
+local models.
+
+```python
+vw.config(timeout=300.0)
+```
 
 ## Models
 
@@ -56,17 +83,24 @@ vw.models(verbose=False)
 
 ```python
 vw.config(
-    execution="auto",  # "auto" or "approve"
+    execution="auto",   # "auto" or "approve"
     retry=2,            # Runtime repair attempts
     agent_preset="project",
-    agent_run={"tier": 1},
+    agent_run={"permission_tier": 1, "allowed_roots": ["."]},
     bypass_row_guard=False,
+    base_url=None,      # None means OpenRouter
+    timeout=120.0,      # HTTP timeout, seconds
+    data_privacy="sample",  # "sample" or "schema"
+    sample_rows=3,      # rows sent per input in "sample" mode
 )
 ```
 
 ## Safety and permissions
 
-Widgets execute LLM-generated JavaScript in the notebook frontend. Treat generated code as untrusted and review it before relying on the output.
+Generated code runs in the notebook page with the same privileges as the page itself. It can reach
+the DOM, cookies and `localStorage` for the notebook origin, and any network endpoint the browser
+is allowed to call. There is no browser-level sandbox around it. Treat a generated widget the way
+you would treat a script someone sent you.
 
 ### Execution mode
 
@@ -77,7 +111,10 @@ vw.config(execution="approve")   # review code before it runs
 vw.config(execution="auto")      # run immediately (default)
 ```
 
-In `"approve"` mode the widget tracks a SHA-256 hash of the approved code. If the code changes (e.g. after an edit or retry), approval resets and you must re-approve before execution.
+In `"approve"` mode the generated code is not executed until you approve it. Approval is decided in
+Python, not in the browser, so a widget cannot approve itself. The widget tracks a SHA-256 hash of
+the approved code; if the code changes after an edit or a retry, approval resets and you approve
+again.
 
 ### Agent presets
 
@@ -100,11 +137,11 @@ vw.config(agent_preset="project")
 vw.config(agent_preset="connected")
 ```
 
-**Tier 0 tools** – `data.profile`, `fs.list`, `fs.read`, `fs.exists`, `fs.glob`, `state.get`, `pls.describe`
+**Tier 0 tools** – `data.profile`, `fs.list`, `fs.read`, `fs.exists`, `fs.glob`, `state.get`, `state.put`, `pls.describe`
 
-**Tier 1 adds** – `data.load`, `fs.write`, `fs.mkdir`, `fs.read_base64`, `widget.set_input`, `widget.set_output`, `state.put`
+**Tier 1 adds** – `data.load`, `fs.write`, `fs.mkdir`, `fs.read_base64`
 
-**Tier 2 adds** – `net.fetch` (HTTPS, mime-type validated), `python.write_module`, `python.run_module` (AST-guarded to block dangerous imports)
+**Tier 2 adds** – `net.fetch` (HTTPS only, host and MIME allowlisted, requires `allow_net_fetch`)
 
 ### Row guard
 
@@ -150,10 +187,29 @@ vw.config(
 Vibe Widget sends the following to the model provider:
 
 - your prompt and theme prompt
-- data schema (column names, dtypes)
-- a small sample of rows (up to 3)
+- a schema summary of each input: shape, column names, dtypes, null counts, cardinality, and numeric min/max/mean
+- the first `sample_rows` rows of each input, 3 by default, when `data_privacy` is `"sample"`
 - outputs/inputs descriptors
 - full widget code for edits, audits, and runtime fixes
 - runtime error messages (when auto-fixing)
+
+### Controlling what leaves the notebook
+
+`data_privacy` chooses between the two summary modes.
+
+```python
+vw.config(data_privacy="schema")   # schema only, no cell values
+vw.config(data_privacy="sample")   # schema plus head rows (default)
+vw.config(sample_rows=1)           # fewer rows in "sample" mode
+```
+
+In `"schema"` mode the summary carries no cell values: no head rows, no category examples, no
+sampled values. Only the shape and the per-column description go out. Non-tabular inputs are
+summarized by type and length, and their truncated `repr` is included in `"sample"` mode only.
+
+`data_privacy` governs the data summary built from the values you pass to `vw.create`. It does not
+restrict the agent's `data.profile` tool, which reads sample values from any file it is allowed to
+open. Combine `data_privacy="schema"` with `agent_preset="safe"` to keep the agent out of your
+project directory as well.
 
 No API keys are written to disk. Generated widgets and audit reports are stored locally in `.vibewidget/`.

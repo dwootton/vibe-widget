@@ -5,6 +5,12 @@ export const frontmatter = {
 
 Audits review widget code and behavior through a set of lenses to surface risks, usability issues, and design gaps before you ship.
 
+An audit is a second model call that reads the generated code and writes up what it finds. It is a
+review, not a check: there is no static analysis behind it, the findings are the model's opinion,
+and nothing in the package consults an audit before code runs. Read it the way you would read a
+colleague's comments on a pull request. Use `vw.config(execution="approve")` when you want code to
+be gated rather than commented on.
+
 ## Audit framework
 
 Each audit runs across domains and lenses so you get feedback that is both technical and experiential.
@@ -35,7 +41,8 @@ report = widget.audit(level="fast", display=False)
 full_report = widget.audit(level="full", reuse=True, display=False)
 ```
 
-Audit outputs are stored in `.vibewidget/audits` as JSON and YAML.
+Audit outputs are stored in `.vibewidget/audits` as JSON and YAML. That directory is listed in
+`.vibewidget/.gitignore`, so reports stay on the machine that ran them.
 
 
 ## How to use auditing
@@ -51,12 +58,6 @@ full_report = widget.audit(level="full", reuse=True, display=False)
 ```
 
 In the UI, audit recommendations can be surfaced as a checklist inside the `Edit Code` view. You can then turn a specific concern into an edit request or keep it as a TODO for later.
-
-## Audit in the UI (video)
-
-Watch a quick walkthrough of running audits inside the widget editor:
-
-[Audit walkthrough on YouTube](https://youtu.be/VIDEO_ID)
 
 {/*## Launch an audit*/}
 

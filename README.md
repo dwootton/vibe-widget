@@ -26,7 +26,7 @@ Vibe Widget generates *interactive notebook interfaces* from plain English. Expl
   Revise in plain language, use built-in audits, and (optionally) require approval before any generated code runs.
 
 - **Share reusable widgets**  
-  Save widgets as `.vw` bundles and load them elsewhere—with review + audit on load by default.
+  Commit generated widgets to git, or save them as `.vw` bundles and load them elsewhere. Loading requires approval by default.
 
 - **Run where your data lives**  
   Works in Jupyter/JupyterLab, Colab, VS Code notebooks, marimo, and more (via AnyWidget + React).
@@ -35,7 +35,7 @@ Vibe Widget generates *interactive notebook interfaces* from plain English. Expl
 
 ```bash
 pip install vibe-widget
-export OPENROUTER_API_KEY="your-key"
+export VIBE_API_KEY="your-key"
 ```
 
 ```python
@@ -47,6 +47,39 @@ df = pd.read_csv("sales.csv")
 widget = vw.create("scatter plot with brush selection and a linked histogram", df)
 widget()
 ```
+
+## Any OpenAI-compatible endpoint
+
+OpenRouter is the default. Point `base_url` at any OpenAI-compatible server to use something else, including a local one.
+
+```python
+vw.config(base_url="http://localhost:11434/v1", model="qwen2.5-coder")
+vw.config(base_url="https://api.openai.com/v1", model="gpt-4o")
+```
+
+The key is read from `VIBE_API_KEY`, then `OPENROUTER_API_KEY`, then `OPENAI_API_KEY` when `base_url` points somewhere other than OpenRouter. `VIBE_BASE_URL` sets the endpoint from the environment.
+
+## Data privacy
+
+Prompts include a summary of the data you pass in: shape, column names, dtypes, null counts, cardinality, and numeric ranges. By default the summary also carries the first 3 rows so the model can see the shape of real values.
+
+```python
+vw.config(data_privacy="schema")   # send no cell values at all
+vw.config(sample_rows=1)           # or send fewer rows
+```
+
+## Share widgets with git
+
+Generated widgets are written to `.vibewidget/widgets/` as one `.js` file plus a `.json` sidecar holding the prompt, model, and input signature. Filenames are deterministic, so regenerating the same widget rewrites the same file instead of piling up copies. Both files are meant to be committed. A `.vibewidget/.gitignore` is created for you and excludes the derived caches (`bundles/`, `packages/`, `sandbox/`, `audits/`).
+
+A teammate who clones the repo gets the widget without spending a model call:
+
+```python
+widget = vw.load(".vibewidget/widgets/sales_chart__a1b2c3d4e5.js")
+```
+
+For sharing outside a repo, `widget.save("sales_chart.vw")` writes a single portable bundle, and `widget.save(path, include_inputs=True)` embeds the current input values with it.
+
 ## Acknowledgements
 This repo was originally created at the [Sundai](https://www.sundai.club/) Weird Data Hack. We thank [Angela](https://github.com/ang101) for her feedback and suggestions on early versions!
 

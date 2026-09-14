@@ -1,0 +1,12 @@
+[
+  {"id": 1, "title": "Show HN: I built a React visualization library", "score": 423, "author": "visualdev", "comments": 87, "category": "Show HN"},
+  {"id": 2, "title": "GPT-5 announced with multimodal capabilities", "score": 812, "author": "airesearcher", "comments": 245, "category": "AI"},
+  {"id": 3, "title": "PostgreSQL 17: What's New", "score": 356, "author": "dbadmin", "comments": 62, "category": "Database"},
+  {"id": 4, "title": "The death of serverless?", "score": 289, "author": "cloudskeptic", "comments": 198, "category": "Cloud"},
+  {"id": 5, "title": "Why I switched from TypeScript to Rust", "score": 567, "author": "rustacean", "comments": 312, "category": "Languages"},
+  {"id": 6, "title": "Ask HN: How do you handle burnout?", "score": 445, "author": "stresseddev", "comments": 423, "category": "Ask HN"},
+  {"id": 7, "title": "Linux 6.9 released with major performance improvements", "score": 634, "author": "kernelhacker", "comments": 156, "category": "Linux"},
+  {"id": 8, "title": "Show HN: Open source alternative to Figma", "score": 389, "author": "designtools", "comments": 94, "category": "Show HN"},
+  {"id": 9, "title": "WebAssembly is eating the world", "score": 512, "author": "wasmfan", "comments": 178, "category": "Web"},
+  {"id": 10, "title": "The future of programming: AI pair programming", "score": 678, "author": "futurist", "comments": 267, "category": "AI"}
+]
