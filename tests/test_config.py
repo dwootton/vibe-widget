@@ -15,7 +15,16 @@ config_mod = sys.modules["vibe_widget.config"]
 def _fresh(monkeypatch):
     """Reset the global config and every key/endpoint environment variable."""
     monkeypatch.setattr(config_mod, "_global_config", None)
-    for name in ("VIBE_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY", "VIBE_BASE_URL"):
+    # Marking the .env as already checked keeps these tests off the developer's
+    # own .env, which would otherwise be discovered once every key is unset.
+    monkeypatch.setattr(config_mod, "_dotenv_checked", True)
+    for name in (
+        "VIBE_API_KEY",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "VIBE_BASE_URL",
+    ):
         monkeypatch.delenv(name, raising=False)
 
 
@@ -29,13 +38,15 @@ def test_api_key_env_resolution_order(monkeypatch):
     assert Config().api_key == "vibe-key"
 
 
-def test_openai_key_only_used_for_non_openrouter_base_url(monkeypatch):
+def test_openai_key_is_only_used_where_the_endpoint_matches(monkeypatch):
     _fresh(monkeypatch)
     monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
 
-    assert Config().api_key is None
-    assert Config(base_url="https://openrouter.ai/api/v1").api_key is None
+    # With no base_url the key itself decides the endpoint.
+    assert Config().api_key == "openai-key"
     assert Config(base_url="https://api.openai.com/v1").api_key == "openai-key"
+    # A different endpoint must not be handed the OpenAI key.
+    assert Config(base_url="https://openrouter.ai/api/v1").api_key is None
 
 
 def test_vibe_base_url_seeds_base_url(monkeypatch):

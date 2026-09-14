@@ -56,22 +56,27 @@ class ModelsNamespace:
     """
 
     def __repr__(self) -> str:
-        from vibe_widget.config import DEFAULT_MODEL, PREMIUM_MODELS, STANDARD_MODELS
-        lines = [
-            "Available models:",
-            f"  default:  {DEFAULT_MODEL}",
+        from vibe_widget.config import PREMIUM_MODELS, PROVIDER_DEFAULTS, STANDARD_MODELS
+        lines = ["Default model per provider (whichever API key you set):"]
+        lines += [
+            f"  {name:<11} {defaults['model']}"
+            for name, defaults in sorted(PROVIDER_DEFAULTS.items())
+        ]
+        lines += [
+            "",
+            "OpenRouter tiers:",
             f"  standard: {STANDARD_MODELS.get('openrouter', 'N/A')}",
             f"  premium:  {PREMIUM_MODELS.get('openrouter', 'N/A')}",
             "",
             "Usage:",
             "  vw.config(model=vw.models.standard)",
             "  vw.config(model=vw.models.premium)",
-            "  vw.config(model='openai/gpt-4o')  # Or any OpenRouter model ID",
+            "  vw.config(model='openai/gpt-5.1-codex')  # Any OpenRouter model ID",
             "  vw.config(base_url='http://localhost:11434/v1', model='qwen2.5-coder')"
             "  # Any OpenAI-compatible endpoint",
             "  vw.config(data_privacy='schema')  # Send no data cell values to the model",
             "",
-            "Tip: set VIBE_API_KEY (or OPENROUTER_API_KEY) in your environment.",
+            "Tip: put ANTHROPIC_API_KEY, OPENAI_API_KEY or OPENROUTER_API_KEY in a .env file.",
         ]
         return "\n".join(lines)
 

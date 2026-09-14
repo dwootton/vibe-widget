@@ -11,8 +11,11 @@ import pytest
 def dummy_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """Give every test a fake key so config resolution never reads a real one."""
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key-not-real")
+    monkeypatch.setenv("VIBE_NO_DOTENV", "1")
     monkeypatch.delenv("VIBE_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
 
 @pytest.fixture(autouse=True)

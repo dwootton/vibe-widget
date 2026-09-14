@@ -17,52 +17,93 @@ vw.config(execution="approve")
 
 ## API key setup
 
-Get an OpenRouter API key:
-https://openrouter.ai/
-
-Need help setting API keys in Jupyter? See [this guide](https://docs.google.com/document/d/e/2PACX-1vST8sEHdo90NsTdTFNjLi27YFT-81u2WQa7--qr0u4yk2aByE6Q5WIj-p8JYueEING5-fNdFNu2Aa3t/pub).
-
+Put one key in a `.env` file next to your notebook and you are done:
 
 ```bash
-export VIBE_API_KEY='your-key'
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+OPENROUTER_API_KEY=sk-or-...
+```
+
+The file is searched for in the working directory and its parents, stopping at the repository root
+or your home directory. A variable already present in the environment is never overwritten, so an
+exported value always wins over the file. No extra dependency is needed; do not call
+`dotenv.load_dotenv()` yourself.
+
+Exporting the variable works identically:
+
+```bash
+export ANTHROPIC_API_KEY='your-key'
 ```
 
 ```powershell
-$env:VIBE_API_KEY="your-key"
+$env:ANTHROPIC_API_KEY="your-key"
 ```
-
-```python
-import os
-from dotenv import load_dotenv
-import vibe_widget as vw
-
-load_dotenv()
-api_key = os.getenv("MY_SECRET_API_KEY")
-
-vw.config(api_key=api_key)
-```
-
-The key is resolved in this order:
-
-1. an explicit `api_key=` passed to `vw.config(...)`
-2. `VIBE_API_KEY`
-3. `OPENROUTER_API_KEY`
-4. `OPENAI_API_KEY`, and only when `base_url` is set to something other than OpenRouter
 
 We recommend avoiding hardcoded keys in notebooks to prevent accidental leaks.
 
-## Endpoint
+## Provider inference
 
-OpenRouter is the default. Set `base_url` to use any other OpenAI-compatible server, including a
-local one.
+When you do not set `base_url`, the key you supplied decides the endpoint and the default model.
+
+| Variable | Endpoint | Default model |
+| --- | --- | --- |
+| `VIBE_API_KEY` | `VIBE_BASE_URL`, or OpenRouter | depends on the endpoint |
+| `ANTHROPIC_API_KEY` | `https://api.anthropic.com/v1/` | `claude-opus-5` |
+| `OPENAI_API_KEY` | `https://api.openai.com/v1` | `gpt-5.5` |
+| `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` | `google/gemini-3-flash-preview` |
+
+They are checked in that order, so `VIBE_API_KEY` overrides everything and `OPENROUTER_API_KEY` is
+the last resort. An explicit `vw.config(api_key=...)` beats all of them. If a key looks like it was
+issued by a different vendor, for example an `sk-ant-` value stored in `OPENAI_API_KEY`, the
+variable name decides and a warning is printed once.
+
+`vw.config()` reports what was inferred, without ever showing the key:
 
 ```python
-vw.config(base_url="http://localhost:11434/v1", model="qwen2.5-coder")
-vw.config(base_url="https://api.openai.com/v1", model="gpt-4o")
+vw.config()
+# Config(provider='openai', host='api.openai.com', model='gpt-5.5',
+#        key_source='OPENAI_API_KEY (/work/analysis/.env)', environment='quarto', ...)
 ```
 
-`base_url=None` (the default) means OpenRouter. The `VIBE_BASE_URL` environment variable seeds it,
-so you can pick an endpoint without editing the notebook.
+`provider` is derived from the endpoint and reads `anthropic`, `openai`, `openrouter` or `custom`.
+`environment` lists the notebook hosts detected for this kernel, such as `vscode-like` for VS Code
+and Positron, `quarto`, `colab` or `pyodide`.
+
+Changing the model alone keeps the provider your key selected:
+
+```python
+vw.config(model="claude-sonnet-5")   # still Anthropic
+```
+
+Model IDs carrying an OpenRouter-style `vendor/` prefix are rejected on a direct provider, because
+`anthropic/claude-opus-4.5` is not a name Anthropic's own API knows. Use the plain name, or set
+`base_url` to OpenRouter.
+
+## Endpoint
+
+Set `base_url` to reach any other OpenAI-compatible server, including a local one.
+
+```python
+vw.config(base_url="http://localhost:11434/v1", model="qwen2.5-coder")   # Ollama
+vw.config(base_url="http://localhost:8000/v1", model="Qwen/Qwen2.5-Coder-32B")  # vLLM
+```
+
+A loopback endpoint (`localhost`, `127.0.0.1`, `::1`) needs no API key at all, since local servers
+ignore it. Set `VIBE_API_KEY` anyway if yours sits behind an auth proxy.
+
+For an endpoint with no dedicated variable, such as vLLM behind an auth proxy or Azure OpenAI, set
+both `VIBE_API_KEY` and `VIBE_BASE_URL`:
+
+```bash
+VIBE_API_KEY=your-key
+VIBE_BASE_URL=https://my-resource.openai.azure.com/openai/v1
+```
+
+Requests adapt to what the endpoint accepts. Newer OpenAI models want `max_completion_tokens`
+instead of `max_tokens`, and some models reject `temperature` outright; the rejected parameter is
+renamed or dropped and remembered, so only the first call to a given endpoint pays for the
+correction.
 
 `timeout` is the HTTP timeout in seconds for a single model call, 120 by default. Raise it for slow
 local models.
@@ -88,7 +129,7 @@ vw.config(
     agent_preset="project",
     agent_run={"permission_tier": 1, "allowed_roots": ["."]},
     bypass_row_guard=False,
-    base_url=None,      # None means OpenRouter
+    base_url=None,      # None means infer from whichever API key is set
     timeout=120.0,      # HTTP timeout, seconds
     data_privacy="sample",  # "sample" or "schema"
     sample_rows=3,      # rows sent per input in "sample" mode

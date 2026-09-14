@@ -35,7 +35,14 @@ Vibe Widget generates *interactive notebook interfaces* from plain English. Expl
 
 ```bash
 pip install vibe-widget
-export VIBE_API_KEY="your-key"
+```
+
+Put **any one** of these in a `.env` file next to your notebook:
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+OPENROUTER_API_KEY=sk-or-...
 ```
 
 ```python
@@ -48,16 +55,18 @@ widget = vw.create("scatter plot with brush selection and a linked histogram", d
 widget()
 ```
 
+That is the whole setup. Vibe Widget finds the `.env` file, picks the provider that matches the key you supplied, and chooses a default model for it. Exporting the variable in your shell works the same way and takes precedence over the file.
+
 ## Any OpenAI-compatible endpoint
 
-OpenRouter is the default. Point `base_url` at any OpenAI-compatible server to use something else, including a local one.
+The key you set decides the endpoint. Point `base_url` somewhere else to override it, including at a local server.
 
 ```python
 vw.config(base_url="http://localhost:11434/v1", model="qwen2.5-coder")
-vw.config(base_url="https://api.openai.com/v1", model="gpt-4o")
+vw.config(model="claude-sonnet-5")   # keeps the provider your key selected
 ```
 
-The key is read from `VIBE_API_KEY`, then `OPENROUTER_API_KEY`, then `OPENAI_API_KEY` when `base_url` points somewhere other than OpenRouter. `VIBE_BASE_URL` sets the endpoint from the environment.
+`VIBE_API_KEY` with `VIBE_BASE_URL` covers any endpoint that has no dedicated variable, such as vLLM or Azure OpenAI. `vw.config()` prints the provider, host, model and where the key came from, never the key itself.
 
 ## Data privacy
 

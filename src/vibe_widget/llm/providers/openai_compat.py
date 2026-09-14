@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+import warnings
 from collections.abc import Iterator
 from typing import Any, Callable
 from urllib.parse import urlparse
@@ -13,8 +15,43 @@ from openai import OpenAI
 from vibe_widget.llm.providers.base import LLMProvider, ProviderError
 from vibe_widget.utils.platform import is_emscripten
 
-MAX_TOKENS = 20000
+try:
+    MAX_TOKENS = int(os.getenv("VIBE_MAX_TOKENS", "32768"))
+except ValueError:
+    MAX_TOKENS = 32768
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+# Hosts disagree about a few request parameters: newer OpenAI models reject
+# `max_tokens` and want `max_completion_tokens`, Anthropic's OpenAI-compatible
+# endpoint rejects `temperature` on its newest models, and some hosts reject
+# `stream_options`. A rejected parameter is renamed when a replacement is known
+# and dropped otherwise, then remembered so later requests to the same endpoint
+# and model send the accepted shape straight away.
+_PARAM_RENAMES = {"max_tokens": "max_completion_tokens"}
+# Only these may be renamed or dropped. Anything else a server names in a 400 is
+# a real request error and must surface, not be silently stripped.
+_ADJUSTABLE_PARAMS = frozenset({"max_tokens", "temperature", "stream_options", "top_p"})
+_PARAM_IN_MESSAGE = re.compile(r"[`'\"]([a-z][a-z0-9_]*)[`'\"]")
+# ponytail: fixes are cached per endpoint and model for the life of the process
+# and never expire, so a host that starts accepting a parameter again is only
+# noticed after a restart. Add a TTL if that ever matters.
+_PARAM_FIXES: dict[tuple[str, str], dict[str, str | None]] = {}
+_MAX_PARAM_RETRIES = 4
+
+
+def _rejected_param(exc: Exception, params: dict[str, Any]) -> str | None:
+    """Name the adjustable request parameter a 400 response complained about, if any."""
+    body = getattr(exc, "body", None)
+    error = body.get("error") if isinstance(body, dict) else None
+    error = error if isinstance(error, dict) else {}
+
+    named = error.get("param")
+    candidates = [named] if isinstance(named, str) else []
+    candidates += _PARAM_IN_MESSAGE.findall(str(error.get("message") or exc))
+    for candidate in candidates:
+        if candidate in params and candidate in _ADJUSTABLE_PARAMS:
+            return candidate
+    return None
 
 # Ordered most specific first: APITimeoutError subclasses APIConnectionError.
 _ERROR_KINDS = (
@@ -71,14 +108,13 @@ class OpenAICompatProvider(LLMProvider):
             "completion_tokens": 0,
             "requests": 0,
         }
+        self._param_fixes = _PARAM_FIXES.setdefault((self.base_url, model), {})
 
         resolved_key = api_key or self._api_key_from_env()
         if not resolved_key:
-            raise ProviderError(
-                f"No API key for {self.host}; set VIBE_API_KEY in your environment "
-                "or pass vw.config(api_key=...).",
-                "auth",
-            )
+            from vibe_widget.config import NO_API_KEY_MESSAGE
+
+            raise ProviderError(NO_API_KEY_MESSAGE, "auth")
 
         # In Pyodide / JupyterLite the default httpx jsfetch transport can
         # fail with "TypeError: Failed to fetch".  Use a custom transport
@@ -106,10 +142,9 @@ class OpenAICompatProvider(LLMProvider):
         return urlparse(self.base_url).hostname or self.base_url
 
     def _api_key_from_env(self) -> str | None:
-        key = os.environ.get("VIBE_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
-        if not key and "openrouter.ai" not in self.base_url:
-            key = os.environ.get("OPENAI_API_KEY")
-        return key
+        from vibe_widget.config import resolve_endpoint_from_env
+
+        return resolve_endpoint_from_env(self.base_url)[0]
 
     # --- request plumbing -------------------------------------------------
 
@@ -167,30 +202,56 @@ class OpenAICompatProvider(LLMProvider):
         except Exception as exc:  # noqa: BLE001
             raise self._wrap(exc) from exc
 
+    def _apply_param_fixes(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Rename or drop the parameters this endpoint and model have already rejected."""
+        for name, replacement in self._param_fixes.items():
+            if name in params:
+                value = params.pop(name)
+                if replacement:
+                    params[replacement] = value
+        return params
+
     def _create(self, params: dict[str, Any], *, stream: bool = False) -> Any:
-        """Call the chat completions API, counting the request and wrapping failures."""
+        """Call the chat completions API, adapting to parameters the host rejects."""
         if stream:
             params = dict(params, stream=True, stream_options={"include_usage": True})
-        try:
-            response = self.client.chat.completions.create(**params)
-        except openai.BadRequestError as exc:
-            if not stream or _is_context_length(exc):
-                raise self._wrap(exc) from exc
-            # ponytail: retries any 400 once without stream_options, upgrade to
-            # inspecting the error body if a host starts rejecting for other reasons.
-            params = {k: v for k, v in params.items() if k != "stream_options"}
-            try:
-                response = self.client.chat.completions.create(**params)
-            except Exception as retry_exc:  # noqa: BLE001
-                raise self._wrap(retry_exc) from retry_exc
-        except Exception as exc:  # noqa: BLE001
-            raise self._wrap(exc) from exc
 
-        self.usage["requests"] += 1
-        if stream:
-            return self._stream_iter(response)
-        self._record_usage(getattr(response, "usage", None))
-        return response
+        for _ in range(_MAX_PARAM_RETRIES):
+            attempt = self._apply_param_fixes(dict(params))
+            try:
+                response = self.client.chat.completions.create(**attempt)
+            except openai.BadRequestError as exc:
+                rejected = None if _is_context_length(exc) else _rejected_param(exc, attempt)
+                if rejected is None and "stream_options" in attempt:
+                    # A host that refuses a streamed request without naming the
+                    # parameter is most often refusing stream_options.
+                    rejected = "stream_options"
+                if rejected is None or rejected in self._param_fixes:
+                    raise self._wrap(exc) from exc
+                replacement = _PARAM_RENAMES.get(rejected)
+                # stream_options is ours, not the user's, so dropping it is silent.
+                if replacement is None and rejected != "stream_options":
+                    warnings.warn(
+                        f"{self.host} rejected {rejected!r} for {self.model}; "
+                        f"dropping it from every request to this model.",
+                        stacklevel=2,
+                    )
+                self._param_fixes[rejected] = replacement
+                continue
+            except Exception as exc:  # noqa: BLE001
+                raise self._wrap(exc) from exc
+
+            self.usage["requests"] += 1
+            if stream:
+                return self._stream_iter(response)
+            self._record_usage(getattr(response, "usage", None))
+            return response
+
+        raise ProviderError(
+            f"{self.host} rejected every request parameter combination tried for "
+            f"{self.model}; check the model name with vw.models().",
+            "other",
+        )
 
     def _complete(
         self,

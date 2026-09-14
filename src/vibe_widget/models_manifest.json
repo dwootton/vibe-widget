@@ -1,4 +1,18 @@
 {
+  "defaults": {
+    "anthropic": {
+      "base_url": "https://api.anthropic.com/v1/",
+      "model": "claude-opus-5"
+    },
+    "openai": {
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-5.5"
+    },
+    "openrouter": {
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "google/gemini-3-flash-preview"
+    }
+  },
   "openrouter": {
     "premium": [
       { "id": "google/gemini-3-pro-preview" },

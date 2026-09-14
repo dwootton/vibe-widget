@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from vibe_widget.utils.audit_store import compute_code_hash
-from vibe_widget.utils.platform import is_emscripten
+from vibe_widget.utils.platform import is_emscripten, is_vscode_like
 
 # Path to bundler assets
 _BUNDLER_DIR = Path(__file__).resolve().parent.parent / "bundler"
@@ -102,8 +102,8 @@ class BundleService:
             # Externalize React so the host provides it via import map; avoids "Could not resolve react"
             # when bundling in a temp dir that has no node_modules.
             env["VIBE_EXTERNALIZE_REACT"] = "1"
-            # VS Code notebooks lack import-map support; include React in the bundle there.
-            if os.getenv("VSCODE_PID"):
+            # VS Code and Positron notebooks lack import-map support; bundle React there.
+            if is_vscode_like():
                 env["VIBE_INCLUDE_REACT"] = "1"
                 env["VIBE_EXTERNALIZE_REACT"] = "0"
                 if self._node_path:

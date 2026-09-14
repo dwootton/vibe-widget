@@ -71,7 +71,7 @@ def stub(monkeypatch):
     """Patch the openai client and return a factory that queues canned responses."""
     _StubClient.instances.clear()
     monkeypatch.setattr(openai_compat, "OpenAI", _StubClient)
-    for name in ("VIBE_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY", "VIBE_BASE_URL"):
+    for name in ("VIBE_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "VIBE_BASE_URL"):
         monkeypatch.delenv(name, raising=False)
 
     def make(outbox, **kwargs):
