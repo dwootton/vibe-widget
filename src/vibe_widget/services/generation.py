@@ -27,10 +27,11 @@ class GenerationService:
         stream: bool | None = None,
     ):
         self.llm_provider = llm_provider
+        self.stream = True if stream is None else bool(stream)
         self.orchestrator = AgentSdkOrchestrator(
             provider=llm_provider,
             run_config=agent_run_config,
-            stream=True if stream is None else bool(stream),
+            stream=self.stream,
         )
         self._run_id = 0
         self._cancel_event: threading.Event | None = None

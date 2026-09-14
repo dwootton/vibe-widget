@@ -2,25 +2,47 @@
 Simplified configuration management for Vibe Widget.
 """
 
-import os
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Literal, Union
-from pathlib import Path
 import json
+import os
 import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Literal, Optional
 
 import requests
 
+
 # Load models manifest
-def _load_models_manifest() -> Dict[str, Any]:
+def _load_models_manifest() -> dict[str, Any]:
     """Load the models manifest from JSON file."""
     manifest_path = Path(__file__).parent / "models_manifest.json"
-    with open(manifest_path, "r") as f:
+    with open(manifest_path) as f:
         return json.load(f)
 
 MODELS_MANIFEST = _load_models_manifest()
 
 DEFAULT_MODEL = "google/gemini-3-flash-preview"
+DATA_PRIVACY_MODES = ("sample", "schema")
+
+
+def _validate_settings(data_privacy: str, sample_rows: int, timeout: float) -> None:
+    """Raise ValueError if any data-disclosure or timeout setting is out of range."""
+    if data_privacy not in DATA_PRIVACY_MODES:
+        raise ValueError(f"Invalid data_privacy: {data_privacy}. Must be 'sample' or 'schema'")
+
+    if not isinstance(sample_rows, int) or isinstance(sample_rows, bool) or sample_rows < 0:
+        raise ValueError("sample_rows must be a non-negative integer")
+
+    if not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or timeout <= 0:
+        raise ValueError("timeout must be a positive number of seconds")
+
+
+def _api_key_from_env(base_url: Optional[str]) -> Optional[str]:
+    """Resolve an API key from the environment for the configured endpoint."""
+    key = os.getenv("VIBE_API_KEY") or os.getenv("OPENROUTER_API_KEY")
+    if not key and base_url and "openrouter.ai" not in base_url:
+        key = os.getenv("OPENAI_API_KEY")
+    return key
 
 _OPENROUTER_MODELS_CACHE: Optional[dict[str, Any]] = None
 _OPENROUTER_MODELS_CACHE_TS: Optional[float] = None
@@ -131,11 +153,15 @@ PREMIUM_MODELS, STANDARD_MODELS = _build_model_maps()
 @dataclass
 class Config:
     """Configuration for Vibe Widget LLM models."""
-    
+
     model: str = DEFAULT_MODEL  # Default to Gemini Flash preview via OpenRouter
     api_key: Optional[str] = None
+    base_url: Optional[str] = None  # None means OpenRouter
     temperature: float = 0.7
+    timeout: float = 120.0
     streaming: bool = True
+    data_privacy: str = "sample"  # "sample" | "schema"
+    sample_rows: int = 3
     mode: str = "standard"  # "standard" (fast/cheap models) or "premium" (powerful/expensive models)
     theme: Any = None
     execution: str = "auto"  # "auto" or "approve"
@@ -150,8 +176,12 @@ class Config:
             "Config("
             f"model={self.model!r}, "
             f"api_key={masked_key!r}, "
+            f"base_url={self.base_url!r}, "
             f"temperature={self.temperature!r}, "
+            f"timeout={self.timeout!r}, "
             f"streaming={self.streaming!r}, "
+            f"data_privacy={self.data_privacy!r}, "
+            f"sample_rows={self.sample_rows!r}, "
             f"mode={self.mode!r}, "
             f"theme={self.theme!r}, "
             f"execution={self.execution!r}, "
@@ -166,17 +196,24 @@ class Config:
         return self.__repr__()
 
     def __post_init__(self):
-        """Resolve model name and load API key from environment."""
+        """Resolve model name, endpoint and API key from environment."""
         model_map = PREMIUM_MODELS if self.mode == "premium" else STANDARD_MODELS
         self.model = model_map.get(self.model, self.model)
-        
+
+        if self.base_url is None:
+            self.base_url = os.getenv("VIBE_BASE_URL") or None
+
         if not self.api_key:
             self.api_key = self._get_api_key_from_env()
-    
+
     def _get_api_key_from_env(self) -> Optional[str]:
-        """Get the appropriate API key from environment based on model."""
-        return os.getenv("OPENROUTER_API_KEY")
-    
+        """Get the API key from environment for the configured endpoint."""
+        return _api_key_from_env(self.base_url)
+
+    def validate_settings(self) -> None:
+        """Validate the settings that do not depend on an API key being present."""
+        _validate_settings(self.data_privacy, self.sample_rows, self.timeout)
+
     def validate(self):
         """Validate that the configuration has required fields."""
         # Validate mode
@@ -188,32 +225,38 @@ class Config:
 
         if not isinstance(self.retry, int) or self.retry < 0:
             raise ValueError("retry must be a non-negative integer")
-        
+
+        self.validate_settings()
+
         if not self.model:
             raise ValueError("No model specified")
-        
+
         # Both modes just need the appropriate API key for the selected model
         if not self.api_key:
             raise ValueError(
                 f"No API key found for {self.model}. "
-                "Set OPENROUTER_API_KEY (or pass api_key parameter)."
+                "Set VIBE_API_KEY or OPENROUTER_API_KEY (or pass api_key parameter)."
             )
-    
+
     def to_dict(self) -> dict:
         """Convert configuration to dictionary."""
         theme_value = self.theme
         if theme_value is not None and not isinstance(theme_value, (str, int, float, bool)):
-            if hasattr(theme_value, "name") and getattr(theme_value, "name"):
-                theme_value = getattr(theme_value, "name")
-            elif hasattr(theme_value, "description") and getattr(theme_value, "description"):
-                theme_value = getattr(theme_value, "description")
+            if hasattr(theme_value, "name") and theme_value.name:
+                theme_value = theme_value.name
+            elif hasattr(theme_value, "description") and theme_value.description:
+                theme_value = theme_value.description
             else:
                 theme_value = str(theme_value)
         return {
             "model": self.model,
             "api_key": self.api_key,
+            "base_url": self.base_url,
             "temperature": self.temperature,
+            "timeout": self.timeout,
             "streaming": self.streaming,
+            "data_privacy": self.data_privacy,
+            "sample_rows": self.sample_rows,
             "mode": self.mode,
             "theme": theme_value,
             "execution": self.execution,
@@ -222,45 +265,12 @@ class Config:
             "agent_run": self.agent_run,
             "bypass_row_guard": self.bypass_row_guard,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "Config":
-        """Create configuration from dictionary."""
-        if "retry" not in data:
-            data = dict(data)
-            data["retry"] = 2
-        if "bypass_row_guard" not in data:
-            data = dict(data)
-            data["bypass_row_guard"] = False
-        return cls(**data)
-    
-    def save(self, path: Optional[Path] = None):
-        """Save configuration to file (without API key for security)."""
-        if path is None:
-            path = Path.home() / ".vibe_widget" / "config.json"
-        
-        path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Don't save API keys to file
-        data = self.to_dict()
-        data["api_key"] = None
-        
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
-    
-    @classmethod
-    def load(cls, path: Optional[Path] = None) -> "Config":
-        """Load configuration from file."""
-        if path is None:
-            path = Path.home() / ".vibe_widget" / "config.json"
-        
-        if not path.exists():
-            return cls()
-        
-        with open(path, "r") as f:
-            data = json.load(f)
-        
-        return cls.from_dict(data)
+        """Create configuration from dictionary, ignoring keys this version dropped."""
+        known = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
+        return cls(**known)
 
 
 # Global configuration instance
@@ -292,11 +302,15 @@ def config(
     agent_preset: str = None,
     agent_run: Optional[dict[str, Any]] = None,
     bypass_row_guard: Optional[bool] = None,
+    base_url: Optional[str] = None,
+    timeout: Optional[float] = None,
+    data_privacy: Optional[str] = None,
+    sample_rows: Optional[int] = None,
     **kwargs
 ) -> Config:
     """
     Configure Vibe Widget with model settings.
-    
+
     Args:
         model: Model name or ID (OpenRouter-supported)
         api_key: API key for the model provider
@@ -305,11 +319,15 @@ def config(
         theme: Theme name/prompt or Theme object to use by default
         execution: "auto" (runs immediately) or "approve" (review before run)
         retry: Runtime repair attempts before blocking
-        **kwargs: Additional configuration options
-    
+        base_url: OpenAI-compatible endpoint; None means OpenRouter
+        timeout: HTTP timeout in seconds
+        data_privacy: "sample" sends a few rows, "schema" sends no cell values
+        sample_rows: Rows included per input when data_privacy is "sample"
+        **kwargs: Any other Config field; unknown names raise TypeError
+
     Returns:
         Configuration instance
-    
+
     Examples:
         >>> # Standard mode (default) - fast/affordable
         >>> vw.config()   # Uses google/gemini-3-flash-preview
@@ -324,15 +342,34 @@ def config(
         >>> vw.config(execution="approve")
         >>> vw.config(retry=3)
         >>> vw.config(bypass_row_guard=True)
+        >>> vw.config(base_url="http://localhost:11434/v1", model="qwen2.5-coder")
+        >>> vw.config(data_privacy="schema")
     """
     global _global_config
-    
+
+    # The first call passes kwargs to Config(**kwargs) and later calls setattr them,
+    # so reject unknown names up front to keep both paths identical.
+    unknown = [key for key in kwargs if key not in Config.__dataclass_fields__]
+    if unknown:
+        raise TypeError(f"config() got an unexpected keyword argument {unknown[0]!r}")
+
+    # Reject out-of-range values before anything is mutated.
+    _validate_settings(
+        data_privacy if data_privacy is not None else getattr(_global_config, "data_privacy", "sample"),
+        sample_rows if sample_rows is not None else getattr(_global_config, "sample_rows", 3),
+        timeout if timeout is not None else getattr(_global_config, "timeout", 120.0),
+    )
+
     # Create new config or update existing
     if _global_config is None:
         _global_config = Config(
             model=model or DEFAULT_MODEL,
             api_key=api_key,
-            temperature=temperature or 0.7,
+            base_url=base_url,
+            temperature=temperature if temperature is not None else 0.7,
+            timeout=timeout if timeout is not None else 120.0,
+            data_privacy=data_privacy or "sample",
+            sample_rows=sample_rows if sample_rows is not None else 3,
             mode=mode or "standard",
             theme=theme,
             execution=execution or "auto",
@@ -343,22 +380,34 @@ def config(
             **kwargs
         )
     else:
+        if base_url is not None:
+            _global_config.base_url = base_url or None
+
         if model is not None:
             model_map = PREMIUM_MODELS if _global_config.mode == "premium" else STANDARD_MODELS
             _global_config.model = model_map.get(model, model)
             if api_key is None:
                 _global_config.api_key = _global_config._get_api_key_from_env()
-        
+
         # Handle API key: if provided, use it; otherwise reload from env
         if api_key is not None:
             _global_config.api_key = api_key
         else:
             # When api_key is None (not provided), always reload from environment
             _global_config.api_key = _global_config._get_api_key_from_env()
-        
+
         if temperature is not None:
             _global_config.temperature = temperature
-        
+
+        if timeout is not None:
+            _global_config.timeout = timeout
+
+        if data_privacy is not None:
+            _global_config.data_privacy = data_privacy
+
+        if sample_rows is not None:
+            _global_config.sample_rows = sample_rows
+
         if mode is not None:
             _global_config.mode = mode
             model_map = PREMIUM_MODELS if mode == "premium" else STANDARD_MODELS
@@ -386,14 +435,13 @@ def config(
 
         if bypass_row_guard is not None:
             _global_config.bypass_row_guard = bool(bypass_row_guard)
-        
+
         for key, value in kwargs.items():
-            if hasattr(_global_config, key):
-                setattr(_global_config, key, value)
-        
+            setattr(_global_config, key, value)
+
         if not _global_config.api_key:
             _global_config.api_key = _global_config._get_api_key_from_env()
-    
+
     return _global_config
 
 
@@ -405,10 +453,10 @@ def models(
     verbose: bool = True,
     show: Literal["summary", "all", "none"] = "summary",
     limit: int = 30,
-) -> Dict[str, Dict[str, List[str]]]:
+) -> dict[str, dict[str, list[str]]]:
     """
     Get available model IDs (OpenRouter), optionally fetching the latest list.
-    
+
     Args:
         provider: Optional provider filter ("openrouter")
         mode: Optional mode filter ("standard" or "premium")
@@ -416,21 +464,21 @@ def models(
         verbose: When True, prints helpful config instructions
         show: "summary" prints defaults + pinned options; "all" also prints a live list; "none" prints nothing
         limit: Max models to print per provider group
-    
+
     Returns:
         Dictionary of available models by provider and tier
-    
+
     Examples:
         >>> # Get all models
         >>> vw.models()
-        
+
         >>> # Get models for a specific provider
         >>> vw.models("openrouter")
-        
+
         >>> # Get premium defaults
         >>> vw.models("openrouter", mode="premium")
     """
-    result: Dict[str, Dict[str, List[str]]] = {}
+    result: dict[str, dict[str, list[str]]] = {}
 
     provider_key = (provider or "openrouter").lower()
     if provider_key != "openrouter":
@@ -446,7 +494,7 @@ def models(
     def _filter_prefix(prefix: str) -> list[str]:
         return [m for m in latest_ids if m.startswith(prefix)]
 
-    data: Dict[str, List[str]] = {
+    data: dict[str, list[str]] = {
         "defaults": [
             f"standard={STANDARD_MODELS.get('openrouter')}",
             f"premium={PREMIUM_MODELS.get('openrouter')}",
