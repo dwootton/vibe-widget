@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+- `vibe_widget.debug` module, which shipped caller locals and globals to the frontend
+- Agent tools `python.write_module`, `python.run_module`, `widget.set_input`, and
+  `widget.set_output`, plus the unregistered `cli_execute` and `code_repair` tools
+- Automatic `npm install` during server-side bundling; a widget importing a package that the
+  repository `node_modules` cannot resolve now falls back to the browser bundler
+
+### Added
+- `SECURITY.md`, `CONTRIBUTING.md`, and a CI workflow running ruff and pytest on 3.9 and 3.12
+- `tests/` is tracked again, with smoke, tool permission, and bundling tests
+- Any OpenAI-compatible endpoint via `vw.config(base_url=...)`; `temperature`, `streaming` and a
+  new `timeout` are now honored, token usage is tracked and readable as `widget.usage`, and API
+  failures raise a `ProviderError` with a plain-language fix instead of a raw SDK exception
+- `.vibewidget/` is now a git-shareable artifact: one `.js` plus one `.json` sidecar per widget,
+  no shared index file, with outputs, inputs, actions and generation provenance recorded per widget
+
+### Changed
+- Data sent to the LLM now honours `vw.config(data_privacy=..., sample_rows=...)`; schema mode
+  sends no cell values
+- Generated widget code receives a restricted model facade limited to the widget's declared
+  inputs, outputs and actions, and no longer patches page-wide timers or `console`
+
+### Security
+- The browser can no longer choose a save path or invoke agent tools: `save_widget` writes only
+  under `.vibewidget/exports/`, and the `remote_call` bridge is gone
+- Approval mode is enforced in Python: `render_code` stays empty until the code is approved,
+  including for cached and loaded widgets
+
 ## [0.2.4] - 2026-01-15
 
 ### Fixed

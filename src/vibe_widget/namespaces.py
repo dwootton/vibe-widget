@@ -29,7 +29,7 @@ class ThemesNamespace:
         from vibe_widget.themes import ThemeRegistry
         return ThemeRegistry().list()
 
-    def __getattr__(self, name: str) -> "Theme":
+    def __getattr__(self, name: str) -> Theme:
         from vibe_widget.themes import ThemeRegistry
         theme = ThemeRegistry().get(name)
         if theme is None:
@@ -56,7 +56,7 @@ class ModelsNamespace:
     """
 
     def __repr__(self) -> str:
-        from vibe_widget.config import STANDARD_MODELS, PREMIUM_MODELS, DEFAULT_MODEL
+        from vibe_widget.config import DEFAULT_MODEL, PREMIUM_MODELS, STANDARD_MODELS
         lines = [
             "Available models:",
             f"  default:  {DEFAULT_MODEL}",
@@ -67,6 +67,11 @@ class ModelsNamespace:
             "  vw.config(model=vw.models.standard)",
             "  vw.config(model=vw.models.premium)",
             "  vw.config(model='openai/gpt-4o')  # Or any OpenRouter model ID",
+            "  vw.config(base_url='http://localhost:11434/v1', model='qwen2.5-coder')"
+            "  # Any OpenAI-compatible endpoint",
+            "  vw.config(data_privacy='schema')  # Send no data cell values to the model",
+            "",
+            "Tip: set VIBE_API_KEY (or OPENROUTER_API_KEY) in your environment.",
         ]
         return "\n".join(lines)
 

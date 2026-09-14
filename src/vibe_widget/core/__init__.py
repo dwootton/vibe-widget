@@ -3,12 +3,12 @@
 from vibe_widget.core.widget import (
     VibeWidget,
     WidgetHandle,
+    _normalize_api_inputs,
+    _summarize_inputs_for_prompt,
+    clear,
     create,
     edit,
     load,
-    clear,
-    _normalize_api_inputs,
-    _summarize_inputs_for_prompt,
 )
 
 __all__ = [
