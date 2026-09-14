@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
-
-
-SafetyMode = Literal["sandboxed", "workspace", "open_trusted", "open_trusted_net"]
+from typing import Any
 
 
 @dataclass
@@ -23,19 +20,17 @@ class AgentBudgets:
 class AgentRunConfig:
     """Resolved agent run config."""
 
-    safety_mode: SafetyMode = "workspace"
     permission_tier: int = 1
     allowed_roots: list[Path] = field(default_factory=list)
     sandbox_dir: Path = field(default_factory=lambda: Path(".vibewidget") / "sandbox")
     budgets: AgentBudgets = field(default_factory=AgentBudgets)
     allow_net_fetch: bool = False
-    allow_search: bool = False
     net_allowlist: list[str] = field(default_factory=list)
     net_mime_allowlist: list[str] = field(
         default_factory=lambda: ["text/plain", "text/csv", "application/json"]
     )
 
-    def with_overrides(self, overrides: dict[str, Any] | None) -> "AgentRunConfig":
+    def with_overrides(self, overrides: dict[str, Any] | None) -> AgentRunConfig:
         """Apply overrides from a dict."""
         if not overrides:
             return self
@@ -56,37 +51,36 @@ def _default_sandbox_dir() -> Path:
 
 
 def preset_config(name: str) -> AgentRunConfig:
-    """Return a baseline config for a preset name."""
+    """Return a baseline config for a preset name.
+
+    safe: read-only tools, reads confined to the sandbox directory, no network.
+    project: adds file writes and local data loading under the working directory, no network.
+    connected: adds net.fetch over HTTPS, restricted by net_allowlist and net_mime_allowlist.
+    """
     preset = (name or "project").lower()
     sandbox_dir = _default_sandbox_dir()
     cwd = Path.cwd()
     if preset == "safe":
         return AgentRunConfig(
-            safety_mode="sandboxed",
             permission_tier=0,
             allowed_roots=[sandbox_dir],
             sandbox_dir=sandbox_dir,
             allow_net_fetch=False,
-            allow_search=False,
             budgets=AgentBudgets(max_turns=3, max_tool_calls=4, max_tool_output_bytes=10_000),
         )
     if preset == "connected":
         return AgentRunConfig(
-            safety_mode="open_trusted_net",
             permission_tier=2,
             allowed_roots=[cwd, sandbox_dir],
             sandbox_dir=sandbox_dir,
             allow_net_fetch=True,
-            allow_search=False,
             budgets=AgentBudgets(max_turns=5, max_tool_calls=10, max_tool_output_bytes=40_000),
         )
     return AgentRunConfig(
-        safety_mode="workspace",
         permission_tier=1,
         allowed_roots=[cwd, sandbox_dir],
         sandbox_dir=sandbox_dir,
         allow_net_fetch=False,
-        allow_search=False,
         budgets=AgentBudgets(max_turns=4, max_tool_calls=6, max_tool_output_bytes=20_000),
     )
 

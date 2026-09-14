@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, TYPE_CHECKING
-import re
-from urllib.parse import urlparse
 import base64
 import mimetypes
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
@@ -17,9 +17,6 @@ from vibe_widget.llm.tools.base import Tool, ToolResult
 from vibe_widget.llm.tools.data_tools import DataLoadTool, DataProfileTool
 from vibe_widget.utils.serialization import clean_for_json
 from vibe_widget.utils.util import summarize_for_prompt
-
-if TYPE_CHECKING:
-    import pandas as pd
 
 
 def _get_pandas():
@@ -292,59 +289,6 @@ class StatePutTool(Tool):
         context.artifacts[name] = value
         return ToolResult(success=True, output={"stored": name})
 
-
-class WidgetSetInputTool(Tool):
-    """Set a widget input trait."""
-
-    def __init__(self):
-        super().__init__(name="widget.set_input", description="Set a widget input trait value.", required_tier=1)
-
-    @property
-    def parameters_schema(self) -> dict[str, Any]:
-        return {
-            "name": {"type": "string", "description": "Input trait name.", "required": True},
-            "value": {"type": "object", "description": "Value to set.", "required": True},
-        }
-
-    def execute(self, context: AgentHarnessContext, name: str, value: Any) -> ToolResult:
-        if cancelled := _check_cancelled(context):
-            return cancelled
-        if context.permission_tier < 1:
-            return _permission_error(context, required_tier=1)
-        widget = context.widget
-        if widget is None or not hasattr(widget, name):
-            return ToolResult(success=False, output={}, error="input_not_found")
-        setattr(widget, name, clean_for_json(value))
-        if hasattr(widget, "save_changes"):
-            widget.save_changes()
-        return ToolResult(success=True, output={"input": name})
-
-
-class WidgetSetOutputTool(Tool):
-    """Set a widget output trait."""
-
-    def __init__(self):
-        super().__init__(name="widget.set_output", description="Set a widget output trait value.", required_tier=1)
-
-    @property
-    def parameters_schema(self) -> dict[str, Any]:
-        return {
-            "name": {"type": "string", "description": "Output trait name.", "required": True},
-            "value": {"type": "object", "description": "Value to set.", "required": True},
-        }
-
-    def execute(self, context: AgentHarnessContext, name: str, value: Any) -> ToolResult:
-        if cancelled := _check_cancelled(context):
-            return cancelled
-        if context.permission_tier < 1:
-            return _permission_error(context, required_tier=1)
-        widget = context.widget
-        if widget is None or not hasattr(widget, name):
-            return ToolResult(success=False, output={}, error="output_not_found")
-        setattr(widget, name, clean_for_json(value))
-        if hasattr(widget, "save_changes"):
-            widget.save_changes()
-        return ToolResult(success=True, output={"output": name})
 
 
 class DescribeTool(Tool):
@@ -647,104 +591,6 @@ class NetFetchTool(Tool):
             return ToolResult(success=False, output={}, error=str(exc))
 
 
-class PythonWriteModuleTool(Tool):
-    """Write a python module into the sandbox."""
-
-    def __init__(self):
-        super().__init__(name="python.write_module", description="Write a python module in the sandbox.", required_tier=2)
-
-    @property
-    def parameters_schema(self) -> dict[str, Any]:
-        return {
-            "name": {"type": "string", "description": "Module name.", "required": True},
-            "code": {"type": "string", "description": "Python source code.", "required": True},
-        }
-
-    def execute(self, context: AgentHarnessContext, name: str, code: str) -> ToolResult:
-        if cancelled := _check_cancelled(context):
-            return cancelled
-        if context.permission_tier < 2:
-            return _permission_error(context, required_tier=2, path=name)
-        safe_name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
-        module_dir = context.sandbox_dir / "modules"
-        module_dir.mkdir(parents=True, exist_ok=True)
-        module_path = module_dir / f"{safe_name}.py"
-        module_path.write_text(code, encoding="utf-8")
-        return ToolResult(success=True, output={"path": str(module_path)})
-
-
-def _ast_guard(code: str) -> str | None:
-    import ast
-
-    deny_imports = {"subprocess", "os", "sys", "shutil", "socket", "http", "urllib", "requests"}
-    deny_calls = {"system", "popen", "remove", "rmdir", "rmtree"}
-
-    try:
-        tree = ast.parse(code)
-    except SyntaxError as exc:
-        return f"syntax_error: {exc}"
-
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            for alias in node.names:
-                if alias.name.split(".")[0] in deny_imports:
-                    return f"import_not_allowed: {alias.name}"
-        if isinstance(node, ast.Call):
-            func = node.func
-            if isinstance(func, ast.Attribute) and func.attr in deny_calls:
-                return f"call_not_allowed: {func.attr}"
-            if isinstance(func, ast.Name) and func.id in deny_calls:
-                return f"call_not_allowed: {func.id}"
-    return None
-
-
-class PythonRunModuleTool(Tool):
-    """Execute a sandboxed python module run(context)."""
-
-    def __init__(self):
-        super().__init__(name="python.run_module", description="Run a sandboxed python module.", required_tier=2)
-
-    @property
-    def parameters_schema(self) -> dict[str, Any]:
-        return {
-            "name": {"type": "string", "description": "Module name.", "required": True},
-            "entrypoint": {
-                "type": "string",
-                "description": "Entrypoint function name.",
-                "required": False,
-            },
-        }
-
-    def execute(self, context: AgentHarnessContext, name: str, entrypoint: str | None = "run") -> ToolResult:
-        if cancelled := _check_cancelled(context):
-            return cancelled
-        if context.permission_tier < 2:
-            return _permission_error(context, required_tier=2, path=name)
-        safe_name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
-        module_path = context.sandbox_dir / "modules" / f"{safe_name}.py"
-        if not module_path.exists():
-            return ToolResult(success=False, output={}, error="module_not_found")
-        code = module_path.read_text(encoding="utf-8")
-        guard_error = _ast_guard(code)
-        if guard_error:
-            return ToolResult(success=False, output={}, error=guard_error)
-
-        try:
-            import importlib.util
-
-            spec = importlib.util.spec_from_file_location(safe_name, module_path)
-            if spec is None or spec.loader is None:
-                return ToolResult(success=False, output={}, error="module_load_failed")
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            runner = getattr(module, entrypoint or "run", None)
-            if runner is None:
-                return ToolResult(success=False, output={}, error="entrypoint_not_found")
-            result = runner(context)
-            return ToolResult(success=True, output=clean_for_json(result))
-        except Exception as exc:  # noqa: BLE001
-            return ToolResult(success=False, output={}, error=str(exc))
-
 
 def default_agent_tools() -> AgentToolRegistry:
     """Build the default tool registry."""
@@ -754,8 +600,6 @@ def default_agent_tools() -> AgentToolRegistry:
             DataLoadAgentTool(),
             StateGetTool(),
             StatePutTool(),
-            WidgetSetInputTool(),
-            WidgetSetOutputTool(),
             DescribeTool(),
             FsListTool(),
             FsReadTool(),
@@ -765,7 +609,5 @@ def default_agent_tools() -> AgentToolRegistry:
             FsExistsTool(),
             FsGlobTool(),
             NetFetchTool(),
-            PythonWriteModuleTool(),
-            PythonRunModuleTool(),
         ]
     )

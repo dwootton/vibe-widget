@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import os
+import re
 import shutil
 import subprocess
 import tempfile
-import json
-import re
+from dataclasses import dataclass
+from pathlib import Path
 
 from vibe_widget.utils.audit_store import compute_code_hash
 from vibe_widget.utils.platform import is_emscripten
-
 
 # Path to bundler assets
 _BUNDLER_DIR = Path(__file__).resolve().parent.parent / "bundler"
@@ -74,9 +72,8 @@ class BundleService:
         if not self._bundler_available():
             return BundleResult(code=source, bundled=False, error="bundler_unavailable")
 
-        deps_result = self._ensure_package_deps(source)
-        if deps_result:
-            return BundleResult(code=source, bundled=False, error=deps_result)
+        if self._unresolvable_packages(source):
+            return BundleResult(code=source, bundled=False, error="bundler_unavailable")
 
         code_hash = self.bundle_key(source)
         target = self._root / f"{code_hash}.js"
@@ -130,37 +127,13 @@ class BundleService:
             target.write_text(bundled_with_marker, encoding="utf-8")
             return BundleResult(code=bundled_with_marker, bundled=True)
 
-    def _ensure_package_deps(self, source: str) -> str | None:
-        package_names = _extract_package_names(source)
-        if not package_names:
-            return None
-        package_json = self._packages_dir / "package.json"
-        if not package_json.exists():
-            package_json.write_text(json.dumps({"name": "vibewidget-cache", "private": True}), encoding="utf-8")
-        node_modules = self._packages_dir / "node_modules"
-        if not node_modules.exists():
-            node_modules.mkdir(parents=True, exist_ok=True)
-        missing = []
-        for name in sorted(package_names):
-            if not (node_modules / name.split("/", 1)[0]).exists():
-                missing.append(name)
-        if not missing:
-            return None
-        if shutil.which("npm") is None:
-            return "npm_not_available"
-        try:
-            result = subprocess.run(
-                ["npm", "install", "--no-save", "--silent", "--prefix", str(self._packages_dir), *missing],
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
-        except Exception as exc:
-            return f"npm_install_failed: {exc}"
-        if result.returncode != 0:
-            stderr = (result.stderr or result.stdout or "").strip()
-            return f"npm_install_failed: {stderr or 'unknown_error'}"
-        return None
+    def _unresolvable_packages(self, source: str) -> set[str]:
+        """Bare import specifiers the local node_modules cannot resolve."""
+        packages = _extract_package_names(source)
+        if not packages or self._node_path is None:
+            return packages
+        root = Path(self._node_path)
+        return {name for name in packages if not (root / name).exists()}
 
 
 def _load_bundler_asset(filename: str) -> str:
