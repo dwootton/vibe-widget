@@ -2,7 +2,10 @@
 
 from types import SimpleNamespace
 
-import httpx
+try:
+    import httpx
+except ModuleNotFoundError:  # openai >= 3 depends on httpx2
+    import httpx2 as httpx
 import openai
 import pytest
 
