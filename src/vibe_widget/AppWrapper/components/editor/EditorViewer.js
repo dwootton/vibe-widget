@@ -59,8 +59,6 @@ export default function EditorViewer({
   const [hoveredCardId, setHoveredCardId] = useState(null);
   const [expandedCards, setExpandedCards] = useState({});
   const [technicalCards, setTechnicalCards] = useState({});
-  const [editingBubbleId, setEditingBubbleId] = useState(null);
-  const [editingText, setEditingText] = useState("");
   const [codeChangeRanges, setCodeChangeRanges] = useState(initialCodeChangeRanges || []);
   const [terminalPrompt, setTerminalPrompt] = useState("");
   const [copyLabel, setCopyLabel] = useState("Copy");
@@ -371,12 +369,6 @@ export default function EditorViewer({
                 pendingChanges,
                 codeChangeRanges,
                 isDirty: false,
-                editingBubbleId,
-                editingText,
-                onStartEdit: () => {},
-                onEditingTextChange: setEditingText,
-                onSaveEdit: () => {},
-                onRemovePending: () => {},
                 onHoverCard: setHoveredCardId,
                 bubbleEditorRef: null
               }}

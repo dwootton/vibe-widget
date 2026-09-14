@@ -63,9 +63,15 @@ export default function FloatingMenu({
   return (
     <div class={containerClass}>
       <div class={dotWrapperClass}>
-        <div class={`${dotClass} ${isEditMode ? "animate-spin-slow" : ""}`} onClick={onToggle}>
+        <button
+          type="button"
+          class={`${dotClass} ${isEditMode ? "animate-spin-slow" : ""}`}
+          onClick={onToggle}
+          aria-label={isOpen ? "Close widget menu" : "Open widget menu"}
+          aria-expanded={isOpen}
+        >
           <div class={dotInnerClass}></div>
-        </div>
+        </button>
         {badge}
       </div>
       {isOpen ? options : null}

@@ -38,8 +38,7 @@ function AppWrapper({ model }) {
     (globalThis.__VIBE_DEBUG === true ||
       (model && typeof model.get === "function" && model.get("debug_mode") === true));
   if (debugEnabled) {
-    debugLog(model, "[vibe][debug] AppWrapper render", { instanceId });
-    console.log("[vibe][debug] AppWrapper render", {
+    debugLog(model, "[vibe][debug] AppWrapper render", {
       instanceId,
       modelId: model?.cid || model?.model_id || model?.id || model?.get?.("_model_id")
     });
@@ -238,15 +237,6 @@ function AppWrapper({ model }) {
       showWidgetViewer: status === "ready" && shouldRenderWidget,
       showSource
     });
-    console.log("[vibe][debug] AppWrapper view flags", {
-      instanceId,
-      modelId: model?.cid || model?.model_id || model?.id,
-      status,
-      hasRuntimeError,
-      showStateViewer: status !== "ready" || hasRuntimeError,
-      showWidgetViewer: status === "ready" && shouldRenderWidget,
-      showSource
-    });
   }, [model, instanceId, status, hasRuntimeError, shouldRenderWidget, showSource]);
 
   const handleStatePrompt = (payload) => {
@@ -279,11 +269,11 @@ function AppWrapper({ model }) {
     setShowSaveDialog(true);
   };
 
-  const handleSaveConfirm = async (filename) => {
+  const handleSaveConfirm = async (filename, includeInputs) => {
     setShowSaveDialog(false);
     if (!filename) return;
     try {
-      const savedPath = await requestSaveWidget(model, { path: filename });
+      const savedPath = await requestSaveWidget(model, { path: filename, includeInputs });
       const message = savedPath ? `Saved widget to ${savedPath}` : `Saved widget to ${filename}`;
       appendWidgetLogs(model, [
         {
@@ -402,38 +392,15 @@ function AppWrapper({ model }) {
 }
 
 function render({ model, el }) {
-  const traceTs = new Date().toISOString();
-  const traceModelId = model?.cid || model?.model_id || model?.id || model?.get?.("_model_id");
-  const stack = new Error("VIBE_RENDER_TRACE").stack;
-  const renderCount = el ? (el.__vibeRenderCount = (el.__vibeRenderCount || 0) + 1) : 0;
-  console.log("[VIBE_RENDER_TRACE]", {
-    ts: traceTs,
-    phase: "render_entry",
-    modelId: traceModelId,
-    hasEl: !!el,
-    hasRoot: !!el?.__vibeRoot,
-    renderCount,
-    stack
-  });
-  const modelId = traceModelId;
+  const modelId = model?.cid || model?.model_id || model?.id || model?.get?.("_model_id");
   debugLog(model, "[vibe][debug] render() called", { modelId, hasRoot: !!el.__vibeRoot });
 
   let root = el.__vibeRoot;
   if (!root) {
-    console.log("[VIBE_RENDER_TRACE]", {
-      ts: new Date().toISOString(),
-      phase: "create_root",
-      modelId
-    });
     debugLog(model, "[vibe][debug] creating root for model", { modelId });
     root = createRoot(el);
     el.__vibeRoot = root;
   }
-  console.log("[VIBE_RENDER_TRACE]", {
-    ts: new Date().toISOString(),
-    phase: "render_call",
-    modelId
-  });
   root.render(<AppWrapper model={model} />);
 }
 

@@ -82,7 +82,6 @@ export default function ProgressMap({
   const autoFollowRef = React.useRef(true);
   const debugSink =
     typeof globalThis !== "undefined" ? globalThis.__VIBE_DEBUG_SINK : null;
-  const debugEnabled = true;
 
   // Toggle expand/collapse for a log entry
   const toggleLogExpanded = (idx) => {
@@ -99,18 +98,12 @@ export default function ProgressMap({
         logs: logs.length
       });
     }
-    console.log("[vibe][debug] ProgressMap mount", {
-      label: debugLabel,
-      status,
-      logs: logs.length
-    });
     return () => {
       if (typeof debugSink === "function") {
         debugSink({ source: "ProgressMap", event: "unmount", label: debugLabel });
       }
-      console.log("[vibe][debug] ProgressMap unmount", { label: debugLabel });
     };
-  }, [debugEnabled, debugSink, debugLabel, status, logs.length]);
+  }, [debugSink, debugLabel, status, logs.length]);
 
   React.useLayoutEffect(() => {
     const el = logContainerRef.current;
@@ -198,17 +191,19 @@ export default function ProgressMap({
                 >
                   {/* Chevron for collapsible logs, spinner/block for others */}
                   {collapsible ? (
-                    <span
+                    <button
+                      type="button"
                       class={chevronClass}
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleLogExpanded(idx);
                       }}
-                      title={isExpanded ? "Collapse" : "Expand"}
-                      style={{ color: isLive ? "#f97316" : undefined }}
+                      aria-label={isExpanded ? "Collapse log entry" : "Expand log entry"}
+                      aria-expanded={isExpanded}
+                      style={{ color: isLive ? "#f97316" : undefined, background: "none", border: "none", padding: 0 }}
                     >
                       {isExpanded ? "\u25BC" : "\u25B6"}
-                    </span>
+                    </button>
                   ) : (
                     <span class={logIconClasses} style={logIconStyle}>
                       {isLive ? (
