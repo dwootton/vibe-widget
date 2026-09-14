@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from vibe_widget.themes import Theme, resolve_theme_for_request
 
 

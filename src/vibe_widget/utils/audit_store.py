@@ -131,7 +131,7 @@ class AuditStore:
     def _load_index(self) -> dict[str, Any]:
         if self.index_file.exists():
             try:
-                with open(self.index_file, "r", encoding="utf-8") as handle:
+                with open(self.index_file, encoding="utf-8") as handle:
                     return json.load(handle)
             except (json.JSONDecodeError, OSError):
                 return {"schema_version": 1, "audits": []}
@@ -203,7 +203,7 @@ class AuditStore:
         audit_file = self.audits_dir / entry["file_name"]
         if not audit_file.exists():
             return None
-        with open(audit_file, "r", encoding="utf-8") as handle:
+        with open(audit_file, encoding="utf-8") as handle:
             data = json.load(handle)
         data["entry"] = entry
         return data
@@ -224,7 +224,6 @@ class AuditStore:
         widget_metadata = widget_metadata or {}
         widget_id = widget_metadata.get("cache_key") or f"unsaved-{code_hash[:8]}"
         widget_slug = widget_metadata.get("var_name") or "widget"
-        widget_version = None
 
         existing_versions = [
             entry["version"]
@@ -245,7 +244,6 @@ class AuditStore:
             "level": level,
             "widget_id": widget_id,
             "widget_slug": widget_slug,
-            "widget_version": widget_version,
             "created_at": now,
             "code_hash": code_hash,
             "line_hashes": {str(k): v for k, v in line_hashes.items()},
@@ -265,7 +263,6 @@ class AuditStore:
             "audit_id": audit_id,
             "widget_id": widget_id,
             "widget_slug": widget_slug,
-            "widget_version": widget_version,
             "level": level,
             "version": version,
             "file_name": json_name,
