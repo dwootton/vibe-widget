@@ -519,15 +519,17 @@ def config(
         Configuration instance
 
     Examples:
-        >>> # Standard mode (default) - fast/affordable
-        >>> vw.config()   # Uses google/gemini-3-flash-preview
+        >>> # No arguments: provider, endpoint and model come from whichever of
+        >>> # ANTHROPIC_API_KEY, OPENAI_API_KEY or OPENROUTER_API_KEY is set.
+        >>> vw.config()
         >>>
-        >>> # Premium mode - stronger models
-        >>> vw.config(mode="premium", model="openrouter")  # Uses google/gemini-3-pro-preview
+        >>> # A plain name stays on the inferred provider.
+        >>> vw.config(model="claude-sonnet-5")      # with ANTHROPIC_API_KEY
+        >>> vw.config(model="gpt-5.5")              # with OPENAI_API_KEY
         >>>
-        >>> # Use specific model IDs
-        >>> vw.config(model="openai/gpt-5.1-codex")
-        >>> vw.config(model="anthropic/claude-opus-4.5")
+        >>> # A vendor/model id needs the OpenRouter endpoint.
+        >>> vw.config(model="openai/gpt-5.1-codex")  # with OPENROUTER_API_KEY
+        >>> vw.config(mode="premium", model="openrouter")
         >>> vw.config(theme="financial times")
         >>> vw.config(execution="approve")
         >>> vw.config(retry=3)
@@ -724,7 +726,9 @@ def models(
         standard_default = STANDARD_MODELS.get("openrouter")
         premium_default = PREMIUM_MODELS.get("openrouter")
 
-        print("Model selection (OpenRouter)")
+        active = get_global_config()
+        print("Model selection (OpenRouter catalog)")
+        print(f"Active: provider={active.provider}, model={active.model}")
         print("Defaults:")
         print(f"  default: {DEFAULT_MODEL}")
         print(f'  vw.config(model="openrouter")  # -> {standard_default}')
@@ -736,7 +740,10 @@ def models(
         print(f"  standard: {manifest_standard}")
         print(f"  premium:  {manifest_premium}")
         print('More: `vw.models(show="all")` or `vw.models(verbose=False)`.\n')
-        print("Tip: set OPENROUTER_API_KEY in your environment.\n")
+        print(
+            "Tip: these ids need OPENROUTER_API_KEY. With ANTHROPIC_API_KEY or "
+            "OPENAI_API_KEY, use that provider's own model names.\n"
+        )
 
         if show == "all":
             if latest_ids:

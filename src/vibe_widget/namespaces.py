@@ -56,8 +56,18 @@ class ModelsNamespace:
     """
 
     def __repr__(self) -> str:
-        from vibe_widget.config import PREMIUM_MODELS, PROVIDER_DEFAULTS, STANDARD_MODELS
-        lines = ["Default model per provider (whichever API key you set):"]
+        from vibe_widget.config import (
+            PREMIUM_MODELS,
+            PROVIDER_DEFAULTS,
+            STANDARD_MODELS,
+            get_global_config,
+        )
+        active = get_global_config()
+        lines = [
+            f"Active: provider={active.provider}, model={active.model}",
+            "",
+            "Default model per provider (whichever API key you set):",
+        ]
         lines += [
             f"  {name:<11} {defaults['model']}"
             for name, defaults in sorted(PROVIDER_DEFAULTS.items())
@@ -71,7 +81,8 @@ class ModelsNamespace:
             "Usage:",
             "  vw.config(model=vw.models.standard)",
             "  vw.config(model=vw.models.premium)",
-            "  vw.config(model='openai/gpt-5.1-codex')  # Any OpenRouter model ID",
+            "  vw.config(model='claude-sonnet-5')  # Plain name: stays on your provider",
+            "  vw.config(model='openai/gpt-5.1-codex')  # vendor/model: OpenRouter only",
             "  vw.config(base_url='http://localhost:11434/v1', model='qwen2.5-coder')"
             "  # Any OpenAI-compatible endpoint",
             "  vw.config(data_privacy='schema')  # Send no data cell values to the model",
