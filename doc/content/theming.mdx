@@ -16,6 +16,19 @@ themes
 
 `vw.themes()` pretty-prints a concise list in notebooks. To get the full dict, use `dict(themes)`.
 
+## Use a theme in create
+
+Pass the name of a built-in theme:
+
+```python
+vw.create("...", df, theme="financial_times")
+```
+
+A string that is not a registered theme name is treated as a theme prompt and sent to the model,
+which generates a fresh theme for it. That costs an extra model call and the result varies between
+runs, so use a registered name when you want the same look every time. `vw.themes()` lists the
+names that resolve without a model call.
+
 ## Create a custom theme
 
 ```python
@@ -24,14 +37,24 @@ theme = vw.theme("like national geographic but greener")
 # Inspect or reuse the generated description
 print(theme.description)
 
-vw.create("...", df, theme=theme.description)
+vw.create("...", df, theme=theme)
 ```
 
-## Use a theme in create
+Pass the `Theme` object itself, not `theme.description`. A description string is not a registered
+name, so it goes back through generation and produces a different theme.
+
+To reuse a generated theme across sessions, give it a name:
 
 ```python
-vw.create("...", df, theme="financial_times")
+theme.save("nat_geo_green")
+
+vw.create("...", df, theme="nat_geo_green")
 ```
+
+`Theme.save` writes a JSON file named after the theme into `.vibewidget/themes/` in your project and
+registers the name for the rest of the session. Because the file lives in the project, it can be
+committed and shared with the repo. Themes saved by older versions under `~/.vibewidgets/themes/`
+are still read.
 
 ## Iterate with themes
 
@@ -53,5 +76,5 @@ v2 = v1.edit("add hover tooltips and a right-side legend")
 You can override the theme on an edit when you want a new look:
 
 ```python
-v3 = v2.edit("soften the palette and reduce gridlines", theme="paper_white")
+v3 = v2.edit("soften the palette and reduce gridlines", theme="minimal")
 ```

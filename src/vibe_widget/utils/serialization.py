@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -12,7 +11,11 @@ from vibe_widget.api import ExportHandle
 from vibe_widget.llm.tools.data_tools import DataLoadTool
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import pandas as pd
+
+DEFAULT_SAMPLE_MAX_ROWS = 1000
 
 
 def _is_pandas_object(obj: Any) -> tuple[bool, str | None]:
@@ -24,9 +27,10 @@ def _is_pandas_object(obj: Any) -> tuple[bool, str | None]:
 
 
 def _check_pandas_na(obj: Any) -> bool:
-    """Check if obj is pandas NA/NaT without importing pandas at module level."""
+    """Check if obj is a pandas NA/NaT scalar without importing pandas at module level."""
     import pandas as pd
-    return pd.isna(obj)
+
+    return bool(pd.isna(obj))
 
 
 def clean_for_json(obj: Any) -> Any:
@@ -37,53 +41,77 @@ def clean_for_json(obj: Any) -> Any:
         except Exception:
             return str(obj)
 
-    # Check for pandas types without top-level import
+    if isinstance(obj, np.ndarray):
+        return clean_for_json(obj.tolist())
+    if isinstance(obj, np.generic):
+        if isinstance(obj, (np.datetime64, np.timedelta64)):
+            return None if np.isnat(obj) else str(obj)
+        return clean_for_json(obj.item())
+
     is_pandas, pandas_type = _is_pandas_object(obj)
     if is_pandas:
         if pandas_type == "DataFrame":
             return clean_for_json(obj.to_dict(orient="records"))
-        if pandas_type == "Series":
+        if hasattr(obj, "tolist"):
             return clean_for_json(obj.tolist())
-        if pandas_type == "Timestamp":
-            if _check_pandas_na(obj):
-                return None
-            return obj.isoformat()
-
-    if isinstance(obj, np.ndarray):
-        return clean_for_json(obj.tolist())
-    if isinstance(obj, dict):
-        return {k: clean_for_json(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [clean_for_json(item) for item in obj]
-
-    # Check for pandas NA values (NaN, NaT, etc.)
-    if is_pandas or (hasattr(obj, "__module__") and "pandas" in str(getattr(obj, "__module__", ""))):
         if _check_pandas_na(obj):
             return None
+        if hasattr(obj, "isoformat"):
+            return obj.isoformat()
+        return str(obj)
 
-    if isinstance(obj, float) and (np.isnan(obj) or np.isinf(obj)):
-        return None
+    if isinstance(obj, dict):
+        return {(k if isinstance(k, str) else str(k)): clean_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set, frozenset)):
+        return [clean_for_json(item) for item in obj]
+    if isinstance(obj, (bytes, bytearray)):
+        return bytes(obj).decode("utf-8", "replace")
+    if isinstance(obj, Decimal):
+        return float(obj) if obj.is_finite() else None
+
+    if obj is None or isinstance(obj, (bool, str)):
+        return obj
+    if isinstance(obj, int):
+        # ponytail: ints above 2**53 lose precision once JSON.parse sees them in the
+        # browser; pass them through so Python-side round-trips stay exact, switch to a
+        # BigInt-aware envelope if a widget ever needs exact large ints in JS.
+        return obj
+    if isinstance(obj, float):
+        return None if (np.isnan(obj) or np.isinf(obj)) else obj
     if hasattr(obj, "isoformat"):
         try:
             return obj.isoformat()
         except (ValueError, AttributeError):
             return str(obj)
-    return obj if isinstance(obj, (str, int, float, bool, type(None))) else str(obj)
+    return str(obj)
 
 
-def _safe_json_initial_for_string(s: str) -> str:
+def _stride_sample(frame: Any, max_rows: int) -> Any:
+    """Return at most max_rows evenly strided rows in order, always including the first row.
+
+    The last row is included whenever max_rows is 2 or more; max_rows below 1 is treated as 1.
     """
-    If the string contains '{' but is not valid JSON, return '{}'.
-    This avoids JSON.parse() in generated widget code throwing when the
-    user passed a description (e.g. "result: {a, b}") as the input value.
-    """
-    if not isinstance(s, str) or "{" not in s:
-        return s
-    try:
-        json.loads(s)
-        return s
-    except (json.JSONDecodeError, TypeError):
-        return "{}"
+    n = len(frame)
+    max_rows = max(1, max_rows)
+    if n <= max_rows:
+        return frame
+    positions = np.unique(np.linspace(0, n - 1, num=max_rows).round().astype(int))
+    return frame.iloc[positions]
+
+
+def _check_row_guard(rows: int, label: str) -> None:
+    """Raise if an unsampled input exceeds the supported row count."""
+    from vibe_widget.config import get_global_config
+
+    if rows <= 100_000 or get_global_config().bypass_row_guard:
+        return
+    raise ValueError(
+        f"[vibe_widget] We can't support datasets over 100,000 rows yet "
+        f"({rows} rows received for {label}). You can disable this check with "
+        "vw.config(bypass_row_guard=True). Please upvote "
+        "https://github.com/dwootton/vibe-widget/issues/25 so we can prioritize "
+        "large dataset support."
+    )
 
 
 def prepare_input_for_widget(
@@ -93,15 +121,16 @@ def prepare_input_for_widget(
     input_name: str | None = None,
     sample: bool = False,
 ) -> Any:
-    """Prepare input values for widget transport."""
+    """Prepare input values for widget transport, optionally strided down to max_rows."""
     is_pandas, pandas_type = _is_pandas_object(value)
-    if is_pandas and pandas_type == "DataFrame":
-        return clean_for_json(value.to_dict(orient="records"))
-    if isinstance(value, (str, Path)):
-        cleaned = clean_for_json(value)
-        if isinstance(cleaned, str):
-            cleaned = _safe_json_initial_for_string(cleaned)
-        return cleaned
+    if is_pandas and pandas_type in ("DataFrame", "Series"):
+        if sample:
+            limit = DEFAULT_SAMPLE_MAX_ROWS if max_rows is None else max_rows
+            value = _stride_sample(value, limit)
+        else:
+            _check_row_guard(len(value), f"input '{input_name}'" if input_name else "this input")
+        if pandas_type == "DataFrame":
+            return clean_for_json(value.to_dict(orient="records"))
     return clean_for_json(value)
 
 
@@ -117,7 +146,7 @@ def initial_import_value(import_name: str, import_source: Any) -> Any:
     return import_source
 
 
-def load_data(data: "pd.DataFrame | str | Path | None", max_rows: int | None = None) -> "pd.DataFrame":
+def load_data(data: pd.DataFrame | str | Path | None, max_rows: int | None = None) -> pd.DataFrame:
     """Load and prepare data from various sources."""
     import pandas as pd
 
@@ -133,15 +162,5 @@ def load_data(data: "pd.DataFrame | str | Path | None", max_rows: int | None = N
             raise ValueError(f"Failed to load data: {result.error}")
         df = result.output.get("dataframe", pd.DataFrame())
 
-    from vibe_widget.config import get_global_config
-
-    if len(df) > 100_000 and not get_global_config().bypass_row_guard:
-        raise ValueError(
-            "[vibe_widget] We can't support datasets over 100,000 rows yet "
-            f"({len(df)} rows received). You can disable this check with "
-            "vw.config(bypass_row_guard=True). Please upvote "
-            "https://github.com/dwootton/vibe-widget/issues/25 so we can prioritize "
-            "large dataset support."
-        )
-
+    _check_row_guard(len(df), "data")
     return df

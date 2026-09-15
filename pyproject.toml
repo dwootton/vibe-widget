@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vibe_widget"
-version = "0.2.7"
+version = "0.3.0"
 description = "Create interactive visualizations using natural language and LLMs"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -32,7 +32,6 @@ dependencies = [
     "openai>=1.50.0",
     "requests>=2.32.0",
     "pandas>=2.0.0",
-    "pretty-little-summary",
 ]
 
 [project.optional-dependencies]
@@ -53,6 +52,8 @@ Issues = "https://github.com/dwootton/vibe-widget/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vibe_widget"]
+# AppWrapper/ holds the bundler's inputs; only the built AppWrapper.bundle.js is read at runtime.
+exclude = ["src/vibe_widget/AppWrapper/"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/vibe_widget/AppWrapper.bundle.js" = "vibe_widget/AppWrapper.bundle.js"

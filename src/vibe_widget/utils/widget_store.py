@@ -1,63 +1,34 @@
 """
-Widget storage and caching system.
+Widget storage as a git-shareable artifact.
 
-Stores generated widget JS files in a project-root `.vibewidget/` directory
-with a hierarchical JSON index using variable names as primary identifiers.
+Layout under `<root>/.vibewidget/`:
+    widgets/<var_name>__<cache_key[:10]>.js    generated code
+    widgets/<var_name>__<cache_key[:10]>.json  sidecar metadata
+    .gitignore                                 ignores derived dirs
 
-JSON index structure (v3):
-{
-    "schema_version": 3,
-    "metadata": {
-        "total_count": int,
-        "oldest_created": ISO timestamp,
-        "newest_created": ISO timestamp,
-        "var_names": ["scatter_plot", "chart", ...]
-    },
-    "widgets": {
-        "scatter_plot": [  # Grouped by var_name, newest-first
-            {
-                "created_at": ISO timestamp,
-                "file_name": "XX.js",
-                "cache_key": "abc123...",  # Full hash for cache lookup
-                "description": "scatter plot of sales data",
-                "data_shape": [100, 5],
-                "model": "...",
-                "parameter_signature": "c8ea84b720",  # 10-char unified param hash
-                "prompt_keywords": ["sales", "data"],  # Keywords from description
-                ...metadata fields...
-            }
-        ],
-        "temperature_trends": [  # Anonymous widgets extract name from prompt
-            ...
-        ]
-    },
-    "cache_index": {
-        "cache_key_hash": "var_name/index"  # O(1) lookup by cache key
-    }
-}
+There is no shared index file: every widget is self-describing, so two
+processes (or two notebooks, or two git branches) never clobber each other.
+A v3 `index/widgets.json` is migrated to sidecars once on init.
 
-Design notes:
-- Variable names (var_name) are the primary identifier for grouping related widgets
-- Cache key is computed from: description + all inputs (data shape, imports) + outputs + theme
-- When data moves to inputs in future API, cache key computation stays the same
-- File names: {var_name}_{prompt_keywords}_{timestamp}_{param_signature}.js
-  - var_name: Variable name from assignment, or extracted from description
-  - prompt_keywords: 2-3 key words from description (or delta if editing)
-  - timestamp: YYYYMMDD_HHMMSS in UTC
-  - param_signature: 10-char hash of data_shape + I/O + theme
-- Anonymous widgets (no variable) extract name from description instead of "_anonymous_"
-- Edit operations use prompt delta to show what changed in the filename
+Cache key covers description + column names/dtypes + exports + imports +
+theme + revision parent. Row counts are deliberately excluded so appending
+rows to a DataFrame reuses the widget.
 """
 from __future__ import annotations
+
 import hashlib
 import inspect
 import json
+import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 ANONYMOUS_VAR_NAME = "_anonymous_"
+GITIGNORE_BODY = "bundles/\npackages/\nsandbox/\naudits/\n"
+
 
 
 def extract_prompt_keywords(description: str, max_words: int = 3) -> list[str]:
@@ -190,12 +161,12 @@ def extract_var_name_from_description(description: str) -> str:
 def capture_caller_var_name(depth: int = 2) -> str | None:
     """
     Capture the variable name from the calling context.
-    
+
     When user writes: `scatter_plot = vw.create(...)`, this captures "scatter_plot".
-    
+
     Args:
         depth: Stack frame depth to inspect (2 = caller's caller)
-    
+
     Returns:
         Variable name if assignment detected, None otherwise
     """
@@ -205,19 +176,19 @@ def capture_caller_var_name(depth: int = 2) -> str | None:
             if frame is None:
                 return None
             frame = frame.f_back
-        
+
         if frame is None:
             return None
-        
+
         import dis
         code = frame.f_code
-        
+
         # Get bytecode instructions
         instructions = list(dis.get_instructions(code))
-        
+
         # Find the instruction at current offset
         current_offset = frame.f_lasti
-        
+
         # Look for STORE_NAME or STORE_FAST after current position
         for i, instr in enumerate(instructions):
             if instr.offset >= current_offset:
@@ -230,294 +201,303 @@ def capture_caller_var_name(depth: int = 2) -> str | None:
                         if var_name and not var_name.startswith('_') and var_name.isidentifier():
                             return var_name
                 break
-        
+
         return None
     except Exception:
         return None
 
 
+def build_data_signature(data: Any) -> dict[str, Any] | None:
+    """Build a cache-stable signature dict for a DataFrame-like object."""
+    if data is None:
+        return None
+    shape = getattr(data, "shape", None)
+    if shape is None:
+        return None
+
+    columns = getattr(data, "columns", None)
+    names = [str(c) for c in columns] if columns is not None else []
+    try:
+        kinds = [str(d) for d in getattr(data, "dtypes", [])]
+    except TypeError:
+        kinds = []
+
+    # dtypes is an ordered [column, dtype] list, not a dict: duplicate column
+    # names are legal in pandas and a dict would collapse them into one key.
+    return {
+        "shape": [int(n) for n in shape],
+        "columns": names,
+        "dtypes": [[name, kind] for name, kind in zip(names, kinds)],
+    }
+
+
 class WidgetStore:
-    """
-    Manages widget persistence and caching in .vibewidget/ directory.
-    
-    Uses variable names as primary identifiers for grouping related widgets.
-    Cache lookup is O(1) via cache_index hash map.
-    """
-    
+    """Reads and writes widget code plus one JSON sidecar per widget."""
+
     def __init__(self, store_dir: Path | None = None):
-        """
-        Initialize widget store.
-        
-        Args:
-            store_dir: Root directory for .vibewidget/ (defaults to cwd)
-        """
+        """Initialize the store rooted at store_dir (defaults to cwd)."""
         if store_dir is None:
             store_dir = Path.cwd()
-        
-        self.store_dir = store_dir / ".vibewidget"
+
+        self.root = Path(store_dir)
+        self.store_dir = self.root / ".vibewidget"
         self.widgets_dir = self.store_dir / "widgets"
-        self.index_dir = self.store_dir / "index"
-        self.index_file = self.index_dir / "widgets.json"
-        
+
         self.widgets_dir.mkdir(parents=True, exist_ok=True)
-        self.index_dir.mkdir(parents=True, exist_ok=True)
-        
-        self.index = self._load_index()
-    
-    def _empty_index(self) -> dict[str, Any]:
-        """Return a new empty v3 index."""
-        return {
-            "schema_version": SCHEMA_VERSION,
-            "metadata": {
-                "total_count": 0,
-                "oldest_created": None,
-                "newest_created": None,
-                "var_names": [],
-            },
-            "widgets": {},  # var_name -> [widget_entries]
-            "cache_index": {},  # cache_key -> "var_name/index"
-        }
-    
-    def _load_index(self) -> dict[str, Any]:
-        """Load the widget index from disk."""
-        if not self.index_file.exists():
-            return self._empty_index()
-        
+        self._ensure_gitignore()
+        self._migrate_v3_index()
+
+    # -------------------------------------------------------------------------
+    # Disk primitives
+    # -------------------------------------------------------------------------
+
+    def _ensure_gitignore(self) -> None:
+        """Write .vibewidget/.gitignore once, never overwriting a user edit."""
+        path = self.store_dir / ".gitignore"
+        if path.exists():
+            return
         try:
-            with open(self.index_file, 'r', encoding='utf-8') as f:
-                index = json.load(f)
-                if index.get("schema_version") != SCHEMA_VERSION:
-                    return self._empty_index()
-                return index
+            path.write_text(GITIGNORE_BODY, encoding="utf-8")
+        except OSError:
+            pass
+
+    @staticmethod
+    def _atomic_write(path: Path, text: str) -> None:
+        """Write text to path via a temp file and os.replace."""
+        fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(text)
+            os.replace(tmp, path)
+        except BaseException:
+            Path(tmp).unlink(missing_ok=True)
+            raise
+
+    def _sidecar_path(self, file_name: str) -> Path:
+        """Return the sidecar path matching a widget .js file name."""
+        return self.widgets_dir / (Path(file_name).stem + ".json")
+
+    def _write_entry(self, entry: dict[str, Any], widget_code: str) -> None:
+        """Persist a widget's code and sidecar atomically."""
+        # ponytail: code first so a crash between the two writes leaves an
+        # orphan .js that all_entries() ignores rather than a sidecar pointing
+        # at nothing; sweep orphans on init if they ever accumulate.
+        js_path = self.widgets_dir / entry["file_name"]
+        self._atomic_write(js_path, widget_code)
+        self._atomic_write(
+            self._sidecar_path(entry["file_name"]),
+            json.dumps(entry, indent=2, ensure_ascii=False),
+        )
+
+    def _remove_entry(self, entry: dict[str, Any]) -> bool:
+        """Delete a widget's code and sidecar. Returns True if code was removed."""
+        file_name = entry.get("file_name")
+        if not file_name:
+            return False
+        self._sidecar_path(file_name).unlink(missing_ok=True)
+        js_path = self.widgets_dir / file_name
+        if js_path.exists():
+            js_path.unlink()
+            return True
+        return False
+
+    def _migrate_v3_index(self) -> None:
+        """Convert a legacy index/widgets.json into sidecars, once."""
+        index_dir = self.store_dir / "index"
+        legacy = index_dir / "widgets.json"
+        if not legacy.exists():
+            return
+
+        try:
+            index = json.loads(legacy.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            return self._empty_index()
-    
+            index = {}
+
+        for var_name, widgets in (index.get("widgets") or {}).items():
+            for old_entry in widgets or []:
+                old_name = old_entry.get("file_name")
+                cache_key = old_entry.get("cache_key")
+                if not old_name or not cache_key:
+                    continue
+                old_path = self.widgets_dir / old_name
+                if not old_path.exists():
+                    continue
+
+                entry = self._normalize_entry(dict(old_entry), var_name)
+                entry["file_name"] = f"{var_name}__{cache_key[:10]}.js"
+                new_path = self.widgets_dir / entry["file_name"]
+                if new_path != old_path:
+                    os.replace(old_path, new_path)
+                self._atomic_write(
+                    self._sidecar_path(entry["file_name"]),
+                    json.dumps(entry, indent=2, ensure_ascii=False),
+                )
+
+        legacy.unlink(missing_ok=True)
+        try:
+            index_dir.rmdir()
+        except OSError:
+            pass
+
+    @staticmethod
+    def _normalize_entry(entry: dict[str, Any], var_name: str) -> dict[str, Any]:
+        """Fill in v4 fields on an entry read from a v3 index."""
+        # ponytail: migrated entries have no column names, so recomputed cache
+        # keys miss and the widget regenerates once; load_by_cache_key still works.
+        shape = entry.pop("data_shape", None)
+        entry.setdefault(
+            "data_signature",
+            {"shape": list(shape), "columns": [], "dtypes": []} if shape else None,
+        )
+        entry["schema_version"] = SCHEMA_VERSION
+        entry["var_name"] = var_name
+        for key in ("outputs", "actions", "inputs", "provenance"):
+            entry.setdefault(key, {})
+        entry.setdefault("prompt_history", [])
+        entry.setdefault("components", [])
+        return entry
+
+    # -------------------------------------------------------------------------
+    # Entry reading
+    # -------------------------------------------------------------------------
+
+    def all_entries(self) -> list[dict[str, Any]]:
+        """Return every stored entry, newest first, with var_name and _index."""
+        entries: list[dict[str, Any]] = []
+        try:
+            paths = sorted(self.widgets_dir.glob("*.json"))
+        except OSError:
+            return []
+
+        for path in paths:
+            try:
+                entry = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                continue
+            if not isinstance(entry, dict) or not entry.get("cache_key"):
+                continue
+            entry.setdefault("file_name", path.stem + ".js")
+            if not entry.get("var_name"):
+                entry["var_name"] = path.stem.split("__")[0]
+            entries.append(entry)
+
+        entries.sort(key=lambda e: (e.get("created_at") or "", e["file_name"]), reverse=True)
+
+        seen: dict[str, int] = {}
+        for entry in entries:
+            var_name = entry["var_name"]
+            entry["_index"] = seen.get(var_name, 0)
+            seen[var_name] = entry["_index"] + 1
+        return entries
+
+    def _code_path(self, entry: dict[str, Any]) -> Path:
+        """Return the .js path for an entry."""
+        return self.widgets_dir / entry["file_name"]
+
+    def _resolve(
+        self,
+        entries: list[dict[str, Any]],
+        match: dict[str, Any],
+        follow_revisions: bool,
+    ) -> dict[str, Any] | None:
+        """Follow the match's own revision chain and drop entries whose code file is gone."""
+        latest = match
+        if follow_revisions:
+            seen = {match["cache_key"]}
+            while True:
+                children = [
+                    entry for entry in entries
+                    if entry.get("revision_parent") == latest["cache_key"]
+                    and entry["cache_key"] not in seen
+                ]
+                if not children:
+                    break
+                latest = children[0]
+                seen.add(latest["cache_key"])
+        if latest is not match and self._code_path(latest).exists():
+            result = dict(latest)
+            result["_original_cache_key"] = match["cache_key"]
+            return result
+        if not self._code_path(match).exists():
+            return None
+        return dict(match)
+
+    # -------------------------------------------------------------------------
+    # Signatures
+    # -------------------------------------------------------------------------
+
     def _sanitize_var_name(self, name: str) -> str:
         """Sanitize a string to be a valid Python identifier."""
         if not name:
             return ANONYMOUS_VAR_NAME
-        
-        # Replace non-alphanumeric with underscore
+
         sanitized = ''.join(c if c.isalnum() or c == '_' else '_' for c in name)
-        
-        # Remove leading digits
+
         while sanitized and sanitized[0].isdigit():
             sanitized = sanitized[1:]
-        
-        # Collapse multiple underscores
+
         while '__' in sanitized:
             sanitized = sanitized.replace('__', '_')
-        
+
         sanitized = sanitized.strip('_')
-        
+
         return sanitized if sanitized and sanitized.isidentifier() else ANONYMOUS_VAR_NAME
-    
-    def _update_metadata(self, index: dict[str, Any]) -> None:
-        """Update metadata from widgets dict."""
-        widgets_dict = index.get("widgets", {})
-        
-        total_count = 0
-        oldest: str | None = None
-        newest: str | None = None
-        var_names: list[str] = []
-        
-        for var_name, widgets in widgets_dict.items():
-            if widgets:
-                var_names.append(var_name)
-                total_count += len(widgets)
-                
-                for widget in widgets:
-                    created_at = widget.get("created_at")
-                    if created_at:
-                        if oldest is None or created_at < oldest:
-                            oldest = created_at
-                        if newest is None or created_at > newest:
-                            newest = created_at
-        
-        index["metadata"] = {
-            "total_count": total_count,
-            "oldest_created": oldest,
-            "newest_created": newest,
-            "var_names": sorted(var_names),
-        }
-    
-    def _rebuild_cache_index(self, index: dict[str, Any]) -> None:
-        """Rebuild cache_index from widgets dict."""
-        index["cache_index"] = {}
-        for var_name, widgets in index.get("widgets", {}).items():
-            for idx, widget in enumerate(widgets):
-                cache_key = widget.get("cache_key")
-                if cache_key:
-                    index["cache_index"][cache_key] = f"{var_name}/{idx}"
-    
-    def _save_index(self) -> None:
-        """Update metadata, rebuild cache_index, and save to disk."""
-        self._update_metadata(self.index)
-        self._rebuild_cache_index(self.index)
-        with open(self.index_file, 'w', encoding='utf-8') as f:
-            json.dump(self.index, f, indent=2, ensure_ascii=False)
 
-    def clear(self) -> int:
-        """Remove all cached widgets and reset the index."""
-        removed = 0
-        widgets_dict = self.index.get("widgets", {})
-        
-        for var_name, widgets in widgets_dict.items():
-            for entry in widgets:
-                file_name = entry.get("file_name")
-                if not file_name:
-                    continue
-                widget_file = self.widgets_dir / file_name
-                if widget_file.exists():
-                    widget_file.unlink()
-                    removed += 1
-        
-        self.index = self._empty_index()
-        self._save_index()
-        return removed
+    @staticmethod
+    def _data_key(data_signature: dict[str, Any] | None) -> list[list[str]] | None:
+        """Reduce a data signature to the ordered [column, dtype] pairs the key uses."""
+        if not data_signature:
+            return None
+        pairs = data_signature.get("dtypes")
+        if not pairs:
+            return [[str(c), ""] for c in data_signature.get("columns") or []]
+        return [[str(a), str(b)] for a, b in pairs]
 
-    def clear_for_widget(
-        self,
-        *,
-        var_name: str | None = None,
-        cache_key: str | None = None,
-    ) -> int:
-        """
-        Remove cached widgets by var_name or cache_key.
-        
-        Args:
-            var_name: Remove all widgets for this variable name
-            cache_key: Remove widget with this specific cache key
-        
-        Returns:
-            Number of widgets removed
-        """
-        if not var_name and not cache_key:
-            return 0
-        
-        widgets_dict = self.index.get("widgets", {})
-        cache_index = self.index.get("cache_index", {})
-        removed = 0
-        
-        if cache_key:
-            # Remove specific widget by cache key
-            location = cache_index.get(cache_key)
-            if location:
-                v_name, idx_str = location.split("/")
-                idx = int(idx_str)
-                if v_name in widgets_dict and idx < len(widgets_dict[v_name]):
-                    entry = widgets_dict[v_name][idx]
-                    file_name = entry.get("file_name")
-                    if file_name:
-                        widget_file = self.widgets_dir / file_name
-                        if widget_file.exists():
-                            widget_file.unlink()
-                            removed += 1
-                    widgets_dict[v_name].pop(idx)
-                    if not widgets_dict[v_name]:
-                        del widgets_dict[v_name]
-        
-        if var_name and var_name in widgets_dict:
-            # Remove all widgets for this var_name
-            for entry in widgets_dict[var_name]:
-                file_name = entry.get("file_name")
-                if file_name:
-                    widget_file = self.widgets_dir / file_name
-                    if widget_file.exists():
-                        widget_file.unlink()
-                        removed += 1
-            del widgets_dict[var_name]
-        
-        if removed:
-            self._save_index()
-        
-        return removed
-    
     def _compute_cache_key(
         self,
         description: str,
-        data_shape: tuple[int, int] | None,
         exports_signature: str,
         imports_signature: str,
         theme_signature: str,
         revision_parent: str | None = None,
     ) -> str:
-        """
-        Compute cache key from inputs.
-        
-        Hashes: description + data shape + exports + imports + theme.
-        Does NOT include model, notebook path, or var_name to avoid unnecessary regeneration.
-        
-        The cache key determines if we can reuse an existing widget.
-        When data moves to inputs in the future, imports_signature will include
-        the data shape, so this design is forward-compatible.
-        
-        Args:
-            description: Widget description (whitespace-normalized)
-            data_shape: Shape of data as (rows, cols), or None if no data
-            exports_signature: Hash of export definitions
-            imports_signature: Hash of import definitions (will include data in future)
-            theme_signature: Hash of theme description
-        
-        Returns:
-            Full SHA256 hash as cache key
-        """
-        # Strip whitespace from description for consistent hashing
-        stripped_description = " ".join(description.split())
-        
+        """Compute the SHA256 cache key. Data enters via imports_signature only."""
         cache_input = {
-            "description": stripped_description,
-            "data_shape": list(data_shape) if data_shape else None,
+            "description": " ".join(description.split()),
             "exports_signature": exports_signature,
             "imports_signature": imports_signature,
             "theme_signature": theme_signature,
             "revision_parent": revision_parent,
         }
-        
+
         cache_str = json.dumps(cache_input, sort_keys=True)
         return hashlib.sha256(cache_str.encode()).hexdigest()
-    
+
     def _compute_exports_signature(self, exports: dict[str, str] | None) -> str:
         """Compute stable signature for exports."""
         if not exports:
             return ""
         items = sorted(exports.items())
         return hashlib.md5(json.dumps(items).encode()).hexdigest()[:8]
-    
+
     def _compute_imports_signature(
         self,
         imports_serialized: dict[str, str] | None,
-        data_shape: tuple[int, int] | None = None,
+        data_signature: dict[str, Any] | None = None,
     ) -> str:
-        """
-        Compute stable signature for imports.
-        
-        Currently includes data_shape as a separate parameter.
-        In future when data moves to inputs, data_shape will be part of imports_serialized
-        and this method will still work the same way.
-        
-        Args:
-            imports_serialized: Import trait definitions
-            data_shape: Shape of data (will be part of imports in future)
-        
-        Returns:
-            MD5 hash signature (first 8 chars)
-        """
-        if not imports_serialized and not data_shape:
+        """Compute stable signature for imports plus the data columns."""
+        data_key = self._data_key(data_signature)
+        if not imports_serialized and not data_key:
             return ""
-        
-        # Build combined inputs dict for hashing
-        combined = {}
+
+        combined: dict[str, Any] = {}
         if imports_serialized:
             combined.update(imports_serialized)
-        
-        # Include data_shape - when data moves to inputs, this will be redundant
-        # but still work since data_shape will be in imports_serialized
-        if data_shape:
-            combined["__data_shape__"] = list(data_shape)
-        
+        if data_key:
+            combined["__data_signature__"] = data_key
+
         items = sorted(combined.items(), key=lambda x: str(x[0]))
-        return hashlib.md5(json.dumps(items).encode()).hexdigest()[:8]
+        return hashlib.md5(json.dumps(items, sort_keys=True).encode()).hexdigest()[:8]
 
     def _compute_theme_signature(self, theme_description: str | None) -> str:
         """Compute stable signature for theme description."""
@@ -528,131 +508,64 @@ class WidgetStore:
 
     def _compute_parameter_signature(
         self,
-        data_shape: tuple[int, int] | None,
+        data_signature: dict[str, Any] | None,
         exports_signature: str,
         imports_signature: str,
         theme_signature: str,
     ) -> str:
-        """
-        Compute a unified parameter signature for file naming.
-
-        Combines data shape, exports, imports, and theme into a single
-        compact signature for file names.
-
-        Args:
-            data_shape: Shape of data as (rows, cols)
-            exports_signature: Hash of export definitions
-            imports_signature: Hash of import definitions
-            theme_signature: Hash of theme description
-
-        Returns:
-            10-character signature representing all parameters
-        """
-        # Combine all signatures
+        """Compute a 10-character signature over all widget parameters."""
         combined_parts = [
-            str(data_shape) if data_shape else "nodata",
+            json.dumps(self._data_key(data_signature), sort_keys=True) if data_signature else "nodata",
             exports_signature or "noexp",
             imports_signature or "noimp",
             theme_signature or "notheme",
         ]
         combined_str = "_".join(combined_parts)
+        return hashlib.md5(combined_str.encode()).hexdigest()[:10]
 
-        # Create a 10-character hash
-        full_hash = hashlib.md5(combined_str.encode()).hexdigest()
-        return full_hash[:10]
+    # -------------------------------------------------------------------------
+    # Lookup and save
+    # -------------------------------------------------------------------------
 
     def lookup(
         self,
         description: str,
         var_name: str | None,
-        data_shape: tuple[int, int] | None,
+        data_signature: dict[str, Any] | None,
         exports: dict[str, str] | None,
         imports_serialized: dict[str, str] | None,
         theme_description: str | None,
         revision_parent: str | None = None,
         follow_revisions: bool = True,
     ) -> dict[str, Any] | None:
-        """
-        Look up a cached widget by cache key.
+        """Look up a cached widget by recomputed cache key.
 
-        Args:
-            description: Widget description
-            var_name: Variable name for storage grouping (not part of cache key)
-            data_shape: Shape of the data as (rows, columns)
-            exports: Export trait definitions
-            imports_serialized: Import trait values
-            theme_description: Theme description for signature
-            revision_parent: Cache key of the parent revision
-            follow_revisions: If True (default), returns the most recent version
-                in the revision chain. If the widget was edited after creation,
-                returns the latest edited version instead of the original.
-
-        Returns:
-            Widget metadata dict with var_name if found, None otherwise
+        var_name is accepted for API stability; grouping comes from the stored entry.
         """
         exports_signature = self._compute_exports_signature(exports)
-        imports_signature = self._compute_imports_signature(imports_serialized, data_shape)
+        imports_signature = self._compute_imports_signature(imports_serialized, data_signature)
         theme_signature = self._compute_theme_signature(theme_description)
 
         cache_key = self._compute_cache_key(
             description=description,
-            data_shape=data_shape,
             exports_signature=exports_signature,
             imports_signature=imports_signature,
             theme_signature=theme_signature,
             revision_parent=revision_parent,
         )
 
-        # Use cache_index for O(1) lookup
-        cache_index = self.index.get("cache_index", {})
-        location = cache_index.get(cache_key)
+        entries = self.all_entries()
+        for entry in entries:
+            if entry["cache_key"] == cache_key:
+                return self._resolve(entries, entry, follow_revisions)
+        return None
 
-        if not location:
-            return None
-
-        # Parse location "var_name/index"
-        stored_var_name, idx_str = location.split("/")
-        idx = int(idx_str)
-
-        widgets_dict = self.index.get("widgets", {})
-        if stored_var_name not in widgets_dict:
-            return None
-
-        widgets_list = widgets_dict[stored_var_name]
-        if idx >= len(widgets_list):
-            return None
-
-        # If follow_revisions is True and this isn't already the newest,
-        # return the most recent widget in this var_name group instead
-        if follow_revisions and idx > 0:
-            # Get the newest widget (index 0) for this var_name
-            newest_entry = widgets_list[0]
-            widget_file = self.widgets_dir / newest_entry["file_name"]
-            if widget_file.exists():
-                result = dict(newest_entry)
-                result["var_name"] = stored_var_name
-                result["_index"] = 0
-                result["_original_cache_key"] = cache_key  # Track which key was looked up
-                return result
-
-        widget_entry = widgets_list[idx]
-        widget_file = self.widgets_dir / widget_entry["file_name"]
-
-        if not widget_file.exists():
-            return None
-
-        # Return entry with var_name for reference
-        result = dict(widget_entry)
-        result["var_name"] = stored_var_name
-        result["_index"] = idx
-        return result
-    
     def save(
         self,
         widget_code: str,
         description: str,
         var_name: str | None,
-        data_shape: tuple[int, int] | None,
+        data_signature: dict[str, Any] | None,
         model: str,
         exports: dict[str, str] | None,
         imports_serialized: dict[str, str] | None,
@@ -661,246 +574,167 @@ class WidgetStore:
         notebook_path: str | None = None,
         revision_parent: str | None = None,
         prompt_history: list[dict[str, Any]] | None = None,
+        outputs: dict[str, Any] | None = None,
+        inputs: dict[str, str] | None = None,
+        actions: dict[str, Any] | None = None,
+        provenance: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """
-        Save a newly generated widget to the store.
-        
-        Widgets are grouped by var_name. The cache key is computed from
-        description + data_shape + exports + imports + theme (not var_name).
-        
-        If the same var_name is used with different code (e.g., user changed description),
-        a new entry is added to that var_name's list (newest first).
-        
-        Args:
-            widget_code: Generated JavaScript code
-            description: Widget description
-            var_name: Variable name from user's code (e.g., "scatter_plot")
-            data_shape: Shape of the data as (rows, columns)
-            model: Model used for generation (stored for reference, not in cache key)
-            exports: Export trait definitions
-            imports_serialized: Import trait values
-            theme_name: Theme name for reference
-            theme_description: Theme description for signature
-            notebook_path: Path to notebook (stored for reference, not in cache key)
-            revision_parent: Cache key of parent widget (for edit chains)
-            prompt_history: Prompt history snapshots for this widget
-        
-        Returns:
-            Widget metadata dict with var_name
-        """
+        """Write a generated widget and its sidecar; returns the stored entry."""
         exports_signature = self._compute_exports_signature(exports)
-        imports_signature = self._compute_imports_signature(imports_serialized, data_shape)
+        imports_signature = self._compute_imports_signature(imports_serialized, data_signature)
         theme_signature = self._compute_theme_signature(theme_description)
-        
+
         cache_key = self._compute_cache_key(
             description=description,
-            data_shape=data_shape,
             exports_signature=exports_signature,
             imports_signature=imports_signature,
             theme_signature=theme_signature,
             revision_parent=revision_parent,
         )
 
-        # Sanitize var_name to be a valid identifier
-        # If no var_name, extract one from the description instead of using "_anonymous_"
         if var_name:
             safe_var_name = self._sanitize_var_name(var_name)
         else:
-            extracted_name = extract_var_name_from_description(description)
-            safe_var_name = self._sanitize_var_name(extracted_name)
+            safe_var_name = self._sanitize_var_name(extract_var_name_from_description(description))
 
-        # Extract prompt keywords for file naming
-        # If this is an edit (has revision_parent), use prompt delta to show what changed
-        prompt_words = []
         if revision_parent:
-            # Try to get the parent widget's description
             parent_widget = self.get_widget_by_cache_key(revision_parent)
             if parent_widget and parent_widget.get("description"):
-                # Use delta to show what changed
                 prompt_words = compute_prompt_delta(
-                    parent_widget["description"],
-                    description,
-                    max_words=2
+                    parent_widget["description"], description, max_words=2
                 )
             else:
-                # Fallback to regular keywords
                 prompt_words = extract_prompt_keywords(description, max_words=2)
         else:
-            # New widget, use regular keywords
             prompt_words = extract_prompt_keywords(description, max_words=2)
 
-        # Compute parameter signature
         param_signature = self._compute_parameter_signature(
-            data_shape=data_shape,
+            data_signature=data_signature,
             exports_signature=exports_signature,
             imports_signature=imports_signature,
             theme_signature=theme_signature,
         )
 
-        # File name: {var_name}_{prompt_words}_{timestamp}_{param_sig}.js
         now = datetime.now(timezone.utc)
-        timestamp = now.strftime("%Y%m%d_%H%M%S")
+        file_name = f"{safe_var_name}__{cache_key[:10]}.js"
 
-        prompt_part = "_".join(prompt_words) if prompt_words else "widget"
-        file_name = f"{safe_var_name}_{prompt_part}_{timestamp}_{param_signature}.js"
-
-        widget_file = self.widgets_dir / file_name
-        widget_file.write_text(widget_code, encoding='utf-8')
-        
-        now_iso = now.isoformat()
-        
-        # Extract components from generated code
-        components = self.extract_components(widget_code)
-        
         widget_entry = {
-            "created_at": now_iso,
+            "schema_version": SCHEMA_VERSION,
+            "created_at": now.isoformat(),
             "file_name": file_name,
+            "var_name": safe_var_name,
             "cache_key": cache_key,
             "description": description,
-            "data_shape": list(data_shape) if data_shape else None,
+            "data_signature": data_signature,
             "model": model,
             "exports_signature": exports_signature,
             "imports_signature": imports_signature,
             "theme_signature": theme_signature,
-            "parameter_signature": param_signature,  # Unified parameter signature
-            "prompt_keywords": prompt_words,  # Keywords extracted from description
+            "parameter_signature": param_signature,
+            "prompt_keywords": prompt_words,
             "theme_name": theme_name,
             "theme_description": theme_description,
-            "notebook_path": notebook_path,
-            "components": components,
+            "notebook_path": self._relative_notebook_path(notebook_path),
+            "components": self.extract_components(widget_code),
             "revision_parent": revision_parent,
             "prompt_history": prompt_history or [],
+            "outputs": outputs or {},
+            "inputs": inputs or {},
+            "actions": actions or {},
+            "provenance": self._build_provenance(provenance, model),
         }
-        
-        # Initialize var_name group if needed
-        widgets_dict = self.index.get("widgets", {})
-        if safe_var_name not in widgets_dict:
-            widgets_dict[safe_var_name] = []
-        
-        # Insert at beginning (newest first)
-        widgets_dict[safe_var_name].insert(0, widget_entry)
-        self.index["widgets"] = widgets_dict
-        
-        self._save_index()  # Rebuilds cache_index and metadata
-        
-        # Return entry with var_name for reference
+
+        self._write_entry(widget_entry, widget_code)
+
         result = dict(widget_entry)
-        result["var_name"] = safe_var_name
         result["_index"] = 0
         return result
-    
+
+    def _relative_notebook_path(self, notebook_path: str | None) -> str | None:
+        """Store notebook paths relative to the store root when they live under it."""
+        if not notebook_path:
+            return notebook_path
+        try:
+            path = Path(notebook_path)
+            if path.is_absolute():
+                return str(path.resolve().relative_to(self.root.resolve()))
+        except (ValueError, OSError):
+            pass
+        return notebook_path
+
+    @staticmethod
+    def _build_provenance(provenance: dict[str, Any] | None, model: str) -> dict[str, Any]:
+        """Return the caller's provenance dict with the package version filled in."""
+        result = dict(provenance or {})
+        result.setdefault("model", model)
+        try:
+            from vibe_widget import __version__
+
+            result["vibe_widget_version"] = __version__
+        except ImportError:
+            result.setdefault("vibe_widget_version", None)
+        return result
+
+    # -------------------------------------------------------------------------
+    # Loading
+    # -------------------------------------------------------------------------
+
     def load_widget_code(self, widget_entry: dict[str, Any]) -> str:
         """Load widget JS code from disk."""
-        widget_file = self.widgets_dir / widget_entry["file_name"]
-        return widget_file.read_text(encoding='utf-8')
-    
+        return self._code_path(widget_entry).read_text(encoding='utf-8')
+
     def load_by_cache_key(
         self,
         cache_key: str,
         follow_revisions: bool = True,
     ) -> tuple[dict[str, Any], str] | None:
-        """
-        Load widget by cache key.
+        """Load (entry, code) by full cache key."""
+        entries = self.all_entries()
+        for entry in entries:
+            if entry["cache_key"] == cache_key:
+                resolved = self._resolve(entries, entry, follow_revisions)
+                if resolved is None:
+                    return None
+                return resolved, self.load_widget_code(resolved)
+        return None
 
-        Args:
-            cache_key: Full cache key hash
-            follow_revisions: If True (default), returns the most recent version
-                in the revision chain. If the widget was edited after creation,
-                returns the latest edited version instead of the original.
-
-        Returns:
-            Tuple of (widget_entry, code) if found, None otherwise
-        """
-        cache_index = self.index.get("cache_index", {})
-        location = cache_index.get(cache_key)
-
-        if not location:
-            return None
-
-        var_name, idx_str = location.split("/")
-        idx = int(idx_str)
-
-        widgets_dict = self.index.get("widgets", {})
-        if var_name not in widgets_dict:
-            return None
-
-        widgets_list = widgets_dict[var_name]
-        if idx >= len(widgets_list):
-            return None
-
-        # If follow_revisions is True and this isn't already the newest,
-        # return the most recent widget in this var_name group instead
-        if follow_revisions and idx > 0:
-            newest_entry = widgets_list[0]
-            widget_file = self.widgets_dir / newest_entry["file_name"]
-            if widget_file.exists():
-                code = widget_file.read_text(encoding='utf-8')
-                result = dict(newest_entry)
-                result["var_name"] = var_name
-                result["_index"] = 0
-                result["_original_cache_key"] = cache_key
-                return result, code
-
-        widget_entry = widgets_list[idx]
-        widget_file = self.widgets_dir / widget_entry["file_name"]
-
-        if not widget_file.exists():
-            return None
-
-        code = widget_file.read_text(encoding='utf-8')
-        result = dict(widget_entry)
-        result["var_name"] = var_name
-        result["_index"] = idx
-        return result, code
-    
     def load_by_var_name(self, var_name: str, index: int = 0) -> tuple[dict[str, Any], str] | None:
-        """
-        Load widget by variable name.
-        
-        Args:
-            var_name: Variable name group
-            index: Index within the group (0 = most recent)
-        
-        Returns:
-            Tuple of (widget_entry, code) if found, None otherwise
-        """
-        widgets_dict = self.index.get("widgets", {})
-        if var_name not in widgets_dict:
+        """Load (entry, code) by var_name group and index (0 = newest)."""
+        for entry in self.all_entries():
+            if entry["var_name"] == var_name and entry["_index"] == index:
+                if not self._code_path(entry).exists():
+                    return None
+                return entry, self.load_widget_code(entry)
+        return None
+
+    def load_by_id(self, identifier: str) -> tuple[dict[str, Any], str] | None:
+        """Load (entry, code) by exact var_name or unique cache-key prefix."""
+        if not identifier:
             return None
-        
-        widgets_list = widgets_dict[var_name]
-        if index >= len(widgets_list):
+
+        by_var_name = self.load_by_var_name(identifier)
+        if by_var_name:
+            return by_var_name
+
+        if len(identifier) < 6:
             return None
-        
-        widget_entry = widgets_list[index]
-        widget_file = self.widgets_dir / widget_entry["file_name"]
-        
-        if not widget_file.exists():
+
+        matches = [e for e in self.all_entries() if e["cache_key"].startswith(identifier)]
+        if len(matches) != 1:
             return None
-        
-        code = widget_file.read_text(encoding='utf-8')
-        result = dict(widget_entry)
-        result["var_name"] = var_name
-        result["_index"] = index
-        return result, code
-    
+        entry = matches[0]
+        if not self._code_path(entry).exists():
+            return None
+        return entry, self.load_widget_code(entry)
+
     def load_from_file(self, file_path: Path | str) -> tuple[dict[str, Any], str] | None:
-        """
-        Load widget from a local JS file path.
-        
-        Args:
-            file_path: Path to JavaScript file
-        
-        Returns:
-            Tuple of (minimal_widget_entry, code) if file exists, None otherwise
-        """
+        """Load (entry, code) from a JS file outside the store."""
         file_path = Path(file_path)
         if not file_path.exists():
             return None
-        
+
         code = file_path.read_text(encoding='utf-8')
-        
-        # Create minimal widget entry for external file
+
         widget_entry = {
             "var_name": file_path.stem,
             "file_name": file_path.name,
@@ -909,25 +743,74 @@ class WidgetStore:
             "file_path": str(file_path),
             "components": self.extract_components(code),
         }
-        
+
         return widget_entry, code
-    
+
+    def find_entry_for_path(self, file_path: Path | str) -> dict[str, Any] | None:
+        """Return the stored entry whose .js file is at file_path, if any."""
+        try:
+            target = Path(file_path).resolve()
+        except OSError:
+            return None
+        for entry in self.all_entries():
+            try:
+                if self._code_path(entry).resolve() == target:
+                    return entry
+            except OSError:
+                continue
+        return None
+
+    # -------------------------------------------------------------------------
+    # Removal
+    # -------------------------------------------------------------------------
+
+    def clear(self) -> int:
+        """Remove every stored widget. Returns the number of code files removed."""
+        removed = 0
+        for entry in self.all_entries():
+            if self._remove_entry(entry):
+                removed += 1
+        return removed
+
+    def clear_for_widget(
+        self,
+        *,
+        var_name: str | None = None,
+        cache_key: str | None = None,
+    ) -> int:
+        """Remove widgets by var_name or cache_key. Returns the number removed."""
+        if not var_name and not cache_key:
+            return 0
+
+        removed = 0
+        for entry in self.all_entries():
+            if cache_key and entry["cache_key"] == cache_key:
+                removed += int(self._remove_entry(entry))
+                continue
+            if var_name and entry["var_name"] == var_name:
+                removed += int(self._remove_entry(entry))
+        return removed
+
+    # -------------------------------------------------------------------------
+    # Code inspection
+    # -------------------------------------------------------------------------
+
     def extract_components(self, code: str) -> list[str]:
         """Extract named exports (components) from JavaScript code."""
         from vibe_widget.utils.code_parser import extract_named_exports
         return extract_named_exports(code)
-    
+
     def extract_component_code(self, full_code: str, component_name: str) -> str | None:
         """Extract the code for a specific named export component."""
         from vibe_widget.utils.code_parser import extract_component_code
         return extract_component_code(full_code, component_name)
-    
+
     def get_notebook_path(self) -> str | None:
         """Try to infer the current notebook path from IPython."""
         try:
             from IPython import get_ipython
             ipython = get_ipython()
-            
+
             if ipython is not None and hasattr(ipython, 'kernel'):
                 try:
                     if hasattr(ipython, 'user_ns'):
@@ -940,204 +823,73 @@ class WidgetStore:
             return None
         except Exception:
             return None
-    
+
     # -------------------------------------------------------------------------
-    # Convenience accessor methods
+    # Convenience accessors
     # -------------------------------------------------------------------------
-    
+
     def get_recent_widgets(self, limit: int = 10) -> list[dict[str, Any]]:
-        """
-        Get the most recently created widgets across all var_names.
-        
-        Args:
-            limit: Maximum number of widgets to return
-        
-        Returns:
-            List of widget metadata dicts, newest first
-        """
-        all_widgets: list[tuple[str, dict[str, Any]]] = []
-        widgets_dict = self.index.get("widgets", {})
-        
-        for var_name, widgets in widgets_dict.items():
-            for widget in widgets:
-                all_widgets.append((var_name, widget))
-        
-        # Sort by created_at (newest first)
-        all_widgets.sort(key=lambda x: x[1].get("created_at") or "", reverse=True)
-        
-        result = []
-        for var_name, widget in all_widgets[:limit]:
-            entry = dict(widget)
-            entry["var_name"] = var_name
-            result.append(entry)
-        
-        return result
-    
+        """Get the most recently created widgets across all var_names."""
+        return self.all_entries()[:limit]
+
     def get_widgets_for_var_name(self, var_name: str) -> list[dict[str, Any]]:
-        """
-        Get all widgets for a specific variable name.
-        
-        Args:
-            var_name: Variable name to look up
-        
-        Returns:
-            List of widget metadata dicts, newest first
-        """
-        widgets_dict = self.index.get("widgets", {})
-        widgets = widgets_dict.get(var_name, [])
-        
-        result = []
-        for idx, widget in enumerate(widgets):
-            entry = dict(widget)
-            entry["var_name"] = var_name
-            entry["_index"] = idx
-            result.append(entry)
-        
-        return result
-    
+        """Get all widgets for a variable name, newest first."""
+        return [e for e in self.all_entries() if e["var_name"] == var_name]
+
     def get_widgets_for_notebook(self, notebook_path: str) -> list[dict[str, Any]]:
-        """
-        Get all widgets created from a specific notebook.
-        
-        Args:
-            notebook_path: Full path to the notebook file
-        
-        Returns:
-            List of widget metadata dicts, newest first
-        """
-        result: list[dict[str, Any]] = []
-        widgets_dict = self.index.get("widgets", {})
-        
-        for var_name, widgets in widgets_dict.items():
-            for idx, widget in enumerate(widgets):
-                if widget.get("notebook_path") == notebook_path:
-                    entry = dict(widget)
-                    entry["var_name"] = var_name
-                    entry["_index"] = idx
-                    result.append(entry)
-        
-        # Sort by created_at (newest first)
-        result.sort(key=lambda x: x.get("created_at") or "", reverse=True)
-        return result
-    
+        """Get all widgets created from a specific notebook, newest first."""
+        wanted = self._relative_notebook_path(notebook_path)
+        return [
+            e for e in self.all_entries()
+            if e.get("notebook_path") in (notebook_path, wanted)
+        ]
+
     def get_revision_chain(self, var_name: str) -> list[dict[str, Any]]:
-        """
-        Get all widgets for a var_name, sorted by created_at (oldest first).
-        
-        This shows the evolution of a widget over time.
-        
-        Args:
-            var_name: The variable name
-        
-        Returns:
-            List of widget metadata dicts, oldest first
-        """
+        """Get all widgets for a var_name, oldest first."""
         widgets = self.get_widgets_for_var_name(var_name)
         widgets.sort(key=lambda w: w.get("created_at") or "")
         return widgets
-    
+
     def set_revision_parent(
         self,
         var_name: str,
         index: int,
         parent_cache_key: str,
     ) -> bool:
-        """
-        Set the revision_parent for a widget after creation.
-        
-        This is used to track edit chains (widget A was edited to create widget B).
-        
-        Args:
-            var_name: Variable name group of the widget
-            index: Index within the group
-            parent_cache_key: Cache key of the parent widget
-        
-        Returns:
-            True if updated successfully, False if widget not found
-        """
-        widgets_dict = self.index.get("widgets", {})
-        if var_name not in widgets_dict:
-            return False
-        
-        widgets_list = widgets_dict[var_name]
-        if index >= len(widgets_list):
-            return False
-        
-        widgets_list[index]["revision_parent"] = parent_cache_key
-        self._save_index()
-        return True
-    
+        """Set revision_parent on a stored widget. Returns True if updated."""
+        for entry in self.all_entries():
+            if entry["var_name"] == var_name and entry["_index"] == index:
+                stored = {k: v for k, v in entry.items() if not k.startswith("_")}
+                stored["revision_parent"] = parent_cache_key
+                self._atomic_write(
+                    self._sidecar_path(entry["file_name"]),
+                    json.dumps(stored, indent=2, ensure_ascii=False),
+                )
+                return True
+        return False
+
     def get_widget_by_cache_key(self, cache_key: str) -> dict[str, Any] | None:
-        """
-        Get widget metadata by cache key without loading the code.
-        
-        Args:
-            cache_key: Full cache key hash
-        
-        Returns:
-            Widget metadata dict if found, None otherwise
-        """
-        cache_index = self.index.get("cache_index", {})
-        location = cache_index.get(cache_key)
-        
-        if not location:
-            return None
-        
-        var_name, idx_str = location.split("/")
-        idx = int(idx_str)
-        
-        widgets_dict = self.index.get("widgets", {})
-        if var_name not in widgets_dict:
-            return None
-        
-        widgets_list = widgets_dict[var_name]
-        if idx >= len(widgets_list):
-            return None
-        
-        result = dict(widgets_list[idx])
-        result["var_name"] = var_name
-        result["_index"] = idx
-        return result
-    
+        """Get widget metadata by cache key without loading the code."""
+        for entry in self.all_entries():
+            if entry["cache_key"] == cache_key:
+                return entry
+        return None
+
     def list_var_names(self) -> list[str]:
-        """
-        Get list of all variable names that have cached widgets.
-        
-        Returns:
-            Sorted list of variable names
-        """
-        metadata = self.index.get("metadata", {})
-        return metadata.get("var_names", [])
-    
+        """Get the sorted list of variable names that have cached widgets."""
+        return sorted({e["var_name"] for e in self.all_entries()})
+
     def list_notebooks(self) -> list[str]:
-        """
-        Get list of all notebooks that have cached widgets.
-        
-        Returns:
-            Sorted list of notebook paths
-        """
-        notebooks: set[str] = set()
-        widgets_dict = self.index.get("widgets", {})
-        
-        for widgets in widgets_dict.values():
-            for widget in widgets:
-                notebook_path = widget.get("notebook_path")
-                if notebook_path:
-                    notebooks.add(notebook_path)
-        
-        return sorted(notebooks)
-    
+        """Get the sorted list of notebooks that have cached widgets."""
+        return sorted({e["notebook_path"] for e in self.all_entries() if e.get("notebook_path")})
+
     def get_stats(self) -> dict[str, Any]:
-        """
-        Get statistics about the widget cache.
-        
-        Returns:
-            Dict with total_count, var_names_count, oldest_created, newest_created
-        """
-        metadata = self.index.get("metadata", {})
+        """Get counts and creation timestamps for the widget cache."""
+        entries = self.all_entries()
+        created = sorted(e.get("created_at") or "" for e in entries)
         return {
-            "total_count": metadata.get("total_count", 0),
-            "var_names_count": len(metadata.get("var_names", [])),
-            "oldest_created": metadata.get("oldest_created"),
-            "newest_created": metadata.get("newest_created"),
+            "total_count": len(entries),
+            "var_names_count": len({e["var_name"] for e in entries}),
+            "oldest_created": created[0] if created else None,
+            "newest_created": created[-1] if created else None,
         }

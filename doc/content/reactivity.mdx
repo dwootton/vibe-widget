@@ -16,32 +16,58 @@ data flows between your notebook and your widgets and how to wire widgets togeth
 
 ### Inputs
 
-Inputs are values that flow into your widget from Python. Use them for anything the widget needs to
-display or respond to. Inputs are persistent: the widget holds onto the value until you change it.
+Inputs are values that flow into your widget from Python. You declare them when you create the
+widget, either with `vw.inputs(...)` or with a plain dict. Inputs are persistent: the widget holds
+onto the value until you change it.
 
 ```python
-# Set an input from Python
-widget.inputs.threshold = 0.5
-widget.inputs.data = new_df # resets the data in the widget
-```
-
-You can also wire one widget's output to another widget's input:
-
-<WidgetPreview src="/widgets/scatter_brush_linked.js" height={340} />
-
-```python
-# Slider selection flows into chart's highlight
 chart = vw.create(
-    "scatter plot with brush selection",
+    "scatter plot that dims points below the threshold",
     df,
-    outputs=vw.outputs(selected_indices="indices of selected points")
-)
-
-histogram = vw.create(
-    "histogram with highlighted bars for selected data",
-    vw.inputs(df, selected_indices=chart.outputs.selected_indices)
+    inputs=vw.inputs(df, threshold=0.5),
 )
 ```
+
+`vw.inputs()` takes keyword arguments and also bare positional values. A positional value is named
+after the variable you passed, so `vw.inputs(df, threshold=0.5)` declares inputs called `df` and
+`threshold`.
+
+Every declared input becomes a synced trait on the widget, so you can assign a new value directly
+and the widget updates without regenerating any code:
+
+```python
+chart.threshold = 0.8
+```
+
+Direct assignment sends the value as-is, so it expects something JSON-friendly: numbers, strings,
+booleans, lists, and dicts. NumPy arrays, NumPy scalars and timestamps are converted for you when
+the widget is created but not on later assignment, so run them through the same helper:
+
+```python
+from vibe_widget.utils.serialization import clean_for_json
+
+chart.frame = clean_for_json(numpy_array)
+```
+
+To swap the underlying dataset, rerun the widget instead.
+
+### Rerunning with new data
+
+`vw.create` returns a handle. Calling that handle reruns the widget with different data or inputs
+and reuses the code that was already generated, so there is no second model call:
+
+```python
+chart = vw.create("scatter plot with brush selection", df)
+
+chart(new_df)                          # same widget, different data
+chart(vw.inputs(threshold=0.7))        # merges with the inputs already declared
+chart(inputs={"threshold": 0.7})       # replaces the declared inputs
+```
+
+A positional `vw.inputs(...)` bundle merges into the inputs the widget was created with. The
+`inputs=` keyword replaces them. If the new dataset is missing a column the widget was built
+against, the rerun raises a `ValueError` naming the missing columns rather than rendering a broken
+chart.
 
 ### Outputs
 
@@ -57,7 +83,12 @@ def on_selection(change):
     print(f"Selection changed: {change.new}")
 
 widget.outputs.selected_indices.observe(on_selection)
+
+# Stop listening
+widget.outputs.selected_indices.unobserve(on_selection)
 ```
+
+The handler receives the traitlets change object, which carries `new`, `old`, `name`, and `owner`.
 
 ### Actions
 
@@ -85,11 +116,11 @@ Ask yourself: should this value stick around?
 - Yes → Input or Output. Use input if the value comes from Python; use output if it comes from the widget.
 - No → Action. Use an action if it's a one-time command.
 
-If you try to model a one-time command as an input, it becomes sticky:
+If you model a one-time command as an input, it becomes sticky:
 
 ```python
 # Avoid this
-widget.inputs.should_reset = True
+widget.should_reset = True
 ```
 
 The widget would reset and keep resetting because the input is still true. Actions avoid that
@@ -97,7 +128,8 @@ behavior by firing once and not lingering.
 
 ## Wiring widgets together
 
-The real power of this model shows up when you connect widgets:
+The real power of this model shows up when you connect widgets. Pass one widget's output as
+another widget's input:
 
 <WidgetPreview src="/widgets/scatter_brush_linked.js" height={340} />
 
@@ -114,5 +146,9 @@ histogram = vw.create(
 )
 ```
 
-When you select points in the scatter plot, the histogram updates via trait syncing without requiring any additional runs. Outputs are
-exposed under `widget.outputs.<name>`.
+When you select points in the scatter plot, the histogram updates through trait syncing. Nothing
+reruns and no model call happens: the link is a Python observer on the source output that writes
+straight into the target input.
+
+The link is one-way, from the named output to the named input. To link in both directions, declare
+an output on each widget and an input on the other.

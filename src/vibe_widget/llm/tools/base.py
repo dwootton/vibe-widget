@@ -1,8 +1,9 @@
 """Base classes for agentic tool system."""
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 
 @dataclass
@@ -50,36 +51,6 @@ class Tool(ABC):
         """
         pass
 
-    def to_anthropic_tool(self) -> dict[str, Any]:
-        """Convert tool to Anthropic tool format for API calls."""
-        # Extract properties and required fields separately
-        properties = {}
-        required = []
-        
-        for key, schema in self.parameters_schema.items():
-            # Copy schema without 'required' field
-            prop_schema = {k: v for k, v in schema.items() if k != "required"}
-            properties[key] = prop_schema
-            
-            # Track required fields
-            if schema.get("required", False):
-                required.append(key)
-        
-        tool_def = {
-            "name": self.name,
-            "description": self.description,
-            "input_schema": {
-                "type": "object",
-                "properties": properties,
-            },
-        }
-        
-        # Only add required field if there are required parameters
-        if required:
-            tool_def["input_schema"]["required"] = required
-        
-        return tool_def
-
     def to_openai_tool(self) -> dict[str, Any]:
         """Convert tool to OpenAI tool format for API calls."""
         properties = {}
@@ -105,26 +76,3 @@ class Tool(ABC):
         if required:
             tool_def["function"]["parameters"]["required"] = required
         return tool_def
-
-
-class ToolRegistry:
-    """Registry for managing available tools."""
-
-    def __init__(self):
-        self._tools: dict[str, Tool] = {}
-
-    def register(self, tool: Tool) -> None:
-        """Register a tool."""
-        self._tools[tool.name] = tool
-
-    def get(self, name: str) -> Tool | None:
-        """Get a tool by name."""
-        return self._tools.get(name)
-
-    def list_tools(self) -> list[Tool]:
-        """List all registered tools."""
-        return list(self._tools.values())
-
-    def to_anthropic_tools(self) -> list[dict[str, Any]]:
-        """Convert all tools to Anthropic format."""
-        return [tool.to_anthropic_tool() for tool in self._tools.values()]

@@ -1,16 +1,16 @@
-from vibe_widget.core import VibeWidget, WidgetHandle, create, edit, load, clear
-from vibe_widget.api import outputs, inputs, output, actions, action, ExportHandle
-from vibe_widget.config import config, Config
-from vibe_widget.themes import Theme, theme
+from vibe_widget.api import ExportHandle, action, actions, inputs, output, outputs
+from vibe_widget.config import Config, config
+from vibe_widget.core import VibeWidget, WidgetHandle, clear, create, edit, load
 from vibe_widget.namespaces import (
-    themes,
-    models,
-    mode,
     execution,
+    mode,
+    models,
     presets,
+    themes,
 )
+from vibe_widget.themes import Theme, theme
 
-__version__ = "0.2.7"
+__version__ = "0.3.0"
 __all__ = [
     "VibeWidget",
     "WidgetHandle",

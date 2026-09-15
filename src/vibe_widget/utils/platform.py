@@ -47,6 +47,43 @@ def is_colab() -> bool:
         return False
 
 
+def is_vscode_like() -> bool:
+    """Return True in VS Code or a VS Code-derived host such as Positron.
+
+    Positron is built on VS Code but does not set ``VSCODE_PID`` in the kernel
+    environment, so both families of variable have to be checked. ``VSCODE_CWD``
+    is deliberately not one of them: a JupyterLab server started from a VS Code
+    integrated terminal inherits it and would wrongly bundle React.
+    """
+    return any(
+        os.environ.get(name)
+        for name in ("VSCODE_PID", "POSITRON", "POSITRON_VERSION")
+    )
+
+
+def is_quarto() -> bool:
+    """Return True when the kernel was started by a Quarto render."""
+    return any(
+        os.environ.get(name)
+        for name in ("QUARTO_PYTHON", "QUARTO_PROJECT_DIR", "QUARTO_RENDER_TOKEN")
+    )
+
+
+def describe_environment() -> str:
+    """Name the notebook hosts detected for this kernel, comma separated."""
+    detected = [
+        name
+        for name, check in (
+            ("pyodide", is_emscripten),
+            ("colab", is_colab),
+            ("vscode-like", is_vscode_like),
+            ("quarto", is_quarto),
+        )
+        if check()
+    ]
+    return ", ".join(detected) if detected else "generic"
+
+
 def is_restricted_env() -> bool:
     """Return True for environments where threaded generation is unreliable.
 

@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """Small helpers for the public output/input API."""
 
+from __future__ import annotations
+
+import inspect
 from dataclasses import dataclass
 from typing import Any
-import inspect
 
 from vibe_widget.utils.logging import get_logger
 

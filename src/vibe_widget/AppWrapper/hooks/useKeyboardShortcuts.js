@@ -1,8 +1,11 @@
 import * as React from "react";
 
-// Handles Ctrl/Cmd+E to start grab mode when allowed.
-export default function useKeyboardShortcuts({ isLoading, hasCode, grabMode, onGrabStart }) {
+// Handles Ctrl/Cmd+E to start grab mode, scoped to one widget's subtree so
+// multiple widgets on a page do not all fire on the same keystroke.
+export default function useKeyboardShortcuts({ targetRef, isLoading, hasCode, grabMode, onGrabStart }) {
   React.useEffect(() => {
+    const el = targetRef && targetRef.current;
+    if (!el) return;
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "e") {
         e.preventDefault();
@@ -11,7 +14,7 @@ export default function useKeyboardShortcuts({ isLoading, hasCode, grabMode, onG
         }
       }
     };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isLoading, hasCode, grabMode, onGrabStart]);
+    el.addEventListener("keydown", handleKeyDown);
+    return () => el.removeEventListener("keydown", handleKeyDown);
+  }, [targetRef, isLoading, hasCode, grabMode, onGrabStart]);
 }

@@ -1,8 +1,28 @@
 """Base class for LLM providers."""
 
-from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional, Union
 import re
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Optional
+
+PROVIDER_ERROR_KINDS = (
+    "auth",
+    # 403: the key works but the account is out of credit or over a limit.
+    "quota",
+    "not_found",
+    "rate_limit",
+    "connection",
+    "timeout",
+    "context_length",
+    "other",
+)
+
+
+class ProviderError(RuntimeError):
+    """An LLM provider call failed, classified by `kind` with a user-facing message."""
+
+    def __init__(self, message: str, kind: str = "other") -> None:
+        super().__init__(message)
+        self.kind = kind if kind in PROVIDER_ERROR_KINDS else "other"
 
 
 def _safe_str(s: Any) -> str:
@@ -11,7 +31,7 @@ def _safe_str(s: Any) -> str:
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers."""
-    
+
     @abstractmethod
     def generate_widget_code(
         self,
@@ -20,17 +40,17 @@ class LLMProvider(ABC):
         progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Generate widget code from description and data info.
-        
+
         Args:
             description: Natural language description of the widget
             data_info: Dictionary containing data profile information
             progress_callback: Optional callback for streaming progress updates
-            
+
         Returns:
             Generated widget code as a string
         """
         pass
-    
+
     @abstractmethod
     def revise_widget_code(
         self,
@@ -42,7 +62,7 @@ class LLMProvider(ABC):
         progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Revise existing widget code based on a revision description.
-        
+
         Args:
             current_code: The current widget code
             revision_description: Description of what to change
@@ -50,12 +70,12 @@ class LLMProvider(ABC):
             base_code: Optional additional base widget code for composition
             base_components: Optional list of component names from base widget
             progress_callback: Optional callback for streaming progress updates
-            
+
         Returns:
             Revised widget code as a string
         """
         pass
-    
+
     @abstractmethod
     def fix_code_error(
         self,
@@ -64,12 +84,12 @@ class LLMProvider(ABC):
         data_info: dict[str, Any],
     ) -> str:
         """Fix errors in widget code.
-        
+
         Args:
             broken_code: The code with errors
             error_message: Description of the error
             data_info: Dictionary containing data profile information
-            
+
         Returns:
             Fixed widget code as a string
         """
@@ -95,7 +115,7 @@ class LLMProvider(ABC):
     ) -> str:
         """Generate plain text from a prompt."""
         pass
-    
+
     def _build_prompt(
         self,
         description: str,
@@ -104,7 +124,7 @@ class LLMProvider(ABC):
         base_components: Optional[list[str]] = None,
     ) -> str:
         """Build the prompt for code generation.
-        
+
         Args:
             description: Widget description
             data_info: Data information dictionary
@@ -116,19 +136,19 @@ class LLMProvider(ABC):
         actions = data_info.get("actions", {})
         action_params = data_info.get("action_params", {})
         theme_description = data_info.get("theme_description")
-        
+
         outputs_inputs_section = self._build_outputs_inputs_section(
             outputs,
             inputs,
             actions,
             action_params,
         )
-        
+
         # Build composition section if base code provided
         composition_section = ""
         if base_code:
             composition_section = self._build_composition_section(base_code, base_components or [])
-        
+
         if inputs:
             filtered_inputs = [
                 (name, summary)
@@ -145,15 +165,15 @@ class LLMProvider(ABC):
         file_access_section = ""
         data_path = inputs.get("data_path")
         if data_path:
-            file_access_section = f"""FILE ACCESS (AGENT TOOLS ONLY):
+            file_access_section = f"""FILE ACCESS (AGENT TOOLS, GENERATION TIME ONLY):
 - Local directory available: {data_path}
-- Use tools: fs.list, fs.glob, fs.read, fs.read_base64
-- Do not call fs.* from widget JS; filesystem access must happen via tools
-- From widget JS, call model.call_remote("fs.glob", {{ path: "{data_path}", pattern: "**/*.jpg" }})
-- From widget JS, call model.call_remote("fs.read_base64", {{ path }}) and use result.data_url in img src
+- Use tools: fs.list, fs.glob, fs.read, fs.read_base64; reads outside the allowed roots are rejected
+- The generated widget has no filesystem access at runtime and cannot call tools
+- Inline whatever the widget needs into the code you emit, for example a data: URL obtained
+  from fs.read_base64 used as an img src
 
 """
-        
+
         theme_section = ""
         if theme_description:
             theme_section = f"THEME:\n{theme_description}\n\n"
@@ -279,7 +299,7 @@ Generate ONLY the working JavaScript code (imports → export default function W
 - NO console logs unless essential
 
 Begin the response with code immediately."""
-    
+
     def _build_revision_prompt(
         self,
         current_code: str,
@@ -289,7 +309,7 @@ Begin the response with code immediately."""
         base_components: Optional[list[str]] = None,
     ) -> str:
         """Build the prompt for code revision.
-        
+
         Args:
             current_code: Current widget code
             revision_description: Description of changes to make
@@ -302,14 +322,14 @@ Begin the response with code immediately."""
         actions = data_info.get("actions", {})
         action_params = data_info.get("action_params", {})
         theme_description = data_info.get("theme_description")
-        
+
         outputs_inputs_section = self._build_outputs_inputs_section(
             outputs,
             inputs,
             actions,
             action_params,
         )
-        
+
         if inputs:
             input_summary = "\n".join(
                 ["- " + name + ": " + _safe_str(summary) for name, summary in inputs.items()]
@@ -320,12 +340,12 @@ Begin the response with code immediately."""
         file_access_section = ""
         data_path = inputs.get("data_path")
         if data_path:
-            file_access_section = f"""FILE ACCESS (AGENT TOOLS ONLY):
+            file_access_section = f"""FILE ACCESS (AGENT TOOLS, GENERATION TIME ONLY):
 - Local directory available: {data_path}
-- Use tools: fs.list, fs.glob, fs.read, fs.read_base64
-- Do not call fs.* from widget JS; filesystem access must happen via tools
-- From widget JS, call model.call_remote("fs.glob", {{ path: "{data_path}", pattern: "**/*.jpg" }})
-- From widget JS, call model.call_remote("fs.read_base64", {{ path }}) and use result.data_url in img src
+- Use tools: fs.list, fs.glob, fs.read, fs.read_base64; reads outside the allowed roots are rejected
+- The generated widget has no filesystem access at runtime and cannot call tools
+- Inline whatever the widget needs into the code you emit, for example a data: URL obtained
+  from fs.read_base64 used as an img src
 
 """
 
@@ -333,7 +353,7 @@ Begin the response with code immediately."""
         composition_section = ""
         if base_code:
             composition_section = self._build_composition_section(base_code, base_components or [])
-        
+
         theme_section = ""
         if theme_description:
             theme_section = f"THEME:\n{theme_description}\n\n"
@@ -365,7 +385,7 @@ Follow the SAME constraints as generation:
 Focus on making ONLY the requested changes. Reuse existing code structure where possible.
 
 Return only the full revised JavaScript code. No markdown fences or explanations."""
-    
+
     def _build_fix_prompt(
         self,
         broken_code: str,
@@ -378,14 +398,14 @@ Return only the full revised JavaScript code. No markdown fences or explanations
         actions = data_info.get("actions", {})
         action_params = data_info.get("action_params", {})
         theme_description = data_info.get("theme_description")
-        
+
         outputs_inputs_section = self._build_outputs_inputs_section(
             outputs,
             inputs,
             actions,
             action_params,
         )
-        
+
         if inputs:
             input_summary = "\n".join(
                 ["- " + name + ": " + _safe_str(summary) for name, summary in inputs.items()]
@@ -575,7 +595,7 @@ CODE WITH LINE NUMBERS:
 {code}
 
 {schema}"""
-    
+
     def _build_outputs_inputs_section(
         self,
         outputs: dict,
@@ -584,11 +604,11 @@ CODE WITH LINE NUMBERS:
         action_params: Optional[dict],
     ) -> str:
         """Build the outputs/inputs/actions section of the prompt."""
-        if not outputs and not inputs and not actions:
-            return ""
-        
-        sections: list[str] = []
-        
+        sections: list[str] = [
+            "\nSTATE RULE: model.set and model.save_changes are only for declared outputs; "
+            "keep every other piece of state in React state or local variables."
+        ]
+
         if outputs:
             output_list = "\n".join(
                 ["- " + name + ": " + _safe_str(desc) for name, desc in outputs.items()]
@@ -610,7 +630,7 @@ CRITICAL: Outputs are synced Python traits that you must update explicitly:
    }}, [count]);
 
 Outputs to track: {output_names}""")
-        
+
         if inputs:
             input_list = "\n".join(
                 ["- " + name + ": " + _safe_str(desc) for name, desc in inputs.items()]
@@ -658,17 +678,17 @@ CRITICAL: Handle with EXACT code (copy verbatim, do not rename fields):
     model.on("change:action_event", handleAction);
     return () => model.off("change:action_event", handleAction);
   }}, []);""")
-        
+
         return "\n".join(sections)
-    
+
     def _build_composition_section(self, base_code: str, base_components: list[str]) -> str:
         """
         Build composition section showing available base widget code and components.
-        
+
         Args:
             base_code: The base widget JavaScript code
             base_components: List of component names exported from base
-        
+
         Returns:
             Formatted composition section for prompt
         """
@@ -678,7 +698,7 @@ BASE WIDGET CODE (for reference and reuse):
 {base_code}
 ```
 """
-        
+
         if base_components:
             components_list = ", ".join(base_components)
             section += f"""
@@ -687,20 +707,20 @@ AVAILABLE COMPONENTS from base widget: {components_list}
 You can reuse these components in your widget. Extract and adapt them as needed.
 Focus on modifying only what's necessary for the requested changes.
 """
-        
+
         return section + "\n"
-    
+
     def clean_code(self, code: str) -> str:
         """Clean the generated code by removing markdown fences."""
         if not code:
             return ""
-        
+
         # Remove markdown code fences
         code = re.sub(r"```(?:javascript|jsx?|typescript|tsx?)?\s*\n?", "", code)
         code = re.sub(r"\n?```\s*", "", code)
-        
+
         return code.strip()
-    
+
     @staticmethod
     def build_data_info(
         *,

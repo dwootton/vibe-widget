@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import re
 import time
-from typing import Dict, List, Tuple
 
 
 class CodeStreamParser:
     """Parse streaming JavaScript code to detect landmarks and generate micro-updates."""
-    
+
     BUBBLE_COOLDOWN = 0.5  # 500ms between bubbles of same type
-    
+
     PATTERNS = {
         "import": (
             r'import\s+.*?\s+from\s+["\'](?:https?://)?(?:esm\.sh/)?([^"\'@]+)(?:@([^"\']+))?',
@@ -76,36 +75,35 @@ class CodeStreamParser:
             "Adding conditional rendering..."
         ),
     }
-    
+
     def __init__(self):
         self.buffer = ""
         self.detected = set()
-        self.actions = []
         self.last_bubble_time = {}
         self.has_new_updates = False
-        
-    def parse_chunk(self, chunk: str) -> List[Dict[str, str]]:
+
+    def parse_chunk(self, chunk: str) -> list[dict[str, str]]:
         """Parse a code chunk and return detected micro-updates."""
         self.buffer += chunk
         updates = []
         self.has_new_updates = False
         current_time = time.time()
-        
+
         for pattern_name, (regex, message_template) in self.PATTERNS.items():
             if pattern_name in self.detected:
                 continue
-                
+
             match = re.search(regex, self.buffer)
             if match:
                 # Check cooldown - only emit bubble if enough time has passed
                 if pattern_name in self.last_bubble_time:
                     if current_time - self.last_bubble_time[pattern_name] < self.BUBBLE_COOLDOWN:
                         continue  # Skip this update, too soon
-                
+
                 self.detected.add(pattern_name)
                 self.last_bubble_time[pattern_name] = current_time
                 self.has_new_updates = True
-                
+
                 # Extract package name for imports
                 if pattern_name == "import" and match.groups():
                     package = match.group(1)
@@ -115,54 +113,25 @@ class CodeStreamParser:
                     )
                 else:
                     message = message_template
-                
+
                 updates.append({
                     "type": "micro_bubble",
                     "message": message,
                     "pattern": pattern_name,
                 })
-                
-                # Also create action tile for imports
-                if pattern_name == "import":
-                    self.actions.append({
-                        "type": "action_tile",
-                        "title": "Loaded dependency",
-                        "message": message,
-                    })
-        
+
         return updates
-    
+
     def has_new_pattern(self) -> bool:
         """Check if new patterns were detected in last parse."""
         return self.has_new_updates
-    
-    def get_actions(self) -> List[Dict[str, str]]:
-        """Get all detected actions for the timeline."""
-        return self.actions
-    
-    def get_progress(self) -> float:
-        """Get code generation progress based on detected patterns (0.0 to 1.0)."""
-        total_patterns = len(self.PATTERNS)
-        detected_count = len(self.detected)
-        return min(1.0, detected_count / total_patterns)
-    
-    def get_completion_summary(self) -> Dict[str, any]:
-        """Get summary of detected code features."""
-        return {
-            "total_patterns": len(self.detected),
-            "has_imports": "import" in self.detected,
-            "has_reactivity": "data_binding" in self.detected,
-            "has_animation": "transition" in self.detected,
-            "has_interaction": "event_listener" in self.detected,
-            "detected_patterns": list(self.detected),
-        }
 
 
 class RevisionStreamParser:
     """Parse streaming code during revisions to detect edit-specific landmarks."""
-    
+
     BUBBLE_COOLDOWN = 0.3
-    
+
     PATTERNS = {
         "fill_color": (
             r'fill[=:]\s*["\']?#[0-9a-fA-F]+|fill[=:]\s*["\']?\w+',
@@ -229,42 +198,42 @@ class RevisionStreamParser:
             "Adjusting border radius"
         ),
     }
-    
+
     def __init__(self):
         self.buffer = ""
         self.detected = set()
         self.last_bubble_time = {}
         self.has_new_updates = False
-        
-    def parse_chunk(self, chunk: str) -> List[Dict[str, str]]:
+
+    def parse_chunk(self, chunk: str) -> list[dict[str, str]]:
         """Parse a code chunk and return detected micro-updates."""
         self.buffer += chunk
         updates = []
         self.has_new_updates = False
         current_time = time.time()
-        
+
         for pattern_name, (regex, message_template) in self.PATTERNS.items():
             if pattern_name in self.detected:
                 continue
-                
+
             match = re.search(regex, self.buffer)
             if match:
                 if pattern_name in self.last_bubble_time:
                     if current_time - self.last_bubble_time[pattern_name] < self.BUBBLE_COOLDOWN:
                         continue
-                
+
                 self.detected.add(pattern_name)
                 self.last_bubble_time[pattern_name] = current_time
                 self.has_new_updates = True
-                
+
                 updates.append({
                     "type": "micro_bubble",
                     "message": message_template,
                     "pattern": pattern_name,
                 })
-        
+
         return updates
-    
+
     def has_new_pattern(self) -> bool:
         """Check if new patterns were detected in last parse."""
         return self.has_new_updates
@@ -274,53 +243,43 @@ class RevisionStreamParser:
 # Component Code Extraction Utilities
 # ============================================================================
 
-def extract_imports(code: str) -> str:
-    """Extract all import statements from JavaScript code."""
-    import_lines = []
-    for line in code.split('\n'):
-        stripped = line.strip()
-        if stripped.startswith('import '):
-            import_lines.append(line)
-    return '\n'.join(import_lines)
-
-
 def extract_named_exports(code: str) -> list[str]:
     """
     Extract named exports (components) from JavaScript code.
-    
+
     Detects patterns like:
     - export const ComponentName = ...
     - export function ComponentName(...) {...}
     - export class ComponentName {...}
-    
+
     Returns:
         List of component names found
     """
     components = []
-    
+
     # Match: export const Name = ...
     const_exports = re.findall(r'export\s+const\s+([A-Z][a-zA-Z0-9_]*)\s*=', code)
     components.extend(const_exports)
-    
+
     # Match: export function Name(...) {...}
     func_exports = re.findall(r'export\s+function\s+([A-Z][a-zA-Z0-9_]*)\s*\(', code)
     components.extend(func_exports)
-    
+
     # Match: export class Name {...}
     class_exports = re.findall(r'export\s+class\s+([A-Z][a-zA-Z0-9_]*)\s*\{', code)
     components.extend(class_exports)
-    
+
     return list(set(components))  # Remove duplicates
 
 
 def extract_component_code(full_code: str, component_name: str) -> str | None:
     """
     Extract the code for a specific named export component.
-    
+
     Args:
         full_code: Full widget JavaScript code
         component_name: Name of the component to extract
-    
+
     Returns:
         Component code if found, None otherwise
     """
@@ -330,7 +289,7 @@ def extract_component_code(full_code: str, component_name: str) -> str | None:
     func_component_pattern = rf'export\s+const\s+{re.escape(component_name)}\s*=\s*\(\{{'
     # Pattern for regular function: export function Name(...) { ... }
     function_pattern = rf'export\s+function\s+{re.escape(component_name)}\s*\('
-    
+
     for pattern in [arrow_pattern, func_component_pattern, function_pattern]:
         match = re.search(pattern, full_code)
         if match:
@@ -340,10 +299,10 @@ def extract_component_code(full_code: str, component_name: str) -> str | None:
             in_string = False
             string_char = None
             i = match.end() - 1  # Start from the opening brace
-            
+
             while i < len(full_code):
                 char = full_code[i]
-                
+
                 # Handle string literals
                 if char in '"\'`' and (i == 0 or full_code[i-1] != '\\'):
                     if not in_string:
@@ -352,7 +311,7 @@ def extract_component_code(full_code: str, component_name: str) -> str | None:
                     elif char == string_char:
                         in_string = False
                         string_char = None
-                
+
                 if not in_string:
                     if char == '{':
                         brace_count += 1
@@ -365,28 +324,28 @@ def extract_component_code(full_code: str, component_name: str) -> str | None:
                                 end += 1
                             return full_code[start:end]
                 i += 1
-    
+
     return None
 
 
 def generate_standalone_wrapper(full_code: str, component_name: str) -> str:
     """
     Generate standalone widget code that renders only a specific component.
-    
+
     This keeps all the original code (imports, helper functions, all components)
     but replaces the default export to render only the target component.
-    
+
     Args:
         full_code: Full widget JavaScript code
         component_name: Name of the component to render
-    
+
     Returns:
         Modified code with new default export
     """
     # Find the default export function
     default_pattern = r'export\s+default\s+function\s+\w+\s*\([^)]*\)\s*\{'
     match = re.search(default_pattern, full_code)
-    
+
     if not match:
         # No default export found, append one
         return full_code + f"""
@@ -396,17 +355,17 @@ export default function Widget({{ model, React }}) {{
   return <{component_name} model={{model}} React={{React}} />;
 }}
 """
-    
+
     # Find the end of the default export function
     start = match.start()
     brace_count = 0
     in_string = False
     string_char = None
     i = match.end() - 1
-    
+
     while i < len(full_code):
         char = full_code[i]
-        
+
         if char in '"\'`' and (i == 0 or full_code[i-1] != '\\'):
             if not in_string:
                 in_string = True
@@ -414,7 +373,7 @@ export default function Widget({{ model, React }}) {{
             elif char == string_char:
                 in_string = False
                 string_char = None
-        
+
         if not in_string:
             if char == '{':
                 brace_count += 1
@@ -427,14 +386,14 @@ export default function Widget({{ model, React }}) {{
     else:
         # Couldn't find end, return original
         return full_code
-    
+
     # Replace the default export with a simple wrapper that renders the component
     pre_default = full_code[:start]
     post_default = full_code[end:] if end < len(full_code) else ""
-    
+
     new_default = f"""// Standalone wrapper for {component_name}
 export default function Widget({{ model, React }}) {{
   return <{component_name} model={{model}} React={{React}} />;
 }}"""
-    
+
     return pre_default + new_default + post_default

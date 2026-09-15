@@ -12,7 +12,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 import anywidget
 import traitlets
@@ -22,16 +22,6 @@ from vibe_widget.utils.platform import is_colab, is_emscripten, is_restricted_en
 if TYPE_CHECKING:
     import pandas as pd
 
-
-def _is_dataframe(obj: Any) -> bool:
-    """Check if obj is a pandas DataFrame without importing pandas."""
-    return type(obj).__module__.startswith("pandas") and type(obj).__name__ == "DataFrame"
-
-
-def _get_pandas():
-    """Lazy import pandas."""
-    import pandas as pd
-    return pd
 
 from vibe_widget.api import (
     ActionBundle,
@@ -50,10 +40,8 @@ from vibe_widget.core.lifecycle import WidgetLifecycle
 from vibe_widget.core.state import StateManager
 from vibe_widget.llm.agentic_agents import MaxTokensExceeded
 from vibe_widget.llm.agents.config import resolve_agent_run_config
-from vibe_widget.llm.agents.context import AgentHarnessContext
-from vibe_widget.llm.providers.base import LLMProvider
+from vibe_widget.llm.providers.base import LLMProvider, ProviderError
 from vibe_widget.llm.providers.openrouter_provider import OpenRouterProvider
-from vibe_widget.llm.tools.agents_tools import default_agent_tools
 from vibe_widget.services.audit import AuditService
 from vibe_widget.services.bundling import BundleService
 from vibe_widget.services.generation import GenerationService
@@ -70,7 +58,42 @@ from vibe_widget.utils.util import (
     prepare_input_for_widget,
     summarize_for_prompt,
 )
-from vibe_widget.utils.widget_store import WidgetStore
+from vibe_widget.utils.widget_store import WidgetStore, build_data_signature
+
+
+def is_headless_render() -> bool:
+    """Return True when the notebook is executed with no frontend that will ever connect."""
+    if os.environ.get("QUARTO_DOCUMENT_PATH"):
+        return True
+    return "--HistoryManager.hist_file=:memory:" in sys.argv
+
+
+def html_script_safe(code: str) -> str:
+    """Append a no-op JS comment that closes any HTML comment the code opened.
+
+    Static exporters (Quarto, nbconvert) drop the widget state into an inline
+    <script> block. A bundle containing "<!--" followed by "<script" puts the
+    HTML tokenizer into the double-escaped script state, where the closing
+    </script> no longer ends the element, so the whole state blob fails to
+    parse and every widget on the page disappears. A trailing "-->" inside a
+    JS block comment resets the tokenizer and means nothing to JavaScript.
+    """
+    if not code:
+        return code
+    # ponytail: render_code sorts after code in the serialized state, so one
+    # terminator covers both; revisit if a later string trait can carry "<!--".
+    return code + "\n/* --> --> */\n"
+
+
+def _is_dataframe(obj: Any) -> bool:
+    """Check if obj is a pandas DataFrame without importing pandas."""
+    return type(obj).__module__.startswith("pandas") and type(obj).__name__ == "DataFrame"
+
+
+def _get_pandas():
+    """Lazy import pandas."""
+    import pandas as pd
+    return pd
 
 
 def _export_to_json_value(value: Any, widget: Any) -> Any:
@@ -83,22 +106,7 @@ def _export_to_json_value(value: Any, widget: Any) -> Any:
     return value
 
 
-def _import_to_json_value(value: Any, widget: Any) -> Any:
-    """Trait serialization helper for imports."""
-    if isinstance(value, ExportHandle) or getattr(value, "__vibe_export__", False):
-        try:
-            return value()
-        except Exception:
-            return None
-    return value
-
-
 _CLASS_CACHE: dict[frozenset[str], type] = {}
-
-def _running_in_colab() -> bool:
-    """Backward-compat wrapper — delegates to ``platform.is_colab()``."""
-    return is_colab()
-
 
 def _get_widget_class(
     base_cls: type,
@@ -107,6 +115,12 @@ def _get_widget_class(
 ) -> type:
     """Return a cached widget subclass for the given trait signature."""
     signature = frozenset(set(exports.keys()) | set(imports.keys()))
+    reserved = sorted(signature & {name for name in dir(base_cls) if not name.startswith("_")})
+    if reserved:
+        raise ValueError(
+            f"Reserved name(s) {', '.join(reserved)}: inputs and outputs cannot shadow an "
+            "existing widget attribute. Rename them."
+        )
     if not signature:
         return base_cls
     cached = _CLASS_CACHE.get(signature)
@@ -120,7 +134,7 @@ def _get_widget_class(
     for import_name in imports.keys():
         if import_name not in dynamic_traits:
             dynamic_traits[import_name] = traitlets.Any(default_value=None).tag(
-                sync=True, to_json=_import_to_json_value
+                sync=True, to_json=_export_to_json_value
             )
     class_name = f"VibeWidget_{abs(hash(signature))}"
     widget_class = type(class_name, (base_cls,), dynamic_traits)
@@ -130,20 +144,7 @@ def _get_widget_class(
 
 logger = get_logger(__name__)
 
-def _write_debug_log(event: str, payload: str = "") -> None:
-    """Append debug events to logs.txt for local inspection."""
-    try:
-        repo_root = Path(__file__).resolve().parents[3]
-        log_path = repo_root / "logs.txt"
-        timestamp = datetime.now(timezone.utc).isoformat()
-        entry = f"{timestamp} | {event}"
-        if payload:
-            entry = f"{entry} | {payload}"
-        with log_path.open("a", encoding="utf-8") as handle:
-            handle.write(entry + "\n")
-    except Exception:
-        return
-_EDITOR_BUNDLE_CACHE: str | None = None
+EXPORTS_PREFIX = Path(".vibewidget") / "exports"
 
 
 class VibeWidget(anywidget.AnyWidget):
@@ -165,6 +166,7 @@ class VibeWidget(anywidget.AnyWidget):
     execution_state = traitlets.Dict({}).tag(sync=True)
     debug_mode = traitlets.Bool(False).tag(sync=True)
     debug_event = traitlets.Dict({}).tag(sync=True)
+    contract = traitlets.Dict({}).tag(sync=True)
     _is_closed = traitlets.Bool(False).tag(sync=False)
 
     def close(self) -> None:
@@ -215,19 +217,8 @@ class VibeWidget(anywidget.AnyWidget):
         try:
             from IPython.display import display
             if getattr(self, "_displayed", False):
-                _write_debug_log("ipython_display_skip", f"model_id={getattr(self, 'model_id', '')}")
                 return
             self._displayed = True
-            try:
-                import traceback
-                stack = "".join(traceback.format_stack(limit=6)).strip()
-            except Exception:
-                stack = ""
-
-            _write_debug_log(
-                "ipython_display",
-                f"model_id={getattr(self, 'model_id', '')} stack={stack}"
-            )
             bundle = self._repr_mimebundle_()
             if bundle is None:
                 display(repr(self))
@@ -349,7 +340,7 @@ class VibeWidget(anywidget.AnyWidget):
     ):
         """
         Create a VibeWidget with automatic code generation.
-        
+
         Args:
             description: Natural language description of desired visualization
             df: DataFrame to visualize
@@ -378,6 +369,7 @@ class VibeWidget(anywidget.AnyWidget):
         self._base_components = base_components or []
         self._base_widget_id = base_widget_id
         self._creation_params: dict[str, Any] = {}
+        self._model_override = model
         self._llm_provider = None
         self._generation_service: GenerationService | None = None
         self._audit_service: AuditService | None = None
@@ -391,19 +383,10 @@ class VibeWidget(anywidget.AnyWidget):
         self._widget_metadata: dict[str, Any] | None = None
         self._prompt_history = list((existing_metadata or {}).get("prompt_history") or [])
         self._data_path = data_root
+        self._pending_render_source = ""
 
-        app_wrapper_dir = Path(__file__).resolve().parents[1]
-        default_bundle = app_wrapper_dir / "AppWrapper.bundle.js"
-        legacy_bundle = app_wrapper_dir / "app_wrapper.js"
-
-        bundle_path = default_bundle
-        if not default_bundle.exists() and legacy_bundle.exists():
-            bundle_path = legacy_bundle
-
+        bundle_path = Path(__file__).resolve().parents[1] / "AppWrapper.bundle.js"
         self._esm = bundle_path.read_text()
-        self._editor_bundle_path = app_wrapper_dir / "AppWrapper" / "AppWrapper.editor.bundle.js"
-        if not self._editor_bundle_path.exists():
-            self._editor_bundle_path = app_wrapper_dir / "AppWrapper.editor.bundle.js"
 
         data_json = df.to_dict(orient="records") if df is not None else []
         data_json = clean_for_json(data_json)
@@ -446,6 +429,11 @@ class VibeWidget(anywidget.AnyWidget):
             execution_state=execution_state,
             debug_mode=False,
             state_prompt_request={},
+            contract={
+                "inputs": list(self._imports.keys()),
+                "outputs": list(self._exports.keys()),
+                "actions": list(self._actions.keys()),
+            },
             **kwargs
         )
 
@@ -469,7 +457,6 @@ class VibeWidget(anywidget.AnyWidget):
         self.observe(self._on_code_change, names='code')
         self.observe(self._on_execution_state, names='execution_state')
         self.observe(self._on_frontend_ready, names='frontend_ready')
-        self.observe(self._on_debug_event, names='debug_event')
         self.on_msg(self._handle_custom_msg)
 
         try:
@@ -477,37 +464,14 @@ class VibeWidget(anywidget.AnyWidget):
             self._reset_logs([f"Analyzing inputs: {input_count}"])
 
             resolved_model, config = _resolve_model(model)
-            provider = OpenRouterProvider(resolved_model, config.api_key)
-            agent_run_config = resolve_agent_run_config(
-                preset=getattr(config, "agent_preset", "project"),
-                overrides=getattr(config, "agent_run", None),
-            )
-            self._agent_run_config = agent_run_config
-            self._agent_tool_registry = default_agent_tools()
-            if self._data_path:
-                resolved_path = Path(self._data_path).resolve()
-                if resolved_path not in agent_run_config.allowed_roots:
-                    agent_run_config.allowed_roots.append(resolved_path)
-            stream_setting = getattr(config, "streaming", True)
-            if stream_setting and _running_in_colab():
-                stream_setting = False
-                self._append_log("Colab detected: disabling streaming updates")
-            if stream_setting and is_emscripten():
-                stream_setting = False
-                self._append_log("Emscripten detected: disabling streaming updates")
-            self._generation_service = GenerationService(
-                provider,
-                agent_run_config=agent_run_config,
-                stream=True
-            )
-            self._audit_service = AuditService()
-            self._llm_provider = provider
-            self.orchestrator = self._generation_service.orchestrator
             self._max_retries = max(0, int(getattr(config, "retry", RepairService.MAX_RETRIES)))
-            self._repair_service = RepairService(
-                self._generation_service.orchestrator,
-                max_retries=self._max_retries,
-            )
+            try:
+                self._init_llm(config, resolved_model)
+            except ProviderError as exc:
+                # Cached and existing code render without a key; the paths that
+                # do need the LLM raise this same error from _ensure_llm().
+                if exc.kind != "auth":
+                    raise
             inputs_for_prompt = self._input_summaries or _summarize_inputs_for_prompt(self._imports)
             if self._data_path:
                 inputs_for_prompt.setdefault("data_path", str(self._data_path))
@@ -535,7 +499,7 @@ class VibeWidget(anywidget.AnyWidget):
                     imports_serialized["data"] = "<input>"
                 self._generation_context = {
                     "var_name": var_name,
-                    "data_shape": df.shape if df is not None else None,
+                    "data_signature": build_data_signature(df),
                     "resolved_model": resolved_model,
                     "imports_serialized": imports_serialized,
                     "theme_name": self._theme.name if self._theme else None,
@@ -561,7 +525,7 @@ class VibeWidget(anywidget.AnyWidget):
 
             self._generation_context = {
                 "var_name": var_name,
-                "data_shape": df.shape if df is not None else None,
+                "data_signature": build_data_signature(df),
                 "resolved_model": resolved_model,
                 "imports_serialized": imports_serialized,
                 "theme_name": self._theme.name if self._theme else None,
@@ -579,7 +543,7 @@ class VibeWidget(anywidget.AnyWidget):
                 cached_widget = store.lookup(
                     description=description,
                     var_name=var_name,
-                    data_shape=df.shape if df is not None else None,
+                    data_signature=build_data_signature(df),
                     exports=self._exports,
                     imports_serialized=imports_serialized,
                     theme_description=self._theme.description if self._theme else None,
@@ -618,10 +582,11 @@ class VibeWidget(anywidget.AnyWidget):
                 self._pending_generation = None
                 return
 
+            self._ensure_llm()
             self._append_log("Generating widget code")
             self._generation_context = {
                 "var_name": var_name,
-                "data_shape": df.shape if df is not None else None,
+                "data_signature": build_data_signature(df),
                 "resolved_model": resolved_model,
                 "imports_serialized": imports_serialized,
                 "theme_name": self._theme.name if self._theme else None,
@@ -634,12 +599,18 @@ class VibeWidget(anywidget.AnyWidget):
             )
             if self.frontend_ready:
                 self._start_generation(description, inputs_for_prompt)
-            elif is_restricted_env():
+            elif is_restricted_env() or is_headless_render():
                 # Pyodide/JupyterLite: threading is unavailable.
                 # Colab: threads cause widget comm sync issues.
-                # In both cases, start generation immediately and run
+                # Quarto render / nbconvert: no frontend ever connects and the
+                # kernel is torn down as soon as the last cell returns, so a
+                # background thread loses the generated code.
+                # In every case, start generation immediately and run
                 # synchronously (no background thread, no fallback timer).
-                env_label = "Emscripten" if is_emscripten() else "Colab"
+                if is_headless_render():
+                    env_label = "Headless render"
+                else:
+                    env_label = "Emscripten" if is_emscripten() else "Colab"
                 self._append_log(f"{env_label} detected — starting generation (no thread)")
                 self._pending_generation = None
                 self._start_generation(description, inputs_for_prompt)
@@ -684,31 +655,66 @@ class VibeWidget(anywidget.AnyWidget):
                 pass
         return super().__getattribute__(name)
 
+    def _init_llm(self, config: Config, resolved_model: str) -> None:
+        """Build the LLM provider and the services around it. Raises without an API key."""
+        provider = OpenRouterProvider(
+            resolved_model,
+            config.api_key,
+            base_url=getattr(config, "base_url", None),
+            temperature=getattr(config, "temperature", 0.7),
+            timeout=getattr(config, "timeout", 120.0),
+        )
+        agent_run_config = resolve_agent_run_config(
+            preset=getattr(config, "agent_preset", "project"),
+            overrides=getattr(config, "agent_run", None),
+        )
+        if self._data_path:
+            resolved_path = Path(self._data_path).resolve()
+            if resolved_path not in agent_run_config.allowed_roots:
+                agent_run_config.allowed_roots.append(resolved_path)
+        stream_setting = getattr(config, "streaming", True)
+        if stream_setting and is_colab():
+            stream_setting = False
+            self._append_log("Colab detected: disabling streaming updates")
+        if stream_setting and is_emscripten():
+            stream_setting = False
+            self._append_log("Emscripten detected: disabling streaming updates")
+        self._generation_service = GenerationService(
+            provider,
+            agent_run_config=agent_run_config,
+            stream=stream_setting,
+        )
+        self._audit_service = AuditService()
+        self._llm_provider = provider
+        self.orchestrator = self._generation_service.orchestrator
+        self._repair_service = RepairService(
+            self._generation_service.orchestrator,
+            max_retries=self._max_retries,
+        )
+
+    def _ensure_llm(self) -> None:
+        """Build the LLM services on first use. Raises ProviderError when no API key is set."""
+        if self._generation_service is None:
+            resolved_model, config = _resolve_model(self._model_override)
+            self._init_llm(config, resolved_model)
+
     def _set_status(self, status: str, *, force: bool = False) -> None:
         """Update widget lifecycle status through the lifecycle manager."""
         lifecycle = getattr(self, "_lifecycle", None)
         if lifecycle is None:
             self.status = status
-            _write_debug_log("status_set", f"{status}")
             return
-        prev_status = self.status
-        if status == prev_status and not force:
-            _write_debug_log("status_transition_skipped", f"{prev_status} -> {status}")
+        if status == self.status and not force:
             return
         lifecycle.transition(status, force=force)
-        _write_debug_log("status_transition", f"{prev_status} -> {status}")
-        if status == "ready":
-            return
 
     def _append_log(self, message: str) -> None:
         logs = list(self.logs or [])
         logs.append(message)
         self.logs = logs
-        _write_debug_log("progress_log_append", message)
 
     def _reset_logs(self, messages: list[str]) -> None:
         self.logs = list(messages)
-        _write_debug_log("progress_log_reset", " | ".join(messages))
 
     def _extend_logs(self, messages: list[str]) -> None:
         if not messages:
@@ -716,8 +722,6 @@ class VibeWidget(anywidget.AnyWidget):
         logs = list(self.logs or [])
         logs.extend(messages)
         self.logs = logs
-        for message in messages:
-            _write_debug_log("progress_log_extend", message)
 
     # Adds logger streams to the generation call
     def _start_generation(
@@ -726,6 +730,7 @@ class VibeWidget(anywidget.AnyWidget):
         inputs_for_prompt: dict[str, str],
     ) -> None:
 
+        self.retry_count = 0
         parser = CodeStreamParser()
         chunk_buffer: list[str] = []
         update_counter = 0
@@ -734,8 +739,6 @@ class VibeWidget(anywidget.AnyWidget):
         def stream_callback(event_type: str, message: str):
             """Handle progress events from orchestrator."""
             nonlocal update_counter, last_pattern_count
-
-            _write_debug_log("agent_trace", f"{event_type} | {message}")
 
             event_messages = {
                 "step": f"{message}",
@@ -786,7 +789,7 @@ class VibeWidget(anywidget.AnyWidget):
                 widget_code=widget_code,
                 description=description,
                 var_name=context.get("var_name"),
-                data_shape=context.get("data_shape"),
+                data_signature=context.get("data_signature"),
                 model=context.get("resolved_model"),
                 exports=self._exports,
                 imports_serialized=context.get("imports_serialized", {}),
@@ -795,6 +798,10 @@ class VibeWidget(anywidget.AnyWidget):
                 notebook_path=store.get_notebook_path(),
                 revision_parent=context.get("revision_parent"),
                 prompt_history=list(self._prompt_history or []),
+                outputs=self._exports or {},
+                inputs=context.get("imports_serialized", {}),
+                actions=self._actions or {},
+                provenance=self._provenance(context.get("resolved_model")),
             )
 
             self._extend_logs([
@@ -826,10 +833,11 @@ class VibeWidget(anywidget.AnyWidget):
                 self._append_log(f"⚠ {error_msg}")
                 self._append_log("Try: 'make it simpler' or 'reduce complexity'")
             else:
-                self._append_log(f"Error: {error_msg}")
+                kind = getattr(exc, "kind", None)
+                self._append_log(f"Error ({kind}): {error_msg}" if kind else f"Error: {error_msg}")
             logger.exception("Widget generation failed")
 
-        if getattr(self, "_display_widget", True):
+        if getattr(self, "_display_widget", True) and not is_headless_render():
             # async path for interactive rendering
             self._generation_service.start_generation_async(
                 description=description,
@@ -913,6 +921,25 @@ class VibeWidget(anywidget.AnyWidget):
         state = self._normalize_execution_state(self.execution_state)
         state.update(updates)
         self.execution_state = state
+
+    @property
+    def usage(self) -> dict[str, Any]:
+        """Token counts and request count for this widget's LLM calls."""
+        provider = self._llm_provider
+        return dict(getattr(provider, "usage", {}) or {})
+
+    def _provenance(self, model: str | None = None) -> dict[str, Any]:
+        """Model, endpoint, temperature and token usage behind the current code."""
+        config = get_global_config()
+        provider = self._llm_provider
+        return {
+            "model": model or getattr(provider, "model", None) or config.model,
+            "base_url": getattr(provider, "base_url", None) or getattr(config, "base_url", None),
+            "temperature": getattr(provider, "temperature", None)
+            if provider is not None
+            else getattr(config, "temperature", None),
+            "provider_usage": self.usage,
+        }
 
     @property
     def audit_status(self) -> str:
@@ -1052,11 +1079,14 @@ class VibeWidget(anywidget.AnyWidget):
             save_inputs = _serialize_inputs(self)
 
         payload = {
-            "version": "1.0",
+            "version": "1.1",
             "created_at": metadata.get("created_at"),
             "description": self.description,
             "code": self.code or "",
             "outputs": dict(self._exports or {}),
+            "inputs": inputs_signature,
+            "actions": dict(self._actions or {}),
+            "provenance": metadata.get("provenance") or self._provenance(metadata.get("model")),
             "inputs_signature": inputs_signature,
             "theme": theme_payload,
             "components": metadata.get("components", []),
@@ -1237,7 +1267,13 @@ class VibeWidget(anywidget.AnyWidget):
         provider = self._llm_provider
         if provider is None:
             resolved_model, config = _resolve_model(widget_metadata.get("model"))
-            provider = OpenRouterProvider(resolved_model, config.api_key)
+            provider = OpenRouterProvider(
+                resolved_model,
+                config.api_key,
+                base_url=getattr(config, "base_url", None),
+                temperature=getattr(config, "temperature", 0.7),
+                timeout=getattr(config, "timeout", 120.0),
+            )
 
         result = self._audit_service.run_audit(
             code=self.code,
@@ -1272,126 +1308,55 @@ class VibeWidget(anywidget.AnyWidget):
         if apply_request and apply_request != (old_state.get("apply_request") or {}):
             self._handle_audit_apply_request(apply_request)
 
-    def _load_editor_bundle(self) -> str:
-        global _EDITOR_BUNDLE_CACHE
-        if _EDITOR_BUNDLE_CACHE is not None:
-            return _EDITOR_BUNDLE_CACHE
-        if not self._editor_bundle_path.exists():
-            raise FileNotFoundError(
-                f"Editor bundle not found at {self._editor_bundle_path}. "
-                "Run `npm run build-app-wrapper` to generate it."
-            )
-        _EDITOR_BUNDLE_CACHE = self._editor_bundle_path.read_text(encoding="utf-8")
-        return _EDITOR_BUNDLE_CACHE
-
     def _handle_custom_msg(self, *args) -> None:
-        """Handle frontend custom messages across ipywidgets versions."""
+        """Handle the save_widget message; every other message type is ignored."""
         if len(args) == 3:
-            _, content, buffers = args
+            _, content, _buffers = args
         elif len(args) == 2:
-            content, buffers = args
+            content, _buffers = args
         else:
             return
-        if not isinstance(content, dict):
-            return
-        msg_type = content.get("type")
-        if msg_type == "request_editor_bundle":
-            try:
-                bundle = self._load_editor_bundle()
-                self.send({"type": "editor_bundle", "code": bundle})
-            except Exception as exc:
-                self.send({"type": "editor_bundle_error", "error": str(exc)})
-            return
-        if msg_type == "save_widget":
-            request_id = content.get("request_id")
-            path = content.get("path") or "widget.vw"
-            include_inputs = bool(content.get("include_inputs"))
-            try:
-                saved_path = self.save(path, include_inputs=include_inputs)
-                self.send(
-                    {
-                        "type": "save_widget_result",
-                        "request_id": request_id,
-                        "path": str(saved_path),
-                        "success": True,
-                    }
-                )
-            except Exception as exc:
-                self.send(
-                    {
-                        "type": "save_widget_result",
-                        "request_id": request_id,
-                        "error": str(exc),
-                        "success": False,
-                    }
-                )
-            return
-        if msg_type != "remote_call":
+        if not isinstance(content, dict) or content.get("type") != "save_widget":
             return
 
-        call_id = content.get("id")
-        name = content.get("name")
-        args = content.get("args") or {}
-        if not call_id or not name or not isinstance(args, dict):
-            self.send(
-                {
-                    "type": "remote_call_result",
-                    "id": call_id,
-                    "success": False,
-                    "error": "invalid_remote_call",
-                }
-            )
-            return
-        tool_registry = getattr(self, "_agent_tool_registry", None) or default_agent_tools()
-        run_config = getattr(self, "_agent_run_config", None)
-        if run_config is None:
-            config = get_global_config()
-            run_config = resolve_agent_run_config(
-                preset=getattr(config, "agent_preset", "project"),
-                overrides=getattr(config, "agent_run", None),
-            )
-        context = AgentHarnessContext(
-            widget=self,
-            permission_tier=run_config.permission_tier,
-            safety_mode=run_config.safety_mode,
-            allowed_roots=run_config.allowed_roots,
-            sandbox_dir=run_config.sandbox_dir,
-            allow_net_fetch=run_config.allow_net_fetch,
-            allow_search=run_config.allow_search,
-            net_allowlist=run_config.net_allowlist,
-            net_mime_allowlist=run_config.net_mime_allowlist,
-        )
-        tool = tool_registry.get(str(name))
-        if tool is None:
-            self.send(
-                {
-                    "type": "remote_call_result",
-                    "id": call_id,
-                    "success": False,
-                    "error": f"tool_not_found:{name}",
-                }
-            )
-            return
+        request_id = content.get("request_id")
         try:
-            result = tool.execute(context=context, **args)
-            payload = {
-                "type": "remote_call_result",
-                "id": call_id,
-                "success": result.success,
-                "result": clean_for_json(result.output),
-                "error": result.error,
-                "metadata": result.metadata,
-            }
-            self.send(payload)
+            saved_path = self.save(
+                self._export_path(content.get("path")),
+                include_inputs=bool(content.get("include_inputs")),
+            )
+            self.send(
+                {
+                    "type": "save_widget_result",
+                    "request_id": request_id,
+                    "path": str(EXPORTS_PREFIX / saved_path.name),
+                    "success": True,
+                }
+            )
         except Exception as exc:
             self.send(
                 {
-                    "type": "remote_call_result",
-                    "id": call_id,
-                    "success": False,
+                    "type": "save_widget_result",
+                    "request_id": request_id,
                     "error": str(exc),
+                    "success": False,
                 }
             )
+
+    @staticmethod
+    def _export_path(requested: Any) -> Path:
+        """Confine a browser-supplied save path to .vibewidget/exports/."""
+        name = Path(str(requested or "")).name
+        if not name or name in {".", ".."}:
+            name = "widget.vw"
+        if not name.endswith(".vw"):
+            name += ".vw"
+        if len(name) > 100:
+            name = name[:97] + ".vw"
+        target = WidgetStore().store_dir / "exports" / name
+        if target.is_symlink():
+            raise ValueError(f"Refusing to write through the symlink at {EXPORTS_PREFIX / name}")
+        return target
 
     def _handle_audit_request(self, request: dict[str, Any]) -> None:
         """Handle audit requests from the frontend."""
@@ -1416,8 +1381,10 @@ class VibeWidget(anywidget.AnyWidget):
             return
         if self.audit_apply_status == "running":
             return
-        if self._generation_service is None:
-            self.audit_apply_error = "No LLM service available to apply changes."
+        try:
+            self._ensure_llm()
+        except Exception as exc:
+            self.audit_apply_error = str(exc)
             self.audit_apply_status = "error"
             self._update_audit_state(apply_request={})
             return
@@ -1487,8 +1454,6 @@ class VibeWidget(anywidget.AnyWidget):
         # Log error regardless of repair state
         if error_msg:
             logger.error("Frontend runtime error:\n%s", error_msg)
-            _write_debug_log("runtime_error_received", f"status={self.status} retry={self.retry_count}")
-            _write_debug_log("runtime_error_message", error_msg[:500])
             self.last_runtime_error = error_msg
             preview = error_msg.split("\n")[0][:200]
             if preview != self._last_logged_runtime_error:
@@ -1503,7 +1468,6 @@ class VibeWidget(anywidget.AnyWidget):
 
         # Prevent re-entrance during repair
         if self._repair_in_progress:
-            _write_debug_log("repair_skipped", "repair already in progress")
             return
 
         orchestrator = getattr(self, "orchestrator", None)
@@ -1514,17 +1478,21 @@ class VibeWidget(anywidget.AnyWidget):
         elif orchestrator is not None and getattr(self._repair_service, "orchestrator", None) is not orchestrator:
             self._repair_service = RepairService(orchestrator, max_retries=self._max_retries)
 
-        if self.retry_count >= self._max_retries:
-            self._set_status("blocked")
-            self._append_log("Repair blocked: retry limit reached")
-            _write_debug_log("repair_blocked", f"retry={self.retry_count}")
+        attempts_used = self.retry_count
+        if attempts_used >= self._max_retries:
+            if self.status != "blocked":
+                self._set_status("blocked")
+                self._append_log(
+                    f"Auto-repair stopped after {self._max_retries} attempt(s). "
+                    "Describe the fix in the prompt box, or change the budget with "
+                    "vw.config(retry=N)."
+                )
             return
 
         self._repair_in_progress = True
         try:
-            self.retry_count += 1
+            self.retry_count = attempts_used + 1
             self._set_status("retrying")
-            _write_debug_log("repair_attempt_start", f"retry={self.retry_count}")
 
             error_preview = error_msg.split("\n")[0][:100]
             path_hint = self._widget_file_path()
@@ -1535,30 +1503,29 @@ class VibeWidget(anywidget.AnyWidget):
                 code=self.code,
                 error_message=error_msg,
                 data_info=getattr(self, "data_info", {}),
-                retry_count=self.retry_count,
+                retry_count=attempts_used,
                 widget_error=self.widget_error,
                 last_runtime_error=self.last_runtime_error,
                 widget_logs=list(self.widget_logs or []),
                 code_path=self._widget_file_path(),
             )
-            _write_debug_log("repair_result", f"applied={result.applied} retryable={result.retryable}")
 
             if result.applied:
-                self._append_log("Code fixed, retrying")
-                bundle_success = self._apply_code(result.code)
-                if bundle_success:
+                previous_code = self.code
+                if self._apply_code(result.code):
+                    self._append_log("Code fixed, retrying")
                     self._set_status("ready")
-                    # Reset retry count and clear error state so frontend renders widget
-                    self.retry_count = 0
+                    # Clear error state so the frontend renders the widget. The
+                    # retry budget stays spent until the next generation.
                     self.error_message = ""
                     self.widget_error = ""
                     self.last_runtime_error = ""
                     self.widget_logs = []  # Clear old error logs
-                    _write_debug_log("repair_success", "fix applied and bundled")
+                elif self._pending_render_source:
+                    self._append_log(self._unrendered_reason())
                 else:
-                    # Bundling failed - _apply_code will set error_message
-                    self._append_log("Fix applied but bundling failed")
-                    _write_debug_log("repair_bundle_failed", "fix applied but bundling failed")
+                    self._apply_code(previous_code)
+                    self._append_log("Repair rolled back: the fixed code did not bundle")
                 return
 
             self._append_log(result.message or "Fix attempt failed")
@@ -1628,7 +1595,6 @@ class VibeWidget(anywidget.AnyWidget):
         if not error_msg:
             return
         logger.error("Widget runtime error:\n%s", error_msg)
-        _write_debug_log("widget_error_received", error_msg[:500])
         try:
             self._append_widget_log(f"Widget error: {error_msg}", level="error", source="js")
         except Exception:
@@ -1653,10 +1619,10 @@ class VibeWidget(anywidget.AnyWidget):
     def components(self) -> list[str]:
         """
         List of available component names in this widget.
-        
+
         Returns:
             List of component names (snake_case for Python access)
-        
+
         Examples:
             >>> widget.components
             ['scatter_chart', 'color_legend', 'slider']
@@ -1683,14 +1649,14 @@ class VibeWidget(anywidget.AnyWidget):
     def _create_component_widget(self, component_name: str) -> VibeWidget:
         """
         Create a VibeWidget that renders only this component.
-        
+
         This widget has all standard VibeWidget methods including edit(), display(), etc.
         The widget's code is the original code with the default export replaced to render
         only the specified component.
-        
+
         Args:
             component_name: Name of the component (PascalCase as in JS code)
-        
+
         Returns:
             VibeWidget instance configured to render only this component
         """
@@ -1724,7 +1690,7 @@ class VibeWidget(anywidget.AnyWidget):
         widget = VibeWidget._create_with_dynamic_traits(
             description=f"{component_name} (from {parent_var_name})",
             df=df,
-            model=parent_metadata.get("model", "claude-haiku-4-5-20251001"),
+            model=parent_metadata.get("model") or DEFAULT_MODEL,
             exports=None,
             imports=None,
             theme=self._theme,
@@ -1789,15 +1755,16 @@ class VibeWidget(anywidget.AnyWidget):
             source="grab_edit",
             meta={"element": element_desc.get("description") or element_desc.get("tag")},
         )
-        if self._generation_service is None:
+        try:
+            self._ensure_llm()
+        except Exception as exc:
             self._set_status("error")
-            self._reset_logs(["✘ Edit failed: LLM service unavailable"])
+            self._reset_logs([f"✘ Edit failed: {exc}"])
             return
 
         old_code = self.code
         previous_metadata = self._widget_metadata
         self._pending_old_code = old_code
-        self.edit_in_progress = True
         self._set_status("generating")
         self._reset_logs([f"Editing: {user_prompt[:50]}{'...' if len(user_prompt) > 50 else ''}"])
 
@@ -1872,7 +1839,7 @@ class VibeWidget(anywidget.AnyWidget):
                 widget_code=revised_code,
                 description=self.description,
                 var_name=self._widget_metadata.get('var_name') if self._widget_metadata else None,
-                data_shape=tuple(self._widget_metadata.get('data_shape', [0, 0])) if self._widget_metadata else (0, 0),
+                data_signature=self._widget_metadata.get('data_signature') if self._widget_metadata else None,
                 model=self._widget_metadata.get('model', 'unknown') if self._widget_metadata else 'unknown',
                 exports=self._exports,
                 imports_serialized=imports_serialized,
@@ -1881,6 +1848,12 @@ class VibeWidget(anywidget.AnyWidget):
                 notebook_path=store.get_notebook_path(),
                 revision_parent=parent_cache_key,
                 prompt_history=list(self._prompt_history or []),
+                outputs=self._exports or {},
+                inputs=imports_serialized,
+                actions=self._actions or {},
+                provenance=self._provenance(
+                    self._widget_metadata.get('model') if self._widget_metadata else None
+                ),
             )
             widget_entry["prompt_history"] = list(self._prompt_history or [])
             self._widget_metadata = widget_entry
@@ -1896,7 +1869,6 @@ class VibeWidget(anywidget.AnyWidget):
                 self._set_status("error")
                 self._append_log(f"✘ Edit failed: {str(e)}")
 
-        self.edit_in_progress = False
         self.grab_edit_request = {}
 
     def _on_state_prompt(self, change):
@@ -1933,9 +1905,11 @@ class VibeWidget(anywidget.AnyWidget):
             self._handle_repair_prompt(user_prompt, error_override)
 
     def _handle_regeneration_prompt(self, user_prompt: str) -> None:
-        if self._generation_service is None:
+        try:
+            self._ensure_llm()
+        except Exception as exc:
             self._set_status("error")
-            self._reset_logs(["✘ Regeneration failed: LLM service unavailable"])
+            self._reset_logs([f"✘ Regeneration failed: {exc}"])
             return
 
         self._set_status("generating")
@@ -1967,9 +1941,11 @@ class VibeWidget(anywidget.AnyWidget):
             self._append_log(f"✘ Regeneration failed: {exc}")
 
     def _handle_repair_prompt(self, user_prompt: str, error_override: str) -> None:
-        if self._generation_service is None or self.orchestrator is None:
+        try:
+            self._ensure_llm()
+        except Exception as exc:
             self._set_status("error")
-            self._reset_logs(["✘ Repair failed: LLM service unavailable"])
+            self._reset_logs([f"✘ Repair failed: {exc}"])
             return
 
         error_message = error_override or self.widget_error or self.error_message
@@ -1990,7 +1966,7 @@ class VibeWidget(anywidget.AnyWidget):
                 code=self.code,
                 error_message=error_message,
                 data_info=self.data_info,
-                retry_count=self.retry_count,
+                retry_count=0,
                 widget_error=self.widget_error,
                 last_runtime_error=self.last_runtime_error,
                 widget_logs=list(self.widget_logs or []),
@@ -2005,10 +1981,9 @@ class VibeWidget(anywidget.AnyWidget):
                     self.widget_error = ""
                     self.last_runtime_error = ""
                     self.widget_logs = []  # Clear old error logs
-                    self.retry_count = 0
                     self._set_status("ready")
                 else:
-                    self._append_log("Fix applied but bundling failed")
+                    self._append_log(self._unrendered_reason())
                 return
             self._append_log(result.message or "Repair did not change the code")
             self._set_status("error")
@@ -2070,11 +2045,13 @@ Find this element in the code and apply the requested change. The element should
         self._refresh_render_code(change.get("new") or "")
 
     def _on_execution_state(self, change):
-        """Persist approval hash when user approves the current code."""
+        """Persist approval hash and render the pending code once approved."""
         new_state = self._normalize_execution_state(change.get("new"))
         old_state = self._normalize_execution_state(change.get("old"))
         if not new_state.get("approved"):
             return
+        if not old_state.get("approved"):
+            self._refresh_render_code(self._pending_render_source or self.code or "")
         current_hash = compute_code_hash(self.code or "")
         if new_state.get("approved_hash") == current_hash:
             return
@@ -2095,33 +2072,29 @@ Find this element in the code and apply the requested change. The element should
         description, inputs_for_prompt = pending
         self._start_generation(description, inputs_for_prompt)
 
-    def _on_debug_event(self, change):
-        """Persist frontend debug events to logs.txt."""
-        payload = change.get("new") or {}
-        if not payload:
-            return
-        event = payload.get("source", "debug")
-        message = payload.get("message") or payload.get("event") or ""
-        label = payload.get("label") or ""
-        meta = payload.get("modelId") or ""
-        parts = [part for part in [meta, label, message] if part]
-        _write_debug_log(event, " | ".join(parts))
-
     def _refresh_render_code(self, source: str) -> bool:
         """Ensure render_code stays in sync with the current source code.
 
         Returns True if bundling succeeded (or fallback to unbundled), False otherwise.
         """
         if not source:
+            self._pending_render_source = ""
             self.render_code = ""
             self._last_bundle_hash = ""
             return False
+        if self.execution_mode == "approve" and not self.execution_approved:
+            # ponytail: single assignment, read only on the approval transition; no lock.
+            self._pending_render_source = source
+            self.render_code = ""
+            self._last_bundle_hash = ""
+            return False
+        self._pending_render_source = ""
         source_hash = self._bundle_service.bundle_key(source)
         if self._last_bundle_hash == source_hash and self.render_code:
             return True
         bundle_result = self._bundle_service.bundle(source)
         if bundle_result.code and bundle_result.bundled:
-            self.render_code = bundle_result.code
+            self.render_code = html_script_safe(bundle_result.code)
             self._last_bundle_hash = source_hash
             return True
 
@@ -2132,7 +2105,7 @@ Find this element in the code and apply the requested change. The element should
 
         if is_env_error or os.getenv("VIBE_ALLOW_UNBUNDLED") == "1":
             # Fall back to raw source - frontend Babel will transform it
-            self.render_code = source
+            self.render_code = html_script_safe(source)
             self._last_bundle_hash = source_hash
             return True
         else:
@@ -2145,6 +2118,12 @@ Find this element in the code and apply the requested change. The element should
                 self.error_message = f"Bundling failed: {bundle_result.error}"
             self._set_status("error")
             return False
+
+    def _unrendered_reason(self) -> str:
+        """Explain why freshly applied code is not rendering."""
+        if self.execution_mode == "approve" and not self.execution_approved:
+            return "Fix applied; approve the new code to run it"
+        return "Fix applied but bundling failed"
 
     def _apply_code(self, source: str) -> bool:
         """Set source + render code together.
@@ -2234,10 +2213,8 @@ def _display_widget(widget: VibeWidget) -> None:
     """Display widget in IPython environment if available."""
     try:
         if getattr(widget, "_displayed", False):
-            _write_debug_log("display_widget_skip", f"model_id={getattr(widget, 'model_id', '')}")
             return
         from IPython.display import display
-        _write_debug_log("display_widget", f"model_id={getattr(widget, 'model_id', '')}")
         display(widget)
     except ImportError:
         pass
@@ -2381,7 +2358,6 @@ def create(
         >>> scatter_plot = create("show temperature trends", df)
         >>> sales_chart = create("visualize sales data", "sales.csv")
     """
-    _write_debug_log("create_called", f"display={display} cache={cache}")
     # Capture the variable name from the caller's assignment
     # e.g., scatter_plot = vw.create(...) -> var_name = "scatter_plot"
     from vibe_widget.utils.widget_store import capture_caller_var_name
@@ -2448,7 +2424,6 @@ def create(
         theme=resolved_theme,
     )
 
-    _write_debug_log("create_return", f"model_id={getattr(widget, 'model_id', '')}")
     return WidgetHandle(widget)
 
 
@@ -2461,15 +2436,12 @@ class _SourceInfo:
         components: list[str],
         df: pd.DataFrame | None,
         theme: Theme | None,
-        target_component: str | None = None,
     ):
         self.code = code
         self.metadata = metadata
         self.components = components
         self.df = df
         self.theme = theme
-        # When editing a specific component, this is the component name
-        self.target_component = target_component
 
 
 class WidgetHandle:
@@ -2485,7 +2457,6 @@ class WidgetHandle:
         return self._widget
 
     def __call__(self, *args, **kwargs) -> VibeWidget:
-        _write_debug_log("handle_rerun", f"model_id={getattr(self._widget, 'model_id', '')}")
         widget = self._widget._rerun_with(*args, **kwargs)
         self._widget = widget
         return widget
@@ -2523,15 +2494,12 @@ def _resolve_source(
 
         if source_component:
             # This is a component widget - use ITS standalone code as the base
-            # The standalone code already renders only this component, so we treat
-            # it as a regular widget edit (no target_component needed)
             return _SourceInfo(
                 code=source.code,  # The standalone wrapper code
                 metadata=source._widget_metadata,
                 components=[source_component],
                 df=_get_pandas().DataFrame(source.data) if source.data else None,
                 theme=source._theme,
-                target_component=None,  # Not needed - standalone code already focuses on component
             )
 
         # Regular widget
@@ -2541,7 +2509,6 @@ def _resolve_source(
             components=source._widget_metadata.get("components", []) if source._widget_metadata else [],
             df=_get_pandas().DataFrame(source.data) if source.data else None,
             theme=source._theme,
-            target_component=None,
         )
 
     if isinstance(source, (str, Path)):
@@ -2565,7 +2532,6 @@ def _resolve_source(
                 components=metadata.get("components", []),
                 df=None,
                 theme=theme,
-                target_component=None,
             )
 
         error_msg = f"Could not find widget with ID '{source}'" if isinstance(source, str) else f"Widget file not found: {source}"
@@ -2647,6 +2613,7 @@ def edit(
         base_code=source_info.code,
         base_components=source_info.components,
         base_widget_id=base_cache_key,
+        existing_metadata=source_info.metadata,
         cache=cache,
         display_widget=display,
         execution_mode=resolved_config.execution if resolved_config else "auto",
@@ -2932,7 +2899,7 @@ class WidgetBrowser:
             js_widgets.append({
                 "var_name": w.get("var_name", "unknown"),
                 "description": w.get("description", ""),
-                "data_shape": w.get("data_shape"),
+                "data_shape": (w.get("data_signature") or {}).get("shape"),
                 "created_at": w.get("created_at", ""),
                 "_index": w.get("_index", 0),
             })
@@ -3033,6 +3000,13 @@ def _show_widget_selector(
     )
 
 
+def _imports_from_signature(signature: Any) -> dict[str, Any]:
+    """Rebuild empty import traits from a stored input signature."""
+    if not isinstance(signature, dict):
+        return {}
+    return {name: None for name in signature if name != "data"}
+
+
 def _load_from_cached_entry(
     cached_entry: dict[str, Any],
     code: str,
@@ -3042,6 +3016,8 @@ def _load_from_cached_entry(
     """Load a widget from a cached entry and code."""
     description = cached_entry.get("description") or "Loaded widget"
     outputs = cached_entry.get("outputs") or {}
+    imports = _imports_from_signature(cached_entry.get("inputs"))
+    actions = cached_entry.get("actions") or {}
     theme = None
 
     theme_desc = cached_entry.get("theme_description")
@@ -3061,7 +3037,7 @@ def _load_from_cached_entry(
         df=None,
         model=model,
         exports=outputs,
-        imports={},
+        imports=imports,
         theme=theme,
         var_name=cached_entry.get("var_name"),
         existing_code=code,
@@ -3071,6 +3047,7 @@ def _load_from_cached_entry(
         execution_mode=execution_mode,
         execution_approved=execution_approved,
         execution_approved_hash=approved_hash,
+        actions=actions,
     )
 
     # Store creation params to enable rerun with new data
@@ -3080,7 +3057,7 @@ def _load_from_cached_entry(
         data_type=None,
         data_columns=None,
         exports=outputs,
-        imports={},
+        imports=imports,
         model=model,
         theme=theme,
     )
@@ -3139,20 +3116,7 @@ def load(
             raise ValueError("vw.load expects a .vw bundle or cached widget file, not a directory.")
 
         store = WidgetStore()
-        widgets_dict = store.index.get("widgets", {})
-        for var_name, widgets in widgets_dict.items():
-            for idx, widget in enumerate(widgets):
-                file_name = widget.get("file_name")
-                if not file_name:
-                    continue
-                store_path = (store.widgets_dir / file_name).resolve()
-                if store_path == target.resolve():
-                    cached_entry = dict(widget)
-                    cached_entry["var_name"] = var_name
-                    cached_entry["_index"] = idx
-                    break
-            if cached_entry:
-                break
+        cached_entry = store.find_entry_for_path(target)
 
         if cached_entry:
             code = target.read_text(encoding="utf-8")
@@ -3168,7 +3132,10 @@ def load(
         description = payload.get("description") or "Loaded widget"
         code = payload.get("code") or ""
         outputs = payload.get("outputs") or {}
-        inputs_signature = payload.get("inputs_signature") or {}
+        # "inputs_signature" is the 1.0 spelling; 1.1 writes both.
+        inputs_signature = payload.get("inputs") or payload.get("inputs_signature") or {}
+        actions = payload.get("actions") or {}
+        provenance = payload.get("provenance") or {}
         theme_payload = payload.get("theme") or {}
         components = payload.get("components") or []
         save_inputs = payload.get("save_inputs") or {}
@@ -3182,12 +3149,7 @@ def load(
         pd = _get_pandas()
         df = pd.DataFrame(data_rows) if isinstance(data_rows, list) else pd.DataFrame()
 
-        imports: dict[str, Any] = {}
-        if isinstance(inputs_signature, dict):
-            for name in inputs_signature.keys():
-                if name == "data":
-                    continue
-                imports[name] = None
+        imports: dict[str, Any] = _imports_from_signature(inputs_signature)
         if isinstance(input_values, dict):
             for name, value in input_values.items():
                 if name == "data":
@@ -3212,6 +3174,9 @@ def load(
             "theme_description": theme_payload.get("description") if isinstance(theme_payload, dict) else None,
             "inputs_signature": inputs_signature,
             "outputs": outputs,
+            "inputs": inputs_signature,
+            "actions": actions,
+            "provenance": provenance,
             "source_path": str(target.resolve()),
             "version": payload.get("version"),
             "created_at": payload.get("created_at"),
@@ -3222,8 +3187,9 @@ def load(
         data_rows_embedded = data_rows if embedded else None
     else:
         description = cached_entry.get("description") or "Loaded widget"
-        outputs = {}
-        imports = {}
+        outputs = cached_entry.get("outputs") or {}
+        imports = _imports_from_signature(cached_entry.get("inputs"))
+        actions = cached_entry.get("actions") or {}
         df = _get_pandas().DataFrame()
         components = cached_entry.get("components") or WidgetStore().extract_components(code)
         theme_name = cached_entry.get("theme_name")
@@ -3247,6 +3213,10 @@ def load(
             "var_name": cached_entry.get("var_name"),
             "revision_parent": cached_entry.get("revision_parent"),
             "prompt_history": cached_entry.get("prompt_history") or [],
+            "outputs": outputs,
+            "inputs": cached_entry.get("inputs") or {},
+            "actions": actions,
+            "provenance": cached_entry.get("provenance") or {},
         }
         model = cached_entry.get("model") or DEFAULT_MODEL
         data_rows_embedded = None
@@ -3271,6 +3241,7 @@ def load(
         execution_mode=execution_mode,
         execution_approved=execution_approved,
         execution_approved_hash=approved_hash,
+        actions=actions,
     )
 
     if payload is not None and isinstance(input_values, dict):
@@ -3298,7 +3269,7 @@ def load(
     return WidgetHandle(widget)
 
 
-def clear(target: Union[VibeWidget, WidgetHandle, str] = "all") -> dict[str, int]:
+def clear(target: VibeWidget | WidgetHandle | str = "all") -> dict[str, int]:
     """Clear cached widgets, themes, audits, or a specific widget's cache."""
     results = {"widgets": 0, "themes": 0, "audits": 0}
 

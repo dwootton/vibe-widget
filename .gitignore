@@ -85,16 +85,15 @@ src/vibe_widget/frontend/node_modules/.package-lock.json
 # **/widgets/**
 /testdata/**
 
-/tests/
 /testdata/
 
 /planningtester.ipynb
 
 /planning/
-.vibewidget/
+/.vibewidget/
 
-AGENTS.md
 logs.txt
+.jupyterlite.doit.db
 
 
 .claude/

@@ -1,6 +1,7 @@
 """Data-related tools for loading and profiling data."""
 from __future__ import annotations
-from typing import Any, TYPE_CHECKING
+
+from typing import TYPE_CHECKING, Any
 
 from vibe_widget.llm.tools.base import Tool, ToolResult
 
@@ -41,10 +42,10 @@ class DataLoadTool(Tool):
             },
         }
 
-    def execute(self, source: Any, sample_size: int = -1, df: "pd.DataFrame | None" = None) -> ToolResult:
+    def execute(self, source: Any, sample_size: int = -1, df: pd.DataFrame | None = None) -> ToolResult:
         """Unified data loader supporting many formats and sources."""
-        from pathlib import Path
         import json as json_lib
+        from pathlib import Path
         pd = _get_pandas()
         try:
             # Handle ExportHandle by resolving to actual value
@@ -83,7 +84,7 @@ class DataLoadTool(Tool):
                     data = pd.read_csv(source, sep=sep)
                 elif source_str.endswith(('.json', '.geojson')):
                     # Use DataProcessor's logic for geojson
-                    with open(source, 'r') as f:
+                    with open(source) as f:
                         loaded = json_lib.load(f)
                     if isinstance(loaded, dict) and 'features' in loaded:
                         features = loaded.get('features', [])
@@ -146,7 +147,7 @@ class DataLoadTool(Tool):
                     # ISF (seismic)
                     events = []
                     current_event = None
-                    with open(source, 'r', encoding='utf-8', errors='ignore') as f:
+                    with open(source, encoding='utf-8', errors='ignore') as f:
                         for line in f:
                             line = line.strip()
                             if line.startswith('Event '):
@@ -229,7 +230,7 @@ class DataLoadTool(Tool):
                         data = df
                 elif source_str.endswith('.txt'):
                     source_path = Path(source) if isinstance(source, str) else source
-                    with open(source_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    with open(source_path, encoding='utf-8', errors='ignore') as f:
                         content = f.read()
                     lines = content.strip().split('\n')
                     if len(lines) > 1:
@@ -329,15 +330,16 @@ class DataLoadTool(Tool):
             return ToolResult(success=False, output={}, error=str(e))
 
     # --- Additional loader for web ---
-    def _load_web(self, source: str) -> "pd.DataFrame":
+    def _load_web(self, source: str) -> pd.DataFrame:
         pd = _get_pandas()
         try:
-            from crawl4ai import AsyncWebCrawler
             import asyncio
-        except ImportError:
+
+            from crawl4ai import AsyncWebCrawler
+        except ImportError as exc:
             raise ImportError(
                 "crawl4ai required for web extraction. Install with: pip install crawl4ai"
-            )
+            ) from exc
         async def _crawl_url(url: str):
             async with AsyncWebCrawler() as crawler:
                 result = await crawler.arun(url=url)
@@ -352,7 +354,7 @@ class DataLoadTool(Tool):
                 result = run_sync(_crawl_url(source))
             else:
                 try:
-                    loop = asyncio.get_running_loop()
+                    asyncio.get_running_loop()
                     try:
                         import nest_asyncio
                         nest_asyncio.apply()
@@ -374,7 +376,7 @@ class DataLoadTool(Tool):
                 except RuntimeError:
                     result = asyncio.run(_crawl_url(source))
         except Exception as e:
-            raise ValueError(f"Failed to crawl URL: {source}. Error: {e}")
+            raise ValueError(f"Failed to crawl URL: {source}. Error: {e}") from e
         if not result.success:
             raise ValueError(f"Failed to crawl URL: {source}")
         html_content = result.html if hasattr(result, 'html') else ""
@@ -395,7 +397,7 @@ class DataLoadTool(Tool):
                 markdown_content = result.markdown
         return pd.DataFrame({'content': [markdown_content[:5000]] if markdown_content else ['No content']})
 
-    def _parse_web_content(self, html: str, url: str) -> "pd.DataFrame":
+    def _parse_web_content(self, html: str, url: str) -> pd.DataFrame:
         pd = _get_pandas()
         try:
             from bs4 import BeautifulSoup
@@ -470,7 +472,7 @@ class DataProfileTool(Tool):
             }
         }
 
-    def execute(self, data: dict[str, Any], df: "pd.DataFrame | None" = None) -> ToolResult:
+    def execute(self, data: dict[str, Any], df: pd.DataFrame | None = None) -> ToolResult:
         """Generate data profile."""
         pd = _get_pandas()
         try:
