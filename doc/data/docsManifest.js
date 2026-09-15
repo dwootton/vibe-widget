@@ -1,11 +1,11 @@
 export const DOC_SITE = {
   name: 'Vibe Widget',
-  description: 'Interactive widgets for notebooks, generated from natural language and data.',
+  description: 'Notebook widgets generated from a prompt and your data.',
   baseUrl: 'https://vibewidget.dev',
-  repoUrl: 'https://github.com/dwootton/vibe-widgets',
+  repoUrl: 'https://github.com/dwootton/vibe-widget',
   installCommand: 'pip install vibe-widget',
-  securitySummary: 'Widgets execute LLM-generated JavaScript in the notebook frontend. Treat outputs as untrusted and verify results with audits and your own checks.',
-  changelogUrl: 'https://github.com/dwootton/vibe-widgets/blob/main/CHANGELOG.md',
+  securitySummary: 'A widget runs model-generated JavaScript in the notebook page, with the privileges that page has. Read the code before you trust a result, and use approve mode when you want to see it first.',
+  changelogUrl: 'https://github.com/dwootton/vibe-widget/blob/main/CHANGELOG.md',
   docsExportPath: '/docs-export.json',
   docsTextPath: '/docs.txt',
 };

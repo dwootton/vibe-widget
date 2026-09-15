@@ -1,9 +1,65 @@
 export const frontmatter = {
   title: 'Edit',
-  description: 'Iterate on generated widgets using code or the UI.'
+  description: 'Change a generated widget with a follow-up prompt, in Python or in the widget itself.'
 };
 
-Editing is covered alongside creation and theming so you can iterate in the same flow.
+`widget.edit(...)` describes a change in plain language and returns a new widget with that change
+applied. The existing code goes to the model along with your instruction, so the model revises what
+is there rather than starting over, and the parts you did not mention stay as they were.
 
-- For creation + edits, see [Create](/docs/create)
-- For theme-aware edits, see [Theming](/docs/theming)
+```python
+chart = vw.create("scatter plot of price against mileage", df)
+
+v2 = chart.edit("add hover tooltips and a right-side legend")
+```
+
+An edit keeps the theme of the widget it came from, along with its prompt history, so the look stays
+consistent while you change behavior. Inputs, outputs and actions are not carried over, so declare
+again any that the new version still needs. To change the look at the same time, pass a different
+theme:
+
+```python
+v3 = v2.edit("soften the palette and reduce gridlines", theme="minimal")
+```
+
+`vw.edit(description, source)` does the same thing when you would rather name the source
+explicitly, and the source can be a widget, a handle, or a path to a saved `.vw` file.
+
+## Editing one component
+
+A generated widget is often made of several pieces, and you can list them and work on one at a time.
+
+```python
+widget.components
+# ['scatter_chart', 'color_legend', 'slider']
+
+widget.component.color_legend                                  # renders on its own
+widget.component.color_legend.edit("use a horizontal layout")
+```
+
+Each entry in `widget.component` is a widget in its own right, so it has the same `edit` and `save`
+methods as the whole thing, and it renders when it is the last expression in a cell.
+
+## Editing inside the widget
+
+Every rendered widget has an editor. Opening it shows the generated code, a prompt box for the next
+change, and the audit findings when an audit has been run. An edit made in the editor updates the
+same widget in place, and the new code is stored in `.vibewidget/` the way a generated widget is.
+
+In approve mode the editor is also where you read the code and approve it, so nothing runs until you
+have seen it.
+
+## Reading the history
+
+Every prompt that shaped a widget is kept in order, which is useful when a widget has been through
+several rounds and you want to know how it got there.
+
+```python
+widget.prompt_history
+```
+
+## Cost
+
+An edit is a model call, so it is billed like a generation. Reruns with new data are not, because
+they reuse the code that already exists. See [Reactivity](/docs/reactivity) for reruns, and
+[Theming](/docs/theming) for keeping a consistent look across edits.

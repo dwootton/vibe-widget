@@ -8,37 +8,37 @@ import { FeatureCardProps } from '../types';
 const features: FeatureCardProps[] = [
     {
         title: "Create",
-        description: "Generate widgets from prompts, data sources, and input/output contracts.",
+        description: "Generate a widget from a prompt and a dataset.",
         icon: <Wand2 className="w-6 h-6" />,
         href: "/docs/create",
     },
     {
         title: "Reactivity",
-        description: "Wire outputs into inputs for live, cross-widget state syncing.",
+        description: "Send values into a widget, read them back out, and link widgets together.",
         icon: <Network className="w-6 h-6" />,
         href: "/docs/reactivity",
     },
     {
         title: "Edits",
-        description: "Iterate on existing widgets and refine outputs with targeted prompts.",
+        description: "Change a generated widget with a follow-up prompt.",
         icon: <RefreshCw className="w-6 h-6" />,
         href: "/docs/edit",
     },
     {
-        title: "Iterations",
-        description: "Understand caching, audits, and performance tuning in the workflow.",
+        title: "Load & Save",
+        description: "Store widgets on disk, share them through git, and reload them later.",
         icon: <Box className="w-6 h-6" />,
-        href: "/docs/iterations",
+        href: "/docs/composability",
     },
     {
         title: "Theming",
-        description: "Apply built-in themes or generate custom visual specs.",
+        description: "Describe how a widget should look, and reuse that description.",
         icon: <Paintbrush className="w-6 h-6" />,
         href: "/docs/theming",
     },
     {
         title: "Configuration",
-        description: "Set defaults for models, keys, and global behavior.",
+        description: "Set the model, the endpoint, and the safety limits.",
         icon: <Sliders className="w-6 h-6" />,
         href: "/docs/config",
     }
