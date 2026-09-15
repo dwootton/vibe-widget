@@ -1,1 +1,0 @@
-import{j as o}from"./index-B4z5kDSy.js";import{D as n}from"./DocContent-CBrQcdvq.js";const s=()=>o.jsx(n,{title:"Coming Soon",children:o.jsx("p",{children:"This documentation section is under construction."})});export{s as default};

@@ -1,21 +1,21 @@
 Vibe Widget - Full Docs Index
-Interactive widgets for notebooks, generated from natural language and data.
+Notebook widgets generated from a prompt and your data.
 
 Install:
 - pip install vibe-widget
 
 Security model:
-- Widgets execute LLM-generated JavaScript in the notebook frontend. Treat outputs as untrusted and verify results with audits and your own checks.
+- A widget runs model-generated JavaScript in the notebook page, with the privileges that page has. Read the code before you trust a result, and use approve mode when you want to see it first.
 
 Pages:
-- /docs: Installation - Get up and running with Vibe Widget in seconds.
-- /docs/config: Configuration - Configure model settings and API keys.
-- /docs/create: Create - Create widgets from natural language prompts and data sources.
-- /docs/edit: Edit - Iterate on generated widgets using code or the UI.
-- /docs/audit: Audit - Review widget code and behavior for risks, usability issues, and design gaps.
-- /docs/reactivity: Reactivity - Connect widgets with reactive inputs and outputs.
-- /docs/composability: Load & Save - Persist widgets to disk and reload them later.
-- /docs/theming: Theming - Style widgets with natural-language design specs.
+- /docs: Installation - Install the package, set one API key, and create a first widget.
+- /docs/config: Configuration - Set the model, the endpoint, and the safety limits.
+- /docs/create: Create - Generate a widget from a prompt and a dataset.
+- /docs/edit: Edit - Change a generated widget with a follow-up prompt, in Python or in the widget itself.
+- /docs/audit: Audit - Ask a second model call to review a generated widget and report what it finds.
+- /docs/reactivity: Reactivity - Send values into a widget, read values back out, and link widgets together.
+- /docs/composability: Load & Save - Store widgets on disk, share them through git, and reload them later.
+- /docs/theming: Theming - Describe how a widget should look, and reuse that description across widgets.
 - /docs/widgetarium: Widgetarium - The ecosystem of widgets and templates.
 
 Docs export:
@@ -23,4 +23,4 @@ Docs export:
 - /docs-export.json
 
 Changelog:
-- https://github.com/dwootton/vibe-widgets/blob/main/CHANGELOG.md
+- https://github.com/dwootton/vibe-widget/blob/main/CHANGELOG.md
