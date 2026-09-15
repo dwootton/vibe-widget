@@ -8,9 +8,10 @@ installDom();
 const React = (await import("react")).default;
 const { createRoot } = await import("react-dom/client");
 const { flushSync } = await import("react-dom");
-const RuntimeErrorBoundary = (
-  await import("../../src/vibe_widget/AppWrapper/components/RuntimeErrorBoundary.js")
-).default;
+const { makeErrorBoundary } = await import(
+  "../../src/vibe_widget/AppWrapper/components/RuntimeErrorBoundary.js"
+);
+const RuntimeErrorBoundary = makeErrorBoundary(React);
 
 function Thrower() {
   throw new Error("guest widget exploded");

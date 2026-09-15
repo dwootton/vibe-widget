@@ -15,17 +15,13 @@ import useContainerMetrics from "./hooks/useContainerMetrics";
 import useModelSync from "./hooks/useModelSync";
 import { appendWidgetLogs, requestSaveWidget, requestStatePrompt } from "./actions/modelActions";
 import { debugLog } from "./utils/debug";
+import { provideReact } from "./utils/sharedReact";
 
-// Provide globals so dynamically imported widgets can reuse the same React runtime.
-if (typeof globalThis !== "undefined") {
-  globalThis.ReactProvided = React;
-  globalThis.ReactDOMProvided = { createRoot, flushSync };
-  globalThis.ReactDOMClientProvided = { createRoot };
-  // Also expose React on the canonical key to avoid fallback imports in constrained hosts.
-  if (!globalThis.React) globalThis.React = React;
-  if (!globalThis.ReactDOM) globalThis.ReactDOM = globalThis.ReactDOMProvided;
-  if (!globalThis.ReactDOMClient) globalThis.ReactDOMClient = globalThis.ReactDOMClientProvided;
-}
+// Provide globals so dynamically imported widgets can reuse the same React
+// runtime. anywidget evaluates this bundle once per widget, so a page can hold
+// several React copies; the first to load owns every guest tree and is never
+// replaced. See utils/sharedReact.js.
+provideReact(React, { createRoot, flushSync }, { createRoot });
 
 ensureGlobalStyles();
 

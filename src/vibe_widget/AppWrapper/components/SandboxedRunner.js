@@ -1,12 +1,10 @@
 import * as React from "react";
-import { createRoot } from "react-dom/client";
-import { flushSync } from "react-dom";
 import * as Babel from "@babel/standalone";
 import { appendWidgetLogs } from "../actions/modelActions";
 import { captureRuntimeError } from "../utils/runtimeError";
 import { debugLog } from "../utils/debug";
 import { createModelFacade } from "../utils/modelFacade";
-import RuntimeErrorBoundary from "./RuntimeErrorBoundary";
+import { mountGuest, sharedCreateRoot, sharedReact, sharedReactDOM } from "../utils/sharedReact";
 import {
   isBundledSource,
   REACT_PACKAGE_NAMES,
@@ -15,6 +13,53 @@ import {
 import { ES_MODULE_SHIMS_SOURCE } from "../vendor/esModuleShims";
 
 let sandboxInstanceCounter = 0;
+
+const GUEST_FALLBACK_STYLE = {
+  padding: "20px",
+  color: "var(--jp-ui-font-color1, #f8fafc)",
+  fontSize: "14px",
+};
+
+/**
+ * Hosts the guest tree in its own root owned by the page-wide React instance.
+ * The wrapper tree around it belongs to this bundle's React copy, which on a
+ * page with several widgets is a different copy from the one the guest's
+ * imported hooks come from.
+ */
+function GuestHost({ Guest, facade, resetKey, onError }) {
+  const hostRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    // Fresh node per mount: the deferred unmount can outlive this effect.
+    const mountPoint = document.createElement("div");
+    mountPoint.style.width = "100%";
+    mountPoint.style.height = "100%";
+    host.appendChild(mountPoint);
+    const shared = sharedReact();
+    const root = mountGuest(mountPoint, {
+      Guest,
+      props: { model: facade },
+      onError,
+      resetKey,
+      fallback: shared.createElement(
+        "div",
+        { style: GUEST_FALLBACK_STYLE },
+        "Runtime error detected. Check the panel above."
+      ),
+    });
+    return () => {
+      // React refuses a synchronous unmount from inside a commit; defer one tick.
+      queueMicrotask(() => {
+        root.unmount();
+        mountPoint.remove();
+      });
+    };
+  }, [Guest, facade, resetKey, onError]);
+
+  return <div ref={hostRef} style={{ width: "100%", height: "100%" }} />;
+}
 
 function SandboxedRunner({ code, model, runKey }) {
   const instanceId = React.useRef(++sandboxInstanceCounter).current;
@@ -68,7 +113,8 @@ function SandboxedRunner({ code, model, runKey }) {
   const installReactImportMap = React.useCallback(async () => {
     await ensureImportShim();
 
-    // The blob modules read from globalThis.ReactProvided (always current),
+    // The blob modules bind to globalThis.ReactProvided at their first
+    // evaluation and that instance never changes (see utils/sharedReact.js),
     // so the import map only needs to be registered once per page.
     const existing = globalThis.importShim.getImportMap?.();
     if (existing?.imports?.react) {
@@ -357,12 +403,14 @@ ${rewiredSource}`;
 
         if (module.default && typeof module.default === "function") {
           debugLog(model, "[vibe][runtime] module loaded successfully");
-          // Pre-mount guard: render into a detached node to catch synchronous throws.
+          // Pre-mount guard: render into a detached node to catch synchronous
+          // throws. Uses the shared React, same as the real mount below.
           try {
+            const shared = sharedReact();
             const probeContainer = document.createElement("div");
-            const Element = React.createElement(module.default, { model: facade, React });
-            const probeRoot = createRoot(probeContainer);
-            flushSync(() => {
+            const Element = shared.createElement(module.default, { model: facade, React: shared });
+            const probeRoot = sharedCreateRoot()(probeContainer);
+            sharedReactDOM().flushSync(() => {
               probeRoot.render(Element);
             });
             probeRoot.unmount();
@@ -398,16 +446,8 @@ ${rewiredSource}`;
     return null;
   }
 
-  const fallback = (
-    <div style={{ padding: "20px", color: "var(--jp-ui-font-color1, #f8fafc)", fontSize: "14px" }}>
-      Runtime error detected. Check the panel above.
-    </div>
-  );
-
   return (
-    <RuntimeErrorBoundary resetKey={code} onError={handleRuntimeError} fallback={fallback}>
-      <GuestWidget model={facade} React={React} />
-    </RuntimeErrorBoundary>
+    <GuestHost Guest={GuestWidget} facade={facade} resetKey={code} onError={handleRuntimeError} />
   );
 }
 
