@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-15
+
+### Fixed
+- `vw.create` with a cached prompt returns that widget's own code again; cache lookups no longer follow the revision chain unless asked, so chained edits hit the cache instead of regenerating.
+- A `vendor/model` id with no explicit endpoint routes to OpenRouter when `OPENROUTER_API_KEY` is set, even if an Anthropic or OpenAI key is also present; changing the model re-infers the endpoint.
+
 ## [0.3.0] - 2026-09-15
 
 ### Fixed
@@ -117,3 +123,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.2.0]: https://github.com/dwootton/vibe-widget/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dwootton/vibe-widget/releases/tag/v0.1.0
 [0.3.0]: https://github.com/dwootton/vibe-widget/compare/v0.2.7...v0.3.0
+[0.3.1]: https://github.com/dwootton/vibe-widget/compare/v0.3.0...v0.3.1

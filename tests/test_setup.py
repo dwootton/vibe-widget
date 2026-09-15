@@ -190,12 +190,34 @@ def test_openrouter_style_model_id_is_rejected_on_a_direct_provider(clean_env, m
     monkeypatch.setenv("ANTHROPIC_API_KEY", "a-key")
 
     with pytest.raises(ValueError, match="OpenRouter id"):
-        Config(model="anthropic/claude-opus-4.5")
+        Config(model="anthropic/claude-opus-5")
     with pytest.raises(ValueError, match="OpenRouter id"):
-        config(model="anthropic/claude-opus-4.5")
+        config(model="anthropic/claude-opus-5")
 
     # The same id is fine once the endpoint really is OpenRouter.
-    assert config(model="anthropic/claude-opus-4.5", base_url=config_mod.OPENROUTER_BASE_URL)
+    assert config(model="anthropic/claude-opus-5", base_url=config_mod.OPENROUTER_BASE_URL)
+
+
+def test_a_vendor_model_id_routes_to_openrouter_and_a_plain_one_routes_back(
+    clean_env, monkeypatch
+):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "anthropic-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "router-key")
+
+    cfg = config(model="anthropic/claude-opus-4.5")
+    assert (cfg.provider, cfg.api_key, cfg.key_source) == (
+        "openrouter", "router-key", "OPENROUTER_API_KEY",
+    )
+
+    cfg = config(model="claude-sonnet-5")
+    assert (cfg.provider, cfg.api_key) == ("anthropic", "anthropic-key")
+
+
+def test_a_pinned_endpoint_is_never_re_routed_by_the_model(clean_env, monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "router-key")
+
+    with pytest.raises(ValueError, match="OpenRouter id"):
+        Config(base_url="https://api.anthropic.com/v1/", model="anthropic/claude-opus-4.5")
 
 
 def test_a_rejected_model_leaves_the_global_config_untouched(clean_env, monkeypatch):
@@ -203,7 +225,7 @@ def test_a_rejected_model_leaves_the_global_config_untouched(clean_env, monkeypa
     before = config().model
 
     with pytest.raises(ValueError, match="OpenRouter id"):
-        config(model="anthropic/claude-opus-4.5")
+        config(model="anthropic/claude-opus-5")
 
     assert config().model == before == "claude-opus-5"
 

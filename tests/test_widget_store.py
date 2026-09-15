@@ -101,10 +101,16 @@ def test_lookup_follows_only_its_own_revision_chain(tmp_path: Path) -> None:
         widget_code="export function Revised() {}",
         revision_parent=first["cache_key"],
     )
-    followed = _lookup(store, description="scatter plot of sales")
+    followed = _lookup(store, description="scatter plot of sales", follow_revisions=True)
     assert followed is not None
     assert followed["cache_key"] == revised["cache_key"]
     assert followed["_original_cache_key"] == first["cache_key"]
+
+    # A create-style lookup keeps serving the parent, so an edit chains off its key.
+    exact = _lookup(store, description="scatter plot of sales")
+    assert exact is not None
+    assert exact["cache_key"] == first["cache_key"]
+    assert "_original_cache_key" not in exact
 
 
 def test_two_instances_do_not_lose_entries(tmp_path: Path) -> None:
@@ -271,12 +277,12 @@ def test_lookup_follows_revisions(tmp_path: Path) -> None:
         revision_parent=original["cache_key"],
     )
 
-    followed = _lookup(store)
+    followed = _lookup(store, follow_revisions=True)
     assert followed is not None
     assert followed["_original_cache_key"] == original["cache_key"]
     assert followed["description"] == "scatter plot of sales with tooltips"
 
-    exact = _lookup(store, follow_revisions=False)
+    exact = _lookup(store)
     assert exact is not None and exact["cache_key"] == original["cache_key"]
 
 
