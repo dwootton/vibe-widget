@@ -1,4 +1,4 @@
-import{r,j as e,b as D,f as S,t as L}from"./index-CHIWwMwg.js";import{p as N}from"./PyodideRuntime-C3-bmH7o.js";let T=0;function C(){return`cell-${++T}-${Date.now()}`}const P=[{id:C(),type:"markdown",content:`<h2>Vibe Widget Playground</h2>
+import{r,j as e,b as D,f as S,t as L}from"./index-B4z5kDSy.js";import{p as N}from"./PyodideRuntime-CGpHJtux.js";let T=0;function C(){return`cell-${++T}-${Date.now()}`}const P=[{id:C(),type:"markdown",content:`<h2>Vibe Widget Playground</h2>
 <p>Write Python below and press <strong>Shift + Enter</strong> to run a cell. <code>vibe_widget</code>, <code>pandas</code>, and <code>numpy</code> are pre-installed.</p>
 <p>Add your <a href="https://openrouter.ai/keys" target="_blank">OpenRouter API key</a> to generate widgets live, or leave it blank to use pre-generated examples.</p>`},{id:C(),type:"code",content:`import vibe_widget as vw
 import pandas as pd
