@@ -56,12 +56,29 @@ def _rejected_param(exc: Exception, params: dict[str, Any]) -> str | None:
 # Ordered most specific first: APITimeoutError subclasses APIConnectionError.
 _ERROR_KINDS = (
     (openai.AuthenticationError, "auth"),
-    (openai.PermissionDeniedError, "auth"),
+    (openai.PermissionDeniedError, "quota"),
     (openai.NotFoundError, "not_found"),
     (openai.RateLimitError, "rate_limit"),
     (openai.APITimeoutError, "timeout"),
     (openai.APIConnectionError, "connection"),
 )
+
+
+# A bad model id comes back as a 400, not a 404, and the phrasing varies by host.
+_MODEL_NOT_FOUND = re.compile(
+    r"not a valid model|model_not_found|does not exist|unknown model", re.IGNORECASE
+)
+
+
+def _server_message(exc: Exception) -> str:
+    """Return the server's own error sentence, never the raw response body."""
+    body = getattr(exc, "body", None)
+    error = body.get("error") if isinstance(body, dict) else None
+    message = error.get("message") if isinstance(error, dict) else None
+    if message:
+        return str(message)
+    status = getattr(exc, "status_code", None)
+    return f"HTTP {status}" if status else str(exc)
 
 
 def _is_context_length(exc: Exception) -> bool:
@@ -154,8 +171,14 @@ class OpenAICompatProvider(LLMProvider):
             return ProviderError(self._message_for("context_length"), "context_length")
         for exc_type, kind in _ERROR_KINDS:
             if isinstance(exc, exc_type):
+                # A 403 says what the limit is and where to manage it; nothing to add.
+                if kind == "quota":
+                    return ProviderError(_server_message(exc), kind)
                 return ProviderError(self._message_for(kind), kind)
-        return ProviderError(f"Request to {self.host} failed: {exc}", "other")
+        detail = _server_message(exc)
+        if _MODEL_NOT_FOUND.search(detail):
+            return ProviderError(self._message_for("not_found"), "not_found")
+        return ProviderError(f"Request to {self.host} failed: {detail}", "other")
 
     def _message_for(self, kind: str) -> str:
         if kind == "auth":

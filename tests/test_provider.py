@@ -267,3 +267,49 @@ def test_agent_loop_uses_provider_temperature_and_skips_streaming(stub):
     params = provider.client.completions.calls[0]
     assert params["temperature"] == 0.25
     assert "stream" not in params
+
+
+def test_bad_model_id_is_not_found_and_never_echoes_the_response_body(stub):
+    request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+    exc = openai.BadRequestError(
+        "Error code: 400 - {'error': {'message': 'zz/nope is not a valid model ID'}, "
+        "'user_id': 'user_2SECRET'}",
+        response=httpx.Response(400, request=request),
+        body={
+            "error": {"message": "zz/nope is not a valid model ID"},
+            "user_id": "user_2SECRET",
+        },
+    )
+    provider = stub([exc])
+
+    with pytest.raises(ProviderError) as excinfo:
+        provider.generate_text("p")
+
+    assert excinfo.value.kind == "not_found"
+    assert "user_2SECRET" not in str(excinfo.value)
+    assert "vw.config(model=...)" in str(excinfo.value)
+
+
+def test_state_rule_is_emitted_even_with_no_outputs(stub):
+    provider = stub([])
+
+    section = provider._build_outputs_inputs_section({}, {}, {}, None)
+
+    assert "only for declared outputs" in section
+
+
+def test_key_limit_403_is_quota_and_keeps_the_server_sentence(stub):
+    request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+    message = "Key limit exceeded (total limit). Manage it using https://openrouter.ai/settings/keys"
+    exc = openai.PermissionDeniedError(
+        f"Error code: 403 - {{'error': {{'message': '{message}'}}, 'user_id': 'user_2SECRET'}}",
+        response=httpx.Response(403, request=request),
+        body={"error": {"message": message}, "user_id": "user_2SECRET"},
+    )
+    provider = stub([exc])
+
+    with pytest.raises(ProviderError) as excinfo:
+        provider.generate_text("p")
+
+    assert excinfo.value.kind == "quota"
+    assert str(excinfo.value) == message

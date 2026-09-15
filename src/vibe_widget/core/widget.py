@@ -1511,8 +1511,8 @@ class VibeWidget(anywidget.AnyWidget):
             )
 
             if result.applied:
-                bundle_success = self._apply_code(result.code)
-                if bundle_success:
+                previous_code = self.code
+                if self._apply_code(result.code):
                     self._append_log("Code fixed, retrying")
                     self._set_status("ready")
                     # Clear error state so the frontend renders the widget. The
@@ -1521,8 +1521,11 @@ class VibeWidget(anywidget.AnyWidget):
                     self.widget_error = ""
                     self.last_runtime_error = ""
                     self.widget_logs = []  # Clear old error logs
-                else:
+                elif self._pending_render_source:
                     self._append_log(self._unrendered_reason())
+                else:
+                    self._apply_code(previous_code)
+                    self._append_log("Repair rolled back: the fixed code did not bundle")
                 return
 
             self._append_log(result.message or "Fix attempt failed")
@@ -2610,6 +2613,7 @@ def edit(
         base_code=source_info.code,
         base_components=source_info.components,
         base_widget_id=base_cache_key,
+        existing_metadata=source_info.metadata,
         cache=cache,
         display_widget=display,
         execution_mode=resolved_config.execution if resolved_config else "auto",

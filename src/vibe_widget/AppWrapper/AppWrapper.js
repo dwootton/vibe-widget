@@ -157,7 +157,6 @@ function AppWrapper({ model }) {
     executionState
   } = useModelSync(model);
 
-  const isLoading = status === "generating" || status === "retrying";
   const approvalMode = executionMode === "approve";
 
   const {
@@ -184,14 +183,12 @@ function AppWrapper({ model }) {
   const runtimeCheck = executionState?.runtime_check === true;
   const shouldRenderWidget = hasCode && isApproved && !hasRuntimeError && (status === "ready" || runtimeCheck);
   const viewerStatus = hasRuntimeError && status === "ready" ? "error" : status;
-  const { showAudit, setShowAudit, requestAudit, acceptAudit } = useAuditFlow({
+  const { showAudit, requestAudit } = useAuditFlow({
     model,
     approvalMode,
     status,
     code,
-    auditStatus,
-    isLoading,
-    hasCode
+    isApproved
   });
 
   const handleViewSource = () => {
@@ -261,10 +258,6 @@ function AppWrapper({ model }) {
     });
   };
 
-  const handleAuditAccept = () => {
-    acceptAudit();
-  };
-
   const handleSaveWidget = () => {
     setShowSaveDialog(true);
   };
@@ -311,7 +304,13 @@ function AppWrapper({ model }) {
         height: status !== "ready" ? "300px" : "auto"
       }}
     >
-      {showAudit && <AuditNotice onAccept={handleAuditAccept} />}
+      {showAudit && !showSource && (
+        <AuditNotice
+          onRunAudit={requestAudit}
+          onApprove={handleApproveRun}
+          auditStatus={auditStatus}
+        />
+      )}
 
       <SaveDialog
         isOpen={showSaveDialog}
@@ -381,10 +380,7 @@ function AppWrapper({ model }) {
           onSubmitPrompt={handleStatePrompt}
           approvalMode={approvalMode}
           isApproved={isApproved}
-          onApprove={() => {
-            handleApproveRun();
-            setShowAudit(false);
-          }}
+          onApprove={handleApproveRun}
         />
       )}
     </div>

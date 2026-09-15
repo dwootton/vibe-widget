@@ -63,7 +63,9 @@ test("with a contract, writes are limited to outputs and accept both call forms"
   facade.set({ selection: 4 });
   assert.equal(model.values.selection, 4);
 
-  assert.throws(() => facade.set("upstream", "x"), /not an input or output/);
+  facade.set("upstream", "x");
+  assert.equal(model.values.upstream, "u", "a write to an input never reaches the model");
+
   assert.throws(() => facade.set({ selection: 5, status: "ready" }), /'status' is not an input/);
   // A rejected object write is applied atomically: nothing lands.
   assert.equal(model.values.selection, 4);
@@ -128,4 +130,32 @@ test("changed exposes only readable traits", () => {
   const facade = createModelFacade(model, contract);
 
   assert.deepEqual(facade.changed, { selection: 1 });
+});
+
+test("an undeclared set stays in the widget and never reaches Python", () => {
+  const warnings = [];
+  const realWarn = console.warn;
+  console.warn = (message) => warnings.push(message);
+  try {
+    const model = fakeModel({ data: [1] });
+    const facade = createModelFacade(model, { inputs: [], outputs: [], actions: [] });
+
+    facade.set("n_points", 42);
+    facade.set("n_points", 43);
+    facade.set({ n_slices: 7 });
+
+    assert.equal(facade.get("n_points"), 43);
+    assert.equal(facade.get("n_slices"), 7);
+    assert.equal("n_points" in model.values, false, "never written to the model");
+    assert.equal("n_slices" in model.values, false);
+
+    facade.save_changes();
+    assert.deepEqual(facade.changed, {}, "local state produces no change event");
+    assert.equal(warnings.length, 2, "one warning per undeclared key");
+
+    assert.throws(() => facade.set("code", "x"), /'code' is not an input or output/);
+    assert.throws(() => facade.get("code"), /'code' is not an input or output/);
+  } finally {
+    console.warn = realWarn;
+  }
 });

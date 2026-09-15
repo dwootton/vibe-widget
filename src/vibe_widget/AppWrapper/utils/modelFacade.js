@@ -69,20 +69,46 @@ export function createModelFacade(model, rawContract) {
   // the raw model never escapes. One wrapper per handler keeps `off` working.
   const wrappers = new Map();
 
+  // Widgets keep internal state in model.set("n_points", ...) even when nothing is
+  // declared. Those keys live here instead: readable back, never synced to Python.
+  // ponytail: a local value shadows a declared input of the same name; declare it
+  // as an output if Python has to see it.
+  const localState = new Map();
+  const warned = new Set();
+
+  function setLocal(key, value) {
+    if (INTERNAL_KEYS.has(key)) deny(key);
+    if (!warned.has(key)) {
+      warned.add(key);
+      console.warn(
+        `vibe_widget: '${key}' is not a declared output; kept in the widget, not synced to Python`
+      );
+    }
+    localState.set(key, value);
+  }
+
   const facade = {
     get(key) {
+      if (localState.has(key)) return localState.get(key);
       if (!canRead(key)) deny(key);
       return model.get(key);
     },
     set(key, value) {
       if (key && typeof key === "object") {
+        // Validate first: an internal key still rejects the whole object write.
         Object.keys(key).forEach((name) => {
-          if (!canWrite(name)) deny(name);
+          if (INTERNAL_KEYS.has(name) && !canWrite(name)) deny(name);
         });
-        Object.keys(key).forEach((name) => model.set(name, key[name]));
+        Object.keys(key).forEach((name) => {
+          if (canWrite(name)) model.set(name, key[name]);
+          else setLocal(name, key[name]);
+        });
         return;
       }
-      if (!canWrite(key)) deny(key);
+      if (!canWrite(key)) {
+        setLocal(key, value);
+        return;
+      }
       model.set(key, value);
     },
     save_changes() {

@@ -16,21 +16,28 @@ const actionsClass = tw("flex justify-end gap-2");
 const acceptButtonClass = tw(
   "bg-accent text-[#0b0b0b] border-none rounded-[8px] px-4 py-2 text-[12px] font-semibold cursor-pointer transition-colors duration-150 hover:bg-[#fb923c]"
 );
+const auditButtonClass = tw(
+  "bg-transparent text-[#f2f0e9] border border-[rgba(242,240,233,0.45)] rounded-[8px] px-4 py-2 text-[12px] font-semibold cursor-pointer transition-colors duration-150 hover:bg-[rgba(242,240,233,0.12)] disabled:cursor-default disabled:opacity-60"
+);
 const strongClass = tw("text-[#fef2f2]");
 
-export default function AuditNotice({ onAccept }) {
+export default function AuditNotice({ onRunAudit, onApprove, auditStatus }) {
+  const auditing = auditStatus === "running";
   return (
     <div class={overlayClass}>
       <div class={cardClass} role="dialog" aria-live="polite">
-        <div class={titleClass}>Audit Required</div>
+        <div class={titleClass}>Approval Required</div>
         <div class={bodyClass}>
-          Vibe widgets are <strong class={strongClass}>LLM-generated code</strong>. Before using results,
-          review the widget for correctness, data handling, and safety.
-          By continuing, you acknowledge the need to audit outputs.
+          Vibe widgets are <strong class={strongClass}>LLM-generated code</strong> that runs with the
+          privileges of this page. Review it for correctness, data handling, and safety before
+          approving. An audit asks the model to review the code and costs a request.
         </div>
         <div class={actionsClass}>
-          <button class={acceptButtonClass} onClick={onAccept}>
-            I Understand
+          <button class={auditButtonClass} onClick={() => onRunAudit("fast")} disabled={auditing}>
+            {auditing ? "Auditing..." : "Run audit"}
+          </button>
+          <button class={acceptButtonClass} onClick={onApprove}>
+            Approve
           </button>
         </div>
       </div>

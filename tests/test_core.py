@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from importlib import import_module
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -122,13 +123,14 @@ def test_repair_under_approval_does_not_claim_the_fix_is_live(
 class StubRepairService:
     """Repair service that always succeeds without calling an LLM."""
 
-    def __init__(self, orchestrator: Any) -> None:
+    def __init__(self, orchestrator: Any, code: str = CODE) -> None:
         self.orchestrator = orchestrator
+        self.code = code
         self.attempts: list[int] = []
 
     def fix_runtime_error(self, **kwargs: Any) -> RepairResult:
         self.attempts.append(kwargs["retry_count"])
-        return RepairResult(code=CODE, applied=True, retryable=False, message="")
+        return RepairResult(code=self.code, applied=True, retryable=False, message="")
 
 
 def test_auto_repair_budget_is_spent_once_per_generation(
@@ -305,3 +307,47 @@ def test_edit_resolves_a_source_by_var_name(
 
     assert info.code == CODE
     assert info.metadata["var_name"] == "stored_widget"
+
+
+def test_repair_that_does_not_bundle_is_rolled_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("VIBE_ALLOW_UNBUNDLED", raising=False)
+    widget = make_widget(tmp_path, monkeypatch)
+    broken = "export default function Broken() { return ( }"
+
+    def fake_bundle(source: str) -> SimpleNamespace:
+        if source == broken:
+            return SimpleNamespace(code="", bundled=False, error="Unexpected token")
+        return SimpleNamespace(code=source, bundled=True, error="")
+
+    monkeypatch.setattr(widget._bundle_service, "bundle", fake_bundle)
+    widget._max_retries = 1
+    widget._repair_service = StubRepairService(widget.orchestrator, code=broken)
+
+    widget.error_message = "TypeError: boom"
+
+    assert widget.code == CODE
+    assert CODE in widget.render_code
+    assert any("rolled back" in line for line in widget.logs)
+
+
+def test_edit_keeps_the_parent_prompt_history(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    WidgetStore().save(
+        widget_code=CODE,
+        description="a stored widget",
+        var_name="stored_widget",
+        data_signature=None,
+        model="stub/model",
+        exports=None,
+        imports_serialized=None,
+        prompt_history=[{"prompt": "a stored widget", "source": "create"}],
+    )
+    monkeypatch.setattr(VibeWidget, "_start_generation", lambda *a, **k: None)
+
+    edited = widget_mod.edit("add tooltips", "stored_widget", display=False).widget
+
+    assert [e["prompt"] for e in edited._prompt_history] == ["a stored widget", "add tooltips"]

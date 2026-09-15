@@ -602,10 +602,10 @@ CODE WITH LINE NUMBERS:
         action_params: Optional[dict],
     ) -> str:
         """Build the outputs/inputs/actions section of the prompt."""
-        if not outputs and not inputs and not actions:
-            return ""
-
-        sections: list[str] = []
+        sections: list[str] = [
+            "\nSTATE RULE: model.set and model.save_changes are only for declared outputs; "
+            "keep every other piece of state in React state or local variables."
+        ]
 
         if outputs:
             output_list = "\n".join(
