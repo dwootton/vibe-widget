@@ -6,14 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- Zero-setup keys: `.env` files are discovered automatically and the provider, endpoint and default model are inferred from `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY` or `VIBE_API_KEY`.
-- Positron and Quarto are detected alongside VS Code, Colab and JupyterLite.
-- Requests adapt to endpoints that reject `max_tokens`, `temperature` or `stream_options`.
-- Users holding both `ANTHROPIC_API_KEY` and `OPENROUTER_API_KEY` now default to Anthropic; set `VIBE_API_KEY` and `VIBE_BASE_URL` to pin a provider.
+
+## [0.3.0] - 2026-09-15
+
+### Fixed
 - Auto-repair budget is `retry` attempts per generation; a successful repair no longer refills it, and exhaustion sets status `blocked` with a hint.
 - Cached widgets load and render without an API key; the key is only needed for generation, edits, repairs and audits.
 - Cache lookups follow only the widget's own revision chain, so two prompts sharing a variable name no longer collide.
 - Quarto and nbconvert renders complete synchronously and the embedded widget state survives the HTML tokenizer; panels are legible on light themes.
+- Generated code may call `model.set` for its own state; undeclared keys stay in the browser and never reach Python.
+- No automatic LLM audit: approval and audit are explicit buttons, and the audit notice no longer covers widgets in auto mode.
+- Unknown model ids report `not_found` with the server's message and never echo the response body; a spent key quota reports `quota`.
+- A repair whose code fails to bundle is rolled back instead of applied; `vw.edit` keeps the parent's prompt history.
+
+### Changed
+- Zero-setup keys: `.env` files are discovered automatically and the provider, endpoint and default model are inferred from `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY` or `VIBE_API_KEY`.
+- Positron and Quarto are detected alongside VS Code, Colab and JupyterLite.
+- Requests adapt to endpoints that reject `max_tokens`, `temperature` or `stream_options`.
+- Users holding both `ANTHROPIC_API_KEY` and `OPENROUTER_API_KEY` now default to Anthropic; set `VIBE_API_KEY` and `VIBE_BASE_URL` to pin a provider.
 
 ### Removed
 - `vibe_widget.debug` module, which shipped caller locals and globals to the frontend
@@ -31,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.vibewidget/` is now a git-shareable artifact: one `.js` plus one `.json` sidecar per widget,
   no shared index file, with outputs, inputs, actions and generation provenance recorded per widget
 
-### Changed
+### Changed (continued)
 - Data sent to the LLM now honours `vw.config(data_privacy=..., sample_rows=...)`; schema mode
   sends no cell values
 - Generated widget code receives a restricted model facade limited to the widget's declared
@@ -106,3 +116,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [0.2.0]: https://github.com/dwootton/vibe-widget/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dwootton/vibe-widget/releases/tag/v0.1.0
+[0.3.0]: https://github.com/dwootton/vibe-widget/compare/v0.2.7...v0.3.0
