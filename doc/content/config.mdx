@@ -1,23 +1,23 @@
 export const frontmatter = {
   title: 'Configuration',
-  description: 'Configure model settings and API keys.'
+  description: 'Set the model, the endpoint, and the safety limits.'
 };
 
-Configure model settings and API keys.
-
-## Set defaults
+`vw.config()` reads and changes the settings every widget uses. Called with no arguments it reports
+what is currently in effect, and called with keyword arguments it changes those settings for the
+rest of the session.
 
 ```python
 import vibe_widget as vw
 
-vw.config(model="openai/gpt-5.1-codex")
-vw.config(mode="premium", model="openrouter")
+vw.config(model="claude-sonnet-5")
+vw.config(mode="premium")
 vw.config(execution="approve")
 ```
 
 ## API key setup
 
-Put one key in a `.env` file next to your notebook and you are done:
+Put one key in a `.env` file next to your notebook:
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-...
@@ -25,12 +25,12 @@ OPENAI_API_KEY=sk-...
 OPENROUTER_API_KEY=sk-or-...
 ```
 
-The file is searched for in the working directory and its parents, stopping at the repository root
-or your home directory. A variable already present in the environment is never overwritten, so an
-exported value always wins over the file. No extra dependency is needed; do not call
-`dotenv.load_dotenv()` yourself.
+The file is looked for in the working directory and each parent directory, stopping at the
+repository root or your home directory. A variable already present in the environment is never
+overwritten, so an exported value wins over the file. No extra package is needed, and you should not
+call `dotenv.load_dotenv()` yourself.
 
-Exporting the variable works identically:
+Exporting the variable works the same way:
 
 ```bash
 export ANTHROPIC_API_KEY='your-key'
@@ -40,11 +40,13 @@ export ANTHROPIC_API_KEY='your-key'
 $env:ANTHROPIC_API_KEY="your-key"
 ```
 
-We recommend avoiding hardcoded keys in notebooks to prevent accidental leaks.
+Keep keys out of the notebook itself, because a hardcoded key is easy to commit or share by
+accident.
 
 ## Provider inference
 
-When you do not set `base_url`, the key you supplied decides the endpoint and the default model.
+When you do not set `base_url`, the key you supplied decides both the endpoint and the default
+model.
 
 | Variable | Endpoint | Default model |
 | --- | --- | --- |
@@ -53,12 +55,12 @@ When you do not set `base_url`, the key you supplied decides the endpoint and th
 | `OPENAI_API_KEY` | `https://api.openai.com/v1` | `gpt-5.5` |
 | `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` | `google/gemini-3-flash-preview` |
 
-They are checked in that order, so `VIBE_API_KEY` overrides everything and `OPENROUTER_API_KEY` is
-the last resort. An explicit `vw.config(api_key=...)` beats all of them. If a key looks like it was
-issued by a different vendor, for example an `sk-ant-` value stored in `OPENAI_API_KEY`, the
-variable name decides and a warning is printed once.
+The variables are checked in that order, so `VIBE_API_KEY` overrides everything and
+`OPENROUTER_API_KEY` is the last one tried. An explicit `vw.config(api_key=...)` beats all of them.
+When a key carries a prefix belonging to a different vendor, such as an `sk-ant-` value stored in
+`OPENAI_API_KEY`, the variable name decides the provider and a warning is printed once.
 
-`vw.config()` reports what was inferred, without ever showing the key:
+Calling `vw.config()` with no arguments reports what was inferred, without printing the key:
 
 ```python
 vw.config()
@@ -67,33 +69,42 @@ vw.config()
 ```
 
 `provider` is derived from the endpoint and reads `anthropic`, `openai`, `openrouter` or `custom`.
-`environment` lists the notebook hosts detected for this kernel, such as `vscode-like` for VS Code
-and Positron, `quarto`, `colab` or `pyodide`.
+`environment` lists the notebook hosts detected for the running kernel, such as `vscode-like` for
+VS Code and Positron, `quarto`, `colab` or `pyodide`.
 
-Changing the model alone keeps the provider your key selected:
+Changing only the model keeps the provider your key selected:
 
 ```python
 vw.config(model="claude-sonnet-5")   # still Anthropic
 ```
 
-Model IDs carrying an OpenRouter-style `vendor/` prefix are rejected on a direct provider, because
-`anthropic/claude-opus-4.5` is not a name Anthropic's own API knows. Use the plain name, or set
-`base_url` to OpenRouter.
+A model id written in OpenRouter's `vendor/name` form is routed to OpenRouter when
+`OPENROUTER_API_KEY` is set, even if an Anthropic or OpenAI key is also present, because that form
+of id exists only on OpenRouter. Going back to a plain model name returns you to the provider your
+other key selects.
+
+```python
+vw.config(model="anthropic/claude-opus-4.5")   # OpenRouter, when its key is set
+vw.config(model="claude-sonnet-5")             # back to Anthropic
+```
+
+Without an OpenRouter key the same id raises a `ValueError` explaining that Anthropic's own API does
+not know the name, and telling you to use the plain name or point `base_url` at OpenRouter.
 
 ## Endpoint
 
-Set `base_url` to reach any other OpenAI-compatible server, including a local one.
+Set `base_url` to reach any other OpenAI-compatible server, including one running on your machine.
 
 ```python
 vw.config(base_url="http://localhost:11434/v1", model="qwen2.5-coder")   # Ollama
 vw.config(base_url="http://localhost:8000/v1", model="Qwen/Qwen2.5-Coder-32B")  # vLLM
 ```
 
-A loopback endpoint (`localhost`, `127.0.0.1`, `::1`) needs no API key at all, since local servers
-ignore it. Set `VIBE_API_KEY` anyway if yours sits behind an auth proxy.
+An endpoint on `localhost`, `127.0.0.1` or `::1` needs no API key, because local servers ignore it.
+Set `VIBE_API_KEY` anyway when yours sits behind an auth proxy.
 
-For an endpoint with no dedicated variable, such as vLLM behind an auth proxy or Azure OpenAI, set
-both `VIBE_API_KEY` and `VIBE_BASE_URL`:
+For an endpoint with no dedicated variable, such as Azure OpenAI, set both `VIBE_API_KEY` and
+`VIBE_BASE_URL`:
 
 ```bash
 VIBE_API_KEY=your-key
@@ -101,65 +112,115 @@ VIBE_BASE_URL=https://my-resource.openai.azure.com/openai/v1
 ```
 
 Requests adapt to what the endpoint accepts. Newer OpenAI models want `max_completion_tokens`
-instead of `max_tokens`, and some models reject `temperature` outright; the rejected parameter is
-renamed or dropped and remembered, so only the first call to a given endpoint pays for the
-correction.
+instead of `max_tokens`, and some models reject `temperature` outright. The rejected parameter is
+renamed or dropped and the correction is remembered, so only the first call to a given endpoint pays
+for it.
 
-`timeout` is the HTTP timeout in seconds for a single model call, 120 by default. Raise it for slow
-local models.
+`timeout` is the HTTP timeout in seconds for one model call, and it defaults to 120. Raise it for
+slow local models.
 
 ```python
 vw.config(timeout=300.0)
 ```
 
-## Models
+## Models and modes
+
+`vw.models` prints the catalog, and `vw.models.standard` and `vw.models.premium` return the default
+id for each tier.
 
 ```python
-vw.models()
-vw.models(show="all")
-vw.models(verbose=False)
+vw.models
+vw.models.standard   # "google/gemini-3-flash-preview"
+vw.models.premium    # "google/gemini-3-pro-preview"
 ```
 
-## Common configuration options
+`mode` picks between two OpenRouter defaults, a faster and cheaper one and a slower and stronger
+one.
+
+```python
+vw.config(mode="standard")   # google/gemini-3-flash-preview, the default
+vw.config(mode="premium")    # google/gemini-3-pro-preview
+```
+
+Setting `mode` swaps the model only while you are on one of those two defaults. Once you name a
+model yourself, your choice stays, and `mode` no longer changes it. The word `"openrouter"` can be
+passed as the model name to mean whichever id the current mode points to.
+
+```python
+vw.config(mode="premium", model="openrouter")   # google/gemini-3-pro-preview
+```
+
+## Common options
 
 ```python
 vw.config(
-    execution="auto",   # "auto" or "approve"
-    retry=2,            # Runtime repair attempts
+    execution="auto",       # "auto" or "approve"
+    retry=2,                # automatic repair attempts per generation
     agent_preset="project",
     agent_run={"permission_tier": 1, "allowed_roots": ["."]},
     bypass_row_guard=False,
-    base_url=None,      # None means infer from whichever API key is set
-    timeout=120.0,      # HTTP timeout, seconds
+    base_url=None,          # None means infer from whichever API key is set
+    timeout=120.0,          # HTTP timeout, seconds
     data_privacy="sample",  # "sample" or "schema"
-    sample_rows=3,      # rows sent per input in "sample" mode
+    sample_rows=3,          # rows sent per input in "sample" mode
 )
 ```
 
+The three settings that take fixed strings also have namespaces, so you can let autocomplete fill
+them in: `vw.execution.auto`, `vw.execution.approve`, `vw.mode.standard`, `vw.mode.premium`,
+`vw.presets.safe`, `vw.presets.project` and `vw.presets.connected`.
+
+## Automatic repair
+
+When generated code throws an error in the browser, the error is sent back to the model and the
+model is asked to fix it. `retry` is how many of those attempts one generation is allowed.
+
+```python
+vw.config(retry=2)   # the default
+vw.config(retry=0)   # never repair automatically
+```
+
+The budget covers a single generation. A repair that succeeds does not refill it, so a widget that
+keeps failing cannot loop indefinitely, and a new generation starts with a full budget again. Once
+the attempts are used up the widget's status becomes `blocked`, and a log line tells you to describe
+the fix in the prompt box or to raise the budget with `vw.config(retry=N)`. Typing a fix into the
+prompt box still works at `retry=0`, because the budget only governs the automatic attempts.
+
+## Cost
+
+Each widget counts the tokens it spent:
+
+```python
+widget.usage
+# {'prompt_tokens': 18432, 'completion_tokens': 5120, 'requests': 2}
+```
+
+Loading a cached widget makes no request, so the counts stay at zero until something calls the
+model. With no API key set there is no provider at all, and `widget.usage` is an empty dict.
+
 ## Safety and permissions
 
-Generated code runs in the notebook page with the same privileges as the page itself. It can reach
-the DOM, cookies and `localStorage` for the notebook origin, and any network endpoint the browser
-is allowed to call. There is no browser-level sandbox around it. Treat a generated widget the way
-you would treat a script someone sent you.
+Generated code runs in the notebook page with the same privileges as the page. It can reach the DOM,
+cookies and `localStorage` for the notebook origin, and any network endpoint the browser is allowed
+to call. There is no browser-level sandbox around it.
 
 ### Execution mode
 
-Control whether code runs immediately or requires manual approval first.
+`execution` decides whether generated code runs as soon as it arrives or waits for you.
 
 ```python
-vw.config(execution="approve")   # review code before it runs
-vw.config(execution="auto")      # run immediately (default)
+vw.config(execution="approve")   # review the code before it runs
+vw.config(execution="auto")      # run immediately, the default
 ```
 
-In `"approve"` mode the generated code is not executed until you approve it. Approval is decided in
-Python, not in the browser, so a widget cannot approve itself. The widget tracks a SHA-256 hash of
-the approved code; if the code changes after an edit or a retry, approval resets and you approve
-again.
+In `"approve"` mode the code does not execute until you approve it. Approval is decided in Python
+rather than in the browser, so a widget cannot approve itself. The widget stores a hash of the
+code you approved, and if the code changes through an edit or a repair the approval resets and you
+are asked again.
 
 ### Agent presets
 
-Agent presets control which tools the LLM agent can call. There are three levels:
+An agent preset decides which tools the model is allowed to call while it works.
 
 | Preset | Permission tier | File access | Network | Use case |
 | --- | --- | --- | --- | --- |
@@ -168,71 +229,50 @@ Agent presets control which tools the LLM agent can call. There are three levels
 | `"connected"` | 2 (full) | Working dir + sandbox | HTTPS only | Fetching remote data |
 
 ```python
-# Lock down to read-only tools
-vw.config(agent_preset="safe")
-
-# Default: read-write in your project directory
-vw.config(agent_preset="project")
-
-# Allow the agent to fetch URLs (HTTPS only)
-vw.config(agent_preset="connected")
+vw.config(agent_preset="safe")        # read-only tools, sandboxed
+vw.config(agent_preset="project")     # read-write in your project directory, the default
+vw.config(agent_preset="connected")   # also allowed to fetch HTTPS URLs
 ```
 
-**Tier 0 tools** – `data.profile`, `fs.list`, `fs.read`, `fs.exists`, `fs.glob`, `state.get`, `state.put`, `pls.describe`
+**Tier 0 tools** are `data.profile`, `fs.list`, `fs.read`, `fs.exists`, `fs.glob`, `state.get`, `state.put` and `pls.describe`.
 
-**Tier 1 adds** – `data.load`, `fs.write`, `fs.mkdir`, `fs.read_base64`
+**Tier 1 adds** `data.load`, `fs.write`, `fs.mkdir` and `fs.read_base64`.
 
-**Tier 2 adds** – `net.fetch` (HTTPS only, host and MIME allowlisted, requires `allow_net_fetch`)
+**Tier 2 adds** `net.fetch`, restricted to HTTPS with an allowlist for hosts and MIME types, and it requires `allow_net_fetch`.
 
 ### Row guard
 
-By default, datasets over 100,000 rows are blocked to prevent memory exhaustion.
+An input of more than 100,000 rows raises a `ValueError` naming the row count, so that a large
+frame cannot exhaust memory while it is being prepared for the widget.
 
 ```python
-# Keep the guard (default)
-vw.config(bypass_row_guard=False)
-
-# Disable if you need large datasets
-vw.config(bypass_row_guard=True)
+vw.config(bypass_row_guard=False)   # keep the guard, the default
+vw.config(bypass_row_guard=True)    # allow larger datasets
 ```
 
-### Model modes
+### A locked-down configuration
 
-Models are grouped into two modes:
-
-| Mode | Models | Trade-off |
-| --- | --- | --- |
-| `"standard"` | Gemini 3 Flash, Claude Haiku 4.5, GPT-5.1 Codex Mini | Fast, lower cost |
-| `"premium"` | Gemini 3 Pro, Claude Opus 4.5, GPT-5.1 Codex | Higher quality, higher cost |
-
-```python
-vw.config(mode="standard")   # default
-vw.config(mode="premium")
-```
-
-### Recommended secure configuration
-
-For sensitive data or shared environments, lock things down:
+For sensitive data or a shared machine, the settings below turn off everything that acts on its own:
 
 ```python
 vw.config(
     execution="approve",          # require manual approval
     agent_preset="safe",          # read-only tools, sandboxed
-    bypass_row_guard=False,       # enforce row limit
+    bypass_row_guard=False,       # enforce the row limit
     retry=0,                      # no automatic code repairs
 )
 ```
 
-## Privacy and telemetry
+## What is sent to the model provider
 
-Vibe Widget sends the following to the model provider:
+Vibe Widget sends the following:
 
 - your prompt and theme prompt
-- a schema summary of each input: shape, column names, dtypes, null counts, cardinality, and numeric min/max/mean
+- a schema summary of each input, covering shape, column names, dtypes, null counts, cardinality, and numeric min, max and mean
 - the first `sample_rows` rows of each input, 3 by default, when `data_privacy` is `"sample"`
-- outputs/inputs descriptors
-- full widget code for edits, audits, and runtime fixes
-- runtime error messages (when auto-fixing)
+- the declared inputs, outputs and actions
+- the full widget code for edits, audits, and runtime repairs
+- runtime error messages, when a repair is running
 
 ### Controlling what leaves the notebook
 
@@ -240,17 +280,28 @@ Vibe Widget sends the following to the model provider:
 
 ```python
 vw.config(data_privacy="schema")   # schema only, no cell values
-vw.config(data_privacy="sample")   # schema plus head rows (default)
+vw.config(data_privacy="sample")   # schema plus head rows, the default
 vw.config(sample_rows=1)           # fewer rows in "sample" mode
 ```
 
-In `"schema"` mode the summary carries no cell values: no head rows, no category examples, no
-sampled values. Only the shape and the per-column description go out. Non-tabular inputs are
-summarized by type and length, and their truncated `repr` is included in `"sample"` mode only.
+In `"schema"` mode the summary carries no cell values at all, so there are no head rows, no category
+examples and no sampled values. Only the shape and the per-column description are sent. Inputs that
+are not tables are summarized by type and length, and their truncated `repr` is included in
+`"sample"` mode only.
 
-`data_privacy` governs the data summary built from the values you pass to `vw.create`. It does not
+`data_privacy` governs the summary built from the values you pass to `vw.create`. It does not
 restrict the agent's `data.profile` tool, which reads sample values from any file it is allowed to
 open. Combine `data_privacy="schema"` with `agent_preset="safe"` to keep the agent out of your
 project directory as well.
 
-No API keys are written to disk. Generated widgets and audit reports are stored locally in `.vibewidget/`.
+No API keys are written to disk. Generated widgets and audit reports are stored locally under
+`.vibewidget/`.
+
+## When a request fails
+
+A failed model call raises a `ProviderError` carrying a short explanation instead of the raw SDK
+exception. Each error names its kind, which is one of `auth`, `quota`, `not_found`, `rate_limit`,
+`connection`, `timeout`, `context_length` or `other`. A `quota` error means the key itself is valid
+but its spending limit is used up, which is worth separating from `auth`, because rotating a working
+key does not help. For `quota` and `not_found` the provider's own sentence is passed through, since
+it usually names the exact limit or model, and the raw response body is never included.

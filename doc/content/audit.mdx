@@ -1,74 +1,66 @@
 export const frontmatter = {
   title: 'Audit',
-  description: 'Review widget code and behavior for risks, usability issues, and design gaps.'
+  description: 'Ask a second model call to review a generated widget and report what it finds.'
 };
 
-Audits review widget code and behavior through a set of lenses to surface risks, usability issues, and design gaps before you ship.
+An audit is a second model call that reads the generated code and writes up what it notices. It is a
+review rather than a check, so there is no static analysis behind it, the findings are the model's
+opinion, and nothing in the package consults an audit before code runs. Read it the way you would
+read a colleague's comments on a pull request. When you want code to be gated rather than commented
+on, use `vw.config(execution="approve")` instead.
 
-An audit is a second model call that reads the generated code and writes up what it finds. It is a
-review, not a check: there is no static analysis behind it, the findings are the model's opinion,
-and nothing in the package consults an audit before code runs. Read it the way you would read a
-colleague's comments on a pull request. Use `vw.config(execution="approve")` when you want code to
-be gated rather than commented on.
-
-## Audit framework
-
-Each audit runs across domains and lenses so you get feedback that is both technical and experiential.
-
-| Domain | What It Covers | Key Questions |
-| --- | --- | --- |
-| DATA | Input, filtering, transformations, formatting. Subdomains: `data.input`, `data.filtering`, `data.transformations`, `data.formatting`. | What goes in? What gets dropped? How is it changed? |
-| COMPUTATION | Algorithms, parameters, assumptions. Subdomains: `computation.algorithm`, `computation.parameters`, `computation.assumptions`. | What runs? With what settings? What does it assume? |
-| PRESENTATION | Visual encoding, scales, projection. Subdomains: `presentation.encoding`, `presentation.scales`, `presentation.projection`. | How are results shown? What is hidden or over-emphasized? |
-| INTERACTION | Triggers, state, propagation. Subdomains: `interaction.triggers`, `interaction.state`, `interaction.propagation`. | What changes on input? What persists? What updates downstream? |
-| SYSTEM | Accessibility, performance, reliability. Subdomains: `system.accessibility`, `system.performance`, `system.reliability`. | Is it usable for everyone? Is it fast and stable? |
-
-Each domain is reviewed at a second level to pinpoint the issue scope, such as `data.transformations` or `computation.parameters.bin_size`, so fixes stay targeted and explainable.
-
-## Audit lenses
-
-Lenses are the perspectives applied during auditing. You can think of them as different expert reviews running together, such as accessibility, data integrity, or interaction design.
-
-## Fast vs full audits
-
-**Fast** audits provide quick issue scans for early iteration. **Full** audits dig deeper with alternatives and higher coverage for pre-share polish.
+## Running an audit
 
 ```python
-# Fast audit for quick checks
 report = widget.audit(level="fast", display=False)
-
-# Full audit for deeper review
 full_report = widget.audit(level="full", reuse=True, display=False)
 ```
 
-Audit outputs are stored in `.vibewidget/audits` as JSON and YAML. That directory is listed in
-`.vibewidget/.gitignore`, so reports stay on the machine that ran them.
+A `fast` audit is a quick scan meant for early iteration, and a `full` audit covers more ground and
+suggests alternatives for the choices it flags. `reuse=True` returns the stored report when the code
+has not changed since the last audit, instead of paying for another call.
 
+Audits never run on their own. Nothing is sent to the model until you call `widget.audit(...)` or
+press the audit button in the widget's editor.
 
-## How to use auditing
+## What the report covers
 
-You can run audits from Python to get a structured report without needing to run the widget UI.
+Each finding is filed under one of four areas of the widget.
 
-```python
-# Run a fast audit and return a report
-report = widget.audit(level="fast", display=False)
+| Area | What it covers |
+| --- | --- |
+| Data | Selection, transformation, format, provenance |
+| Computation | Method, parameters, assumptions, execution |
+| Presentation | Encoding, scale, compression, framing |
+| Interaction | Triggers, state, propagation, feedback |
 
-# Deep audit for detailed alternatives
-full_report = widget.audit(level="full", reuse=True, display=False)
-```
+A finding is scoped with an id such as `data.transformation.date_parsing`, and it carries the line
+numbers in the generated code that it refers to, so you can go straight to the place it describes.
 
-In the UI, audit recommendations can be surfaced as a checklist inside the `Edit Code` view. You can then turn a specific concern into an edit request or keep it as a TODO for later.
+## The seven lenses
 
-{/*## Launch an audit*/}
+In a `full` audit every finding is also rated along seven fixed lenses, which is what makes one
+finding comparable to another. A `fast` audit reports findings without them.
 
-{/* ### Before widget render (Python)*/}
+- **Impact**, rated high, medium or low, answers whether a different choice would change the conclusions a reader draws.
+- **Uncertainty** covers confidence, sample size and stability.
+- **Reproducibility** asks whether the result can be recreated exactly.
+- **Edge behavior** covers empty, extreme and boundary inputs.
+- **Default vs explicit** separates a choice you made from an assumption the model made for you.
+- **Appropriateness** asks whether the method suits the question.
+- **Safety** covers network calls, dynamic code execution, writes to storage, cross-origin fetches, and injected scripts or iframes.
 
-{/* <MediaPlaceholder label="GIF Placeholder" caption="Run audit from Python before rendering the widget output." /> */}
+The model is told to keep high impact rare and to default to low unless there is clear evidence, so
+a report full of low-impact findings is the normal case rather than a sign that nothing was checked.
 
-{/*### During UI editing*/}
+## Where reports are stored
 
-{/* <MediaPlaceholder label="GIF Placeholder" caption="Launch audit while editing the widget in the UI." /> */}
+Reports are written to `.vibewidget/audits/` as JSON and YAML. The directory is listed in
+`.vibewidget/.gitignore`, so reports stay on the machine that ran them rather than going into your
+repository.
 
-{/*## Example audit results*/}
+## Working from an audit
 
-{/* <MediaPlaceholder label="Sample Output" caption="Data: Axis label missing units for &quot;Revenue&quot;. Accessibility: Hover tooltips are not keyboard reachable. Design: Secondary controls compete with chart for visual emphasis." /> */}
+In the widget's editor, findings are shown as a checklist next to the code. You can turn any one of
+them into an edit request, which sends the finding back to the model as the instruction for a fix,
+or leave it on the list as a note for later.

@@ -1,24 +1,22 @@
 export const frontmatter = {
   title: 'Reactivity',
-  description: 'Connect widgets with reactive inputs and outputs.'
+  description: 'Send values into a widget, read values back out, and link widgets together.'
 };
 
-Vibe Widgets stay synchronized with Python through a simple reactivity model. This page explains how
-data flows between your notebook and your widgets and how to wire widgets together.
-
-## The three primitives
+Values move between Python and a widget in three ways. An input carries a value from Python into the
+widget and stays set. An output carries a value from the widget back to Python and also stays set. An
+action sends a one-time command from Python to the widget and leaves nothing behind.
 
 | Primitive | Direction | Persistence | Use for |
 | --- | --- | --- | --- |
-| Input | Python → JS | State (sticky) | Data, configuration, selections from other widgets |
-| Output | JS → Python | State (sticky) | User selections, computed values, filters |
-| Action | Python → JS | Event (fire-once) | Commands like reset, focus, export |
+| Input | Python to JS | State, sticky | Data, configuration, selections from other widgets |
+| Output | JS to Python | State, sticky | User selections, computed values, filters |
+| Action | Python to JS | Event, fires once | Commands such as reset, focus, export |
 
-### Inputs
+## Inputs
 
-Inputs are values that flow into your widget from Python. You declare them when you create the
-widget, either with `vw.inputs(...)` or with a plain dict. Inputs are persistent: the widget holds
-onto the value until you change it.
+You declare inputs when you create the widget, either with `vw.inputs(...)` or with a plain dict. An
+input keeps its value until you change it.
 
 ```python
 chart = vw.create(
@@ -28,20 +26,20 @@ chart = vw.create(
 )
 ```
 
-`vw.inputs()` takes keyword arguments and also bare positional values. A positional value is named
-after the variable you passed, so `vw.inputs(df, threshold=0.5)` declares inputs called `df` and
+`vw.inputs()` takes keyword arguments and bare positional values. A positional value is named after
+the variable you passed, so `vw.inputs(df, threshold=0.5)` declares inputs called `df` and
 `threshold`.
 
-Every declared input becomes a synced trait on the widget, so you can assign a new value directly
-and the widget updates without regenerating any code:
+Every declared input becomes a synced trait on the widget, so assigning a new value updates the
+widget without regenerating any code:
 
 ```python
 chart.threshold = 0.8
 ```
 
-Direct assignment sends the value as-is, so it expects something JSON-friendly: numbers, strings,
-booleans, lists, and dicts. NumPy arrays, NumPy scalars and timestamps are converted for you when
-the widget is created but not on later assignment, so run them through the same helper:
+Direct assignment sends the value as it is, so it expects something JSON-friendly, meaning numbers,
+strings, booleans, lists and dicts. NumPy arrays, NumPy scalars and timestamps are converted for you
+when the widget is created but not on later assignment, so run them through the same helper:
 
 ```python
 from vibe_widget.utils.serialization import clean_for_json
@@ -49,12 +47,12 @@ from vibe_widget.utils.serialization import clean_for_json
 chart.frame = clean_for_json(numpy_array)
 ```
 
-To swap the underlying dataset, rerun the widget instead.
+To swap the underlying dataset, rerun the widget instead of assigning to an input.
 
-### Rerunning with new data
+## Rerunning with new data
 
-`vw.create` returns a handle. Calling that handle reruns the widget with different data or inputs
-and reuses the code that was already generated, so there is no second model call:
+`vw.create` returns a handle, and calling that handle runs the same generated code against different
+data or inputs, with no second model call:
 
 ```python
 chart = vw.create("scatter plot with brush selection", df)
@@ -64,15 +62,14 @@ chart(vw.inputs(threshold=0.7))        # merges with the inputs already declared
 chart(inputs={"threshold": 0.7})       # replaces the declared inputs
 ```
 
-A positional `vw.inputs(...)` bundle merges into the inputs the widget was created with. The
-`inputs=` keyword replaces them. If the new dataset is missing a column the widget was built
-against, the rerun raises a `ValueError` naming the missing columns rather than rendering a broken
+A positional `vw.inputs(...)` bundle merges into the inputs the widget was created with, while the
+`inputs=` keyword replaces them. When the new dataset is missing a column the widget was built
+against, the rerun raises a `ValueError` naming the missing columns rather than drawing a broken
 chart.
 
-### Outputs
+## Outputs
 
-Outputs are values that flow out of your widget to Python. Use them for anything the widget
-produces that Python might care about. Like inputs, outputs are persistent state.
+An output carries a value the widget produced back to Python, and like an input it keeps its value.
 
 ```python
 # Read the current selection
@@ -88,12 +85,12 @@ widget.outputs.selected_indices.observe(on_selection)
 widget.outputs.selected_indices.unobserve(on_selection)
 ```
 
-The handler receives the traitlets change object, which carries `new`, `old`, `name`, and `owner`.
+The handler receives the traitlets change object, which carries `new`, `old`, `name` and `owner`.
 
-### Actions
+## Actions
 
-Actions are one-time commands from Python to the widget. Use them for behavior that should happen
-once, not persist as state.
+An action is a one-time command from Python to the widget, for behavior that should happen once
+rather than persist as state.
 
 <WidgetPreview src="/widgets/scatter_actions.js" height={380} />
 
@@ -107,29 +104,26 @@ widget = vw.create(
 widget.actions.reset_view()
 ```
 
-After an action fires, it's done. The widget doesn't "remember" that it was reset.
+Once an action fires it is finished, and the widget holds no record that it was reset.
 
-## Choosing the right primitive
+## Choosing between them
 
-Ask yourself: should this value stick around?
+Ask whether the value should stick around. When it should, use an input if the value comes from
+Python and an output if it comes from the widget. When it should not, use an action.
 
-- Yes → Input or Output. Use input if the value comes from Python; use output if it comes from the widget.
-- No → Action. Use an action if it's a one-time command.
-
-If you model a one-time command as an input, it becomes sticky:
+Modelling a one-time command as an input makes it sticky, which is usually wrong:
 
 ```python
 # Avoid this
 widget.should_reset = True
 ```
 
-The widget would reset and keep resetting because the input is still true. Actions avoid that
-behavior by firing once and not lingering.
+The widget would reset and then keep resetting, because the input is still true. An action fires
+once and leaves nothing set, which avoids the problem.
 
-## Wiring widgets together
+## Linking widgets together
 
-The real power of this model shows up when you connect widgets. Pass one widget's output as
-another widget's input:
+To connect two widgets, pass one widget's output as another widget's input.
 
 <WidgetPreview src="/widgets/scatter_brush_linked.js" height={340} />
 
@@ -146,9 +140,9 @@ histogram = vw.create(
 )
 ```
 
-When you select points in the scatter plot, the histogram updates through trait syncing. Nothing
-reruns and no model call happens: the link is a Python observer on the source output that writes
+Selecting points in the scatter plot updates the histogram through trait syncing. Nothing reruns and
+no model call happens, because the link is a Python observer on the source output that writes
 straight into the target input.
 
-The link is one-way, from the named output to the named input. To link in both directions, declare
+A link runs one way, from the named output to the named input. To link in both directions, declare
 an output on each widget and an input on the other.

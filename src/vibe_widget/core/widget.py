@@ -1626,7 +1626,7 @@ class VibeWidget(anywidget.AnyWidget):
         Examples:
             >>> widget.components
             ['scatter_chart', 'color_legend', 'slider']
-            >>> widget.component.scatter_chart.display()  # Display one component
+            >>> widget.component.scatter_chart  # Renders one component on its own
         """
         return self._component_attr_names()
 
