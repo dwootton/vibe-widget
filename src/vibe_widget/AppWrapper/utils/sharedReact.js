@@ -15,6 +15,8 @@
  * bundle-local one. Wrapper UI keeps using its own bundle-local React; it is a
  * separate root and never shares hooks with the guest.
  */
+import React from "react";
+
 import { makeErrorBoundary } from "../components/RuntimeErrorBoundary.js";
 
 /** Registers this bundle's React as the page-wide instance, first one wins. */
@@ -57,4 +59,57 @@ export function mountGuest(container, { Guest, props, onError, fallback, resetKe
     )
   );
   return root;
+}
+
+const GUEST_HOST_STYLE = { width: "100%", height: "100%" };
+
+const GUEST_FALLBACK_STYLE = {
+  padding: "20px",
+  color: "var(--jp-ui-font-color1, #f8fafc)",
+  fontSize: "14px",
+};
+
+/**
+ * Hosts the guest tree in its own root owned by the page-wide React instance.
+ * The wrapper tree around it belongs to this bundle's React copy, which on a
+ * page with several widgets is a different copy from the one the guest's
+ * imported hooks come from. Lives here rather than in SandboxedRunner so it can
+ * be tested without a JSX transform.
+ */
+export function GuestHost({ Guest, facade, resetKey, onError }) {
+  const hostRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    // Fresh node per mount: the deferred unmount can outlive this effect.
+    const mountPoint = document.createElement("div");
+    mountPoint.style.width = "100%";
+    mountPoint.style.height = "100%";
+    host.appendChild(mountPoint);
+    const shared = sharedReact();
+    const root = mountGuest(mountPoint, {
+      Guest,
+      props: { model: facade },
+      onError,
+      resetKey,
+      fallback: shared.createElement(
+        "div",
+        { style: GUEST_FALLBACK_STYLE },
+        "Runtime error detected. Check the panel above."
+      ),
+    });
+    return () => {
+      // React refuses a synchronous unmount from inside a commit; defer one tick.
+      queueMicrotask(() => {
+        try {
+          root.unmount();
+        } finally {
+          mountPoint.remove();
+        }
+      });
+    };
+  }, [Guest, facade, resetKey, onError]);
+
+  return React.createElement("div", { ref: hostRef, style: GUEST_HOST_STYLE });
 }

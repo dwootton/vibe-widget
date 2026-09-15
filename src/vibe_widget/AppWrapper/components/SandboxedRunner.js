@@ -4,7 +4,7 @@ import { appendWidgetLogs } from "../actions/modelActions";
 import { captureRuntimeError } from "../utils/runtimeError";
 import { debugLog } from "../utils/debug";
 import { createModelFacade } from "../utils/modelFacade";
-import { mountGuest, sharedCreateRoot, sharedReact, sharedReactDOM } from "../utils/sharedReact";
+import { GuestHost, sharedCreateRoot, sharedReact, sharedReactDOM } from "../utils/sharedReact";
 import {
   isBundledSource,
   REACT_PACKAGE_NAMES,
@@ -13,53 +13,6 @@ import {
 import { ES_MODULE_SHIMS_SOURCE } from "../vendor/esModuleShims";
 
 let sandboxInstanceCounter = 0;
-
-const GUEST_FALLBACK_STYLE = {
-  padding: "20px",
-  color: "var(--jp-ui-font-color1, #f8fafc)",
-  fontSize: "14px",
-};
-
-/**
- * Hosts the guest tree in its own root owned by the page-wide React instance.
- * The wrapper tree around it belongs to this bundle's React copy, which on a
- * page with several widgets is a different copy from the one the guest's
- * imported hooks come from.
- */
-function GuestHost({ Guest, facade, resetKey, onError }) {
-  const hostRef = React.useRef(null);
-
-  React.useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
-    // Fresh node per mount: the deferred unmount can outlive this effect.
-    const mountPoint = document.createElement("div");
-    mountPoint.style.width = "100%";
-    mountPoint.style.height = "100%";
-    host.appendChild(mountPoint);
-    const shared = sharedReact();
-    const root = mountGuest(mountPoint, {
-      Guest,
-      props: { model: facade },
-      onError,
-      resetKey,
-      fallback: shared.createElement(
-        "div",
-        { style: GUEST_FALLBACK_STYLE },
-        "Runtime error detected. Check the panel above."
-      ),
-    });
-    return () => {
-      // React refuses a synchronous unmount from inside a commit; defer one tick.
-      queueMicrotask(() => {
-        root.unmount();
-        mountPoint.remove();
-      });
-    };
-  }, [Guest, facade, resetKey, onError]);
-
-  return <div ref={hostRef} style={{ width: "100%", height: "100%" }} />;
-}
 
 function SandboxedRunner({ code, model, runKey }) {
   const instanceId = React.useRef(++sandboxInstanceCounter).current;
@@ -400,6 +353,8 @@ ${rewiredSource}`;
 
         const module = await globalThis.importShim(url);
         URL.revokeObjectURL(url);
+        // A newer code version may have torn this run down while we awaited.
+        if (guardState.closed) return;
 
         if (module.default && typeof module.default === "function") {
           debugLog(model, "[vibe][runtime] module loaded successfully");
