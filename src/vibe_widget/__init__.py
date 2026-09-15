@@ -10,7 +10,7 @@ from vibe_widget.namespaces import (
 )
 from vibe_widget.themes import Theme, theme
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __all__ = [
     "VibeWidget",
     "WidgetHandle",

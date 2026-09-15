@@ -536,10 +536,12 @@ class WidgetStore:
         imports_serialized: dict[str, str] | None,
         theme_description: str | None,
         revision_parent: str | None = None,
-        follow_revisions: bool = True,
+        follow_revisions: bool = False,
     ) -> dict[str, Any] | None:
         """Look up a cached widget by recomputed cache key.
 
+        Returns the entry for that exact key. follow_revisions=True instead returns the
+        newest widget in its revision chain, which changes the key an edit builds on.
         var_name is accepted for API stability; grouping comes from the stored entry.
         """
         exports_signature = self._compute_exports_signature(exports)
@@ -686,9 +688,9 @@ class WidgetStore:
     def load_by_cache_key(
         self,
         cache_key: str,
-        follow_revisions: bool = True,
+        follow_revisions: bool = False,
     ) -> tuple[dict[str, Any], str] | None:
-        """Load (entry, code) by full cache key."""
+        """Load (entry, code) for that exact key; follow_revisions=True takes the newest revision."""
         entries = self.all_entries()
         for entry in entries:
             if entry["cache_key"] == cache_key:

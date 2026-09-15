@@ -158,8 +158,8 @@ def _key_source(env_var: str) -> str:
     return env_var
 
 
-def resolve_endpoint_from_env(base_url: Optional[str]) -> tuple:
-    """Infer (api_key, base_url, model, key_source) from the environment."""
+def resolve_endpoint_from_env(base_url: Optional[str], model: Optional[str] = None) -> tuple:
+    """Infer (api_key, base_url, model, key_source) from the environment and model id."""
     load_dotenv()
     endpoint = base_url or os.environ.get("VIBE_BASE_URL") or None
     vibe_key = os.environ.get("VIBE_API_KEY")
@@ -181,7 +181,14 @@ def resolve_endpoint_from_env(base_url: Optional[str]) -> tuple:
     if vibe_key:
         return vibe_key, OPENROUTER_BASE_URL, DEFAULT_MODEL, _key_source("VIBE_API_KEY")
 
-    for provider, env_var in PROVIDER_ENV_VARS:
+    # A vendor/model id only exists on OpenRouter, so its key wins for one when
+    # the endpoint was not pinned. Without that key the normal order applies and
+    # Config.check_model() explains why the id cannot work.
+    order = PROVIDER_ENV_VARS
+    if model and "/" in model and os.environ.get("OPENROUTER_API_KEY"):
+        order = (("openrouter", "OPENROUTER_API_KEY"),)
+
+    for provider, env_var in order:
         key = os.environ.get(env_var)
         if key:
             _warn_on_key_prefix(env_var, key, provider)
@@ -354,6 +361,9 @@ class Config:
     def __post_init__(self):
         """Resolve model name, endpoint and API key from environment."""
         self.key_source: Optional[str] = None
+        # An inferred endpoint must be re-inferred when the model changes; one the
+        # caller pinned must not be.
+        self._explicit_base_url: bool = self.base_url is not None
         self._resolve_endpoint()
 
         model_map = PREMIUM_MODELS if self.mode == "premium" else STANDARD_MODELS
@@ -386,7 +396,8 @@ class Config:
     def _resolve_endpoint(self) -> None:
         """Fill in endpoint, model and API key from the environment where unset."""
         explicit_key = self.api_key
-        key, base_url, model, source = resolve_endpoint_from_env(self.base_url)
+        pinned = self.base_url if getattr(self, "_explicit_base_url", True) else None
+        key, base_url, model, source = resolve_endpoint_from_env(pinned, self.model)
         self.base_url = base_url
         if not self.model:
             self.model = model
@@ -578,6 +589,7 @@ def config(
         try:
             if base_url is not None:
                 _global_config.base_url = base_url or None
+                _global_config._explicit_base_url = bool(base_url)
 
             if model is not None:
                 model_map = PREMIUM_MODELS if _global_config.mode == "premium" else STANDARD_MODELS
