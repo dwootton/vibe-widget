@@ -6,6 +6,8 @@ from typing import Any, Callable, Optional
 
 PROVIDER_ERROR_KINDS = (
     "auth",
+    # 403: the key works but the account is out of credit or over a limit.
+    "quota",
     "not_found",
     "rate_limit",
     "connection",
