@@ -1,12 +1,10 @@
 import * as React from "react";
-import { createRoot } from "react-dom/client";
-import { flushSync } from "react-dom";
 import * as Babel from "@babel/standalone";
 import { appendWidgetLogs } from "../actions/modelActions";
 import { captureRuntimeError } from "../utils/runtimeError";
 import { debugLog } from "../utils/debug";
 import { createModelFacade } from "../utils/modelFacade";
-import RuntimeErrorBoundary from "./RuntimeErrorBoundary";
+import { GuestHost, sharedCreateRoot, sharedReact, sharedReactDOM } from "../utils/sharedReact";
 import {
   isBundledSource,
   REACT_PACKAGE_NAMES,
@@ -68,7 +66,8 @@ function SandboxedRunner({ code, model, runKey }) {
   const installReactImportMap = React.useCallback(async () => {
     await ensureImportShim();
 
-    // The blob modules read from globalThis.ReactProvided (always current),
+    // The blob modules bind to globalThis.ReactProvided at their first
+    // evaluation and that instance never changes (see utils/sharedReact.js),
     // so the import map only needs to be registered once per page.
     const existing = globalThis.importShim.getImportMap?.();
     if (existing?.imports?.react) {
@@ -354,15 +353,19 @@ ${rewiredSource}`;
 
         const module = await globalThis.importShim(url);
         URL.revokeObjectURL(url);
+        // A newer code version may have torn this run down while we awaited.
+        if (guardState.closed) return;
 
         if (module.default && typeof module.default === "function") {
           debugLog(model, "[vibe][runtime] module loaded successfully");
-          // Pre-mount guard: render into a detached node to catch synchronous throws.
+          // Pre-mount guard: render into a detached node to catch synchronous
+          // throws. Uses the shared React, same as the real mount below.
           try {
+            const shared = sharedReact();
             const probeContainer = document.createElement("div");
-            const Element = React.createElement(module.default, { model: facade, React });
-            const probeRoot = createRoot(probeContainer);
-            flushSync(() => {
+            const Element = shared.createElement(module.default, { model: facade, React: shared });
+            const probeRoot = sharedCreateRoot()(probeContainer);
+            sharedReactDOM().flushSync(() => {
               probeRoot.render(Element);
             });
             probeRoot.unmount();
@@ -398,16 +401,8 @@ ${rewiredSource}`;
     return null;
   }
 
-  const fallback = (
-    <div style={{ padding: "20px", color: "var(--jp-ui-font-color1, #f8fafc)", fontSize: "14px" }}>
-      Runtime error detected. Check the panel above.
-    </div>
-  );
-
   return (
-    <RuntimeErrorBoundary resetKey={code} onError={handleRuntimeError} fallback={fallback}>
-      <GuestWidget model={facade} React={React} />
-    </RuntimeErrorBoundary>
+    <GuestHost Guest={GuestWidget} facade={facade} resetKey={code} onError={handleRuntimeError} />
   );
 }
 
