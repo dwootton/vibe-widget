@@ -33,17 +33,6 @@ test("sendSet is a no-op (nothing to persist to in static mode)", () => {
   assert.doesNotThrow(() => port.sendSet({ code: "x" }));
 });
 
-test("request_editor_bundle gets an explicit not-available reply", async () => {
-  const port = createStaticPort({ snapshot: {} });
-  const replies = [];
-  port.onCustom((c) => replies.push(c));
-  port.sendCustom({ type: "request_editor_bundle" });
-  await waitForMicrotasks();
-  assert.equal(replies.length, 1);
-  assert.equal(replies[0].type, "editor_bundle_error");
-  assert.match(replies[0].error, /static export/);
-});
-
 test("save_widget gets a correlated failure reply instead of hanging", async () => {
   const port = createStaticPort({ snapshot: {} });
   const replies = [];
@@ -55,15 +44,14 @@ test("save_widget gets a correlated failure reply instead of hanging", async () 
   ]);
 });
 
-test("remote_call gets a correlated failure reply", async () => {
+test("an unknown message type produces no reply (matching the engine, which ignores it too)", async () => {
   const port = createStaticPort({ snapshot: {} });
   const replies = [];
   port.onCustom((c) => replies.push(c));
+  port.sendCustom({ type: "request_editor_bundle" });
   port.sendCustom({ type: "remote_call", id: "call-1", name: "fs_list" });
   await waitForMicrotasks();
-  assert.deepEqual(replies, [
-    { type: "remote_call_result", id: "call-1", success: false, error: "Remote calls are not available in a static export." },
-  ]);
+  assert.deepEqual(replies, []);
 });
 
 test("an unrecognized custom message type produces no reply", async () => {

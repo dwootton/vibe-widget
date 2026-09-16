@@ -1,0 +1,84 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T19:40:32.513062+00:00",
+  "file_name": "browser__06ab891582.js",
+  "var_name": "browser",
+  "cache_key": "06ab891582c1c839e97af23ff4e454dd661d0e89f860ea66196aa73c79c28c79",
+  "description": "genome browser for one 50,000,000 bp chromosome, ~420px tall, drawn on canvas. data = variants (pos, af, ref, alt); inputs genes (gene, start, end, strand), exons (gene, start, end), seq (start, seq: the letters for one 30 kb window).\n    wheel over the track zooms about the cursor, drag pans, a ruler on top shows the view in Mb/kb/bp; start with the whole chromosome in view. left/right arrows pan a tenth, +/- zoom.\n    semantic zoom, the representation changes with the width of the view: over 5 Mb: a gene-density heat strip (genes per 100 kb) and a variant-density strip beneath it, no individual marks. 100 kb to 5 Mb: genes as arrows (strand direction) with names when they fit, variants as thin ticks. under 100 kb: each gene as exon boxes on a thin intron line with the name, variants as lollipops with height = af and the ref>alt written when there is room. under 2 kb: the letters of seq coloured A green C blue G orange T red, monospace, with variants highlighted; outside the seq window print 'sequence not loaded here'.\n    a small level badge top-right says which of the four levels is drawn. double-click a gene at any level to zoom to it. output view = [start, end] in bp, level = 1..4.",
+  "data_signature": {
+    "shape": [
+      3000,
+      4
+    ],
+    "columns": [
+      "pos",
+      "af",
+      "ref",
+      "alt"
+    ],
+    "dtypes": [
+      [
+        "pos",
+        "int64"
+      ],
+      [
+        "af",
+        "float64"
+      ],
+      [
+        "ref",
+        "str"
+      ],
+      [
+        "alt",
+        "str"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "28b22d88",
+  "imports_signature": "b0e11e9b",
+  "theme_signature": "222411cf",
+  "parameter_signature": "226ee99e3e",
+  "prompt_keywords": [
+    "genome",
+    "browser"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "BrowserControls",
+    "LevelBadge"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "genome browser for one 50,000,000 bp chromosome, ~420px tall, drawn on canvas. data = variants (pos, af, ref, alt); inputs genes (gene, start, end, strand), exons (gene, start, end), seq (start, seq: the letters for one 30 kb window).\n    wheel over the track zooms about the cursor, drag pans, a ruler on top shows the view in Mb/kb/bp; start with the whole chromosome in view. left/right arrows pan a tenth, +/- zoom.\n    semantic zoom, the representation changes with the width of the view: over 5 Mb: a gene-density heat strip (genes per 100 kb) and a variant-density strip beneath it, no individual marks. 100 kb to 5 Mb: genes as arrows (strand direction) with names when they fit, variants as thin ticks. under 100 kb: each gene as exon boxes on a thin intron line with the name, variants as lollipops with height = af and the ref>alt written when there is room. under 2 kb: the letters of seq coloured A green C blue G orange T red, monospace, with variants highlighted; outside the seq window print 'sequence not loaded here'.\n    a small level badge top-right says which of the four levels is drawn. double-click a gene at any level to zoom to it. output view = [start, end] in bp, level = 1..4.",
+      "source": "create",
+      "timestamp": "2026-09-15T19:38:31.368836+00:00"
+    }
+  ],
+  "outputs": {
+    "view": "[start, end] in bp",
+    "level": "1 chromosome, 2 genes, 3 exons, 4 bases"
+  },
+  "inputs": {
+    "genes": "<imported_trait:genes>",
+    "exons": "<imported_trait:exons>",
+    "seq": "<imported_trait:seq>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 94139,
+      "completion_tokens": 10858,
+      "requests": 3
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

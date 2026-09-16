@@ -85,17 +85,27 @@ src/vibe_widget/frontend/node_modules/.package-lock.json
 # **/widgets/**
 /testdata/**
 
-/tests/
 /testdata/
 
 /planningtester.ipynb
 
 /planning/
-.vibewidget/
+/.vibewidget/
 
-AGENTS.md
 logs.txt
+.jupyterlite.doit.db
 
 
 .claude/
 *.log
+
+
+demo/
+_output/
+# Local talk/demo assets, not part of the published examples
+examples/storyboard.md
+examples/demo_notes_zh.md
+examples/screens/
+
+# uv lockfile: this is a library, dependents resolve their own versions
+uv.lock

@@ -29,13 +29,7 @@ export default function useModelSync(model) {
   });
 
   const traceChange = React.useCallback((label, nextValue) => {
-    const modelId = model?.cid || model?.model_id || model?.id || model?.get?.("_model_id");
-    console.log("[VIBE_STATE_TRACE]", {
-      ts: new Date().toISOString(),
-      modelId,
-      label,
-      next: nextValue
-    });
+    debugLog(model, "[vibe][debug] state change", { label, next: nextValue });
   }, [model]);
 
   React.useEffect(() => {

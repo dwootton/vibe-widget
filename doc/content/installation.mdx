@@ -1,39 +1,32 @@
 export const frontmatter = {
   title: 'Installation',
-  description: 'Get up and running with Vibe Widget in seconds.'
+  description: 'Install the package, set one API key, and create a first widget.'
 };
 
-Get up and running with Vibe Widget in seconds.
+Vibe Widget runs on Python 3.9 or newer, and it needs one API key to generate a widget.
+Widgets that were generated earlier and cached on disk open without a key.
 
 <InstallCommand command="pip install vibe-widget" />
 
-Vibe Widget requires Python 3.9+ and an OpenRouter API key.
+## 1. Add a key
+
+Create a `.env` file next to your notebook holding any one of these lines:
 
 ```bash
-export OPENROUTER_API_KEY='your-key'
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+OPENROUTER_API_KEY=sk-or-...
 ```
 
-Need help setting API keys in Jupyter? See this guide:
-https://docs.google.com/document/d/e/2PACX-1vST8sEHdo90NsTdTFNjLi27YFT-81u2WQa7--qr0u4yk2aByE6Q5WIj-p8JYueEING5-fNdFNu2Aa3t/pub
+Vibe Widget reads the `.env` file, picks the provider that matches the variable name, and uses that
+provider's default model. Nothing else needs to be set. Exporting the same variable in your shell
+works the same way, and a value already in the environment is never overwritten by the file.
 
-Get an OpenRouter API key:
-https://openrouter.ai/
+You can get a key from [Anthropic](https://console.anthropic.com/),
+[OpenAI](https://platform.openai.com/) or [OpenRouter](https://openrouter.ai/). One OpenRouter key
+reaches models from every vendor.
 
-## Quick start (3 minutes)
-
-```bash
-pip install vibe-widget
-```
-
-```bash
-# macOS/Linux (temporary for current shell)
-export OPENROUTER_API_KEY="your-key"
-```
-
-```powershell
-# Windows PowerShell (temporary for current session)
-$env:OPENROUTER_API_KEY="your-key"
-```
+## 2. Create a widget
 
 <WidgetPreview src="/widgets/bar_chart_revenue.js" height={380} />
 
@@ -46,10 +39,34 @@ widget = vw.create("bar chart of revenue by region", df)
 widget
 ```
 
-If you want the key to persist across sessions, add the `export` line to your shell profile
-(for example `~/.zshrc` or `~/.bashrc`).
+To see what was picked up, call `vw.config()` with no arguments:
 
-## Quick start
+```python
+vw.config()
+# Config(provider='anthropic', host='api.anthropic.com', model='claude-opus-5',
+#        key_source='ANTHROPIC_API_KEY (/work/analysis/.env)', environment='vscode-like', ...)
+```
+
+The output names the variable and file the key came from, and never prints the key itself.
+
+## Where it runs
+
+The same two steps work in every supported host.
+
+- **JupyterLab and Jupyter Notebook** need nothing extra.
+- **VS Code notebooks** get React bundled into each widget, because VS Code has no import maps.
+- **Positron** is handled the same way as VS Code, and is detected through `POSITRON` rather than `VSCODE_PID`.
+- **Google Colab** generates code synchronously, because background threads break widget updates there.
+- **Quarto** works in `.qmd` documents rendered with the Jupyter engine. Put the `.env` file in the project directory.
+
+## Opening a widget someone else generated
+
+Generated code is written to `.vibewidget/` in your project, and the folder can be committed to git.
+A collaborator who clones the repository can open those widgets with no API key at all, because
+loading cached code makes no model call. A key is needed again only when someone generates, edits,
+audits, or repairs a widget.
+
+## Brush selection example
 
 <WidgetPreview src="/widgets/scatter_brush_linked.js" height={340} />
 
@@ -67,3 +84,6 @@ widget = vw.create(
 
 widget
 ```
+
+For help setting API keys inside Jupyter, see
+[this guide](https://docs.google.com/document/d/e/2PACX-1vST8sEHdo90NsTdTFNjLi27YFT-81u2WQa7--qr0u4yk2aByE6Q5WIj-p8JYueEING5-fNdFNu2Aa3t/pub).

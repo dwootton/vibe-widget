@@ -46,9 +46,6 @@ class ActionsNamespace:
     def __getattr__(self, name: str):
         actions = getattr(self._widget, "_actions", {}) or {}
         if name in actions:
-            action_params = getattr(self._widget, "_action_params", {}) or {}
-            params_schema = action_params.get(name)
-
             def action_caller(**kwargs):
                 import time
 

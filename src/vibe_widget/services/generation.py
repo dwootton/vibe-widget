@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
 import threading
+from typing import Any, Callable
 
 from vibe_widget.llm.agentic_agents import AgentSdkOrchestrator
 from vibe_widget.llm.agents.config import AgentRunConfig
 from vibe_widget.llm.providers.base import LLMProvider
+from vibe_widget.utils.platform import is_restricted_env
 from vibe_widget.utils.serialization import clean_for_json
 
 
@@ -27,6 +28,7 @@ class GenerationService:
         orchestrator: Any = None,
     ):
         self.llm_provider = llm_provider
+        self.stream = True if stream is None else bool(stream)
         # `orchestrator` lets a caller install a drop-in replacement for
         # `AgentSdkOrchestrator` (see `vibe_widget.llm.fake.FakeOrchestrator`)
         # that implements the same `generate`/`revise_code`/
@@ -36,7 +38,7 @@ class GenerationService:
         self.orchestrator = orchestrator or AgentSdkOrchestrator(
             provider=llm_provider,
             run_config=agent_run_config,
-            stream=True if stream is None else bool(stream),
+            stream=self.stream,
         )
         self._run_id = 0
         self._cancel_event: threading.Event | None = None
@@ -91,7 +93,29 @@ class GenerationService:
             daemon=True,
         )
         self._thread = thread
-        thread.start()
+
+        if is_restricted_env():
+            # Pyodide/JupyterLite: threads are unavailable.
+            # Colab: threads cause widget comm sync issues.
+            # In both cases, run synchronously.
+            self._generation_worker(
+                run_id,
+                cancel_event,
+                description,
+                outputs,
+                inputs,
+                input_summaries,
+                actions,
+                action_params,
+                base_code,
+                base_components,
+                theme_description,
+                progress_callback,
+                on_complete,
+                on_error,
+            )
+        else:
+            thread.start()
         return run_id
 
     def generate(

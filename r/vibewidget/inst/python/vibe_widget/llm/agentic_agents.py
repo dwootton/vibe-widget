@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Callable
 
 from vibe_widget.llm.agents.config import AgentRunConfig, resolve_agent_run_config
+from vibe_widget.llm.agents.context import AgentHarnessContext
+from vibe_widget.llm.providers.agent_provider_adapter import AgentProviderAdapter
+from vibe_widget.llm.providers.base import LLMProvider
+from vibe_widget.llm.tools.agents_tools import default_agent_tools
+from vibe_widget.llm.tools.code_tools import CodeValidateTool
+from vibe_widget.llm.tools.execution_tools import ErrorDiagnoseTool, RuntimeTestTool
+from vibe_widget.utils.serialization import clean_for_json
 
-DEFAULT_MAX_TOKENS = 16384
+DEFAULT_MAX_TOKENS = int(os.getenv("VIBE_MAX_TOKENS", "32768"))  # chained edits grow past 16k output tokens; env override for tight credit limits
 
 
 class MaxTokensExceeded(Exception):
@@ -16,13 +24,6 @@ class MaxTokensExceeded(Exception):
     def __init__(self, message: str, max_tokens_used: int):
         super().__init__(message)
         self.max_tokens_used = max_tokens_used
-from vibe_widget.llm.agents.context import AgentHarnessContext
-from vibe_widget.llm.providers.agent_provider_adapter import AgentProviderAdapter
-from vibe_widget.llm.providers.base import LLMProvider
-from vibe_widget.llm.tools.agents_tools import default_agent_tools
-from vibe_widget.llm.tools.code_tools import CodeValidateTool
-from vibe_widget.llm.tools.execution_tools import RuntimeTestTool, ErrorDiagnoseTool
-from vibe_widget.utils.serialization import clean_for_json
 
 
 class AgentSdkOrchestrator:
@@ -76,6 +77,7 @@ class AgentSdkOrchestrator:
         run_config: AgentRunConfig,
         context: AgentHarnessContext,
         max_tokens: int = DEFAULT_MAX_TOKENS,
+        temperature: float | None = None,
     ) -> str:
         # Filter tools by permission tier so LLM only sees tools it can use
         tools = self.tool_registry.to_openai_tools(tier=run_config.permission_tier)
@@ -89,26 +91,23 @@ class AgentSdkOrchestrator:
             streamed = False
             finish_reason: str | None = None
             if self.stream:
-                try:
-                    stream = self.adapter.chat_complete_stream(
-                        messages=messages,
-                        tools=tools,
-                        tool_choice="auto",
-                        max_tokens=max_tokens,
-                        temperature=0.7,
-                    )
-                    message = self._consume_stream(stream, progress_callback)
-                    finish_reason = getattr(message, "finish_reason", None)
-                    streamed = True
-                except Exception:
-                    message = None
-            if message is None:
+                stream = self.adapter.chat_complete_stream(
+                    messages=messages,
+                    tools=tools,
+                    tool_choice="auto",
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                )
+                message = self._consume_stream(stream, progress_callback)
+                finish_reason = getattr(message, "finish_reason", None)
+                streamed = True
+            else:
                 response = self.adapter.chat_complete(
                     messages=messages,
                     tools=tools,
                     tool_choice="auto",
                     max_tokens=max_tokens,
-                    temperature=0.7,
+                    temperature=temperature,
                 )
                 message = response.choices[0].message
                 finish_reason = response.choices[0].finish_reason
@@ -261,11 +260,9 @@ class AgentSdkOrchestrator:
             widget=None,
             state_manager=None,
             permission_tier=run_config.permission_tier,
-            safety_mode=run_config.safety_mode,
             allowed_roots=run_config.allowed_roots,
             sandbox_dir=run_config.sandbox_dir,
             allow_net_fetch=run_config.allow_net_fetch,
-            allow_search=run_config.allow_search,
             net_allowlist=run_config.net_allowlist,
             net_mime_allowlist=run_config.net_mime_allowlist,
         )
@@ -384,5 +381,6 @@ class AgentSdkOrchestrator:
             run_config=run_config,
             max_tokens=max_tokens,
             context=context,
+            temperature=0.3,
         )
         return fixed

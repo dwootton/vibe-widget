@@ -29,7 +29,7 @@ class ThemesNamespace:
         from vibe_widget.themes import ThemeRegistry
         return ThemeRegistry().list()
 
-    def __getattr__(self, name: str) -> "Theme":
+    def __getattr__(self, name: str) -> Theme:
         from vibe_widget.themes import ThemeRegistry
         theme = ThemeRegistry().get(name)
         if theme is None:
@@ -56,17 +56,38 @@ class ModelsNamespace:
     """
 
     def __repr__(self) -> str:
-        from vibe_widget.config import STANDARD_MODELS, PREMIUM_MODELS, DEFAULT_MODEL
+        from vibe_widget.config import (
+            PREMIUM_MODELS,
+            PROVIDER_DEFAULTS,
+            STANDARD_MODELS,
+            get_global_config,
+        )
+        active = get_global_config()
         lines = [
-            "Available models:",
-            f"  default:  {DEFAULT_MODEL}",
+            f"Active: provider={active.provider}, model={active.model}",
+            "",
+            "Default model per provider (whichever API key you set):",
+        ]
+        lines += [
+            f"  {name:<11} {defaults['model']}"
+            for name, defaults in sorted(PROVIDER_DEFAULTS.items())
+        ]
+        lines += [
+            "",
+            "OpenRouter tiers:",
             f"  standard: {STANDARD_MODELS.get('openrouter', 'N/A')}",
             f"  premium:  {PREMIUM_MODELS.get('openrouter', 'N/A')}",
             "",
             "Usage:",
             "  vw.config(model=vw.models.standard)",
             "  vw.config(model=vw.models.premium)",
-            "  vw.config(model='openai/gpt-4o')  # Or any OpenRouter model ID",
+            "  vw.config(model='claude-sonnet-5')  # Plain name: stays on your provider",
+            "  vw.config(model='openai/gpt-5.1-codex')  # vendor/model: OpenRouter only",
+            "  vw.config(base_url='http://localhost:11434/v1', model='qwen2.5-coder')"
+            "  # Any OpenAI-compatible endpoint",
+            "  vw.config(data_privacy='schema')  # Send no data cell values to the model",
+            "",
+            "Tip: put ANTHROPIC_API_KEY, OPENAI_API_KEY or OPENROUTER_API_KEY in a .env file.",
         ]
         return "\n".join(lines)
 

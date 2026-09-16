@@ -1,9 +1,12 @@
 export const frontmatter = {
   title: 'Create',
-  description: 'Create widgets from natural language prompts and data sources.'
+  description: 'Generate a widget from a prompt and a dataset.'
 };
 
-Create widgets from natural language prompts and data sources.
+`vw.create` sends your prompt and a summary of your data to a model, and the model writes the
+JavaScript that draws the widget. The generated code is stored in `.vibewidget/` in your project,
+so the next call with the same prompt and the same data reuses it instead of paying for a second
+model call.
 
 <WidgetPreview src="/widgets/bar_chart_revenue.js" height={380} />
 
@@ -18,21 +21,38 @@ widget = vw.create(
 widget
 ```
 
+The second argument accepts a `pandas` DataFrame, a path to a data file, a URL, or a directory to
+search. Recognized file types include CSV, TSV, JSON, GeoJSON, Parquet, NetCDF, XML, Excel, PDF, and
+plain text. You can leave the argument out when the widget does not read a dataset.
+
+## When the cache is reused
+
+The stored code is found again by a key built from your prompt, the column names and dtypes of the
+data, the declared inputs and outputs, and the theme description. Changing any one of them produces
+a different key, so the model is called again and the earlier widget stays on disk. Row counts are
+deliberately left out of the key, so appending rows to a DataFrame reuses the widget you already
+have.
+Pass `cache=False` to force a fresh generation, and use `vw.clear()` to delete stored widgets.
+
 ## Themes
 
-Themes are natural-language design specs that guide code generation.
+A theme is a description of how the widget should look, written in plain language, and the model
+follows it while generating the code.
 
 ```python
 vw.create("...", df, theme="financial_times")
 ```
 
-Use `vw.theme(...)` to generate a custom theme description and pass it in.
+`vw.themes()` lists the built-in names. To write your own, see [Theming](/docs/theming).
 
 ## Inputs, outputs, and actions
 
-You can also add inputs, outputs, and actions to wire widgets together or trigger behavior from
-Python. For the full model and examples, see [Reactivity](/docs/reactivity).
+Values can flow into a widget from Python, out of a widget back to Python, and from Python as
+one-time commands. For the full model and worked examples, see [Reactivity](/docs/reactivity).
 
-## Safety warning
+## What the generated code can do
 
-Widgets execute LLM-generated JavaScript in the notebook frontend. Treat generated code as untrusted. Use audits and your own verification when the output informs decisions.
+Generated JavaScript runs in the notebook page with the same privileges the page has, so it can
+reach the DOM, storage for the notebook origin, and any network address the browser allows. There is
+no browser sandbox around it. Read a generated widget the way you would read a script a stranger
+sent you, and use `vw.config(execution="approve")` when you want to see the code before it runs.

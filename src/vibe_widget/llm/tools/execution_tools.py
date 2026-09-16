@@ -1,91 +1,15 @@
 """Execution, diagnostics, and repair tools."""
 
 import re
-import subprocess
 import tempfile
 from typing import Any
 
 from vibe_widget.llm.tools.base import Tool, ToolResult
+from vibe_widget.utils.platform import is_emscripten
 
-
-class CLIExecuteTool(Tool):
-    """Tool for executing CLI commands for validation and diagnostics."""
-
-    def __init__(self):
-        super().__init__(
-            name="cli_execute",
-            description=(
-                "Execute shell commands for validating data pipelines, "
-                "checking dependencies, or diagnosing runtime issues. "
-                "Use carefully and only for read-only or validation operations."
-            ),
-        )
-
-    @property
-    def parameters_schema(self) -> dict[str, Any]:
-        return {
-            "command": {
-                "type": "string",
-                "description": "Shell command to execute",
-                "required": True,
-            },
-            "purpose": {
-                "type": "string",
-                "description": "Why this command is being executed",
-                "required": True,
-            },
-        }
-
-    def execute(self, command: str, purpose: str) -> ToolResult:
-        """Execute CLI command safely."""
-        try:
-            # Safety check: disallow dangerous commands
-            dangerous_patterns = [
-                r"\brm\b.*-rf",
-                r"\bformat\b",
-                r"\bmkfs\b",
-                r"\bdd\b",
-                r">.*passwd",
-                r"\bsudo\b",
-            ]
-
-            for pattern in dangerous_patterns:
-                if re.search(pattern, command, re.IGNORECASE):
-                    return ToolResult(
-                        success=False,
-                        error=f"Dangerous command pattern detected: {pattern}",
-                    )
-
-            # Execute with timeout
-            result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            output = {
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "returncode": result.returncode,
-                "command": command,
-                "purpose": purpose,
-            }
-
-            success = result.returncode == 0
-
-            return ToolResult(
-                success=success,
-                output=output,
-                error=result.stderr if not success else None,
-                metadata={"purpose": purpose},
-            )
-
-        except subprocess.TimeoutExpired:
-            return ToolResult(success=False, output="", error="Command timed out after 30 seconds")
-        except Exception as e:
-            return ToolResult(success=False, output="", error=str(e))
+# subprocess is unavailable on Pyodide/emscripten; import lazily.
+if not is_emscripten():
+    import subprocess
 
 
 class RuntimeTestTool(Tool):
@@ -116,31 +40,32 @@ class RuntimeTestTool(Tool):
         try:
             issues = []
 
-            # Test 1: Check for syntax errors using Node.js
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
-                f.write(code)
-                temp_file = f.name
+            # Test 1: Check for syntax errors using Node.js (skip on Pyodide)
+            if not is_emscripten():
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
+                    f.write(code)
+                    temp_file = f.name
 
-            try:
-                # Try to parse with node --check
-                result = subprocess.run(
-                    ["node", "--check", temp_file],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
+                try:
+                    # Try to parse with node --check
+                    result = subprocess.run(
+                        ["node", "--check", temp_file],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
 
-                if result.returncode != 0:
-                    issues.append(f"Syntax error: {result.stderr}")
+                    if result.returncode != 0:
+                        issues.append(f"Syntax error: {result.stderr}")
 
-            except FileNotFoundError:
-                pass
-            except Exception as e:
-                pass
-            finally:
-                import os
+                except FileNotFoundError:
+                    pass
+                except Exception:
+                    pass
+                finally:
+                    import os
 
-                os.unlink(temp_file)
+                    os.unlink(temp_file)
 
             # Test 2: Check for common runtime issues
             if "undefined" in code and "typeof" not in code:
@@ -273,68 +198,3 @@ class ErrorDiagnoseTool(Tool):
 
         except Exception as e:
             return ToolResult(success=False, output={}, error=f"Diagnosis error: {str(e)}")
-
-
-class CodeRepairTool(Tool):
-    """Tool for repairing widget code based on error diagnosis."""
-
-    def __init__(self, llm_provider):
-        super().__init__(
-            name="code_repair",
-            description=(
-                "Repair broken widget code based on error diagnosis. "
-                "Generates fixed code that addresses the identified issues "
-                "while preserving intended functionality."
-            ),
-        )
-        self.llm_provider = llm_provider
-
-    @property
-    def parameters_schema(self) -> dict[str, Any]:
-        return {
-            "code": {
-                "type": "string",
-                "description": "Broken widget code",
-                "required": True,
-            },
-            "diagnosis": {
-                "type": "object",
-                "description": "Error diagnosis from error_diagnose tool",
-                "required": True,
-            },
-            "data_info": {
-                "type": "object",
-                "description": "Original data information",
-                "required": True,
-            },
-        }
-
-    def execute(
-        self,
-        code: str,
-        diagnosis: dict[str, Any],
-        data_info: dict[str, Any],
-    ) -> ToolResult:
-        """Repair widget code."""
-        try:
-            error_message = (
-                diagnosis.get("full_error")
-                or diagnosis.get("root_cause")
-                or diagnosis.get("suggested_fix")
-                or "Unknown error"
-            )
-
-            fixed_code = self.llm_provider.fix_code_error(
-                broken_code=code,
-                error_message=error_message,
-                data_info=data_info,
-            )
-
-            return ToolResult(
-                success=True,
-                output={"code": fixed_code},
-                metadata={"diagnosis": diagnosis},
-            )
-
-        except Exception as e:
-            return ToolResult(success=False, output={}, error=f"Repair error: {str(e)}")

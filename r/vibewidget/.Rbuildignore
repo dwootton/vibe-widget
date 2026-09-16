@@ -1,4 +1,5 @@
 ^\.vibewidget$
+(^|/)\.vibewidget$
 ^data-raw$
 ^\.git$
 ^\.github$

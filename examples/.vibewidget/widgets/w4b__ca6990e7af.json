@@ -1,0 +1,59 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T13:39:07.419356+00:00",
+  "file_name": "w4b__ca6990e7af.js",
+  "var_name": "w4b",
+  "cache_key": "ca6990e7afa7ba6ad9f6e588ae1b5615f96a8fb630d20280828e3df0b1088c84",
+  "description": "3d damped pendulum replaying the trajectories of the phase portrait, three.js with OrbitControls. a fixed pivot, a thin rod, a bob; θ = 0 hangs straight down, θ grows counter-clockwise seen from the front. faint ground disk, camera a little above and in front.\n    inputs: points is a list of {theta0, omega0} in radians and radians/s, one per numbered dot in the portrait, dot number = index + 1; damping is a number c. integrate θ'' = -sin(θ) - c·θ' yourself with rk4, dt 0.02, 25 s, exactly as the portrait does, so the swing matches the drawn curve. rod and bob take the portrait's colour for that dot (#d9534f, #2b7cb6, #2a9d8f, #e76f51, #8a508f, #f4a261, #457b9d, #b5179e, #3a0ca3, #38b000, #e63946, #4361ee by index).\n    a row above the canvas: a segmented picker of dot numbers 1..n (n = points.length), play/pause, replay (back to t = 0), and 't = 3.4 s · θ 1.02 · ω -0.41' updating live. playback in real time, requestAnimationFrame, stops at 25 s.\n    when points changes: find the index that was added or whose theta0/omega0 moved (compare old and new by index), select it, and play from t = 0. when damping changes: re-integrate the selected one and keep playing from the current t. if the selected index no longer exists, select the last dot. no points: bob at rest, picker and play disabled.",
+  "data_signature": {
+    "shape": [
+      0,
+      0
+    ],
+    "columns": [],
+    "dtypes": []
+  },
+  "model": "anthropic/claude-opus-5",
+  "exports_signature": "",
+  "imports_signature": "c6114f74",
+  "theme_signature": "6e1a5884",
+  "parameter_signature": "0f907e4828",
+  "prompt_keywords": [
+    "damped",
+    "pendulum"
+  ],
+  "theme_name": "minimal",
+  "theme_description": "Minimal instrument, print quality. Nothing on screen that is not data, a control, or a label a reader needs to read the data.\n\n## Text\nNo title, subtitle, heading, description, instructions, hints, tips, how-to text, legend prose, footers, or status sentences. No emoji, check marks, crosses, exclamation marks, capitals for emphasis, or promotional tone. Labels are lowercase or sentence case, terse, and appear only where they carry a value (a count line, a time on a handle, the name of the selected mark). Numbers use tabular figures. If a control needs explaining, redesign the control instead of adding text.\n\n## Type\nOne typeface: system-ui, -apple-system, Inter, Helvetica, sans-serif. 11-13px labels, 12-14px values, weight 400, weight 600 only for the single emphasized value. Monospace (ui-monospace, SF Mono, Menlo) only for times, coordinates and code.\n\n## Color\nPaper #ffffff, ink #111111, grey #777777, hairline #d9d9d9, faint fill #f2f2f2. One accent #d9480f for the current selection or target. Status colours only where they encode a state: open #2b8a3e, closed #c92a2a, unknown grey. Nothing else is coloured. No gradients, shadows, glows, rounded cards, pills, or tinted panels. Buttons and chips: hairline border, no fill; the active one is filled ink with white text.\n\n## Marks\nThin. 1px hairlines, 1.5px data lines, 2px for the selected route. Points 5-7px. Draggable handles: 7px filled ink or accent with a 1.5px white stroke and an invisible 16px hit area. Area fills 8-15% opacity.\n\n## Maps\nLight grey basemap with no API key: Esri World Light Gray Canvas, https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x} (maxZoom 16, attribution 'Esri, HERE, Garmin, OpenStreetMap contributors'), so the data carries the colour. Never use CARTO or Stadia tiles. Small attribution, zoom control bottom-right.\n\n## Layout\nWhite ground, 12px padding, flat. A side panel is separated by a hairline, not boxed. Tables: hairline rows, right-aligned numbers, no zebra striping. Space instead of borders.\n\n## Motion\nNone beyond the direct response to the pointer. State changes apply within 150ms, no easing flourishes.",
+  "notebook_path": null,
+  "components": [
+    "FlatButton",
+    "Readout",
+    "DotPicker"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "3d damped pendulum replaying the trajectories of the phase portrait, three.js with OrbitControls. a fixed pivot, a thin rod, a bob; θ = 0 hangs straight down, θ grows counter-clockwise seen from the front. faint ground disk, camera a little above and in front.\n    inputs: points is a list of {theta0, omega0} in radians and radians/s, one per numbered dot in the portrait, dot number = index + 1; damping is a number c. integrate θ'' = -sin(θ) - c·θ' yourself with rk4, dt 0.02, 25 s, exactly as the portrait does, so the swing matches the drawn curve. rod and bob take the portrait's colour for that dot (#d9534f, #2b7cb6, #2a9d8f, #e76f51, #8a508f, #f4a261, #457b9d, #b5179e, #3a0ca3, #38b000, #e63946, #4361ee by index).\n    a row above the canvas: a segmented picker of dot numbers 1..n (n = points.length), play/pause, replay (back to t = 0), and 't = 3.4 s · θ 1.02 · ω -0.41' updating live. playback in real time, requestAnimationFrame, stops at 25 s.\n    when points changes: find the index that was added or whose theta0/omega0 moved (compare old and new by index), select it, and play from t = 0. when damping changes: re-integrate the selected one and keep playing from the current t. if the selected index no longer exists, select the last dot. no points: bob at rest, picker and play disabled.",
+      "source": "create",
+      "timestamp": "2026-09-16T13:38:16.790764+00:00"
+    }
+  ],
+  "outputs": {},
+  "inputs": {
+    "points": "<imported_trait:points>",
+    "damping": "<imported_trait:damping>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 5495,
+      "completion_tokens": 5628,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

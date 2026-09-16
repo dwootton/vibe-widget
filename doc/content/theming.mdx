@@ -1,42 +1,65 @@
 export const frontmatter = {
   title: 'Theming',
-  description: 'Style widgets with natural-language design specs.'
+  description: 'Describe how a widget should look, and reuse that description across widgets.'
 };
 
-Themes are natural-language design specs that guide code generation.
+A theme is a description of how a widget should look, written in plain language. The description
+goes into the prompt, so the colours, type and spacing end up written into the generated JavaScript
+itself. There is no stylesheet layered on afterwards, and changing a theme means generating again.
 
-## List available themes
+## Listing the built-in themes
 
 ```python
 import vibe_widget as vw
 
-themes = vw.themes()
-themes
+vw.themes()
 ```
 
-`vw.themes()` pretty-prints a concise list in notebooks. To get the full dict, use `dict(themes)`.
+In a notebook `vw.themes()` prints a short list. To get the underlying dict, use `dict(vw.themes())`.
 
-## Create a custom theme
+## Using a theme
 
-```python
-theme = vw.theme("like national geographic but greener")
-
-# Inspect or reuse the generated description
-print(theme.description)
-
-vw.create("...", df, theme=theme.description)
-```
-
-## Use a theme in create
+Pass the name of a built-in theme:
 
 ```python
 vw.create("...", df, theme="financial_times")
 ```
 
-## Iterate with themes
+A string that is not a registered theme name is treated as a description and sent to the model,
+which writes a fresh theme for it. Doing so costs an extra model call and the result varies between
+runs, so use a registered name when you want the same look every time. `vw.themes()` lists the names
+that resolve without a model call, and a built-in name works even with no API key set.
 
-Edits reuse the existing theme by default, so your visual language stays consistent as you refine
-behavior or layout.
+## Writing your own theme
+
+```python
+theme = vw.theme("like national geographic but greener")
+
+print(theme.description)
+
+vw.create("...", df, theme=theme)
+```
+
+Pass the `Theme` object itself rather than `theme.description`. A description string is not a
+registered name, so passing it sends you back through generation and produces a different theme.
+
+To reuse a theme in later sessions, give it a name:
+
+```python
+theme.save("nat_geo_green")
+
+vw.create("...", df, theme="nat_geo_green")
+```
+
+`Theme.save` writes a JSON file named after the theme into `.vibewidget/themes/` in your project and
+registers the name for the rest of the session. Because the file sits in the project, it can be
+committed and shared with the repository. Themes saved by older versions under
+`~/.vibewidgets/themes/` are still read.
+
+## Keeping a look across edits
+
+An edit reuses the theme of the widget it came from, so the visual language stays the same while you
+change behavior or layout.
 
 <WidgetPreview src="/widgets/scatter_themed_ft.js" height={380} />
 
@@ -50,8 +73,8 @@ v1 = vw.create("basic scatter", df, theme="financial_times")
 v2 = v1.edit("add hover tooltips and a right-side legend")
 ```
 
-You can override the theme on an edit when you want a new look:
+To change the look on an edit, name a different theme:
 
 ```python
-v3 = v2.edit("soften the palette and reduce gridlines", theme="paper_white")
+v3 = v2.edit("soften the palette and reduce gridlines", theme="minimal")
 ```

@@ -1,0 +1,59 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T01:31:00.740546+00:00",
+  "file_name": "w4__ae79d4a5b5.js",
+  "var_name": "w4",
+  "cache_key": "ae79d4a5b5f76585d502620fd0547a34988a72f9c066ad88fb32152a58257048",
+  "description": "phase portrait of a damped pendulum, θ'' = -sin(θ) - c·θ'. x is θ in [-2π, 2π], y is ω in [-5, 5]. faint grey direction field arrows on a grid.\n    click anywhere to drop a starting point: a persistent numbered dot; its trajectory (rk4, dt 0.02, 25 s) is drawn in that dot's colour. drag a dot and its trajectory re-integrates live. double-click a dot to remove it. up to 12 dots.\n    a slider for damping c in [0, 1.5], start 0.25; all trajectories update as it moves.\n    a small table right of the plot: dot number, θ0, ω0, which equilibrium it ends near (θ = 0, ±2π), and the time to get within 0.05 of it.",
+  "data_signature": {
+    "shape": [
+      0,
+      0
+    ],
+    "columns": [],
+    "dtypes": []
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "09299594",
+  "imports_signature": "278b9b4e",
+  "theme_signature": "222411cf",
+  "parameter_signature": "6a01b12a84",
+  "prompt_keywords": [
+    "phase",
+    "portrait"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "DampingSlider",
+    "TrajectoryTable"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "phase portrait of a damped pendulum, θ'' = -sin(θ) - c·θ'. x is θ in [-2π, 2π], y is ω in [-5, 5]. faint grey direction field arrows on a grid.\n    click anywhere to drop a starting point: a persistent numbered dot; its trajectory (rk4, dt 0.02, 25 s) is drawn in that dot's colour. drag a dot and its trajectory re-integrates live. double-click a dot to remove it. up to 12 dots.\n    a slider for damping c in [0, 1.5], start 0.25; all trajectories update as it moves.\n    a small table right of the plot: dot number, θ0, ω0, which equilibrium it ends near (θ = 0, ±2π), and the time to get within 0.05 of it.",
+      "source": "create",
+      "timestamp": "2026-09-15T01:30:17.921790+00:00"
+    }
+  ],
+  "outputs": {
+    "points": "list of {theta0, omega0}",
+    "damping": "c"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 2627,
+      "completion_tokens": 6671,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.1"
+  }
+}

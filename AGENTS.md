@@ -139,7 +139,6 @@ src/vibe_widget/
     │   └── editor/         # Code editor components
     │       ├── EditorViewer.js
     │       ├── CodeEditor.js
-    │       ├── MessageEditor.js
     │       └── AuditPanel.js
     ├── hooks/              # React hooks
     │   ├── useModelSync.js
@@ -165,7 +164,6 @@ tests/
 ```
 doc/                         # Documentation website (React + Vite)
 examples/                    # Example Jupyter notebooks
-├── example-gallery.ipynb
 ├── cross_widget_interactions.ipynb
 ├── pdf_and_web_extraction.ipynb
 └── ...
@@ -427,8 +425,7 @@ models = vw.models()  # Fetches from OpenRouter API
 
 1. **Enable debug mode**:
    ```python
-   from vibe_widget.debug import enable_debug
-   enable_debug()  # Shows DebuggerPanel in widget UI
+   widget.debug_mode = True  # Verbose frontend logging in the widget UI
    ```
 
 2. **Check widget logs**:

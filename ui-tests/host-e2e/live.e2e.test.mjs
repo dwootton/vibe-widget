@@ -100,7 +100,14 @@ test("live host bridge: Python data renders in the browser, and a browser click 
   });
 
   await page.goto(pageUrl);
-  await page.getByRole("button", { name: "I Understand" }).click();
+  // Some execution modes gate first render behind an audit acknowledgement;
+  // the default (auto) mode does not, so this is best-effort rather than
+  // required.
+  try {
+    await page.getByRole("button", { name: "I Understand" }).click({ timeout: 3000 });
+  } catch {
+    /* no audit gate shown - fine, that's the default (auto) execution mode */
+  }
 
   // The table renders the real rows the Python session was created with -
   // proof this is live data over the wire, not a static fixture.

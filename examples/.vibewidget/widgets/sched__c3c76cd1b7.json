@@ -1,0 +1,141 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T00:16:29.522663+00:00",
+  "file_name": "sched__c3c76cd1b7.js",
+  "var_name": "sched",
+  "cache_key": "c3c76cd1b7acabad9d92d23bbdc972effcb279950de49b71987c5e36146d95ad",
+  "description": "a morning timeline, no controls of its own. x axis spans at least 06:00 to 09:30 and stretches when the trip runs later; a vertical red keynote line at 08:45; legend below the row, never over it.\n    leave the hotel at input `when` ({day: 0=Mon..6=Sun, hhmm: 'HH:MM' with a colon, e.g. '06:30'; also accept 'HHMM'}). the stop is input `target` (a row index into data, or null). input `mode` is 'walk' | 'bike' | 'drive': minutes there = data column `<mode>_min`, back = `<mode>_back`; 10 min at the shop.\n    one row, three blocks: ride there (labelled '<n> min <mode>'), the shop block with its name and arrival hh:mm, ride back ending at 'back hh:mm'. the shop block turns red with the reason if we arrive before it opens or after it closes (parse `hours` for the `when` day; unknown hours = grey, no verdict); the ride back turns red if back is after 08:45.\n    null target → one line 'click a shop on the map'. re-render whenever target, mode or when change.",
+  "data_signature": {
+    "shape": [
+      41,
+      16
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note",
+      "walk_min",
+      "walk_back",
+      "bike_min",
+      "bike_back",
+      "drive_min",
+      "drive_back"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ],
+      [
+        "walk_min",
+        "float64"
+      ],
+      [
+        "walk_back",
+        "float64"
+      ],
+      [
+        "bike_min",
+        "float64"
+      ],
+      [
+        "bike_back",
+        "float64"
+      ],
+      [
+        "drive_min",
+        "float64"
+      ],
+      [
+        "drive_back",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "",
+  "imports_signature": "2aaa1fa8",
+  "theme_signature": "222411cf",
+  "parameter_signature": "23fbcfa2c2",
+  "prompt_keywords": [
+    "morning",
+    "timeline"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "TimelineChart",
+    "Legend"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "a morning timeline, no controls of its own. x axis spans at least 06:00 to 09:30 and stretches when the trip runs later; a vertical red keynote line at 08:45; legend below the row, never over it.\n    leave the hotel at input `when` ({day: 0=Mon..6=Sun, hhmm: 'HH:MM' with a colon, e.g. '06:30'; also accept 'HHMM'}). the stop is input `target` (a row index into data, or null). input `mode` is 'walk' | 'bike' | 'drive': minutes there = data column `<mode>_min`, back = `<mode>_back`; 10 min at the shop.\n    one row, three blocks: ride there (labelled '<n> min <mode>'), the shop block with its name and arrival hh:mm, ride back ending at 'back hh:mm'. the shop block turns red with the reason if we arrive before it opens or after it closes (parse `hours` for the `when` day; unknown hours = grey, no verdict); the ride back turns red if back is after 08:45.\n    null target → one line 'click a shop on the map'. re-render whenever target, mode or when change.",
+      "source": "create",
+      "timestamp": "2026-09-16T00:15:52.436846+00:00"
+    }
+  ],
+  "outputs": {},
+  "inputs": {
+    "target": "<imported_trait:target>",
+    "mode": "<imported_trait:mode>",
+    "when": "<imported_trait:when>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 10165,
+      "completion_tokens": 6387,
+      "requests": 2
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

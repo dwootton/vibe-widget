@@ -17,7 +17,6 @@ NULL
   "openai>=1.50.0",
   "requests>=2.32.0",
   "pandas>=2.0.0",
-  "pretty-little-summary==0.3.0",
   "websockets>=13,<16"
 )
 

@@ -49,21 +49,14 @@ def _new_session_id() -> str:
 
 
 def describe_data(data: Any) -> str:
-    """`pretty_little_summary`-backed description of a data.frame/DataFrame,
-    for a host that wants to show the same profile the LLM sees without
-    duplicating that logic (e.g. an R `print()` method).
-
-    Deliberately calls `pretty_little_summary.describe(...)` directly and
-    returns just its natural-language `.content` rather than reusing
-    `vibe_widget.utils.util.summarize_for_prompt` (whose return value,
-    despite its `-> str` annotation, is actually the whole `Description`
-    object - fine for an f-string embedded in an LLM prompt, since Python
-    stringifies it via `__str__`, but that `__str__` includes the raw
-    `meta` dict, which is not a string a host should show a user).
+    """Description of a data.frame/DataFrame using the engine's own
+    privacy-aware summarizer, for a host that wants to show the same
+    profile the LLM sees without duplicating that logic (e.g. an R
+    `print()` method).
     """
-    import pretty_little_summary as pls
+    from vibe_widget.utils.util import summarize_for_prompt
 
-    return pls.describe(data).content
+    return summarize_for_prompt(data)
 
 
 @dataclass

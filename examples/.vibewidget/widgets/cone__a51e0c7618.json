@@ -1,0 +1,86 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T14:25:35.553875+00:00",
+  "file_name": "cone__a51e0c7618.js",
+  "var_name": "cone",
+  "cache_key": "a51e0c761867464ff56a6314b8e8687cd0d8d6dc6cbaf94117c91b207241fa21",
+  "description": "forecast-uncertainty explorer on a leaflet map with osm tiles, ~600px tall, centred on the gulf of mexico (about 27°N, -90°E, zoom 5). data = ensemble tracks (member, t_h hours 0..120 in steps of 5, lon, lat), 200 members. input towns (town, lon, lat) drawn as small labelled pins.\n    an encoding switch with five options, all computed from the same members: (1) 'cone': the mean track with a filled cone whose radius at each time is the 67th percentile of member distance from the mean, the classic look; (2) 'spaghetti': every member as a thin line; (3) 'density': member positions across all times as a heat layer (hexbin or gaussian blur on canvas); (4) 'hops': one randomly chosen member drawn boldly at a time, swapping every 500 ms, the rest invisible; (5) 'bands': the 50 % and 90 % quantile bands of position per time step, computed separately for members that end north of 28°N and those that do not, so a split shows as two bands.\n    a time slider 0–120 h: the members' positions at that hour as dots plus a marker on the mean track; a small play button.\n    a draggable 'my town' marker (start on Houston) with a draggable radius ring (start 80 km): a panel shows 'P(track passes within 80 km at any time) = 31 %', and 'members inside the cone at 96 h: 64 %'. a strip chart under the map: probability of having passed within the ring by hour t.\n    outputs encoding, town = {lon, lat}, radius_km, p_hit.",
+  "data_signature": {
+    "shape": [
+      5000,
+      4
+    ],
+    "columns": [
+      "member",
+      "t_h",
+      "lon",
+      "lat"
+    ],
+    "dtypes": [
+      [
+        "member",
+        "int64"
+      ],
+      [
+        "t_h",
+        "int64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "lat",
+        "float64"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-5",
+  "exports_signature": "3c9540c5",
+  "imports_signature": "efc15748",
+  "theme_signature": "6e1a5884",
+  "parameter_signature": "739cf6232d",
+  "prompt_keywords": [
+    "forecast",
+    "uncertainty"
+  ],
+  "theme_name": "minimal",
+  "theme_description": "Minimal instrument, print quality. Nothing on screen that is not data, a control, or a label a reader needs to read the data.\n\n## Text\nNo title, subtitle, heading, description, instructions, hints, tips, how-to text, legend prose, footers, or status sentences. No emoji, check marks, crosses, exclamation marks, capitals for emphasis, or promotional tone. Labels are lowercase or sentence case, terse, and appear only where they carry a value (a count line, a time on a handle, the name of the selected mark). Numbers use tabular figures. If a control needs explaining, redesign the control instead of adding text.\n\n## Type\nOne typeface: system-ui, -apple-system, Inter, Helvetica, sans-serif. 11-13px labels, 12-14px values, weight 400, weight 600 only for the single emphasized value. Monospace (ui-monospace, SF Mono, Menlo) only for times, coordinates and code.\n\n## Color\nPaper #ffffff, ink #111111, grey #777777, hairline #d9d9d9, faint fill #f2f2f2. One accent #d9480f for the current selection or target. Status colours only where they encode a state: open #2b8a3e, closed #c92a2a, unknown grey. Nothing else is coloured. No gradients, shadows, glows, rounded cards, pills, or tinted panels. Buttons and chips: hairline border, no fill; the active one is filled ink with white text.\n\n## Marks\nThin. 1px hairlines, 1.5px data lines, 2px for the selected route. Points 5-7px. Draggable handles: 7px filled ink or accent with a 1.5px white stroke and an invisible 16px hit area. Area fills 8-15% opacity.\n\n## Maps\nLight grey basemap with no API key: Esri World Light Gray Canvas, https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x} (maxZoom 16, attribution 'Esri, HERE, Garmin, OpenStreetMap contributors'), so the data carries the colour. Never use CARTO or Stadia tiles. Small attribution, zoom control bottom-right.\n\n## Layout\nWhite ground, 12px padding, flat. A side panel is separated by a hairline, not boxed. Tables: hairline rows, right-aligned numbers, no zebra striping. Space instead of borders.\n\n## Motion\nNone beyond the direct response to the pointer. State changes apply within 150ms, no easing flourishes.",
+  "notebook_path": null,
+  "components": [
+    "EncodingSwitch",
+    "TimeSlider",
+    "StripChart",
+    "ValueRow"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "forecast-uncertainty explorer on a leaflet map with osm tiles, ~600px tall, centred on the gulf of mexico (about 27°N, -90°E, zoom 5). data = ensemble tracks (member, t_h hours 0..120 in steps of 5, lon, lat), 200 members. input towns (town, lon, lat) drawn as small labelled pins.\n    an encoding switch with five options, all computed from the same members: (1) 'cone': the mean track with a filled cone whose radius at each time is the 67th percentile of member distance from the mean, the classic look; (2) 'spaghetti': every member as a thin line; (3) 'density': member positions across all times as a heat layer (hexbin or gaussian blur on canvas); (4) 'hops': one randomly chosen member drawn boldly at a time, swapping every 500 ms, the rest invisible; (5) 'bands': the 50 % and 90 % quantile bands of position per time step, computed separately for members that end north of 28°N and those that do not, so a split shows as two bands.\n    a time slider 0–120 h: the members' positions at that hour as dots plus a marker on the mean track; a small play button.\n    a draggable 'my town' marker (start on Houston) with a draggable radius ring (start 80 km): a panel shows 'P(track passes within 80 km at any time) = 31 %', and 'members inside the cone at 96 h: 64 %'. a strip chart under the map: probability of having passed within the ring by hour t.\n    outputs encoding, town = {lon, lat}, radius_km, p_hit.",
+      "source": "create",
+      "timestamp": "2026-09-16T14:23:20.857304+00:00"
+    }
+  ],
+  "outputs": {
+    "encoding": "one of cone, spaghetti, density, hops, bands",
+    "town": "{lon, lat} of the marker",
+    "radius_km": "ring radius",
+    "p_hit": "probability any member passes within the ring"
+  },
+  "inputs": {
+    "towns": "<imported_trait:towns>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 6818,
+      "completion_tokens": 15209,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

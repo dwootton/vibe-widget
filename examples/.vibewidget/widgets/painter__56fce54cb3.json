@@ -1,0 +1,44 @@
+{
+  "created_at": "2026-06-23T18:45:21.285075+00:00",
+  "file_name": "painter__56fce54cb3.js",
+  "cache_key": "56fce54cb30897515a0e11985d15df1347b1645848058a9653a2be0c6f006206",
+  "description": "\n    2D terrain painter widget with simulation controls.\n\n    CANVAS:\n    - 512x512 px canvas. The terrain grid is 64x64 cells.\n    - Left-click / drag raises terrain at the brush position (left-button).\n    - Right-click / drag lowers terrain (right-button, suppress context menu).\n    - Render each cell with this color gradient interpolated in CSS:\n        h=0.0  -> rgb(0,20,120)\n        h=0.3  -> rgb(34,139,34)\n        h=0.6  -> rgb(180,180,100)\n        h=1.0  -> rgb(255,255,255)\n    - Redraw the canvas after every brush stroke.\n\n    CONTROLS (rendered below the canvas):\n    - Brush Size slider (1-20, default 5, label \"Brush Size\")\n    - Strength slider (0.01-0.2 step 0.01, default 0.05, label \"Strength\")\n    - \"Reset\" button: reinitialize to procedural hills (same formula as startup), redraw, sync.\n    - \"Erode\" button: run 1500 hydraulic erosion drops, then redraw and sync.\n      Erosion loop per drop:\n        start at random (x,y); for up to 40 steps:\n          scan 8-connected neighbours for the lowest height;\n          if current cell is the local min: add 0.003 (deposit) and break;\n          else: subtract 0.008 (erode) from current cell, move to lowest neighbour.\n      After all drops, clip every value to [0, 1].\n\n    HEIGHTMAP STATE:\n    - Maintain heightmap as a plain JS Array of 4096 numbers (64x64 row-major, values 0-1).\n    - INITIAL STATE: generate rolling hills using this formula for cell (x, y):\n        h = 0.30\n          + 0.22 * Math.sin(x / 9)  * Math.sin(y / 9)\n          + 0.12 * Math.sin(x / 4 + 1.2) * Math.cos(y / 5)\n          + 0.08 * Math.cos(x / 6 + 0.5) * Math.sin(y / 7 + 0.8)\n        clamp h to [0, 1]\n      This produces a realistic hilly landscape visible from the start.\n    - SYNCING: whenever the heightmap changes (after any brush stroke, after Erode,\n      after Reset) call:\n        model.set('heightmap', heightmap.slice());\n        model.save_changes();\n      Use Array.from() / .slice() \u2014 never pass a Float32Array to model.set().\n    - On mount, call syncToModel() once so the linked 3D widget sees the initial hills.\n    ",
+  "model": "google/gemini-3-flash-preview",
+  "exports_signature": "e89d1eed",
+  "imports_signature": "79e14062",
+  "theme_signature": "",
+  "parameter_signature": "97e093d97d",
+  "prompt_keywords": [
+    "terrain",
+    "painter"
+  ],
+  "theme_name": null,
+  "theme_description": null,
+  "notebook_path": "terrain_erosion.ipynb",
+  "components": [
+    "ActionButton",
+    "ControlSlider"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "2D terrain painter widget with simulation controls.\n\n    CANVAS:\n    - 512x512 px canvas. The terrain grid is 64x64 cells.\n    - Left-click / drag raises terrain at the brush position (left-button).\n    - Right-click / drag lowers terrain (right-button, suppress context menu).\n    - Render each cell with this color gradient interpolated in CSS:\n        h=0.0  -> rgb(0,20,120)\n        h=0.3  -> rgb(34,139,34)\n        h=0.6  -> rgb(180,180,100)\n        h=1.0  -> rgb(255,255,255)\n    - Redraw the canvas after every brush stroke.\n\n    CONTROLS (rendered below the canvas):\n    - Brush Size slider (1-20, default 5, label \"Brush Size\")\n    - Strength slider (0.01-0.2 step 0.01, default 0.05, label \"Strength\")\n    - \"Reset\" button: reinitialize to procedural hills (same formula as startup), redraw, sync.\n    - \"Erode\" button: run 1500 hydraulic erosion drops, then redraw and sync.\n      Erosion loop per drop:\n        start at random (x,y); for up to 40 steps:\n          scan 8-connected neighbours for the lowest height;\n          if current cell is the local min: add 0.003 (deposit) and break;\n          else: subtract 0.008 (erode) from current cell, move to lowest neighbour.\n      After all drops, clip every value to [0, 1].\n\n    HEIGHTMAP STATE:\n    - Maintain heightmap as a plain JS Array of 4096 numbers (64x64 row-major, values 0-1).\n    - INITIAL STATE: generate rolling hills using this formula for cell (x, y):\n        h = 0.30\n          + 0.22 * Math.sin(x / 9)  * Math.sin(y / 9)\n          + 0.12 * Math.sin(x / 4 + 1.2) * Math.cos(y / 5)\n          + 0.08 * Math.cos(x / 6 + 0.5) * Math.sin(y / 7 + 0.8)\n        clamp h to [0, 1]\n      This produces a realistic hilly landscape visible from the start.\n    - SYNCING: whenever the heightmap changes (after any brush stroke, after Erode,\n      after Reset) call:\n        model.set('heightmap', heightmap.slice());\n        model.save_changes();\n      Use Array.from() / .slice() \u2014 never pass a Float32Array to model.set().\n    - On mount, call syncToModel() once so the linked 3D widget sees the initial hills.",
+      "source": "create",
+      "timestamp": "2026-06-23T18:44:54.681634+00:00"
+    }
+  ],
+  "data_signature": {
+    "shape": [
+      0,
+      0
+    ],
+    "columns": [],
+    "dtypes": []
+  },
+  "schema_version": 4,
+  "var_name": "painter",
+  "outputs": {},
+  "actions": {},
+  "inputs": {},
+  "provenance": {}
+}

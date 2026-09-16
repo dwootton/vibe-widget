@@ -14,10 +14,8 @@ class AgentProviderAdapter:
         self.provider = provider
 
     def supports_tools(self) -> bool:
-        return hasattr(self.provider, "client") and hasattr(self.provider.client, "chat")
-
-    def supports_streaming(self) -> bool:
-        return self.supports_tools()
+        """True when the provider exposes a tool-capable chat completion."""
+        return callable(getattr(self.provider, "chat_completion", None))
 
     def chat_complete(
         self,
@@ -26,21 +24,17 @@ class AgentProviderAdapter:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
         max_tokens: int = 8192,
-        temperature: float = 0.7,
-    ):
-        if not self.supports_tools():
-            raise RuntimeError("Provider does not support tool calls.")
-        params: dict[str, Any] = {
-            "model": getattr(self.provider, "model", None),
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        }
-        if tools:
-            params["tools"] = tools
-            if tool_choice:
-                params["tool_choice"] = tool_choice
-        return self.provider.client.chat.completions.create(**params)
+        temperature: float | None = None,
+    ) -> Any:
+        """Run a non-streaming chat completion."""
+        return self._complete(
+            messages=messages,
+            tools=tools,
+            tool_choice=tool_choice,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stream=False,
+        )
 
     def chat_complete_stream(
         self,
@@ -49,19 +43,19 @@ class AgentProviderAdapter:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
         max_tokens: int = 8192,
-        temperature: float = 0.7,
-    ):
-        if not self.supports_streaming():
-            raise RuntimeError("Provider does not support streaming.")
-        params: dict[str, Any] = {
-            "model": getattr(self.provider, "model", None),
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "stream": True,
-        }
-        if tools:
-            params["tools"] = tools
-            if tool_choice:
-                params["tool_choice"] = tool_choice
-        return self.provider.client.chat.completions.create(**params)
+        temperature: float | None = None,
+    ) -> Any:
+        """Run a streaming chat completion."""
+        return self._complete(
+            messages=messages,
+            tools=tools,
+            tool_choice=tool_choice,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stream=True,
+        )
+
+    def _complete(self, *, stream: bool, **kwargs: Any) -> Any:
+        if not self.supports_tools():
+            raise RuntimeError("Provider does not support tool calls.")
+        return self.provider.chat_completion(stream=stream, **kwargs)

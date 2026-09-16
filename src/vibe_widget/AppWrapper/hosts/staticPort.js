@@ -4,11 +4,12 @@
 //
 // `sendSet` only updates the in-page model (already applied optimistically
 // by `hostModel.js`); there is nothing to persist it to. `sendCustom`
-// answers the three known custom-message types with an explicit "not
-// available" reply instead of silently doing nothing, because the frontend
-// (`modelActions.js`) awaits a correlated reply by `request_id` for each of
-// them - leaving it unanswered would hang a promise (a stuck save dialog, a
-// spinner that never resolves) rather than surfacing a clear message.
+// answers `save_widget` - the one custom message type the engine still
+// handles (see `VibeWidget._handle_custom_msg`) - with an explicit
+// "not available" reply instead of silently doing nothing, because the
+// frontend awaits a correlated reply by `request_id`: leaving it unanswered
+// would hang a promise (a stuck save dialog) rather than surfacing a clear
+// message. Any other message type is ignored, matching the engine itself.
 export function createStaticPort({ snapshot, sessionId = "static-session" }) {
   const snapshotHandlers = new Set();
   const customHandlers = new Set();
@@ -44,24 +45,14 @@ export function createStaticPort({ snapshot, sessionId = "static-session" }) {
     sendCustom(content) {
       const type = content && content.type;
       const requestId = content && content.request_id;
+      if (type !== "save_widget") return;
       queueMicrotask(() => {
-        if (type === "request_editor_bundle") {
-          emitCustom({ type: "editor_bundle_error", error: "Editing is not available in a static export." });
-        } else if (type === "save_widget") {
-          emitCustom({
-            type: "save_widget_result",
-            request_id: requestId,
-            success: false,
-            error: "Saving is not available in a static export.",
-          });
-        } else if (type === "remote_call") {
-          emitCustom({
-            type: "remote_call_result",
-            id: content.id,
-            success: false,
-            error: "Remote calls are not available in a static export.",
-          });
-        }
+        emitCustom({
+          type: "save_widget_result",
+          request_id: requestId,
+          success: false,
+          error: "Saving is not available in a static export.",
+        });
       });
     },
     close() {

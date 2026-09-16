@@ -2,24 +2,33 @@
 
 from __future__ import annotations
 
+import json
+import textwrap
+from collections.abc import Iterable
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Iterable
-import json
-import textwrap
+from typing import Any
 
 from vibe_widget.config import get_global_config
 from vibe_widget.llm.providers.openrouter_provider import OpenRouterProvider
 
-
-_THEMES_DIR = Path.home() / ".vibewidgets" / "themes"
-_SESSION_CACHE: dict[str, "Theme"] = {}
+_SESSION_CACHE: dict[str, Theme] = {}
 _PROVIDER: OpenRouterProvider | None = None
 
 
 def _t(text: str) -> str:
     return textwrap.dedent(text).strip()
+
+
+def _themes_dir() -> Path:
+    """Project-local directory saved themes are written to."""
+    return Path.cwd() / ".vibewidget" / "themes"
+
+
+def _themes_read_dirs() -> list[Path]:
+    """Directories saved themes are read from, project-local last so it wins."""
+    return [Path.home() / ".vibewidgets" / "themes", _themes_dir()]
 
 
 THEME_GENERATION_PROMPT = _t(
@@ -119,22 +128,19 @@ class Theme:
     name: str | None = None
     prompt: str | None = None
 
-    def save(self, name: str) -> "Theme":
+    def save(self, name: str) -> Theme:
         """Persist this theme and return the saved theme."""
         if not name or not name.strip():
             raise ValueError("Theme name is required.")
         normalized = _normalize_name(name)
         payload = {"name": normalized, "description": self.description, "prompt": self.prompt or ""}
-        _THEMES_DIR.mkdir(parents=True, exist_ok=True)
-        path = _THEMES_DIR / f"{normalized}.json"
+        themes_dir = _themes_dir()
+        themes_dir.mkdir(parents=True, exist_ok=True)
+        path = themes_dir / f"{normalized}.json"
         path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         saved = Theme(description=self.description, name=normalized, prompt=self.prompt)
         ThemeRegistry().register(saved)
         return saved
-
-    def ensure_accessible(self) -> "Theme":
-        """Request WCAG-friendly contrast adjustments."""
-        return ThemeRegistry().modify(self, "ensure WCAG AA contrast compliance")
 
     @property
     def summary(self) -> str:
@@ -158,9 +164,9 @@ class ThemesCatalog(dict):
 class ThemeRegistry:
     """Registry for built-in, saved, and session themes."""
 
-    _instance: "ThemeRegistry | None" = None
+    _instance: ThemeRegistry | None = None
 
-    def __new__(cls) -> "ThemeRegistry":
+    def __new__(cls) -> ThemeRegistry:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._themes = {}
@@ -173,18 +179,19 @@ class ThemeRegistry:
             self._themes[_normalize_name(name)] = theme
 
     def _load_saved(self) -> None:
-        if not _THEMES_DIR.exists():
-            return
-        for path in _THEMES_DIR.glob("*.json"):
-            try:
-                payload = json.loads(path.read_text(encoding="utf-8"))
-                description = payload.get("description", "").strip()
-                name = payload.get("name", path.stem)
-                prompt = payload.get("prompt") or ""
-                if description:
-                    self._themes[_normalize_name(name)] = Theme(description=description, name=_normalize_name(name), prompt=prompt)
-            except Exception:
+        for directory in _themes_read_dirs():
+            if not directory.exists():
                 continue
+            for path in sorted(directory.glob("*.json")):
+                try:
+                    payload = json.loads(path.read_text(encoding="utf-8"))
+                    description = payload.get("description", "").strip()
+                    name = payload.get("name", path.stem)
+                    prompt = payload.get("prompt") or ""
+                    if description:
+                        self._themes[_normalize_name(name)] = Theme(description=description, name=_normalize_name(name), prompt=prompt)
+                except Exception:
+                    continue
 
     def register(self, theme: Theme) -> None:
         if theme.name:
@@ -323,15 +330,19 @@ def _normalize_name(name: str) -> str:
 
 
 def _get_provider(model: str | None = None, api_key: str | None = None) -> OpenRouterProvider:
+    """Return a provider pointed at the configured endpoint."""
     global _PROVIDER
+    config = get_global_config()
+    kwargs = {
+        "base_url": getattr(config, "base_url", None),
+        "timeout": getattr(config, "timeout", 120.0),
+    }
     if model or api_key:
-        config = get_global_config()
-        resolved_model = model or config.model
-        resolved_key = api_key or config.api_key
-        return OpenRouterProvider(resolved_model, resolved_key)
+        return OpenRouterProvider(model or config.model, api_key or config.api_key, **kwargs)
     if _PROVIDER is None:
-        config = get_global_config()
-        _PROVIDER = OpenRouterProvider(config.model, config.api_key)
+        # ponytail: module-wide cache, ignores a later vw.config(base_url=...); clear it in
+        # vw.config() if switching endpoints mid-session matters.
+        _PROVIDER = OpenRouterProvider(config.model, config.api_key, **kwargs)
     return _PROVIDER
 
 

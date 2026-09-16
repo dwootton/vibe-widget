@@ -1,0 +1,112 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T01:28:24.952170+00:00",
+  "file_name": "m__c11068c328.js",
+  "var_name": "m",
+  "cache_key": "c11068c328ab8f3d27d18163e85f2c217b58e36b803a45d0b7980c3cdaa9122d",
+  "description": "leaflet map with osm tiles, ~560px tall, of the donut shops. the hotel is a fixed dark pin at lat 29.7522 lon -95.3578.\n    one circle centred on the hotel, radius 3.5 km to start. dragging anywhere on the circle's edge changes the radius; a label riding on the edge shows '<r> km'.\n    shops inside the circle are solid dots (orange when chain is False, grey when True), shops outside are faded small dots.\n    a badge top-left: '<n> inside · <k> independent'. hovering a shop shows name, street, hours.",
+  "data_signature": {
+    "shape": [
+      41,
+      10
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "f56df71b",
+  "imports_signature": "9829b377",
+  "theme_signature": "222411cf",
+  "parameter_signature": "20525d07d9",
+  "prompt_keywords": [
+    "leaflet",
+    "map"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "Badge",
+    "InfoTooltip",
+    "Legend"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "leaflet map with osm tiles, ~560px tall, of the donut shops. the hotel is a fixed dark pin at lat 29.7522 lon -95.3578.\n    one circle centred on the hotel, radius 3.5 km to start. dragging anywhere on the circle's edge changes the radius; a label riding on the edge shows '<r> km'.\n    shops inside the circle are solid dots (orange when chain is False, grey when True), shops outside are faded small dots.\n    a badge top-left: '<n> inside · <k> independent'. hovering a shop shows name, street, hours.",
+      "source": "create",
+      "timestamp": "2026-09-15T01:27:47.234123+00:00"
+    }
+  ],
+  "outputs": {
+    "inside": "row indices of shops inside the circle",
+    "radius_km": "current radius in km"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 4025,
+      "completion_tokens": 5710,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.1"
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-14T16:02:20.935169+00:00",
+  "file_name": "w3__d7a90060ae.js",
+  "var_name": "w3",
+  "cache_key": "d7a90060aeaf0da4dacafbf5b626562cbff40e6924c0b52ecb4790bea69d1029",
+  "description": "scatter for one region (dropdown, start Barents): x co2_ppm, y frac (september), one dot per year labelled with the year on hover, the fitted line drawn through the pred values.\n    two draggable band edges parallel to the fitted line, starting at ±1 sd of resid. dots outside the band are filled dark orange, inside are light grey; their years are listed to the right sorted by |resid|, largest first.\n    drag either edge to widen or narrow; shift+drag moves both together. under the chart, monospace, live:\n    SELECT s.year, s.frac, c.co2_ppm FROM sept s JOIN co2 c ON s.year = c.year WHERE region = 'Barents' AND ABS(frac - pred) > 0.061   -- 9 rows",
+  "data_signature": {
+    "shape": [
+      658,
+      6
+    ],
+    "columns": [
+      "region",
+      "year",
+      "frac",
+      "co2_ppm",
+      "pred",
+      "resid"
+    ],
+    "dtypes": [
+      [
+        "region",
+        "str"
+      ],
+      [
+        "year",
+        "int64"
+      ],
+      [
+        "frac",
+        "float64"
+      ],
+      [
+        "co2_ppm",
+        "float64"
+      ],
+      [
+        "pred",
+        "float64"
+      ],
+      [
+        "resid",
+        "float64"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-4.8",
+  "exports_signature": "9e12463b",
+  "imports_signature": "e46507a4",
+  "theme_signature": "",
+  "parameter_signature": "84124993af",
+  "prompt_keywords": [
+    "scatter",
+    "one"
+  ],
+  "theme_name": null,
+  "theme_description": null,
+  "notebook_path": null,
+  "components": [
+    "OutsideList",
+    "SqlBox"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "scatter for one region (dropdown, start Barents): x co2_ppm, y frac (september), one dot per year labelled with the year on hover, the fitted line drawn through the pred values.\n    two draggable band edges parallel to the fitted line, starting at ±1 sd of resid. dots outside the band are filled dark orange, inside are light grey; their years are listed to the right sorted by |resid|, largest first.\n    drag either edge to widen or narrow; shift+drag moves both together. under the chart, monospace, live:\n    SELECT s.year, s.frac, c.co2_ppm FROM sept s JOIN co2 c ON s.year = c.year WHERE region = 'Barents' AND ABS(frac - pred) > 0.061   -- 9 rows",
+      "source": "create",
+      "timestamp": "2026-09-14T16:01:26.710874+00:00"
+    }
+  ],
+  "outputs": {
+    "outside": "years outside the band for the shown region",
+    "band": "dict lo, hi in resid units"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-4.8",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 5176,
+      "completion_tokens": 5252,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.2.7"
+  }
+}

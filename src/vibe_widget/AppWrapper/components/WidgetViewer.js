@@ -31,10 +31,11 @@ export default function WidgetViewer({
     startGrab();
   };
 
-  useKeyboardShortcuts({ isLoading: false, hasCode, grabMode, onGrabStart: handleGrabStart });
+  const rootRef = React.useRef(null);
+  useKeyboardShortcuts({ targetRef: rootRef, isLoading: false, hasCode, grabMode, onGrabStart: handleGrabStart });
 
   return (
-    <div class={tw("relative w-full h-full")}>
+    <div ref={rootRef} tabIndex={-1} class={tw("relative w-full h-full outline-none")}>
       {hasCode && <SandboxedRunner code={code} model={model} runKey={0} />}
 
       {hasCode && (

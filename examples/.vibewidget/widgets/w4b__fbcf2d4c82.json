@@ -1,0 +1,59 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T23:41:13.821361+00:00",
+  "file_name": "w4b__fbcf2d4c82.js",
+  "var_name": "w4b",
+  "cache_key": "fbcf2d4c82de5a5e7686f891dd7ff7ba1ef0992c6a44ab5912a162da1d4a93be",
+  "description": "3d damped pendulum replaying the trajectories of the phase portrait, three.js with OrbitControls. a fixed pivot, a thin rod, a bob; θ = 0 hangs straight down, θ grows counter-clockwise seen from the front. faint ground disk, camera a little above and in front.\n    inputs: points is a list of {theta0, omega0} in radians and radians/s, one per numbered dot in the portrait, dot number = index + 1; damping is a number c. integrate θ'' = -sin(θ) - c·θ' yourself with rk4, dt 0.02, 25 s, exactly as the portrait does, so the swing matches the drawn curve. rod and bob take the portrait's colour for that dot (#d9534f, #2b7cb6, #2a9d8f, #e76f51, #8a508f, #f4a261, #457b9d, #b5179e, #3a0ca3, #38b000, #e63946, #4361ee by index).\n    a row above the canvas: a segmented picker of dot numbers 1..n (n = points.length), play/pause, replay (back to t = 0), and 't = 3.4 s · θ 1.02 · ω -0.41' updating live. playback in real time, requestAnimationFrame, stops at 25 s.\n    when points changes: find the index that was added or whose theta0/omega0 moved (compare old and new by index), select it, and play from t = 0. when damping changes: re-integrate the selected one and keep playing from the current t. if the selected index no longer exists, select the last dot. no points: bob at rest, picker and play disabled.",
+  "data_signature": {
+    "shape": [
+      0,
+      0
+    ],
+    "columns": [],
+    "dtypes": []
+  },
+  "model": "anthropic/claude-opus-5",
+  "exports_signature": "",
+  "imports_signature": "c6114f74",
+  "theme_signature": "222411cf",
+  "parameter_signature": "fb850d7edc",
+  "prompt_keywords": [
+    "damped",
+    "pendulum"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "SegmentedPicker",
+    "Readout",
+    "TransportButton"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "3d damped pendulum replaying the trajectories of the phase portrait, three.js with OrbitControls. a fixed pivot, a thin rod, a bob; θ = 0 hangs straight down, θ grows counter-clockwise seen from the front. faint ground disk, camera a little above and in front.\n    inputs: points is a list of {theta0, omega0} in radians and radians/s, one per numbered dot in the portrait, dot number = index + 1; damping is a number c. integrate θ'' = -sin(θ) - c·θ' yourself with rk4, dt 0.02, 25 s, exactly as the portrait does, so the swing matches the drawn curve. rod and bob take the portrait's colour for that dot (#d9534f, #2b7cb6, #2a9d8f, #e76f51, #8a508f, #f4a261, #457b9d, #b5179e, #3a0ca3, #38b000, #e63946, #4361ee by index).\n    a row above the canvas: a segmented picker of dot numbers 1..n (n = points.length), play/pause, replay (back to t = 0), and 't = 3.4 s · θ 1.02 · ω -0.41' updating live. playback in real time, requestAnimationFrame, stops at 25 s.\n    when points changes: find the index that was added or whose theta0/omega0 moved (compare old and new by index), select it, and play from t = 0. when damping changes: re-integrate the selected one and keep playing from the current t. if the selected index no longer exists, select the last dot. no points: bob at rest, picker and play disabled.",
+      "source": "create",
+      "timestamp": "2026-09-15T23:39:53.914067+00:00"
+    }
+  ],
+  "outputs": {},
+  "inputs": {
+    "points": "<imported_trait:points>",
+    "damping": "<imported_trait:damping>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 4938,
+      "completion_tokens": 8325,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

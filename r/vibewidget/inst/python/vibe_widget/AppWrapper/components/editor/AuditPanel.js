@@ -1,7 +1,7 @@
 import React from "react";
 import { tw } from "../../styles/setup.js";
 
-const panelClass = tw("font-mono text-text-primary text-[12px] min-w-0 h-full flex flex-col min-h-0");
+const panelClass = tw("font-mono text-[#f2f0e9] text-[12px] min-w-0 h-full flex flex-col min-h-0");
 const headerClass = tw("text-[11px] uppercase tracking-[0.08em] flex justify-between mb-2");
 const cardClass = tw(
   "border-b border-[rgba(242,240,233,0.2)] rounded-[4px] px-2 py-3 transition-shadow duration-150"
@@ -12,18 +12,18 @@ const cardTitleClass = tw("text-[10px] uppercase flex items-center gap-1");
 const impactDotClass = tw("w-2 h-2 rounded-full");
 const actionsClass = tw("flex gap-1 my-1");
 const actionButtonClass = tw(
-  "w-5 h-5 border border-[rgba(242,240,233,0.3)] rounded-[2px] bg-surface-2 text-text-primary text-[10px] transition-colors duration-150 hover:bg-surface-3"
+  "w-5 h-5 border border-[rgba(242,240,233,0.3)] rounded-[2px] bg-[#0f0f0f] text-[#f2f0e9] text-[10px] transition-colors duration-150 hover:bg-[#1a1a1a]"
 );
 const metaClass = tw("mb-1");
 const metaButtonClass = tw(
-  "border border-[rgba(242,240,233,0.2)] rounded-[2px] px-2 py-[2px] uppercase tracking-[0.04em] text-[10px] bg-surface-2 text-text-primary"
+  "border border-[rgba(242,240,233,0.2)] rounded-[2px] px-2 py-[2px] uppercase tracking-[0.04em] text-[10px] bg-[#0f0f0f] text-[#f2f0e9]"
 );
 const summaryClass = tw("text-[11px] leading-[1.5]");
 const detailClass = tw("text-[11px] leading-[1.5]");
 const listClass = tw("text-[11px] leading-[1.5]");
 const alternativeClass = tw("text-accent underline text-[11px] cursor-pointer");
 const emptyClass = tw(
-  "border border-[rgba(242,240,233,0.2)] rounded-[2px] bg-surface-2 text-[11px] p-2 flex-1"
+  "border border-[rgba(242,240,233,0.2)] rounded-[2px] bg-[#0f0f0f] text-[11px] p-2 flex-1"
 );
 const emptyActionListClass = tw("mt-2 space-y-1 text-[11px]");
 const toggleButtonClass = tw("text-accent underline text-[11px] cursor-pointer");

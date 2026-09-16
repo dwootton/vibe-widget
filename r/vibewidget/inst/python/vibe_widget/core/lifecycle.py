@@ -41,4 +41,4 @@ class WidgetLifecycle:
         if not force and current in ALLOWED_TRANSITIONS:
             if new_status not in ALLOWED_TRANSITIONS[current]:
                 logger.warning("Unexpected widget status transition: %s -> %s", current, new_status)
-        setattr(self.widget, "status", new_status)
+        self.widget.status = new_status

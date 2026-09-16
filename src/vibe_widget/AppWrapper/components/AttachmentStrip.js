@@ -55,19 +55,21 @@ export default function AttachmentStrip({
               class={pillClass}
               onMouseEnter={() => onHoverCard(item.cardId)}
               onMouseLeave={() => onHoverCard(null)}
-              onClick={() => onStartEdit(item)}
+              onClick={onStartEdit ? () => onStartEdit(item) : undefined}
             >
               <span class={pillTextClass} title={item.label}>{item.label}</span>
-              <button
-                class={removeButtonClass}
-                title="Remove"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onRemovePending(item.itemId);
-                }}
-              >
-                ×
-              </button>
+              {onRemovePending && (
+                <button
+                  class={removeButtonClass}
+                  title="Remove"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRemovePending(item.itemId);
+                  }}
+                >
+                  ×
+                </button>
+              )}
               {isEditing && (
                 <div class={bubbleEditorClass} ref={bubbleEditorRef}>
                   <textarea
