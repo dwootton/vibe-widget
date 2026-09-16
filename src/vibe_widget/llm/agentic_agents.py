@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Callable
 
 from vibe_widget.llm.agents.config import AgentRunConfig, resolve_agent_run_config
@@ -14,7 +15,7 @@ from vibe_widget.llm.tools.code_tools import CodeValidateTool
 from vibe_widget.llm.tools.execution_tools import ErrorDiagnoseTool, RuntimeTestTool
 from vibe_widget.utils.serialization import clean_for_json
 
-DEFAULT_MAX_TOKENS = 16384
+DEFAULT_MAX_TOKENS = int(os.getenv("VIBE_MAX_TOKENS", "32768"))  # chained edits grow past 16k output tokens; env override for tight credit limits
 
 
 class MaxTokensExceeded(Exception):

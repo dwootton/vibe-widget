@@ -167,10 +167,10 @@ class LLMProvider(ABC):
         if data_path:
             file_access_section = f"""FILE ACCESS (AGENT TOOLS, GENERATION TIME ONLY):
 - Local directory available: {data_path}
-- Use tools: fs.list, fs.glob, fs.read, fs.read_base64; reads outside the allowed roots are rejected
+- Use tools: fs_list, fs_glob, fs_read, fs_read_base64; reads outside the allowed roots are rejected
 - The generated widget has no filesystem access at runtime and cannot call tools
 - Inline whatever the widget needs into the code you emit, for example a data: URL obtained
-  from fs.read_base64 used as an img src
+  from fs_read_base64 used as an img src
 
 """
 
@@ -203,6 +203,10 @@ MUST FOLLOW EXACTLY:
 11. Use style objects (style={{{{ ... }}}}) and className in JSX
 12. Never wrap the output in markdown code fences
 13. Ensure strong contrast between all text/labels and background colors (avoid light gray on white). Tables, main text, dropdowns, and any content intended to be read must have high contrast. Only use low-contrast text for decorative or de-emphasized elements not meant to be actively read.
+14. NEVER rebuild the chart from state a pointer mutates: the effect that creates the SVG must depend only on data and layout, never on drag/brush/selection/hover state. Keep live gesture values in React.useRef and update the affected marks imperatively inside the handlers. Rebuilding mid-gesture destroys the in-flight drag and leaves d3 measuring a detached node, which returns wildly wrong coordinates.
+15. Read pointer position as d3.pointer(event, <the plot group the scales draw into>) and invert the scale; never treat event.x/event.y/clientX/clientY as data values. Give draggable lines and edges a transparent hit area of at least 12px. Where a brush exists, mousedown inside it moves it and on an edge resizes it; only mousedown outside starts a new one.
+16. Arrow keys and other shortcuts only fire on a focused element: a pointerdown/mousedown handler that calls event.preventDefault() suppresses the browser's default focus, so it must also call .focus() on the focusable element that carries the key handler, or the keys never arrive.
+17. Call React hooks (useState, useRef, useEffect, useMemo, useCallback) only at the top level of a component function body, never inside callbacks, loops, conditions, effects, event handlers, or plain helper functions; a helper that needs state must itself be a component rendered as JSX (React error #321 otherwise).
 
 CORRECT Template:
 ```javascript
@@ -280,7 +284,7 @@ export default function Widget({{ model, React }}) {{
 
 STANDALONE COMPONENT REQUIREMENTS:
 1. Each named export component MUST be renderable independently
-2. Pass React and model as props when the component needs them
+2. Pass React and model as props when the component needs them; inside a named component use ONLY the React received via props (never a module-level React), because each widget has its own React instance and a mismatch throws React error #321
 3. Include all required state, effects, and cleanup within the component
 4. Do NOT rely on shared state from parent scope - receive everything via props
 5. For data-driven components, accept model as prop to access model.get("data")
@@ -342,10 +346,10 @@ Begin the response with code immediately."""
         if data_path:
             file_access_section = f"""FILE ACCESS (AGENT TOOLS, GENERATION TIME ONLY):
 - Local directory available: {data_path}
-- Use tools: fs.list, fs.glob, fs.read, fs.read_base64; reads outside the allowed roots are rejected
+- Use tools: fs_list, fs_glob, fs_read, fs_read_base64; reads outside the allowed roots are rejected
 - The generated widget has no filesystem access at runtime and cannot call tools
 - Inline whatever the widget needs into the code you emit, for example a data: URL obtained
-  from fs.read_base64 used as an img src
+  from fs_read_base64 used as an img src
 
 """
 
@@ -378,11 +382,13 @@ Follow the SAME constraints as generation:
 - JSX only (no html tagged templates)
 - ESM CDN imports with locked versions
 - Thorough cleanup in every React.useEffect
+- The effect that builds the SVG must not depend on drag/brush/selection/hover state; hold live gesture values in refs and update marks imperatively, so a gesture is never torn down mid-drag
 - Inline styles must be object literals (style={{{{ ... }}}}), never strings; convert any CSS strings to an object with camelCased keys.
 - Export reusable components as named exports when appropriate (JSX components)
 - Ensure strong contrast between all text/labels and background colors (avoid light gray on white). Tables, main text, dropdowns, and any content intended to be read must have high contrast. Only use low-contrast text for decorative or de-emphasized elements not meant to be actively read.
 
 Focus on making ONLY the requested changes. Reuse existing code structure where possible.
+Keep every existing feature, control, output trait, library, and visual exactly as it is unless the request changes it; a revision that drops an existing behavior is wrong.
 
 Return only the full revised JavaScript code. No markdown fences or explanations."""
 
@@ -418,9 +424,9 @@ Return only the full revised JavaScript code. No markdown fences or explanations
         if data_path:
             file_access_section = f"""FILE ACCESS (AGENT TOOLS ONLY):
 - Local directory available: {data_path}
-- Use tools: fs.list, fs.glob, fs.read, fs.read_base64
+- Use tools: fs_list, fs_glob, fs_read, fs_read_base64
 - Do not call fs.* from widget JS; filesystem access must happen via tools
-- For images, call fs.read_base64 and use the returned data_url in img src
+- For images, call fs_read_base64 and use the returned data_url in img src
 
 """
 
@@ -718,6 +724,11 @@ Focus on modifying only what's necessary for the requested changes.
         # Remove markdown code fences
         code = re.sub(r"```(?:javascript|jsx?|typescript|tsx?)?\s*\n?", "", code)
         code = re.sub(r"\n?```\s*", "", code)
+
+        # Drop prose before the first line that looks like code ("Here is the fixed file...")
+        m = re.search(r"^(?:import |export |const |let |var |function |//|/\*)", code, flags=re.M)
+        if m and m.start() > 0:
+            code = code[m.start():]
 
         return code.strip()
 

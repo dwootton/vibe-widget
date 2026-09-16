@@ -23,9 +23,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: Lint
-        # The tree still carries pre-existing ruff findings; this step reports
-        # them without blocking. Drop continue-on-error once it is clean.
-        continue-on-error: true
         run: ruff check
       - name: Test
         run: pytest tests --no-cov -q
