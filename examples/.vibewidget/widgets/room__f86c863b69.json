@@ -1,0 +1,90 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T22:14:15.983390+00:00",
+  "file_name": "room__f86c863b69.js",
+  "var_name": "room",
+  "cache_key": "f86c863b69f6f4f42d9d99fe1fbc6aa2ae99e54fd92e94c6ccf904da726b58b0",
+  "description": "2d airflow sandbox for a room, top view, canvas ~600px tall. the room is 8 m wide × 5 m deep. a supply vent (blue, 0.6 m wide) on the left wall and an exhaust (grey, 0.6 m) on the right wall, both draggable along their wall.\n    furniture from data (name, x, y, w, h in metres) as rounded rectangles with their name: drag to move, click a small corner handle to rotate 90°; they are solid obstacles and may not leave the room.\n    run an incompressible 2d fluid solver continuously at ~30 fps on a 96×60 grid: semi-lagrangian advection, a diffusion step, pressure projection with ~24 gauss-seidel iterations, no-slip at walls and furniture, inflow at the vent with speed from a 'fan' slider (0.2–1.5 m/s, start 0.8), outflow at the exhaust. restart the solve smoothly when an obstacle moves (do not reset velocities to zero, just re-mask).\n    draw speed as a viridis heatmap under everything, ~400 tracer particles advected with the flow (respawn at the vent), and hatched 'stale' cells where speed is below a draggable threshold line on a small colour legend (start 0.05 m/s). badge top-left: 'stale air: 23 % of floor'.\n    every time a piece of furniture is dropped, record a snapshot in a strip on the right: a 120px thumbnail of the plan with its stale %, newest first, the lowest % marked with a star; click a thumbnail to restore that layout. keep at most 8.\n    outputs arrangement = list of {name, x, y, w, h} for the current furniture positions, stale_pct = number.",
+  "data_signature": {
+    "shape": [
+      6,
+      5
+    ],
+    "columns": [
+      "name",
+      "x",
+      "y",
+      "w",
+      "h"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "x",
+        "float64"
+      ],
+      [
+        "y",
+        "float64"
+      ],
+      [
+        "w",
+        "float64"
+      ],
+      [
+        "h",
+        "float64"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-5",
+  "exports_signature": "cb883e86",
+  "imports_signature": "6b543db7",
+  "theme_signature": "222411cf",
+  "parameter_signature": "f37e5dfe96",
+  "prompt_keywords": [
+    "airflow",
+    "sandbox"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "SnapshotStrip",
+    "FanSlider",
+    "GhostButton",
+    "StaleBadge",
+    "ReadoutRow",
+    "SpeedLegend"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "2d airflow sandbox for a room, top view, canvas ~600px tall. the room is 8 m wide × 5 m deep. a supply vent (blue, 0.6 m wide) on the left wall and an exhaust (grey, 0.6 m) on the right wall, both draggable along their wall.\n    furniture from data (name, x, y, w, h in metres) as rounded rectangles with their name: drag to move, click a small corner handle to rotate 90°; they are solid obstacles and may not leave the room.\n    run an incompressible 2d fluid solver continuously at ~30 fps on a 96×60 grid: semi-lagrangian advection, a diffusion step, pressure projection with ~24 gauss-seidel iterations, no-slip at walls and furniture, inflow at the vent with speed from a 'fan' slider (0.2–1.5 m/s, start 0.8), outflow at the exhaust. restart the solve smoothly when an obstacle moves (do not reset velocities to zero, just re-mask).\n    draw speed as a viridis heatmap under everything, ~400 tracer particles advected with the flow (respawn at the vent), and hatched 'stale' cells where speed is below a draggable threshold line on a small colour legend (start 0.05 m/s). badge top-left: 'stale air: 23 % of floor'.\n    every time a piece of furniture is dropped, record a snapshot in a strip on the right: a 120px thumbnail of the plan with its stale %, newest first, the lowest % marked with a star; click a thumbnail to restore that layout. keep at most 8.\n    outputs arrangement = list of {name, x, y, w, h} for the current furniture positions, stale_pct = number.",
+      "source": "create",
+      "timestamp": "2026-09-15T22:11:18.479849+00:00"
+    }
+  ],
+  "outputs": {
+    "arrangement": "current furniture rectangles",
+    "stale_pct": "percent of floor cells below the stale threshold"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 5863,
+      "completion_tokens": 19676,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

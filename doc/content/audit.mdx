@@ -3,11 +3,10 @@ export const frontmatter = {
   description: 'Ask a second model call to review a generated widget and report what it finds.'
 };
 
-An audit is a second model call that reads the generated code and writes up what it notices. It is a
-review rather than a check, so there is no static analysis behind it, the findings are the model's
-opinion, and nothing in the package consults an audit before code runs. Read it the way you would
-read a colleague's comments on a pull request. When you want code to be gated rather than commented
-on, use `vw.config(execution="approve")` instead.
+An audit is a second model call that reads the generated code and writes up what it notices. The
+findings are that model's opinion. No static analysis runs behind them, and the package never
+consults an audit before code executes, so an audit reads like a colleague's comments on a pull
+request. To gate execution on your own reading of the code, use `vw.config(execution="approve")`.
 
 ## Running an audit
 
@@ -51,7 +50,7 @@ finding comparable to another. A `fast` audit reports findings without them.
 - **Safety** covers network calls, dynamic code execution, writes to storage, cross-origin fetches, and injected scripts or iframes.
 
 The model is told to keep high impact rare and to default to low unless there is clear evidence, so
-a report full of low-impact findings is the normal case rather than a sign that nothing was checked.
+most reports come back full of low-impact findings.
 
 ## Where reports are stored
 

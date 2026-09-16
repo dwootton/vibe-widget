@@ -3,9 +3,9 @@ export const frontmatter = {
   description: 'Describe how a widget should look, and reuse that description across widgets.'
 };
 
-A theme is a description of how a widget should look, written in plain language, and the model
-follows it while it generates the code. Themes are not stylesheets, so nothing is applied after the
-fact.
+A theme is a description of how a widget should look, written in plain language. The description
+goes into the prompt, so the colours, type and spacing end up written into the generated JavaScript
+itself. There is no stylesheet layered on afterwards, and changing a theme means generating again.
 
 ## Listing the built-in themes
 

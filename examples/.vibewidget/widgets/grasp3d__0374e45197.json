@@ -1,0 +1,134 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T22:10:37.385034+00:00",
+  "file_name": "grasp3d__0374e45197.js",
+  "var_name": "grasp3d",
+  "cache_key": "0374e451979beecd8a3210f0b5d7a2f877b8f8a26147cbc98255cc2e2fbcf338",
+  "description": "3d grasp triage with three.js@0.160 and OrbitControls, ~560px tall, z up, camera looking slightly down at the object from 35 cm. a light table plane at z=0 and the object as a point cloud from input cloud (x, y, z in metres, small dark points), plus a faint translucent cylinder of radius 4 cm and height 10 cm so the mug reads as a solid.\n    each row of data is a candidate parallel-jaw grasp, drawn as a U-shaped gripper glyph exactly like this: the point (x, y, z) is the midpoint between the two fingertips; the fingers are two segments 2.5 cm long, parallel to the approach direction (ax, ay, az), each ending at a fingertip; the fingertips are 'width' apart along the closing axis (cx, cy, cz), centred on (x, y, z); a palm bar joins the two finger roots. so a rim grasp looks like a small clip hanging over the rim from above and a body grasp looks like a wide U around the cylinder from the side. colour by outcome: success green, slip orange, collision red, unreachable grey; line width 2.\n    side panel: 'predicted score ≥' slider (start 0.5) hiding grasps below it with 'showing k of 140'; one toggle chip per outcome with counts; a 'colour by' switch between outcome and score (viridis).\n    click a glyph: it thickens, a dashed approach line 8 cm long is drawn along -approach ending at the palm, the two fingertip contact points are marked, and the panel prints id, region, score, width, outcome; the camera does not move. up/down arrows step through visible grasps in score order. click empty space to deselect.\n    outputs selected = grasp id or null, min_score = slider value.",
+  "data_signature": {
+    "shape": [
+      140,
+      14
+    ],
+    "columns": [
+      "grasp",
+      "region",
+      "x",
+      "y",
+      "z",
+      "ax",
+      "ay",
+      "az",
+      "cx",
+      "cy",
+      "cz",
+      "width",
+      "score",
+      "outcome"
+    ],
+    "dtypes": [
+      [
+        "grasp",
+        "int64"
+      ],
+      [
+        "region",
+        "str"
+      ],
+      [
+        "x",
+        "float64"
+      ],
+      [
+        "y",
+        "float64"
+      ],
+      [
+        "z",
+        "float64"
+      ],
+      [
+        "ax",
+        "float64"
+      ],
+      [
+        "ay",
+        "float64"
+      ],
+      [
+        "az",
+        "int64"
+      ],
+      [
+        "cx",
+        "float64"
+      ],
+      [
+        "cy",
+        "float64"
+      ],
+      [
+        "cz",
+        "int64"
+      ],
+      [
+        "width",
+        "float64"
+      ],
+      [
+        "score",
+        "float64"
+      ],
+      [
+        "outcome",
+        "str"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-5",
+  "exports_signature": "47816ad2",
+  "imports_signature": "b7f087fd",
+  "theme_signature": "222411cf",
+  "parameter_signature": "b35b88377c",
+  "prompt_keywords": [
+    "grasp",
+    "triage"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "ScoreSlider",
+    "ColourBySwitch",
+    "GraspReadout",
+    "OutcomeChips"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "3d grasp triage with three.js@0.160 and OrbitControls, ~560px tall, z up, camera looking slightly down at the object from 35 cm. a light table plane at z=0 and the object as a point cloud from input cloud (x, y, z in metres, small dark points), plus a faint translucent cylinder of radius 4 cm and height 10 cm so the mug reads as a solid.\n    each row of data is a candidate parallel-jaw grasp, drawn as a U-shaped gripper glyph exactly like this: the point (x, y, z) is the midpoint between the two fingertips; the fingers are two segments 2.5 cm long, parallel to the approach direction (ax, ay, az), each ending at a fingertip; the fingertips are 'width' apart along the closing axis (cx, cy, cz), centred on (x, y, z); a palm bar joins the two finger roots. so a rim grasp looks like a small clip hanging over the rim from above and a body grasp looks like a wide U around the cylinder from the side. colour by outcome: success green, slip orange, collision red, unreachable grey; line width 2.\n    side panel: 'predicted score ≥' slider (start 0.5) hiding grasps below it with 'showing k of 140'; one toggle chip per outcome with counts; a 'colour by' switch between outcome and score (viridis).\n    click a glyph: it thickens, a dashed approach line 8 cm long is drawn along -approach ending at the palm, the two fingertip contact points are marked, and the panel prints id, region, score, width, outcome; the camera does not move. up/down arrows step through visible grasps in score order. click empty space to deselect.\n    outputs selected = grasp id or null, min_score = slider value.",
+      "source": "create",
+      "timestamp": "2026-09-15T22:08:49.647315+00:00"
+    }
+  ],
+  "outputs": {
+    "selected": "selected grasp id or null",
+    "min_score": "score slider value"
+  },
+  "inputs": {
+    "cloud": "<imported_trait:cloud>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 7533,
+      "completion_tokens": 11831,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

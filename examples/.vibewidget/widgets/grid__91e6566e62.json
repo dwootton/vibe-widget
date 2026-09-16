@@ -1,0 +1,89 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T16:08:06.010116+00:00",
+  "file_name": "grid__91e6566e62.js",
+  "var_name": "grid",
+  "cache_key": "91e6566e6206122d626bcd147c0b9bc6472fdaf1237cf921869d77240933a26d",
+  "description": "attention head grid: 6 layers as rows × 8 heads as columns; each cell a small 15×15 heatmap of w (query q as rows, key k as columns, causal lower triangle, white to dark blue).\n    label each cell with the dominant pattern computed from its weights: 'prev' if most mass sits on k = q-1, 'bos' if on k = 0, 'induction' if on the token after the previous occurrence of the same token (use input toks for the token strings), else 'mixed'; colour the label chip by pattern.\n    a slider on top 'mass on previous token ≥', draggable 0–1, start 0: cells below it fade. click a cell to select it (thick orange outline); output head = {layer, head}; start with layer 1 head 3 selected.",
+  "data_signature": {
+    "shape": [
+      5760,
+      5
+    ],
+    "columns": [
+      "layer",
+      "head",
+      "q",
+      "k",
+      "w"
+    ],
+    "dtypes": [
+      [
+        "layer",
+        "int64"
+      ],
+      [
+        "head",
+        "int64"
+      ],
+      [
+        "q",
+        "int64"
+      ],
+      [
+        "k",
+        "int64"
+      ],
+      [
+        "w",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "829c74df",
+  "imports_signature": "d7703a63",
+  "theme_signature": "222411cf",
+  "parameter_signature": "b1fcc4f88f",
+  "prompt_keywords": [
+    "attention",
+    "head"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "AttentionCell",
+    "PatternChip",
+    "MiniHeatmap",
+    "SliderControl",
+    "HeadDetailView"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "attention head grid: 6 layers as rows × 8 heads as columns; each cell a small 15×15 heatmap of w (query q as rows, key k as columns, causal lower triangle, white to dark blue).\n    label each cell with the dominant pattern computed from its weights: 'prev' if most mass sits on k = q-1, 'bos' if on k = 0, 'induction' if on the token after the previous occurrence of the same token (use input toks for the token strings), else 'mixed'; colour the label chip by pattern.\n    a slider on top 'mass on previous token ≥', draggable 0–1, start 0: cells below it fade. click a cell to select it (thick orange outline); output head = {layer, head}; start with layer 1 head 3 selected.",
+      "source": "create",
+      "timestamp": "2026-09-15T16:06:09.898817+00:00"
+    }
+  ],
+  "outputs": {
+    "head": "{layer, head} of the selected cell"
+  },
+  "inputs": {
+    "toks": "<imported_trait:toks>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3605,
+      "completion_tokens": 18610,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

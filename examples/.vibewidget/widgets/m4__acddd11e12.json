@@ -1,0 +1,122 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-14T16:03:31.622836+00:00",
+  "file_name": "m4__acddd11e12.js",
+  "var_name": "m4",
+  "cache_key": "acddd11e1234f8d57d22b35bd590164b9961f32afc549e7d8e960859260b9038",
+  "description": "keep the circle, the dial, the isochrone bands, the arrival labels, the lasso regions and their table. clicking a shop pins it: a numbered marker stays on the shop with its name. pinned shops form a route from the hotel in pin order, drawn as a polyline;\n    each leg is labelled with its minutes from input `legs` (legs[i][j] = bike minutes between points, index 0 is the hotel, index i+1 is data row i). total minutes and the arrival time at each stop (leave time + legs so far + 10 min per stop) under the map. clicking a pinned shop unpins it and renumbers.",
+  "data_signature": {
+    "shape": [
+      41,
+      11
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note",
+      "bike_min"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ],
+      [
+        "bike_min",
+        "float64"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-4.8",
+  "exports_signature": "a76b58e6",
+  "imports_signature": "432efa08",
+  "theme_signature": "",
+  "parameter_signature": "4ae15789a0",
+  "prompt_keywords": [
+    "lasso",
+    "regions"
+  ],
+  "theme_name": null,
+  "theme_description": null,
+  "notebook_path": null,
+  "components": [
+    "DayButtons",
+    "ClockDial"
+  ],
+  "revision_parent": "b9abb16284dfd7bf81e82858e92999d938f43514dccd7784b96b126de9c2e1de",
+  "prompt_history": [
+    {
+      "prompt": "keep the circle, the dial, the isochrone bands, the arrival labels, the lasso regions and their table. clicking a shop pins it: a numbered marker stays on the shop with its name. pinned shops form a route from the hotel in pin order, drawn as a polyline;\n    each leg is labelled with its minutes from input `legs` (legs[i][j] = bike minutes between points, index 0 is the hotel, index i+1 is data row i). total minutes and the arrival time at each stop (leave time + legs so far + 10 min per stop) under the map. clicking a pinned shop unpins it and renumbers.",
+      "source": "create",
+      "timestamp": "2026-09-14T16:00:39.896947+00:00"
+    }
+  ],
+  "outputs": {
+    "inside": "row indices of shops inside the circle",
+    "radius_km": "current radius in km",
+    "open_on_arrival": "row indices inside the circle and open when we arrive",
+    "when": "{day, hhmm} leave time",
+    "regions": "dict region name -> list of row indices",
+    "route": "row indices of pinned shops in pin order"
+  },
+  "inputs": {
+    "isochrones": "<imported_trait:isochrones>",
+    "legs": "<imported_trait:legs>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-4.8",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 22637,
+      "completion_tokens": 20092,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.2.7"
+  }
+}

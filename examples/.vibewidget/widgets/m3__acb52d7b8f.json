@@ -1,0 +1,158 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T14:38:38.450115+00:00",
+  "file_name": "m3__acb52d7b8f.js",
+  "var_name": "m3",
+  "cache_key": "acb52d7b8fe10637a494f577282048ca3676f3c4bbe0f511ea3b7826fef00500",
+  "description": "keep the circle, its count line, the reach bands, the arrival labels, the target and the dial with both handles (LEAVE on the rim, BACK BY outside it) exactly as they are. shift+drag on the map draws a lasso (turn off leaflet's shift box-zoom so the lasso gets the gesture; register mousedown on the map container with capture and mousemove/mouseup on window, right after the map is created and inside the same effect, and never re-create the map on re-render). each lasso is kept as a region named A, B, C... with a small draggable handle on every vertex; double-click inside a region deletes it.\n    under the map a compact table, one row per region: name, n shops, n independent, n open on arrival, earliest arrival. hovering a row highlights its region. every new component takes React as a prop exactly like ClockDial does; never touch a module-level React.",
+  "data_signature": {
+    "shape": [
+      41,
+      16
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note",
+      "walk_min",
+      "walk_back",
+      "bike_min",
+      "bike_back",
+      "drive_min",
+      "drive_back"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ],
+      [
+        "walk_min",
+        "float64"
+      ],
+      [
+        "walk_back",
+        "float64"
+      ],
+      [
+        "bike_min",
+        "float64"
+      ],
+      [
+        "bike_back",
+        "float64"
+      ],
+      [
+        "drive_min",
+        "float64"
+      ],
+      [
+        "drive_back",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "ca199cf6",
+  "imports_signature": "8a9ec2f6",
+  "theme_signature": "656a9847",
+  "parameter_signature": "5e5d6345da",
+  "prompt_keywords": [
+    "reach",
+    "bands"
+  ],
+  "theme_name": "minimal",
+  "theme_description": "A stripped-down minimal theme that recedes behind the data, using soft neutrals, thin rules, and sparse labeling.\nGridlines are faint or removed, axes are subtle, and typography is quiet and compact.",
+  "notebook_path": null,
+  "components": [
+    "MapStatsBadge",
+    "ClockDial",
+    "RegionsTable"
+  ],
+  "revision_parent": "205a89001bae99235041096311f3b10a56ba639773fecab39a64160fc5837155",
+  "prompt_history": [
+    {
+      "prompt": "leaflet map, 560px tall, esri light grey canvas basemap, of the donut shops. the hotel is a fixed ink pin at lat 29.7522 lon -95.3578.\n    one circle centred on the hotel, radius 3.5 km to start; dragging anywhere on its edge changes the radius, a small label on the edge reads '<r> km'.\n    shops inside the circle are solid dots (accent when chain is False, grey when True), shops outside are faded small dots.\n    one count line top-left: '<n> inside · <k> independent'. hovering a shop shows name, street, hours.",
+      "source": "create",
+      "timestamp": "2026-09-16T13:23:33.850928+00:00"
+    },
+    {
+      "prompt": "keep the circle, its count line and the hover tooltips. add a 12-hour dial right of the map (a clock face: 12 at the top, then 3, 6, 9 clockwise, a tick every hour). two handles, independent of each other, neither ever moves the other, on two different radii so they can never overlap (LEAVE's handle sits on the rim, BACK BY's handle sits 14px outside the rim; a press within 18px of both centres grabs the handle whose centre is nearer the pointer, so they stay separately grabbable even at the same time of day): LEAVE (ink) is when we leave the hotel, start Tuesday 06:30 (the day row below starts on Tu); BACK BY (accent) is when we must be back at the hotel, start 08:45. a faint wedge between them is the time we have. hh:mm at each handle, outside the rim.\n    clicking a shop makes it the target (thick ring; its name in one line under the dial); start with data row 2. the target's trip rides just inside the rim as a thin ink arc from LEAVE to LEAVE + bike_min + 10 + bike_back, with a small tick and hh:mm where we arrive at the shop; any part of the arc past BACK BY is red.\n    under the dial one compact row of seven small day buttons Mo Tu We Th Fr Sa Su; left/right arrow keys nudge the last-touched handle 15 min while the dial has focus. while dragging, the pointer angle is measured from the centre of the dial svg's own getBoundingClientRect (the ref sits on the svg element itself, never on a wrapper that also holds text or buttons).\n    draw input `reach` `.bike` (geojson: 30, 20, 10 minute bike reach from the hotel) as three translucent grey-blue bands under the shops at 6%, 9% and 12% opacity (darker the closer, never heavier than that even where they stack); the km circle stays on top.\n    every shop inside the circle gets a small label 'hh:mm' = leave time + its `bike_min`. parse the osm `hours` text ('Mo-Sa 04:00-14:00; Su 05:00-14:00', '24/7', '05:00-20:00', 'Mo-Fr 05:00-21:00; Sa-Su 06:00-21:00', blank = unknown).\n    open at that arrival time and day → solid dot and green label; closed at arrival → hollow ring and red label; unknown hours → dashed ring and grey label. a shop whose round trip (bike_min + 10 + bike_back) does not fit before BACK BY is drawn at 35% opacity.\n    count line: '<n> inside · <k> independent · <j> open and back in time'. moving either handle, changing the day or the target restyles everything live. every new component takes React as a prop; never touch a module-level React.",
+      "source": "create",
+      "timestamp": "2026-09-16T14:34:36.721239+00:00"
+    },
+    {
+      "prompt": "keep the circle, its count line, the reach bands, the arrival labels, the target and the dial with both handles (LEAVE on the rim, BACK BY outside it) exactly as they are. shift+drag on the map draws a lasso (turn off leaflet's shift box-zoom so the lasso gets the gesture; register mousedown on the map container with capture and mousemove/mouseup on window, right after the map is created and inside the same effect, and never re-create the map on re-render). each lasso is kept as a region named A, B, C... with a small draggable handle on every vertex; double-click inside a region deletes it.\n    under the map a compact table, one row per region: name, n shops, n independent, n open on arrival, earliest arrival. hovering a row highlights its region. every new component takes React as a prop exactly like ClockDial does; never touch a module-level React.",
+      "source": "create",
+      "timestamp": "2026-09-16T14:37:19.314683+00:00"
+    }
+  ],
+  "outputs": {
+    "inside": "row indices of shops inside the circle",
+    "radius_km": "current radius in km",
+    "open_on_arrival": "row indices inside the circle and open when we arrive",
+    "when": "{day, hhmm} leave time, day 0=Mon..6=Sun, hhmm 'HH:MM'",
+    "back_by": "'HH:MM' we must be back at the hotel",
+    "target": "row index of the target shop",
+    "regions": "dict region name -> list of row indices"
+  },
+  "inputs": {
+    "reach": "<imported_trait:reach>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 17246,
+      "completion_tokens": 15557,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

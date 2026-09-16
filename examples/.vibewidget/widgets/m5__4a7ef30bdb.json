@@ -1,0 +1,122 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-14T15:30:09.214614+00:00",
+  "file_name": "m5__4a7ef30bdb.js",
+  "var_name": "m5",
+  "cache_key": "4a7ef30bdbc16f320c0e84ee44e6f6c64155bb5f34b379a2125ffc54e88f8484",
+  "description": "keep everything. pins are draggable: drop one on another shop and it snaps there, the route and its minutes update live while dragging. the route list under the map has drag handles to reorder stops.\n    with a pin highlighted (click its number), Delete removes it and left/right arrow keys jump it to the next nearest shop.",
+  "data_signature": {
+    "shape": [
+      41,
+      11
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note",
+      "bike_min"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ],
+      [
+        "bike_min",
+        "float64"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-4.8",
+  "exports_signature": "a76b58e6",
+  "imports_signature": "e097a88f",
+  "theme_signature": "",
+  "parameter_signature": "f2716954f2",
+  "prompt_keywords": [
+    "everything",
+    "pins"
+  ],
+  "theme_name": null,
+  "theme_description": null,
+  "notebook_path": null,
+  "components": [
+    "RegionTable",
+    "ClockDial",
+    "DayButtons",
+    "RouteList"
+  ],
+  "revision_parent": "f5b470e49f21fc8f1c0f3ae1f331df404859c327a6c9a4c0561b7a42f576bafe",
+  "prompt_history": [
+    {
+      "prompt": "keep everything. pins are draggable: drop one on another shop and it snaps there, the route and its minutes update live while dragging. the route list under the map has drag handles to reorder stops.\n    with a pin highlighted (click its number), Delete removes it and left/right arrow keys jump it to the next nearest shop.",
+      "source": "create",
+      "timestamp": "2026-09-14T15:26:51.485645+00:00"
+    }
+  ],
+  "outputs": {
+    "inside": "row indices of shops inside the circle",
+    "radius_km": "current radius in km",
+    "open_on_arrival": "row indices inside the circle and open when we arrive",
+    "when": "{day, hhmm} leave time",
+    "regions": "dict region name -> list of row indices",
+    "route": "row indices of pinned shops in pin order"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-4.8",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 26013,
+      "completion_tokens": 23019,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.2.7"
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T19:47:37.173138+00:00",
+  "file_name": "m3__e1ae4995f5.js",
+  "var_name": "m3",
+  "cache_key": "e1ae4995f5be6fbfb470520f86ec00daea54d2de17180521720e6044b8b71541",
+  "description": "keep the circle, its badge, the isochrone bands, the arrival labels and the clock dial exactly as they are. shift+drag on the map draws a lasso (turn off leaflet's shift box-zoom so the lasso gets the gesture). each lasso is kept as a region named A, B, C... with a small draggable handle on every vertex; double-click inside a region deletes it.\n    under the map a compact table, one row per region: name, n shops, n independent, n open on arrival, earliest arrival. hovering a row highlights its region.",
+  "data_signature": {
+    "shape": [
+      41,
+      11
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note",
+      "bike_min"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ],
+      [
+        "bike_min",
+        "float64"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-5",
+  "exports_signature": "f0e7a0bc",
+  "imports_signature": "363fe16c",
+  "theme_signature": "222411cf",
+  "parameter_signature": "dc17f01dde",
+  "prompt_keywords": [
+    "keep",
+    "circle"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "Legend",
+    "ClockDial",
+    "RegionTable",
+    "Badge",
+    "InfoTooltip"
+  ],
+  "revision_parent": "28167d2a3b79063531a0c24ee9483641c13a94fa4ec7d58834899f335d41817e",
+  "prompt_history": [
+    {
+      "prompt": "leaflet map with osm tiles, ~560px tall, of the donut shops. the hotel is a fixed dark pin at lat 29.7522 lon -95.3578.\n    one circle centred on the hotel, radius 3.5 km to start. dragging anywhere on the circle's edge changes the radius; a label riding on the edge shows '<r> km'.\n    shops inside the circle are solid dots (orange when chain is False, grey when True), shops outside are faded small dots.\n    a badge top-left: '<n> inside · <k> independent'. hovering a shop shows name, street, hours.",
+      "source": "create",
+      "timestamp": "2026-09-15T01:27:47.234123+00:00"
+    },
+    {
+      "prompt": "the clock is when we leave the hotel. add a 24h clock dial right of the map: drag the hand to set the leave time (label hh:mm), under it one compact row of seven small day buttons Mo Tu We Th Fr Sa Su that fits the column, left/right arrow keys nudge 15 min while the dial has focus. start Tue 06:30.\n    draw input `isochrones` (geojson: 30, 20, 10 minute bike reach from the hotel) as three translucent blue bands under the shops, darker the closer; the km circle stays on top.\n    every shop inside the circle gets a small label 'hh:mm' = leave time + its bike_min (minutes by bike from the hotel). parse the osm `hours` text ('Mo-Sa 04:00-14:00; Su 05:00-14:00', '24/7', '05:00-20:00', 'Mo-Fr 05:00-21:00; Sa-Su 06:00-21:00', blank = unknown).\n    open at that arrival time and day → solid dot and green label; closed at arrival → hollow ring and red label; unknown hours → dashed ring and grey label.\n    badge: '<n> inside · <k> independent · <j> open on arrival'. turning the hand or changing the day restyles every dot and label live.",
+      "source": "create",
+      "timestamp": "2026-09-15T01:28:27.416403+00:00"
+    },
+    {
+      "prompt": "keep the circle, its badge, the isochrone bands, the arrival labels and the clock dial exactly as they are. shift+drag on the map draws a lasso (turn off leaflet's shift box-zoom so the lasso gets the gesture). each lasso is kept as a region named A, B, C... with a small draggable handle on every vertex; double-click inside a region deletes it.\n    under the map a compact table, one row per region: name, n shops, n independent, n open on arrival, earliest arrival. hovering a row highlights its region.",
+      "source": "create",
+      "timestamp": "2026-09-15T19:44:42.979129+00:00"
+    }
+  ],
+  "outputs": {
+    "inside": "row indices of shops inside the circle",
+    "radius_km": "current radius in km",
+    "open_on_arrival": "row indices inside the circle and open when we arrive",
+    "when": "{day, hhmm} leave time",
+    "regions": "dict region name -> list of row indices"
+  },
+  "inputs": {
+    "isochrones": "<imported_trait:isochrones>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 21515,
+      "completion_tokens": 20979,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

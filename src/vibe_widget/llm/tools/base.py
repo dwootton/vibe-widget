@@ -65,7 +65,7 @@ class Tool(ABC):
         tool_def = {
             "type": "function",
             "function": {
-                "name": self.name,
+                "name": self.name.replace(".", "_"),  # anthropic rejects dots in tool names
                 "description": self.description,
                 "parameters": {
                     "type": "object",

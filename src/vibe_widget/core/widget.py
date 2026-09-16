@@ -2586,6 +2586,15 @@ def edit(
     )
     store = WidgetStore()
     source_info = _resolve_source(source, store)
+    # an edit keeps the source's outputs and inputs; new ones are added on top
+    inherited = (source_info.metadata or {}).get("outputs") or {}
+    if inherited:
+        outputs = {**inherited, **(outputs or {})}
+    src_widget = source.widget if isinstance(source, WidgetHandle) else source
+    if isinstance(src_widget, VibeWidget):
+        kept = {k: v for k, v in (src_widget._imports or {}).items() if k not in ("data", "data_path")}
+        if kept:
+            inputs = {**kept, **(inputs or {})}
     model, resolved_config = _resolve_model()
     if theme is None and source_info.theme is not None:
         resolved_theme = source_info.theme

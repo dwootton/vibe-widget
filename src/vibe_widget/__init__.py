@@ -10,7 +10,13 @@ from vibe_widget.namespaces import (
 )
 from vibe_widget.themes import Theme, theme
 
-__version__ = "0.3.2"
+try:  # the version lives in pyproject.toml; read it back rather than repeating it here
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as _package_version
+
+    __version__ = _package_version("vibe-widget")
+except (ImportError, PackageNotFoundError):  # running from a source tree with no install
+    __version__ = "0+unknown"
 __all__ = [
     "VibeWidget",
     "WidgetHandle",

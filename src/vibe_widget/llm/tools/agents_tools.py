@@ -124,7 +124,8 @@ class AgentToolRegistry:
         self._tools = {tool.name: tool for tool in tools}
 
     def get(self, name: str) -> Tool | None:
-        return self._tools.get(name)
+        # accept the wire name too ("fs_read" for "fs.read"), see Tool.to_openai_tool
+        return self._tools.get(name) or next((t for t in self._tools.values() if t.name.replace(".", "_") == name), None)
 
     def list(self) -> list[Tool]:
         return list(self._tools.values())

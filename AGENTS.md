@@ -164,7 +164,6 @@ tests/
 ```
 doc/                         # Documentation website (React + Vite)
 examples/                    # Example Jupyter notebooks
-├── example-gallery.ipynb
 ├── cross_widget_interactions.ipynb
 ├── pdf_and_web_extraction.ipynb
 └── ...

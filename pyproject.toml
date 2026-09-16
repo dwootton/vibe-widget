@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vibe_widget"
-version = "0.3.2"
+version = "0.3.3"
 description = "Create interactive visualizations using natural language and LLMs"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -58,12 +58,29 @@ exclude = ["src/vibe_widget/AppWrapper/"]
 [tool.hatch.build.targets.wheel.force-include]
 "src/vibe_widget/AppWrapper.bundle.js" = "vibe_widget/AppWrapper.bundle.js"
 
+[tool.hatch.build.targets.sdist]
+# Without this the sdist sweeps in doc/, examples/ and the committed widget cache,
+# which is how 0.3.2 reached 14 MB on PyPI.
+include = [
+    "src/vibe_widget",
+    "tests",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "pyproject.toml",
+]
+exclude = ["src/vibe_widget/AppWrapper/"]
+
 [tool.hatch.build.targets.sdist.force-include]
 "src/vibe_widget/AppWrapper.bundle.js" = "vibe_widget/AppWrapper.bundle.js"
 
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+# Example notebooks are written to be read in a demo, not to pass a style gate.
+exclude = ["examples/"]
 
 [tool.ruff.lint]
 select = [

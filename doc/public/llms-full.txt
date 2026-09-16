@@ -16,7 +16,6 @@ Pages:
 - /docs/reactivity: Reactivity - Send values into a widget, read values back out, and link widgets together.
 - /docs/composability: Load & Save - Store widgets on disk, share them through git, and reload them later.
 - /docs/theming: Theming - Describe how a widget should look, and reuse that description across widgets.
-- /docs/widgetarium: Widgetarium - The ecosystem of widgets and templates.
 
 Docs export:
 - /docs.txt

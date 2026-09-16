@@ -1,0 +1,108 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-14T04:36:14.030636+00:00",
+  "file_name": "m__2f174f3690.js",
+  "var_name": "m",
+  "cache_key": "2f174f36907ad8de7e9a4c1b312a4656397ecebafd2256f0d9c52710d1de1d5b",
+  "description": "leaflet map with osm tiles, ~560px tall, of the donut shops. the hotel is a fixed dark pin at lat 29.7522 lon -95.3578.\n    one circle centred on the hotel, radius 3.5 km to start. dragging anywhere on the circle's edge changes the radius; a label riding on the edge shows '<r> km'.\n    shops inside the circle are solid dots (orange when chain is False, grey when True), shops outside are faded small dots.\n    a badge top-left: '<n> inside · <k> independent'. hovering a shop shows name, street, hours.",
+  "data_signature": {
+    "shape": [
+      41,
+      10
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-4.5",
+  "exports_signature": "f56df71b",
+  "imports_signature": "9829b377",
+  "theme_signature": "",
+  "parameter_signature": "3d26254c82",
+  "prompt_keywords": [
+    "leaflet",
+    "map"
+  ],
+  "theme_name": null,
+  "theme_description": null,
+  "notebook_path": null,
+  "components": [],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "leaflet map with osm tiles, ~560px tall, of the donut shops. the hotel is a fixed dark pin at lat 29.7522 lon -95.3578.\n    one circle centred on the hotel, radius 3.5 km to start. dragging anywhere on the circle's edge changes the radius; a label riding on the edge shows '<r> km'.\n    shops inside the circle are solid dots (orange when chain is False, grey when True), shops outside are faded small dots.\n    a badge top-left: '<n> inside · <k> independent'. hovering a shop shows name, street, hours.",
+      "source": "create",
+      "timestamp": "2026-09-14T04:35:33.749262+00:00"
+    }
+  ],
+  "outputs": {
+    "inside": "row indices of shops inside the circle",
+    "radius_km": "current radius in km"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-4.5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 4432,
+      "completion_tokens": 3707,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.2.7"
+  }
+}

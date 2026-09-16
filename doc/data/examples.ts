@@ -7,6 +7,11 @@ const COVID_TRENDS_URL = '/widgets/line_chart_showing_confirmed_deaths_reco__be9
 const COVID_TRENDS_2_URL = '/widgets/add_vertical_dashed_line_user_hovering_d__9899268ecc__v1.js';
 const CHI25_EMBEDDING_URL = '/widgets/interactive_visualization_showing_paper__8646b068fa__v8.js';
 const MNIST_RECOG_URL = '/widgets/combined_mnist_digit_recognition_widget__b42bb3c898__v2.js';
+const SEA_ICE_BRUSH_URL = '/widgets/sea_ice_brush.js';
+const SEA_ICE_THRESHOLDS_URL = '/widgets/sea_ice_thresholds.js';
+const SEA_ICE_CO2_BAND_URL = '/widgets/sea_ice_co2_band.js';
+const PHASE_PORTRAIT_URL = '/widgets/phase_portrait.js';
+const PARETO_URL = '/widgets/pareto_triangle.js';
 
 
 export type Category = 'Featured' | 'Data Visualization' | 'Reactive' | '3D';
@@ -103,5 +108,71 @@ export const EXAMPLES = [
     gifUrl: '/gif/chi25embedding.gif',
     dataUrl: '/testdata/chi25_papers.csv',
     dataType: 'csv' as const,
+  },
+  {
+    id: 'sea-ice-brush',
+    label: 'Sea Ice Window Brush',
+    prompt: "Heatmap of sea ice by year and month, with a brush that snaps to whole cells",
+    moduleUrl: SEA_ICE_BRUSH_URL,
+    description: 'Drag a rectangle across the heatmap to pick a range of years and months. The brush snaps to whole cells, the mean rides on its top edge, and the SQL below the chart is rewritten as you move it.',
+    categories: ['Featured', 'Data Visualization'] as Category[],
+    size: 'large' as const,
+    gifUrl: '',
+    previewHeight: 400,
+    dataUrl: '/testdata/sea_ice_regional_monthly.csv',
+    dataType: 'csv' as const,
+  },
+  {
+    id: 'sea-ice-thresholds',
+    label: 'Shared Threshold Across Panels',
+    prompt: "Small multiples of September sea ice by region, with one draggable threshold line",
+    moduleUrl: SEA_ICE_THRESHOLDS_URL,
+    description: 'One threshold line crosses fourteen region panels at once. Drag it and every panel recounts the years below it. A toggle gives each panel its own line, which asks fourteen questions instead of one.',
+    categories: ['Data Visualization'] as Category[],
+    size: 'large' as const,
+    gifUrl: '',
+    dataUrl: '/testdata/sea_ice_regional_monthly.csv',
+    dataType: 'csv' as const,
+    wide: true,
+    previewHeight: 520,
+  },
+  {
+    id: 'sea-ice-co2-band',
+    label: 'Residual Band You Can Drag',
+    prompt: "September sea ice against CO2, with draggable band edges around the fitted line",
+    moduleUrl: SEA_ICE_CO2_BAND_URL,
+    description: 'Each dot is one year of September sea ice plotted against that year of Mauna Loa CO2. The fit comes from numpy; the chart holds the band. Drag an edge to set how far a year may stray before it is listed as unusual.',
+    categories: ['Data Visualization'] as Category[],
+    size: 'medium' as const,
+    gifUrl: '',
+    dataUrl: '/testdata/sea_ice_co2_september.csv',
+    dataType: 'csv' as const,
+    wide: true,
+    previewHeight: 480,
+  },
+  {
+    id: 'phase-portrait',
+    label: 'Damped Pendulum Phase Portrait',
+    prompt: "Phase portrait of a damped pendulum where each click drops a starting point",
+    moduleUrl: PHASE_PORTRAIT_URL,
+    description: 'Click anywhere to set an angle and an angular velocity; the widget integrates the trajectory with RK4 and draws it. Drag a point and it re-integrates. The damping slider redraws every trajectory at once.',
+    categories: ['Featured', 'Data Visualization'] as Category[],
+    size: 'medium' as const,
+    gifUrl: '',
+    previewHeight: 400,
+  },
+  {
+    id: 'pareto-triangle',
+    label: 'Three-Way Trade-off',
+    prompt: "Pareto explorer for 2000 designs with weights set by dragging a point inside a triangle",
+    moduleUrl: PARETO_URL,
+    description: 'Cost, mass and drag sit at the corners of a triangle. Drag the point inside it to set how much each objective counts, and the top ten designs rerank under your hand.',
+    categories: ['Data Visualization'] as Category[],
+    size: 'medium' as const,
+    gifUrl: '',
+    dataUrl: '/testdata/pareto_designs.csv',
+    dataType: 'csv' as const,
+    wide: true,
+    previewHeight: 640,
   },
 ];

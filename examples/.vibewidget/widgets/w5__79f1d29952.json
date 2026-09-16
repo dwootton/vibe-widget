@@ -1,0 +1,78 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-14T04:41:47.776541+00:00",
+  "file_name": "w5__79f1d29952.js",
+  "var_name": "w5",
+  "cache_key": "79f1d29952bc87de152ccd020bc11178b5c4f86c624bd81b7a00e360637c2d69",
+  "description": "egfr over visit, one thin grey line per patient, two panels side by side faceted by age_group (its two values are exactly 'under 65' and '65+'). y from 0 to 120.\n    one horizontal guideline threshold shared by both panels (dragging it in either panel moves it in both), wide invisible grab area ~14px, starts at 60 (CKD stage 3 cutoff). text in the chart must not be selectable while dragging. while dragging, read the pointer y with d3.pointer(event, <the panel's plot group>) and invert the y scale, clamp to [0, 120]. a patient has 'crossed' when their egfr is below it at the last visit and was above it at the first; those lines turn orange.\n    each panel header: 'n crossed · median crossing visit k'. shift+click anywhere in a panel adds a second shared threshold at the clicked egfr value (at most two thresholds); headers then give counts per band. up/down arrow keys nudge the last-touched threshold by 1.",
+  "data_signature": {
+    "shape": [
+      1920,
+      4
+    ],
+    "columns": [
+      "patient",
+      "visit",
+      "egfr",
+      "age_group"
+    ],
+    "dtypes": [
+      [
+        "patient",
+        "int64"
+      ],
+      [
+        "visit",
+        "int64"
+      ],
+      [
+        "egfr",
+        "float64"
+      ],
+      [
+        "age_group",
+        "str"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-4.5",
+  "exports_signature": "166b47e5",
+  "imports_signature": "5af288e5",
+  "theme_signature": "",
+  "parameter_signature": "f2614b936d",
+  "prompt_keywords": [
+    "egfr",
+    "visit"
+  ],
+  "theme_name": null,
+  "theme_description": null,
+  "notebook_path": null,
+  "components": [],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "egfr over visit, one thin grey line per patient, two panels side by side faceted by age_group (its two values are exactly 'under 65' and '65+'). y from 0 to 120.\n    one horizontal guideline threshold shared by both panels (dragging it in either panel moves it in both), wide invisible grab area ~14px, starts at 60 (CKD stage 3 cutoff). text in the chart must not be selectable while dragging. while dragging, read the pointer y with d3.pointer(event, <the panel's plot group>) and invert the y scale, clamp to [0, 120]. a patient has 'crossed' when their egfr is below it at the last visit and was above it at the first; those lines turn orange.\n    each panel header: 'n crossed · median crossing visit k'. shift+click anywhere in a panel adds a second shared threshold at the clicked egfr value (at most two thresholds); headers then give counts per band. up/down arrow keys nudge the last-touched threshold by 1.",
+      "source": "create",
+      "timestamp": "2026-09-14T04:40:48.381128+00:00"
+    }
+  ],
+  "outputs": {
+    "crossed": "patient ids that crossed the first threshold",
+    "thresholds": "list of threshold values"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-4.5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3769,
+      "completion_tokens": 5872,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.2.7"
+  }
+}

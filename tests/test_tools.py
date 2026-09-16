@@ -83,3 +83,17 @@ def test_net_fetch_is_out_of_reach_for_non_connected_presets(preset: str) -> Non
     config = preset_config(preset)
     names = {tool.name for tool in default_agent_tools().list_for_tier(config.permission_tier)}
     assert "net.fetch" not in names
+
+
+def test_tool_wire_names_have_no_dots_and_resolve():
+    registry = default_agent_tools()
+    for tool in registry.list():
+        wire = tool.to_openai_tool()["function"]["name"]
+        assert "." not in wire
+        assert registry.get(wire) is tool
+
+
+def test_clean_code_drops_leading_prose():
+    from vibe_widget.llm.providers.base import LLMProvider
+    text = "Here is the fixed file.\n\nimport * as d3 from 'x';\nexport default function W() {}"
+    assert LLMProvider.clean_code(LLMProvider, text).startswith("import * as d3")

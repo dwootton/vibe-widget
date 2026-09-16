@@ -1,0 +1,93 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T02:06:42.892167+00:00",
+  "file_name": "w3__948074e258.js",
+  "var_name": "w3",
+  "cache_key": "948074e258458e8ad189716ef36e481c83e9d3a7de04980f7a50f85e7bf4d239",
+  "description": "scatter for one region (dropdown, start Barents): x co2_ppm, y frac (september) with the y axis fitted to the data of the shown region (not 0..1), one dot per year labelled with the year on hover, the fitted line drawn through the pred values.\n    two draggable band edges parallel to the fitted line, starting at ±1 sd of resid. dots outside the band are filled dark orange, inside are light grey; their years are listed to the right sorted by |resid|, largest first.\n    drag either edge: the edge follows the pointer, so dragging it away from the fitted line widens the band and toward the line narrows it; shift+drag moves both together. under the chart, with clear space below the x-axis label, monospace, live:\n    SELECT s.year, s.frac, c.co2_ppm FROM sept s JOIN co2 c ON s.year = c.year WHERE region = 'Barents' AND ABS(frac - pred) > 0.061   -- 9 rows",
+  "data_signature": {
+    "shape": [
+      658,
+      6
+    ],
+    "columns": [
+      "region",
+      "year",
+      "frac",
+      "co2_ppm",
+      "pred",
+      "resid"
+    ],
+    "dtypes": [
+      [
+        "region",
+        "str"
+      ],
+      [
+        "year",
+        "int64"
+      ],
+      [
+        "frac",
+        "float64"
+      ],
+      [
+        "co2_ppm",
+        "float64"
+      ],
+      [
+        "pred",
+        "float64"
+      ],
+      [
+        "resid",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "9e12463b",
+  "imports_signature": "e46507a4",
+  "theme_signature": "222411cf",
+  "parameter_signature": "ae5dad86e1",
+  "prompt_keywords": [
+    "scatter",
+    "one"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "OutsideYearsList",
+    "SqlQueryDisplay",
+    "RegionSelector",
+    "ScatterPlot"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "scatter for one region (dropdown, start Barents): x co2_ppm, y frac (september) with the y axis fitted to the data of the shown region (not 0..1), one dot per year labelled with the year on hover, the fitted line drawn through the pred values.\n    two draggable band edges parallel to the fitted line, starting at ±1 sd of resid. dots outside the band are filled dark orange, inside are light grey; their years are listed to the right sorted by |resid|, largest first.\n    drag either edge: the edge follows the pointer, so dragging it away from the fitted line widens the band and toward the line narrows it; shift+drag moves both together. under the chart, with clear space below the x-axis label, monospace, live:\n    SELECT s.year, s.frac, c.co2_ppm FROM sept s JOIN co2 c ON s.year = c.year WHERE region = 'Barents' AND ABS(frac - pred) > 0.061   -- 9 rows",
+      "source": "create",
+      "timestamp": "2026-09-15T02:05:22.754114+00:00"
+    }
+  ],
+  "outputs": {
+    "outside": "years outside the band for the shown region",
+    "band": "dict lo, hi in resid units"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3698,
+      "completion_tokens": 13236,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.1"
+  }
+}

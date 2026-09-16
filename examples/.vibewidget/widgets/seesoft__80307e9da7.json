@@ -1,0 +1,92 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T16:06:06.357819+00:00",
+  "file_name": "seesoft__80307e9da7.js",
+  "var_name": "seesoft",
+  "cache_key": "80307e9da7f89c85bbd667bb9b4963524ae0e8f6672a99a369db0e54088f9272",
+  "description": "seesoft view of a codebase. one thin column per file (sorted by path, file name written vertically at the top), inside it every line of code is a 1px-tall horizontal bar whose length is line_len (capped at the column width); no gaps.\n    colour = age_days on a continuous scale from fresh (warm yellow) to old (deep blue), legend with the day range.\n    a vertical slider on the right, 'younger than N days', draggable, starts at 30: lines older than N fade to light grey, the rest keep colour; badge 'k of n lines younger than N days · m files'.\n    hover a bar: file:line_no · author · age_days d · churn_90d commits. click a column to select that file (thick outline, output selected_file); click again to deselect. the canvas must handle 10k bars smoothly (draw on canvas).",
+  "data_signature": {
+    "shape": [
+      12180,
+      6
+    ],
+    "columns": [
+      "file",
+      "line_no",
+      "line_len",
+      "author",
+      "age_days",
+      "churn_90d"
+    ],
+    "dtypes": [
+      [
+        "file",
+        "str"
+      ],
+      [
+        "line_no",
+        "int64"
+      ],
+      [
+        "line_len",
+        "int64"
+      ],
+      [
+        "author",
+        "str"
+      ],
+      [
+        "age_days",
+        "int64"
+      ],
+      [
+        "churn_90d",
+        "int64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "4998f48b",
+  "imports_signature": "d3afe613",
+  "theme_signature": "222411cf",
+  "parameter_signature": "54561ebef3",
+  "prompt_keywords": [
+    "seesoft",
+    "view"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "ColorLegend",
+    "TooltipOverlay",
+    "VerticalAgeSlider"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "seesoft view of a codebase. one thin column per file (sorted by path, file name written vertically at the top), inside it every line of code is a 1px-tall horizontal bar whose length is line_len (capped at the column width); no gaps.\n    colour = age_days on a continuous scale from fresh (warm yellow) to old (deep blue), legend with the day range.\n    a vertical slider on the right, 'younger than N days', draggable, starts at 30: lines older than N fade to light grey, the rest keep colour; badge 'k of n lines younger than N days · m files'.\n    hover a bar: file:line_no · author · age_days d · churn_90d commits. click a column to select that file (thick outline, output selected_file); click again to deselect. the canvas must handle 10k bars smoothly (draw on canvas).",
+      "source": "create",
+      "timestamp": "2026-09-15T16:05:24.335961+00:00"
+    }
+  ],
+  "outputs": {
+    "selected_file": "file path of the selected column or null",
+    "max_age": "the slider value in days"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3523,
+      "completion_tokens": 5540,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

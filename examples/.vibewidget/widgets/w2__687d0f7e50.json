@@ -1,0 +1,83 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-14T04:19:53.937200+00:00",
+  "file_name": "w2__687d0f7e50.js",
+  "var_name": "w2",
+  "cache_key": "687d0f7e5078717414b0fcf66b88a854e8218ab628a8f356abfd0494e0eab000",
+  "description": "september only (a small month picker top-right to change). small multiples: one panel per region, 14 panels in rows of 5, each a bar chart of frac by year (1979..2026), thin bars.\n    a horizontal threshold line shared across all panels, draggable (give it a wide invisible grab area, ~14px, so it is easy to catch), starts at 0.15. bars under it turn red; each panel title ends with '· n of N years under'.\n    a toggle 'shared / per panel': per panel gives every panel its own draggable line, each initialised to the shared line's current value.\n    under the grid, monospace, live: SELECT region, year, AVG(frac) FROM ice WHERE month = 9 GROUP BY region, year HAVING AVG(frac) < 0.15   -- 61 rows",
+  "data_signature": {
+    "shape": [
+      8008,
+      5
+    ],
+    "columns": [
+      "region",
+      "year",
+      "month",
+      "extent_km2",
+      "frac"
+    ],
+    "dtypes": [
+      [
+        "region",
+        "str"
+      ],
+      [
+        "year",
+        "int64"
+      ],
+      [
+        "month",
+        "int64"
+      ],
+      [
+        "extent_km2",
+        "float64"
+      ],
+      [
+        "frac",
+        "float64"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-4.5",
+  "exports_signature": "ede8be7a",
+  "imports_signature": "37d73e13",
+  "theme_signature": "",
+  "parameter_signature": "cc1122efaa",
+  "prompt_keywords": [
+    "september",
+    "only"
+  ],
+  "theme_name": null,
+  "theme_description": null,
+  "notebook_path": null,
+  "components": [],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "september only (a small month picker top-right to change). small multiples: one panel per region, 14 panels in rows of 5, each a bar chart of frac by year (1979..2026), thin bars.\n    a horizontal threshold line shared across all panels, draggable (give it a wide invisible grab area, ~14px, so it is easy to catch), starts at 0.15. bars under it turn red; each panel title ends with '· n of N years under'.\n    a toggle 'shared / per panel': per panel gives every panel its own draggable line, each initialised to the shared line's current value.\n    under the grid, monospace, live: SELECT region, year, AVG(frac) FROM ice WHERE month = 9 GROUP BY region, year HAVING AVG(frac) < 0.15   -- 61 rows",
+      "source": "create",
+      "timestamp": "2026-09-14T04:19:15.257288+00:00"
+    }
+  ],
+  "outputs": {
+    "under": "dict region -> list of years under that panel's threshold",
+    "thresholds": "dict region -> threshold value"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-4.5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3890,
+      "completion_tokens": 3593,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.2.7"
+  }
+}

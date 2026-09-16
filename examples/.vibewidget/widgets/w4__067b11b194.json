@@ -1,0 +1,59 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-14T04:21:44.555436+00:00",
+  "file_name": "w4__067b11b194.js",
+  "var_name": "w4",
+  "cache_key": "067b11b194461e74096f391cf123f2ce6981833f9ad187baf74bc668b5e0578b",
+  "description": "phase portrait of a damped pendulum, θ'' = -sin(θ) - c·θ'. x is θ in [-2π, 2π], y is ω in [-5, 5]. faint grey direction field arrows on a grid.\n    click anywhere to drop a starting point: a persistent numbered dot; its trajectory (rk4, dt 0.02, 25 s) is drawn in that dot's colour. drag a dot and its trajectory re-integrates live. double-click a dot to remove it. up to 12 dots.\n    a slider for damping c in [0, 1.5], start 0.25; all trajectories update as it moves.\n    a small table right of the plot: dot number, θ0, ω0, which equilibrium it ends near (θ = 0, ±2π), and the time to get within 0.05 of it.",
+  "data_signature": {
+    "shape": [
+      0,
+      0
+    ],
+    "columns": [],
+    "dtypes": []
+  },
+  "model": "anthropic/claude-opus-4.5",
+  "exports_signature": "09299594",
+  "imports_signature": "278b9b4e",
+  "theme_signature": "",
+  "parameter_signature": "b0548141cb",
+  "prompt_keywords": [
+    "phase",
+    "portrait"
+  ],
+  "theme_name": null,
+  "theme_description": null,
+  "notebook_path": null,
+  "components": [
+    "DampingSlider",
+    "PointsTable"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "phase portrait of a damped pendulum, θ'' = -sin(θ) - c·θ'. x is θ in [-2π, 2π], y is ω in [-5, 5]. faint grey direction field arrows on a grid.\n    click anywhere to drop a starting point: a persistent numbered dot; its trajectory (rk4, dt 0.02, 25 s) is drawn in that dot's colour. drag a dot and its trajectory re-integrates live. double-click a dot to remove it. up to 12 dots.\n    a slider for damping c in [0, 1.5], start 0.25; all trajectories update as it moves.\n    a small table right of the plot: dot number, θ0, ω0, which equilibrium it ends near (θ = 0, ±2π), and the time to get within 0.05 of it.",
+      "source": "create",
+      "timestamp": "2026-09-14T04:20:49.757619+00:00"
+    }
+  ],
+  "outputs": {
+    "points": "list of {theta0, omega0}",
+    "damping": "c"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-4.5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3270,
+      "completion_tokens": 5217,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.2.7"
+  }
+}

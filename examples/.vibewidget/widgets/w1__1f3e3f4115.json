@@ -1,0 +1,86 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T19:34:19.482026+00:00",
+  "file_name": "w1__1f3e3f4115.js",
+  "var_name": "w1",
+  "cache_key": "1f3e3f41157ed3dbac5b2fd9b30352d3b2e84830de0e964cecd4610d20173560",
+  "description": "heatmap of frac: years on x (1979..2026), months on y (1..12, January at top), one region at a time picked from a dropdown (start Barents). cells white at 0 to deep blue at 1, missing cells hatched.\n    a window brush: drag on the heatmap to draw a rectangle that snaps to whole cells. drag its body to move it, drag an edge to resize, left/right arrow keys shift it one year, up/down one month.\n    the mean frac of the cells inside rides on the brush's top edge as 'avg 0.42 · 12 cells'.\n    under the chart, monospace, updating live: the equivalent SQL, e.g.\n    SELECT AVG(frac) FROM ice WHERE region = 'Barents' AND month BETWEEN 6 AND 9 AND year BETWEEN 2005 AND 2015   -- 0.42",
+  "data_signature": {
+    "shape": [
+      8008,
+      5
+    ],
+    "columns": [
+      "region",
+      "year",
+      "month",
+      "extent_km2",
+      "frac"
+    ],
+    "dtypes": [
+      [
+        "region",
+        "str"
+      ],
+      [
+        "year",
+        "int64"
+      ],
+      [
+        "month",
+        "int64"
+      ],
+      [
+        "extent_km2",
+        "float64"
+      ],
+      [
+        "frac",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "bff3a0c3",
+  "imports_signature": "37d73e13",
+  "theme_signature": "222411cf",
+  "parameter_signature": "f321b6afc8",
+  "prompt_keywords": [
+    "heatmap",
+    "frac"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "RegionSelect",
+    "ColorLegend"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "heatmap of frac: years on x (1979..2026), months on y (1..12, January at top), one region at a time picked from a dropdown (start Barents). cells white at 0 to deep blue at 1, missing cells hatched.\n    a window brush: drag on the heatmap to draw a rectangle that snaps to whole cells. drag its body to move it, drag an edge to resize, left/right arrow keys shift it one year, up/down one month.\n    the mean frac of the cells inside rides on the brush's top edge as 'avg 0.42 · 12 cells'.\n    under the chart, monospace, updating live: the equivalent SQL, e.g.\n    SELECT AVG(frac) FROM ice WHERE region = 'Barents' AND month BETWEEN 6 AND 9 AND year BETWEEN 2005 AND 2015   -- 0.42",
+      "source": "create",
+      "timestamp": "2026-09-15T19:33:34.704190+00:00"
+    }
+  ],
+  "outputs": {
+    "where": "dict region, month_lo, month_hi, year_lo, year_hi",
+    "avg_frac": "mean frac inside the brush"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3504,
+      "completion_tokens": 7450,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

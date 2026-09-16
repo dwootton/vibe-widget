@@ -1,0 +1,85 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T16:08:51.868854+00:00",
+  "file_name": "detail__c212e14137.js",
+  "var_name": "detail",
+  "cache_key": "c212e141377b99e40cc07a1227af6962fe107d4b2e8002c0ae7649d7d5559bc4",
+  "description": "attention detail for one head, no controls of its own except a threshold slider. input head = {layer, head} selects rows of the data (layer, head, q, k, w); tokens from input toks (pos, token).\n    left: the 15 tokens written in a row twice, queries on the top line and keys on the bottom line, arcs from each query down to its keys with stroke width and opacity by w; hover a query token to isolate its arcs and print its top-3 keys with weights. a slider 'hide arcs below' 0–0.5, start 0.05.\n    right: the full 15×15 matrix for the same head, hover-synced with the arcs. title 'layer L · head H · <pattern>'. re-render when head changes.",
+  "data_signature": {
+    "shape": [
+      5760,
+      5
+    ],
+    "columns": [
+      "layer",
+      "head",
+      "q",
+      "k",
+      "w"
+    ],
+    "dtypes": [
+      [
+        "layer",
+        "int64"
+      ],
+      [
+        "head",
+        "int64"
+      ],
+      [
+        "q",
+        "int64"
+      ],
+      [
+        "k",
+        "int64"
+      ],
+      [
+        "w",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "",
+  "imports_signature": "a4434e49",
+  "theme_signature": "222411cf",
+  "parameter_signature": "751607e290",
+  "prompt_keywords": [
+    "attention",
+    "detail"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "ThresholdSlider",
+    "TopKeysBadge"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "attention detail for one head, no controls of its own except a threshold slider. input head = {layer, head} selects rows of the data (layer, head, q, k, w); tokens from input toks (pos, token).\n    left: the 15 tokens written in a row twice, queries on the top line and keys on the bottom line, arcs from each query down to its keys with stroke width and opacity by w; hover a query token to isolate its arcs and print its top-3 keys with weights. a slider 'hide arcs below' 0–0.5, start 0.05.\n    right: the full 15×15 matrix for the same head, hover-synced with the arcs. title 'layer L · head H · <pattern>'. re-render when head changes.",
+      "source": "create",
+      "timestamp": "2026-09-15T16:08:12.461662+00:00"
+    }
+  ],
+  "outputs": {},
+  "inputs": {
+    "toks": "<imported_trait:toks>",
+    "head": "<imported_trait:head>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3452,
+      "completion_tokens": 6479,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

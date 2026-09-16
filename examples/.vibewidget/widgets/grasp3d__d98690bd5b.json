@@ -1,0 +1,119 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T19:38:29.196414+00:00",
+  "file_name": "grasp3d__d98690bd5b.js",
+  "var_name": "grasp3d",
+  "cache_key": "d98690bd5bc0adddf45c1b6b58ce3ffe500269ee78274549becdfd7391be4e95",
+  "description": "3d grasp triage with three.js@0.160 and OrbitControls, ~560px tall. a table plane at z=0 (light), the object as a point cloud from input cloud (x, y, z in metres, ~1200 small dark points), z up.\n    each row of data is a candidate grasp: draw a small two-finger gripper glyph (two short parallel bars 'width' apart, joined by a crossbar, about 2 cm) centred at (x, y, z), its approach axis along (ax, ay, az) pointing into the object; colour by outcome: success green, slip orange, collision red, unreachable grey.\n    controls in a side panel: a 'predicted score ≥' slider (start 0.5) that hides grasps below it with a live count 'showing k of 160'; one toggle chip per outcome with counts; a 'colour by' switch between outcome and score (score as a viridis ramp).\n    click a glyph: it enlarges, a dashed approach line 10 cm long is drawn along its approach axis ending at the grasp, the two contact points are marked, the camera does not move; the side panel prints grasp id, region, score, width, outcome. up/down arrow keys step through the visible grasps in score order, highest first. click empty space to deselect.\n    output selected = grasp id or null, min_score = slider value.",
+  "data_signature": {
+    "shape": [
+      160,
+      11
+    ],
+    "columns": [
+      "grasp",
+      "region",
+      "x",
+      "y",
+      "z",
+      "ax",
+      "ay",
+      "az",
+      "width",
+      "score",
+      "outcome"
+    ],
+    "dtypes": [
+      [
+        "grasp",
+        "int64"
+      ],
+      [
+        "region",
+        "str"
+      ],
+      [
+        "x",
+        "float64"
+      ],
+      [
+        "y",
+        "float64"
+      ],
+      [
+        "z",
+        "float64"
+      ],
+      [
+        "ax",
+        "float64"
+      ],
+      [
+        "ay",
+        "float64"
+      ],
+      [
+        "az",
+        "int64"
+      ],
+      [
+        "width",
+        "float64"
+      ],
+      [
+        "score",
+        "float64"
+      ],
+      [
+        "outcome",
+        "str"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "47816ad2",
+  "imports_signature": "9bb20a28",
+  "theme_signature": "222411cf",
+  "parameter_signature": "b9fe7932cc",
+  "prompt_keywords": [
+    "grasp",
+    "triage"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "GraspInspector",
+    "ColorBySwitch",
+    "ScoreSlider",
+    "OutcomeChips"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "3d grasp triage with three.js@0.160 and OrbitControls, ~560px tall. a table plane at z=0 (light), the object as a point cloud from input cloud (x, y, z in metres, ~1200 small dark points), z up.\n    each row of data is a candidate grasp: draw a small two-finger gripper glyph (two short parallel bars 'width' apart, joined by a crossbar, about 2 cm) centred at (x, y, z), its approach axis along (ax, ay, az) pointing into the object; colour by outcome: success green, slip orange, collision red, unreachable grey.\n    controls in a side panel: a 'predicted score ≥' slider (start 0.5) that hides grasps below it with a live count 'showing k of 160'; one toggle chip per outcome with counts; a 'colour by' switch between outcome and score (score as a viridis ramp).\n    click a glyph: it enlarges, a dashed approach line 10 cm long is drawn along its approach axis ending at the grasp, the two contact points are marked, the camera does not move; the side panel prints grasp id, region, score, width, outcome. up/down arrow keys step through the visible grasps in score order, highest first. click empty space to deselect.\n    output selected = grasp id or null, min_score = slider value.",
+      "source": "create",
+      "timestamp": "2026-09-15T19:37:27.002738+00:00"
+    }
+  ],
+  "outputs": {
+    "selected": "selected grasp id or null",
+    "min_score": "score slider value"
+  },
+  "inputs": {
+    "cloud": "<imported_trait:cloud>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 4766,
+      "completion_tokens": 8907,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

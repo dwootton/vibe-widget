@@ -1,0 +1,72 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T16:10:29.178968+00:00",
+  "file_name": "psth__90467be2db.js",
+  "var_name": "psth",
+  "cache_key": "90467be2db6e5800fb49d0aaf175a875d182bc8f1683e6956a0b333acb2f8b90",
+  "description": "firing-rate histogram that follows another widget, no controls of its own. inputs: window = [t0, t1] seconds, neurons = list of ids, stim = onsets; data = spikes (neuron, t).\n    x from t0 to t1, 20 ms bins; one thin grey line per selected neuron (spikes per second) and a thick line for their mean; the stimulus onsets inside the window as dashed vertical lines with a shaded 0–150 ms strip after each; a label with the mean rate inside the strips vs outside them ('locked ×2.7'). re-render whenever window or neurons change; if no neurons, print 'pick neurons on the raster'.",
+  "data_signature": {
+    "shape": [
+      5287,
+      2
+    ],
+    "columns": [
+      "neuron",
+      "t"
+    ],
+    "dtypes": [
+      [
+        "neuron",
+        "int64"
+      ],
+      [
+        "t",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "",
+  "imports_signature": "1a8c25d0",
+  "theme_signature": "222411cf",
+  "parameter_signature": "30a90fe212",
+  "prompt_keywords": [
+    "firing",
+    "rate"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "StatsBadge",
+    "FiringRatePlot",
+    "EmptyState"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "firing-rate histogram that follows another widget, no controls of its own. inputs: window = [t0, t1] seconds, neurons = list of ids, stim = onsets; data = spikes (neuron, t).\n    x from t0 to t1, 20 ms bins; one thin grey line per selected neuron (spikes per second) and a thick line for their mean; the stimulus onsets inside the window as dashed vertical lines with a shaded 0–150 ms strip after each; a label with the mean rate inside the strips vs outside them ('locked ×2.7'). re-render whenever window or neurons change; if no neurons, print 'pick neurons on the raster'.",
+      "source": "create",
+      "timestamp": "2026-09-15T16:09:54.974894+00:00"
+    }
+  ],
+  "outputs": {},
+  "inputs": {
+    "stim": "<imported_trait:stim>",
+    "window": "<imported_trait:window>",
+    "neurons": "<imported_trait:neurons>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3095,
+      "completion_tokens": 5621,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

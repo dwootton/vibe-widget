@@ -1,0 +1,41 @@
+{
+  "created_at": "2026-06-23T18:45:23.979154+00:00",
+  "file_name": "landscape__fb42157088.js",
+  "cache_key": "fb42157088c3cbaa0e46c586d4de5c8efe71688f3316268915ee2d0a087e2941",
+  "description": "\n    3D terrain viewer using Three.js.\n\n    IMPORTS \u2014 use esm.sh so all bare specifiers are resolved before bundling:\n        import * as THREE from 'https://esm.sh/three@0.160.1';\n        import { OrbitControls } from 'https://esm.sh/three@0.160.1/examples/jsm/controls/OrbitControls';\n    Do NOT use jsdelivr. Do NOT use an import map. Use the full esm.sh URLs directly.\n\n    SETUP:\n    - Create a WebGLRenderer (antialias=true) sized to fill the container.\n      Use ResizeObserver to call renderer.setSize(w, h) and update camera.aspect.\n    - PerspectiveCamera fov=55, near=0.1, far=2000.\n      Position at (0, 45, 90), lookAt (0, 5, 0).\n    - AmbientLight (0xffffff, 0.5) + DirectionalLight (0xfff4e0, 1.2) at (60, 100, 40).\n    - OrbitControls with enableDamping=true.\n\n    TERRAIN MESH:\n    - PlaneGeometry(100, 100, 63, 63) rotated -Math.PI/2 around X.\n    - MeshStandardMaterial with vertexColors=true, roughness=0.85.\n    - updateTerrain(hm) function:\n        hm is a plain Array or Array-like of 4096 values.\n        If hm is null/undefined/empty, generate fallback hills:\n          h = 0.30 + 0.22*Math.sin(i%64/9)*Math.sin(Math.floor(i/64)/9)\n              + 0.12*Math.sin((i%64)/4+1.2)*Math.cos(Math.floor(i/64)/5)\n        For each vertex i:\n          posAttr.setY(i, h * 40)\n          color by height band (create new Float32BufferAttribute per call):\n            h < 0.12  -> #1a3a6b  (deep water)\n            h < 0.18  -> #2d6a9f  (shallow)\n            h < 0.40  -> #3a7d44  (lowland)\n            h < 0.60  -> #6b8e23  (highland)\n            h < 0.80  -> #8b7355  (rock)\n            else      -> #f0f0f0  (snow)\n        geometry.setAttribute('color', colorAttr)\n        posAttr.needsUpdate = true\n        geometry.computeVertexNormals()\n\n    WATER PLANE:\n    - PlaneGeometry(104, 104) at Y=6, rotation.x=-Math.PI/2.\n    - MeshStandardMaterial color=0x006994, transparent=true, opacity=0.6, side=THREE.DoubleSide.\n\n    REACTIVITY:\n    - On mount call updateTerrain(model.get('heightmap')).\n    - model.on('change:heightmap', () => updateTerrain(model.get('heightmap'))).\n    - requestAnimationFrame loop: controls.update(); renderer.render(scene, camera).\n\n    INITIAL HEIGHT: if model.get('heightmap') is null use the same fallback hill formula.\n    ",
+  "model": "google/gemini-3-flash-preview",
+  "exports_signature": "",
+  "imports_signature": "84eed65b",
+  "theme_signature": "",
+  "parameter_signature": "5d241cafc6",
+  "prompt_keywords": [
+    "terrain",
+    "viewer"
+  ],
+  "theme_name": null,
+  "theme_description": null,
+  "notebook_path": "terrain_erosion.ipynb",
+  "components": [],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "3D terrain viewer using Three.js.\n\n    IMPORTS \u2014 use esm.sh so all bare specifiers are resolved before bundling:\n        import * as THREE from 'https://esm.sh/three@0.160.1';\n        import { OrbitControls } from 'https://esm.sh/three@0.160.1/examples/jsm/controls/OrbitControls';\n    Do NOT use jsdelivr. Do NOT use an import map. Use the full esm.sh URLs directly.\n\n    SETUP:\n    - Create a WebGLRenderer (antialias=true) sized to fill the container.\n      Use ResizeObserver to call renderer.setSize(w, h) and update camera.aspect.\n    - PerspectiveCamera fov=55, near=0.1, far=2000.\n      Position at (0, 45, 90), lookAt (0, 5, 0).\n    - AmbientLight (0xffffff, 0.5) + DirectionalLight (0xfff4e0, 1.2) at (60, 100, 40).\n    - OrbitControls with enableDamping=true.\n\n    TERRAIN MESH:\n    - PlaneGeometry(100, 100, 63, 63) rotated -Math.PI/2 around X.\n    - MeshStandardMaterial with vertexColors=true, roughness=0.85.\n    - updateTerrain(hm) function:\n        hm is a plain Array or Array-like of 4096 values.\n        If hm is null/undefined/empty, generate fallback hills:\n          h = 0.30 + 0.22*Math.sin(i%64/9)*Math.sin(Math.floor(i/64)/9)\n              + 0.12*Math.sin((i%64)/4+1.2)*Math.cos(Math.floor(i/64)/5)\n        For each vertex i:\n          posAttr.setY(i, h * 40)\n          color by height band (create new Float32BufferAttribute per call):\n            h < 0.12  -> #1a3a6b  (deep water)\n            h < 0.18  -> #2d6a9f  (shallow)\n            h < 0.40  -> #3a7d44  (lowland)\n            h < 0.60  -> #6b8e23  (highland)\n            h < 0.80  -> #8b7355  (rock)\n            else      -> #f0f0f0  (snow)\n        geometry.setAttribute('color', colorAttr)\n        posAttr.needsUpdate = true\n        geometry.computeVertexNormals()\n\n    WATER PLANE:\n    - PlaneGeometry(104, 104) at Y=6, rotation.x=-Math.PI/2.\n    - MeshStandardMaterial color=0x006994, transparent=true, opacity=0.6, side=THREE.DoubleSide.\n\n    REACTIVITY:\n    - On mount call updateTerrain(model.get('heightmap')).\n    - model.on('change:heightmap', () => updateTerrain(model.get('heightmap'))).\n    - requestAnimationFrame loop: controls.update(); renderer.render(scene, camera).\n\n    INITIAL HEIGHT: if model.get('heightmap') is null use the same fallback hill formula.",
+      "source": "create",
+      "timestamp": "2026-06-23T18:44:55.905114+00:00"
+    }
+  ],
+  "data_signature": {
+    "shape": [
+      0,
+      0
+    ],
+    "columns": [],
+    "dtypes": []
+  },
+  "schema_version": 4,
+  "var_name": "landscape",
+  "outputs": {},
+  "actions": {},
+  "inputs": {},
+  "provenance": {}
+}

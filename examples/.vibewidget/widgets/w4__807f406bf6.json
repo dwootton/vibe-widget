@@ -1,0 +1,59 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T13:39:02.827847+00:00",
+  "file_name": "w4__807f406bf6.js",
+  "var_name": "w4",
+  "cache_key": "807f406bf6f36528812db38c5177ba3619dcfa446f2ea33bf513be734a82a241",
+  "description": "phase portrait of a damped pendulum, θ'' = -sin(θ) - c·θ'. x is θ in [-2π, 2π], y is ω in [-5, 5]. faint grey direction field arrows on a grid.\n    click anywhere to drop a starting point: a persistent numbered dot; its trajectory (rk4, dt 0.02, 25 s) is drawn in that dot's colour. drag a dot and its trajectory re-integrates live. double-click a dot to remove it. up to 12 dots.\n    a slider for damping c in [0, 1.5], start 0.25; all trajectories update as it moves.\n    a small table right of the plot: dot number, θ0, ω0, which equilibrium it ends near (θ = 0, ±2π), and the time to get within 0.05 of it.",
+  "data_signature": {
+    "shape": [
+      0,
+      0
+    ],
+    "columns": [],
+    "dtypes": []
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "09299594",
+  "imports_signature": "278b9b4e",
+  "theme_signature": "6e1a5884",
+  "parameter_signature": "57a52c8cb8",
+  "prompt_keywords": [
+    "phase",
+    "portrait"
+  ],
+  "theme_name": "minimal",
+  "theme_description": "Minimal instrument, print quality. Nothing on screen that is not data, a control, or a label a reader needs to read the data.\n\n## Text\nNo title, subtitle, heading, description, instructions, hints, tips, how-to text, legend prose, footers, or status sentences. No emoji, check marks, crosses, exclamation marks, capitals for emphasis, or promotional tone. Labels are lowercase or sentence case, terse, and appear only where they carry a value (a count line, a time on a handle, the name of the selected mark). Numbers use tabular figures. If a control needs explaining, redesign the control instead of adding text.\n\n## Type\nOne typeface: system-ui, -apple-system, Inter, Helvetica, sans-serif. 11-13px labels, 12-14px values, weight 400, weight 600 only for the single emphasized value. Monospace (ui-monospace, SF Mono, Menlo) only for times, coordinates and code.\n\n## Color\nPaper #ffffff, ink #111111, grey #777777, hairline #d9d9d9, faint fill #f2f2f2. One accent #d9480f for the current selection or target. Status colours only where they encode a state: open #2b8a3e, closed #c92a2a, unknown grey. Nothing else is coloured. No gradients, shadows, glows, rounded cards, pills, or tinted panels. Buttons and chips: hairline border, no fill; the active one is filled ink with white text.\n\n## Marks\nThin. 1px hairlines, 1.5px data lines, 2px for the selected route. Points 5-7px. Draggable handles: 7px filled ink or accent with a 1.5px white stroke and an invisible 16px hit area. Area fills 8-15% opacity.\n\n## Maps\nLight grey basemap with no API key: Esri World Light Gray Canvas, https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x} (maxZoom 16, attribution 'Esri, HERE, Garmin, OpenStreetMap contributors'), so the data carries the colour. Never use CARTO or Stadia tiles. Small attribution, zoom control bottom-right.\n\n## Layout\nWhite ground, 12px padding, flat. A side panel is separated by a hairline, not boxed. Tables: hairline rows, right-aligned numbers, no zebra striping. Space instead of borders.\n\n## Motion\nNone beyond the direct response to the pointer. State changes apply within 150ms, no easing flourishes.",
+  "notebook_path": null,
+  "components": [
+    "DampingSlider",
+    "TrajectoryTable"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "phase portrait of a damped pendulum, θ'' = -sin(θ) - c·θ'. x is θ in [-2π, 2π], y is ω in [-5, 5]. faint grey direction field arrows on a grid.\n    click anywhere to drop a starting point: a persistent numbered dot; its trajectory (rk4, dt 0.02, 25 s) is drawn in that dot's colour. drag a dot and its trajectory re-integrates live. double-click a dot to remove it. up to 12 dots.\n    a slider for damping c in [0, 1.5], start 0.25; all trajectories update as it moves.\n    a small table right of the plot: dot number, θ0, ω0, which equilibrium it ends near (θ = 0, ±2π), and the time to get within 0.05 of it.",
+      "source": "create",
+      "timestamp": "2026-09-16T13:38:16.625740+00:00"
+    }
+  ],
+  "outputs": {
+    "points": "list of {theta0, omega0}",
+    "damping": "c"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3157,
+      "completion_tokens": 7423,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

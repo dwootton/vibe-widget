@@ -1,0 +1,120 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-14T15:05:13.341843+00:00",
+  "file_name": "m3__e668cf6de3.js",
+  "var_name": "m3",
+  "cache_key": "e668cf6de3632a42ba19b0c1c6c7fc60bf5e414c3ff90345382bcdc733779767",
+  "description": "keep the circle, its badge, the isochrone bands, the arrival labels and the clock dial exactly as they are. shift+drag on the map draws a lasso (turn off leaflet's shift box-zoom so the lasso gets the gesture). each lasso is kept as a region named A, B, C... with a small draggable handle on every vertex; double-click inside a region deletes it.\n    under the map a compact table, one row per region: name, n shops, n independent, n open on arrival, earliest arrival. hovering a row highlights its region.",
+  "data_signature": {
+    "shape": [
+      41,
+      11
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note",
+      "bike_min"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ],
+      [
+        "bike_min",
+        "float64"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-4.5",
+  "exports_signature": "f0e7a0bc",
+  "imports_signature": "e097a88f",
+  "theme_signature": "",
+  "parameter_signature": "09bdedf7ff",
+  "prompt_keywords": [
+    "keep",
+    "circle"
+  ],
+  "theme_name": null,
+  "theme_description": null,
+  "notebook_path": null,
+  "components": [
+    "RegionTable",
+    "DayButtons",
+    "ClockDial"
+  ],
+  "revision_parent": "985e443e6a9fd6cc1182f9b194f6bed8219b40d7efec9349c05ff934598f3bc2",
+  "prompt_history": [
+    {
+      "prompt": "keep the circle, its badge, the isochrone bands, the arrival labels and the clock dial exactly as they are. shift+drag on the map draws a lasso (turn off leaflet's shift box-zoom so the lasso gets the gesture). each lasso is kept as a region named A, B, C... with a small draggable handle on every vertex; double-click inside a region deletes it.\n    under the map a compact table, one row per region: name, n shops, n independent, n open on arrival, earliest arrival. hovering a row highlights its region.",
+      "source": "create",
+      "timestamp": "2026-09-14T15:03:02.238567+00:00"
+    }
+  ],
+  "outputs": {
+    "inside": "row indices of shops inside the circle",
+    "radius_km": "current radius in km",
+    "open_on_arrival": "row indices inside the circle and open when we arrive",
+    "when": "{day, hhmm} leave time",
+    "regions": "dict region name -> list of row indices"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-4.5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 13936,
+      "completion_tokens": 12799,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.2.7"
+  }
+}

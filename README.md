@@ -89,6 +89,21 @@ widget = vw.load(".vibewidget/widgets/sales_chart__a1b2c3d4e5.js")
 
 For sharing outside a repo, `widget.save("sales_chart.vw")` writes a single portable bundle, and `widget.save(path, include_inputs=True)` embeds the current input values with it.
 
+## Examples
+
+`examples/` holds four notebooks that run from a clone with no API key, because the generated code
+is committed with them in `examples/.vibewidget/`.
+
+| Notebook | What is in it |
+| --- | --- |
+| `analysis_spaces.ipynb` | One sea-ice table read three ways: a brush that states a `WHERE` clause, a threshold line shared across fourteen facets, and a residual band over a fit computed in numpy. |
+| `instruments.ipynb` | Twelve widgets shaped like the question a domain expert asks, four of them pairs where the second widget takes its inputs from the first. |
+| `donut_hunt.ipynb` | One routing question carried through a chain of `edit` calls, ending with a second widget that listens to the first. |
+| `terrain_erosion.ipynb` | A painted heightmap that Python erodes and a 3D view that follows it. |
+
+The notebooks pass `theme="minimal"`, which resolves to `examples/.vibewidget/themes/minimal.json`,
+so regenerating a widget uses the same description it was written under.
+
 ## Acknowledgements
 The repository was originally created at the [Sundai](https://www.sundai.club/) Weird Data Hack. We thank [Angela](https://github.com/ang101) for her feedback and suggestions on early versions!
 

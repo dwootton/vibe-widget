@@ -1,0 +1,71 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T14:23:56.132880+00:00",
+  "file_name": "raster__9df8763a5b.js",
+  "var_name": "raster",
+  "cache_key": "9df8763a5bff27243a56005d0219fde5277cd7d23d9f67b57d55504fc0f28fec",
+  "description": "spike raster: 60 neurons on y (0 at top), time 0–20 s on x, one 1px tick per spike (data columns neuron, t), drawn on canvas; stimulus onsets from input stim as dashed vertical lines with a small flag.\n    a time window: drag on the time axis to create it (start 2.2–3.2 s), drag its body to move, edges to resize, left/right arrows shift 100 ms; the window shades the raster. the raster ticks inside the window are drawn darker.\n    click a neuron's row label to toggle it into the selected set (rows highlight); shift+click a label selects the range from the last click; 'all' / 'none' buttons. start with every third neuron selected (0, 3, 6, ...).\n    output window = [t0, t1] seconds, neurons = list of selected neuron ids.",
+  "data_signature": {
+    "shape": [
+      5287,
+      2
+    ],
+    "columns": [
+      "neuron",
+      "t"
+    ],
+    "dtypes": [
+      [
+        "neuron",
+        "int64"
+      ],
+      [
+        "t",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "00f44f61",
+  "imports_signature": "bf0ad1da",
+  "theme_signature": "6e1a5884",
+  "parameter_signature": "c09f389fd7",
+  "prompt_keywords": [
+    "spike",
+    "raster"
+  ],
+  "theme_name": "minimal",
+  "theme_description": "Minimal instrument, print quality. Nothing on screen that is not data, a control, or a label a reader needs to read the data.\n\n## Text\nNo title, subtitle, heading, description, instructions, hints, tips, how-to text, legend prose, footers, or status sentences. No emoji, check marks, crosses, exclamation marks, capitals for emphasis, or promotional tone. Labels are lowercase or sentence case, terse, and appear only where they carry a value (a count line, a time on a handle, the name of the selected mark). Numbers use tabular figures. If a control needs explaining, redesign the control instead of adding text.\n\n## Type\nOne typeface: system-ui, -apple-system, Inter, Helvetica, sans-serif. 11-13px labels, 12-14px values, weight 400, weight 600 only for the single emphasized value. Monospace (ui-monospace, SF Mono, Menlo) only for times, coordinates and code.\n\n## Color\nPaper #ffffff, ink #111111, grey #777777, hairline #d9d9d9, faint fill #f2f2f2. One accent #d9480f for the current selection or target. Status colours only where they encode a state: open #2b8a3e, closed #c92a2a, unknown grey. Nothing else is coloured. No gradients, shadows, glows, rounded cards, pills, or tinted panels. Buttons and chips: hairline border, no fill; the active one is filled ink with white text.\n\n## Marks\nThin. 1px hairlines, 1.5px data lines, 2px for the selected route. Points 5-7px. Draggable handles: 7px filled ink or accent with a 1.5px white stroke and an invisible 16px hit area. Area fills 8-15% opacity.\n\n## Maps\nLight grey basemap with no API key: Esri World Light Gray Canvas, https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x} (maxZoom 16, attribution 'Esri, HERE, Garmin, OpenStreetMap contributors'), so the data carries the colour. Never use CARTO or Stadia tiles. Small attribution, zoom control bottom-right.\n\n## Layout\nWhite ground, 12px padding, flat. A side panel is separated by a hairline, not boxed. Tables: hairline rows, right-aligned numbers, no zebra striping. Space instead of borders.\n\n## Motion\nNone beyond the direct response to the pointer. State changes apply within 150ms, no easing flourishes.",
+  "notebook_path": null,
+  "components": [
+    "WindowControls"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "spike raster: 60 neurons on y (0 at top), time 0–20 s on x, one 1px tick per spike (data columns neuron, t), drawn on canvas; stimulus onsets from input stim as dashed vertical lines with a small flag.\n    a time window: drag on the time axis to create it (start 2.2–3.2 s), drag its body to move, edges to resize, left/right arrows shift 100 ms; the window shades the raster. the raster ticks inside the window are drawn darker.\n    click a neuron's row label to toggle it into the selected set (rows highlight); shift+click a label selects the range from the last click; 'all' / 'none' buttons. start with every third neuron selected (0, 3, 6, ...).\n    output window = [t0, t1] seconds, neurons = list of selected neuron ids.",
+      "source": "create",
+      "timestamp": "2026-09-16T14:23:14.860891+00:00"
+    }
+  ],
+  "outputs": {
+    "window": "[t0, t1] in seconds",
+    "neurons": "list of selected neuron ids"
+  },
+  "inputs": {
+    "stim": "<imported_trait:stim>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3721,
+      "completion_tokens": 7379,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T01:29:22.979211+00:00",
+  "file_name": "w2__337d915eb7.js",
+  "var_name": "w2",
+  "cache_key": "337d915eb7b197c022619a89b19e7f5efb2d90bba31ae38e31f4af903a1cada2",
+  "description": "september only (a small month picker top-right to change). small multiples: one panel per region, 14 panels in rows of 5, each a bar chart of frac by year (1979..2026), thin bars.\n    a horizontal threshold line shared across all panels, draggable (give it a wide invisible grab area, ~14px, so it is easy to catch), starts at 0.15. bars under it turn red; each panel title ends with '· n of N years under'.\n    a toggle 'shared / per panel': per panel gives every panel its own draggable line, each initialised to the shared line's current value.\n    under the grid, monospace, live: SELECT region, year, AVG(frac) FROM ice WHERE month = 9 GROUP BY region, year HAVING AVG(frac) < 0.15   -- 61 rows",
+  "data_signature": {
+    "shape": [
+      8008,
+      5
+    ],
+    "columns": [
+      "region",
+      "year",
+      "month",
+      "extent_km2",
+      "frac"
+    ],
+    "dtypes": [
+      [
+        "region",
+        "str"
+      ],
+      [
+        "year",
+        "int64"
+      ],
+      [
+        "month",
+        "int64"
+      ],
+      [
+        "extent_km2",
+        "float64"
+      ],
+      [
+        "frac",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "ede8be7a",
+  "imports_signature": "37d73e13",
+  "theme_signature": "222411cf",
+  "parameter_signature": "c6b6e10477",
+  "prompt_keywords": [
+    "september",
+    "only"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "SqlBar",
+    "MonthPicker",
+    "ModeToggle"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "september only (a small month picker top-right to change). small multiples: one panel per region, 14 panels in rows of 5, each a bar chart of frac by year (1979..2026), thin bars.\n    a horizontal threshold line shared across all panels, draggable (give it a wide invisible grab area, ~14px, so it is easy to catch), starts at 0.15. bars under it turn red; each panel title ends with '· n of N years under'.\n    a toggle 'shared / per panel': per panel gives every panel its own draggable line, each initialised to the shared line's current value.\n    under the grid, monospace, live: SELECT region, year, AVG(frac) FROM ice WHERE month = 9 GROUP BY region, year HAVING AVG(frac) < 0.15   -- 61 rows",
+      "source": "create",
+      "timestamp": "2026-09-15T01:28:41.583770+00:00"
+    }
+  ],
+  "outputs": {
+    "under": "dict region -> list of years under that panel's threshold",
+    "thresholds": "dict region -> threshold value"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3372,
+      "completion_tokens": 6582,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.1"
+  }
+}
