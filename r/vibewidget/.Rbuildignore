@@ -1,0 +1,6 @@
+^\.vibewidget$
+(^|/)\.vibewidget$
+^data-raw$
+^\.git$
+^\.github$
+^README\.Rmd$

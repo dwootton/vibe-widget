@@ -1,0 +1,125 @@
+name: r-host
+
+# The host bridge (Python `vibe_widget.hosts`, the JS `AppWrapper/hosts`
+# adapter, and the `r/vibewidget` R package): every layer described in
+# `design/r-host-plan.md`. Split into independent jobs so a failure in one
+# language's lane doesn't hide the others' results.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/vibe_widget/**"
+      - "r/vibewidget/**"
+      - "tests/hosts/**"
+      - "ui-tests/host/**"
+      - "ui-tests/host-e2e/**"
+      - "package.json"
+      - "pyproject.toml"
+      - ".github/workflows/r-host.yml"
+  pull_request:
+    paths:
+      - "src/vibe_widget/**"
+      - "r/vibewidget/**"
+      - "tests/hosts/**"
+      - "ui-tests/host/**"
+      - "ui-tests/host-e2e/**"
+      - "package.json"
+      - "pyproject.toml"
+      - ".github/workflows/r-host.yml"
+
+# All three lanes run with VIBE_PROVIDER=fake: the LLM is never on the CI
+# path (see `vibe_widget.llm.fake` / `design/r-host-plan.md` section 5).
+env:
+  VIBE_PROVIDER: fake
+  VIBE_DISABLE_BUNDLING: "1"
+
+jobs:
+  js-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run build-app-wrapper:host
+      - run: npm run test:ui:contract
+      - run: npm run test:host
+
+  py-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/unit tests/hosts -q
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [js-unit, py-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: npm ci
+      - run: npm run build-app-wrapper:host
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:host:e2e
+
+  r-tests:
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+      - uses: r-lib/actions/setup-pandoc@v2
+      - uses: astral-sh/setup-uv@v3
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: r/vibewidget
+          extra-packages: |
+            any::rcmdcheck
+      - name: Build the standalone host JS bundle
+        run: |
+          npm ci
+          npm run build-app-wrapper:host
+      - name: Sync the vendored Python engine
+        run: bash r/vibewidget/data-raw/sync-python.sh
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          working-directory: r/vibewidget
+          args: 'c("--no-manual")'
+          error-on: '"warning"'
+
+  quarto:
+    runs-on: ubuntu-latest
+    needs: [r-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+      - uses: r-lib/actions/setup-pandoc@v2
+      - uses: astral-sh/setup-uv@v3
+      - uses: quarto-dev/quarto-actions/setup@v2
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: r/vibewidget
+      - run: |
+          npm ci
+          npm run build-app-wrapper:host
+          bash r/vibewidget/data-raw/sync-python.sh
+      - name: Install vibewidget
+        run: R CMD INSTALL r/vibewidget
+      - name: Render the getting-started vignette as a smoke test
+        run: quarto render r/vibewidget/vignettes/getting-started.Rmd --to html

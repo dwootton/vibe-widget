@@ -3,9 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build-app-wrapper": "esbuild src/vibe_widget/AppWrapper/AppWrapper.js --bundle --format=esm --platform=browser --target=es2020 --minify --define:process.env.NODE_ENV=\\\"production\\\" --jsx=automatic --jsx-import-source=react --loader:.js=jsx --outfile=src/vibe_widget/AppWrapper.bundle.js",
-    "watch-app-wrapper": "npm run build-app-wrapper -- --watch",
-    "test:ui": "node --test tests/ui/*.test.mjs"
+    "build-app-wrapper": "npm run build-app-wrapper:core && npm run build-app-wrapper:host",
+    "build-app-wrapper:core": "esbuild src/vibe_widget/AppWrapper/AppWrapper.js --bundle --format=esm --platform=browser --target=es2020 --minify --define:process.env.NODE_ENV=\\\"production\\\" --jsx=automatic --jsx-import-source=react --loader:.js=jsx --outfile=src/vibe_widget/AppWrapper.bundle.js",
+    "build-app-wrapper:host": "esbuild src/vibe_widget/AppWrapper/hosts/index.js --bundle --format=iife --global-name=VibeWidgetHost --platform=browser --target=es2020 --minify --define:process.env.NODE_ENV=\\\"production\\\" --jsx=automatic --jsx-import-source=react --loader:.js=jsx --outfile=src/vibe_widget/hosts/static/vibewidget-host.js && mkdir -p r/vibewidget/inst/htmlwidgets/lib/vibewidget-host && cp src/vibe_widget/hosts/static/vibewidget-host.js r/vibewidget/inst/htmlwidgets/lib/vibewidget-host/vibewidget-host.js",
+    "watch-app-wrapper": "npm run build-app-wrapper:core -- --watch",
+    "test:ui": "node --test tests/ui/*.test.mjs",
+    "test:ui:contract": "node --test ui-tests/contract/*.test.mjs",
+    "test:host": "node --test ui-tests/host/*.test.mjs",
+    "test:host:e2e": "node --test ui-tests/host-e2e/*.test.mjs"
   },
   "dependencies": {
     "@babel/standalone": "^7.26.0",
@@ -24,6 +29,7 @@
   },
   "devDependencies": {
     "esbuild": "^0.23.0",
-    "happy-dom": "^15.7.4"
+    "happy-dom": "^15.7.4",
+    "playwright": "^1.58.2"
   }
 }

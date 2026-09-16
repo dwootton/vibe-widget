@@ -1,0 +1,119 @@
+export const frontmatter = {
+  title: 'R (Positron / RStudio / Quarto)',
+  description: 'Use Vibe Widget from R - Positron, RStudio, Quarto, and R Markdown, no Jupyter kernel required.'
+};
+
+Vibe Widget is a Python library, but you don't have to write Python to use it from R. The
+`vibewidget` R package is a thin client of the same engine that generates the widget: it runs
+Python in-process via [reticulate](https://rstudio.github.io/reticulate/), with no Jupyter kernel
+anywhere in the stack, and renders inline in **Positron**, **RStudio**, **Quarto**, and
+**R Markdown** through [htmlwidgets](https://www.htmlwidgets.org/).
+
+<InstallCommand command={"Rscript -e \"remotes::install_github('dwootton/vibe-widget', subdir='r/vibewidget')\""} />
+
+The R package isn't on CRAN yet, so install it straight from GitHub. The first time you actually
+generate a widget, `reticulate` provisions a small Python environment for you automatically (via
+[uv](https://docs.astral.sh/uv/)) - you do not install Python, or any Python package, yourself.
+That first run downloads a handful of packages and can take under a minute; every run after that
+is instant.
+
+```bash
+export OPENROUTER_API_KEY='your-key'
+```
+
+Set that the same way you would for the Python package - as a shell environment variable (add it
+to `~/.Renviron` so every R session picks it up automatically), not inside a notebook cell, since
+a notebook's cells get saved along with the file.
+
+## Quick start
+
+```r
+library(vibewidget)
+
+df <- data.frame(
+  group = rep(c("A", "B", "C"), each = 10),
+  value = c(rnorm(10, 5), rnorm(10, 8), rnorm(10, 6))
+)
+
+w2 <- vw_create(
+  "a bar chart of avg values by group",
+  df,
+  outputs = list(selection = "selected rows")
+)
+w2
+```
+
+Two things that trip people up the first time:
+
+- **`w2` has to be on its own line to render.** `vw_create(...)` returns a widget object; like any
+  other R value, assigning it to `w2` does not print it. This is completely ordinary R behavior
+  (the same reason `x <- 5` prints nothing but a bare `x` does), it's just easy to forget when
+  you're used to Python/Jupyter auto-displaying the last expression of a cell too. Either put the
+  variable on its own line right after, or wrap the call: `print(vw_create(...))`.
+- **Set `OPENROUTER_API_KEY` before calling `vw_create()`, not inside the same cell as the call.**
+  If you're testing without a key or without network access, set
+  `Sys.setenv(VIBE_PROVIDER = "fake")` first - every layer of the engine has a deterministic,
+  offline fake-generation mode built for exactly this.
+
+## Reading state back into R
+
+```r
+w2$status()             # "generating" | "ready" | "error" | "blocked"
+w2$wait()                # block until a terminal status, if you need to
+w2$outputs$selection()   # current value - NULL until something is selected
+```
+
+`vw_observe()` reacts to changes as they happen. R is single-threaded, so this can't be a live push
+from a background thread the way it works in JavaScript - it polls (via the
+[later](https://later.r-lib.org/) package) only when R is otherwise idle, so it never blocks or
+interrupts whatever you're doing:
+
+```r
+vw_observe(w2, "selection", function(v) message(nrow(v), " rows selected"))
+```
+
+## Pushing state in, and calling actions
+
+```r
+w2$inputs$threshold <- 25
+w2$actions$reset()
+```
+
+## Revising a widget in English
+
+```r
+vw_edit(w2, "sort the bars descending by value")
+```
+
+## Saving and exporting
+
+```r
+vw_save(w2, "chart.vw")
+w3 <- vw_load("chart.vw", data = df)
+
+vw_html(w2, "chart.html")   # a fully static, self-contained export
+```
+
+## Where this behaves differently than Python/Jupyter
+
+| | Positron / RStudio console, or a notebook cell | Rendered Quarto / R Markdown |
+|---|---|---|
+| Rendering | Live - a page opens a WebSocket back to a Python session running in your R process | Static, self-contained (there's no R process behind a rendered document) |
+| Outputs / inputs / actions | Fully live, same as Python | Frozen at whatever they were when the document was rendered |
+| Grab-edit / `vw_edit()` | Live | Not available - there's nothing to revise |
+
+`vw_create()` detects which of these applies automatically; force one or the other with
+`options(vibewidget.mode = "live")` or `"static"` if it ever guesses wrong.
+
+## Known limitations right now
+
+- Only tested by hand inside Positron's Console and R Markdown notebook preview so far - a
+  Positron *notebook* cell's isolated webview reaching a local WebSocket is the one thing not yet
+  independently confirmed. If a widget in a notebook cell doesn't render or doesn't respond to
+  clicks the way the console version does, that's the thing to report.
+- Generated widgets that import npm packages won't bundle in an R-hosted install (no local
+  `node_modules` to resolve against) and fall back to plain, unbundled source.
+- No Shiny integration, no `.vw` bundle browser UI, and no themes UI yet.
+
+See the [pull request](https://github.com/dwootton/vibe-widget/pull/60) for the full architecture
+writeup and the package's own `POSITRON_SMOKE.md` for the manual verification checklist.
