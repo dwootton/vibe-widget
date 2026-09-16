@@ -1,6 +1,6 @@
 {
   "schema_version": 4,
-  "created_at": "2026-09-16T13:56:35.857428+00:00",
+  "created_at": "2026-09-16T14:58:10.089260+00:00",
   "file_name": "lens__58a36c42c2.js",
   "var_name": "lens",
   "cache_key": "58a36c42c260ce00e47340670c972f28e5502e9ba2f96ad38a78508d1fe92fba",
@@ -60,7 +60,7 @@
       ]
     ]
   },
-  "model": "google/gemini-3.8-flash",
+  "model": "anthropic/claude-opus-5",
   "exports_signature": "ebfe7814",
   "imports_signature": "b22843bf",
   "theme_signature": "6e1a5884",
@@ -73,15 +73,15 @@
   "theme_description": "Minimal instrument, print quality. Nothing on screen that is not data, a control, or a label a reader needs to read the data.\n\n## Text\nNo title, subtitle, heading, description, instructions, hints, tips, how-to text, legend prose, footers, or status sentences. No emoji, check marks, crosses, exclamation marks, capitals for emphasis, or promotional tone. Labels are lowercase or sentence case, terse, and appear only where they carry a value (a count line, a time on a handle, the name of the selected mark). Numbers use tabular figures. If a control needs explaining, redesign the control instead of adding text.\n\n## Type\nOne typeface: system-ui, -apple-system, Inter, Helvetica, sans-serif. 11-13px labels, 12-14px values, weight 400, weight 600 only for the single emphasized value. Monospace (ui-monospace, SF Mono, Menlo) only for times, coordinates and code.\n\n## Color\nPaper #ffffff, ink #111111, grey #777777, hairline #d9d9d9, faint fill #f2f2f2. One accent #d9480f for the current selection or target. Status colours only where they encode a state: open #2b8a3e, closed #c92a2a, unknown grey. Nothing else is coloured. No gradients, shadows, glows, rounded cards, pills, or tinted panels. Buttons and chips: hairline border, no fill; the active one is filled ink with white text.\n\n## Marks\nThin. 1px hairlines, 1.5px data lines, 2px for the selected route. Points 5-7px. Draggable handles: 7px filled ink or accent with a 1.5px white stroke and an invisible 16px hit area. Area fills 8-15% opacity.\n\n## Maps\nLight grey basemap with no API key: Esri World Light Gray Canvas, https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x} (maxZoom 16, attribution 'Esri, HERE, Garmin, OpenStreetMap contributors'), so the data carries the colour. Never use CARTO or Stadia tiles. Small attribution, zoom control bottom-right.\n\n## Layout\nWhite ground, 12px padding, flat. A side panel is separated by a hairline, not boxed. Tables: hairline rows, right-aligned numbers, no zebra striping. Space instead of borders.\n\n## Motion\nNone beyond the direct response to the pointer. State changes apply within 150ms, no easing flourishes.",
   "notebook_path": null,
   "components": [
-    "TableLensHeader",
-    "TableLensTooltip"
+    "TableLens",
+    "CountryLegend"
   ],
   "revision_parent": null,
   "prompt_history": [
     {
       "prompt": "table lens for 4000 rows. one 1px row per record, the 7 numeric columns (enrolled, screen_fail_pct, deviations, open_queries, query_age_days, dropout_pct, days_since_visit) each drawn as a horizontal bar in its own column track, bar length = value / column max; country as a thin colour strip on the left.\n    click a column header to sort all rows by it descending, click again for ascending, an arrow shows the sort.\n    drag on the left row axis to set a focus range: rows inside expand to a readable height (~18px) and show the text values (site, country, numbers), rows outside stay 1px; drag the focus body to slide it, drag its edges to resize, up/down arrow keys move it one row. start with a 12-row focus at the top.\n    hover any 1px row to see its site and values in a tooltip. draw the compressed rows on canvas.",
       "source": "create",
-      "timestamp": "2026-09-16T13:55:50.214094+00:00"
+      "timestamp": "2026-09-16T14:53:27.392960+00:00"
     }
   ],
   "outputs": {
@@ -93,12 +93,12 @@
   },
   "actions": {},
   "provenance": {
-    "model": "google/gemini-3.8-flash",
+    "model": "anthropic/claude-opus-5",
     "base_url": "https://openrouter.ai/api/v1",
     "temperature": 0.7,
     "provider_usage": {
-      "prompt_tokens": 4437,
-      "completion_tokens": 7818,
+      "prompt_tokens": 6797,
+      "completion_tokens": 22808,
       "requests": 1
     },
     "vibe_widget_version": "0.3.2"

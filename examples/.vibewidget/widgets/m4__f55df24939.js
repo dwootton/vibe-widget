@@ -10,6 +10,7 @@ const ACCENT = "#d9480f";
 const RED = "#b91c1c";
 const GREEN = "#15803d";
 const GREY = "#52525b";
+const MODES = ["walk", "bike", "drive"];
 
 const REGION_COLORS = [
   "#2563eb",
@@ -21,6 +22,9 @@ const REGION_COLORS = [
   "#0369a1",
   "#9333ea",
 ];
+
+const MONO =
+  "ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -187,24 +191,6 @@ function pointInPoly(pt, poly) {
   return inside;
 }
 
-/* simplify a raw drag path to a manageable vertex list */
-function simplifyPath(pts, tol) {
-  if (pts.length <= 2) return pts.slice();
-  const out = [pts[0]];
-  for (let i = 1; i < pts.length; i++) {
-    const last = out[out.length - 1];
-    if (Math.hypot(pts[i][0] - last[0], pts[i][1] - last[1]) >= tol) {
-      out.push(pts[i]);
-    }
-  }
-  const first = out[0];
-  const lastP = out[out.length - 1];
-  if (out.length > 2 && Math.hypot(lastP[0] - first[0], lastP[1] - first[1]) < tol) {
-    out.pop();
-  }
-  return out;
-}
-
 const nextRegionName = (used) => {
   for (let i = 0; i < 26 * 26; i++) {
     const nm =
@@ -261,6 +247,51 @@ function timeFromAngle(cur, deg) {
 }
 const wrapDay = (m) => (((m % 1440) + 1440) % 1440);
 
+/* route helpers ---------------------------------------------------- */
+function routeFor(routes, mode, row) {
+  if (!routes || typeof routes !== "object") return null;
+  const byMode = routes[mode];
+  if (!byMode) return null;
+  let seq = null;
+  if (Array.isArray(byMode)) seq = byMode[row];
+  else if (typeof byMode === "object") seq = byMode[row] || byMode[String(row)];
+  if (!Array.isArray(seq) || seq.length < 2) return null;
+  const pts = seq
+    .map((p) =>
+      Array.isArray(p) && p.length >= 2 ? [Number(p[0]), Number(p[1])] : null
+    )
+    .filter((p) => p && isFinite(p[0]) && isFinite(p[1]));
+  return pts.length >= 2 ? pts : null;
+}
+
+/* cumulative-length midpoint of a polyline, plus local direction */
+function polylineMidpoint(pts) {
+  let total = 0;
+  const segs = [];
+  for (let i = 1; i < pts.length; i++) {
+    const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    segs.push(d);
+    total += d;
+  }
+  if (total <= 0) return { pt: pts[0], idx: 0 };
+  let acc = 0;
+  for (let i = 0; i < segs.length; i++) {
+    if (acc + segs[i] >= total / 2) {
+      const t = segs[i] > 0 ? (total / 2 - acc) / segs[i] : 0;
+      const a = pts[i];
+      const b = pts[i + 1];
+      return {
+        pt: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t],
+        idx: i,
+        a,
+        b,
+      };
+    }
+    acc += segs[i];
+  }
+  return { pt: pts[pts.length - 1], idx: segs.length - 1 };
+}
+
 /* ------------------------------------------------------------------ *
  * standalone components
  * ------------------------------------------------------------------ */
@@ -290,10 +321,10 @@ export const MapStatsBadge = ({ countInside, countIndependent, countOpen }) => (
     }}
   >
     <span style={{ fontWeight: 600 }}>{countInside}</span> inside
-    <span style={{ margin: "0 6px", color: "#a1a1aa" }}>·</span>
+    <span style={{ margin: "0 6px", color: "#71717a" }}>·</span>
     <span style={{ fontWeight: 600, color: ACCENT }}>{countIndependent}</span>{" "}
     independent
-    <span style={{ margin: "0 6px", color: "#a1a1aa" }}>·</span>
+    <span style={{ margin: "0 6px", color: "#71717a" }}>·</span>
     <span style={{ fontWeight: 600, color: GREEN }}>{countOpen}</span> open and
     back in time
   </div>
@@ -317,9 +348,127 @@ export const LassoHint = ({ active }) => (
       color: active ? INK : "#3f3f46",
     }}
   >
-    {active ? "drawing lasso…" : "shift + drag = lasso · double-click a region to delete"}
+    {active
+      ? "drawing lasso…"
+      : "shift + drag = lasso · double-click a region to delete"}
   </div>
 );
+
+export const ModeSwitch = ({ React, mode, setMode }) => {
+  const [hover, setHover] = React.useState(null);
+  const fontStack =
+    "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  return (
+    <div
+      role="radiogroup"
+      aria-label="travel mode"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 0,
+        border: "1px solid #d4d4d8",
+        borderRadius: 6,
+        overflow: "hidden",
+        margin: "0 8px 2px",
+        background: "#fff",
+      }}
+    >
+      {MODES.map((m, i) => {
+        const on = m === mode;
+        return (
+          <button
+            key={m}
+            role="radio"
+            aria-checked={on}
+            onClick={() => setMode(m)}
+            onMouseEnter={() => setHover(m)}
+            onMouseLeave={() => setHover(null)}
+            style={{
+              flex: "1 1 0",
+              height: 26,
+              padding: 0,
+              cursor: "pointer",
+              border: "none",
+              borderLeft: i === 0 ? "none" : "1px solid #e4e4e7",
+              background: on ? INK : hover === m ? "#f4f4f5" : "#fff",
+              color: on ? "#fafafa" : "#3f3f46",
+              font:
+                (on ? "600 " : "500 ") +
+                "11px/1 " +
+                fontStack,
+              letterSpacing: "0.06em",
+              textTransform: "lowercase",
+            }}
+          >
+            {m}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+export const VerdictLines = ({
+  React,
+  leaveMin,
+  targetName,
+  arriveMin,
+  status,
+  dwellMin,
+  backHomeMin,
+  backByMin,
+  hasTarget,
+}) => {
+  if (!hasTarget) {
+    return (
+      <div
+        style={{
+          margin: "6px 10px 0",
+          font: "400 11px/1.55 " + MONO,
+          color: "#3f3f46",
+          whiteSpace: "pre-wrap",
+          overflowWrap: "anywhere",
+        }}
+      >
+        no target — click a shop on the map
+      </div>
+    );
+  }
+  const backAbs = backByMin + (backByMin <= leaveMin ? 1440 : 0);
+  const diff = Math.round(backAbs - backHomeMin);
+  const ok = diff >= 0;
+  const line1 =
+    fmtHHMM(leaveMin) +
+    " → " +
+    String(targetName || "—").toLowerCase() +
+    " " +
+    fmtHHMM(arriveMin) +
+    ", " +
+    status +
+    " · " +
+    dwellMin +
+    " min · back " +
+    fmtHHMM(backHomeMin);
+  const line2 =
+    Math.abs(diff) +
+    (ok ? " min before " : " min after ") +
+    fmtHHMM(backByMin);
+  const base = {
+    font: "400 11px/1.55 " + MONO,
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
+  };
+  return (
+    <div style={{ margin: "6px 10px 0" }}>
+      <div style={{ ...base, color: INK }}>{line1}</div>
+      <div style={{ ...base, color: ok ? GREEN : RED, fontWeight: 600 }}>
+        {line2}
+      </div>
+    </div>
+  );
+};
 
 export const DayRow = ({ React, day, setDay }) => {
   const [hover, setHover] = React.useState(-1);
@@ -339,7 +488,7 @@ export const DayRow = ({ React, day, setDay }) => {
               padding: 0,
               cursor: "pointer",
               borderRadius: 4,
-              border: "1px solid " + (on ? INK : "#e4e4e7"),
+              border: "1px solid " + (on ? INK : "#d4d4d8"),
               background: on ? INK : hover === i ? "#f4f4f5" : "#fff",
               color: on ? "#fafafa" : "#3f3f46",
               font: "500 11px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -363,7 +512,7 @@ export const RegionTable = ({ React, rows, onHover, onDelete, colorOf }) => {
     font: "500 9.5px " + fontStack,
     letterSpacing: "0.07em",
     textTransform: "uppercase",
-    color: "#52525b",
+    color: "#3f3f46",
     padding: "0 8px 4px 0",
     borderBottom: "1px solid #e4e4e7",
     whiteSpace: "nowrap",
@@ -444,14 +593,16 @@ export const RegionTable = ({ React, rows, onHover, onDelete, colorOf }) => {
                   <td style={{ ...td, color: r.nOpen ? GREEN : INK }}>
                     {r.nOpen}
                   </td>
-                  <td style={td}>{r.earliest == null ? "—" : fmtHHMM(r.earliest)}</td>
+                  <td style={td}>
+                    {r.earliest == null ? "—" : fmtHHMM(r.earliest)}
+                  </td>
                   <td style={{ ...td, textAlign: "right" }}>
                     <button
                       onClick={() => onDelete(r.name)}
                       title={"delete region " + r.name}
                       style={{
                         cursor: "pointer",
-                        border: "1px solid #e4e4e7",
+                        border: "1px solid #d4d4d8",
                         background: "#fff",
                         borderRadius: 4,
                         width: 18,
@@ -486,8 +637,11 @@ export const TimeDial = ({
   setDay,
   targetName,
   tripMin,
-  bikeToMin,
+  toMinutes,
+  backHomeMin,
   hasTarget,
+  mode,
+  setMode,
 }) => {
   const svgRef = React.useRef(null);
   const dragRef = React.useRef(null);
@@ -581,10 +735,13 @@ export const TimeDial = ({
   const tripSweep = Math.min(Math.max(tripMin || 0, 0), 715) / 2;
   const okSweep =
     Math.min(Math.max(Math.min(tripMin || 0, Math.max(haveMin, 0)), 0), 715) / 2;
-  const arriveDeg = degOf(leaveMin + (bikeToMin || 0));
+  const arriveDeg = degOf(leaveMin + (toMinutes || 0));
   const [atx, aty] = polar(cx, cy, R - 13, arriveDeg);
   const [atx2, aty2] = polar(cx, cy, R - 2, arriveDeg);
   const [alx, aly] = polar(cx, cy, R - 26, arriveDeg);
+
+  const homeDeg = degOf(backHomeMin || 0);
+  const [hbx, hby] = polar(cx, cy, R + 7, homeDeg);
 
   const [llx, lly] = polar(cx, cy, R + 32, leaveDeg);
   const [blx, bly] = polar(cx, cy, R + 52, backDeg);
@@ -604,6 +761,8 @@ export const TimeDial = ({
         fontFamily: fontStack,
       }}
     >
+      <ModeSwitch React={React} mode={mode} setMode={setMode} />
+
       <div
         style={{
           display: "flex",
@@ -641,6 +800,20 @@ export const TimeDial = ({
           />
           back by
         </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 7,
+              height: 7,
+              borderRadius: 7,
+              background: "#fff",
+              border: "1.4px solid " + INK,
+              marginRight: 5,
+            }}
+          />
+          back
+        </span>
       </div>
 
       <svg
@@ -670,7 +843,14 @@ export const TimeDial = ({
           fillOpacity={0.07}
         />
 
-        <circle cx={cx} cy={cy} r={R} fill="none" stroke="#d4d4d8" strokeWidth={1} />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={R}
+          fill="none"
+          stroke="#d4d4d8"
+          strokeWidth={1}
+        />
 
         {Array.from({ length: 12 }, (_, i) => {
           const d = i * 30;
@@ -703,7 +883,7 @@ export const TimeDial = ({
               y={y}
               textAnchor="middle"
               dominantBaseline="central"
-              style={{ font: "500 10px " + fontStack, fill: "#71717a" }}
+              style={{ font: "500 10px " + fontStack, fill: "#52525b" }}
             >
               {lab}
             </text>
@@ -721,7 +901,13 @@ export const TimeDial = ({
             />
             {tripSweep > okSweep + 0.05 && (
               <path
-                d={arcPath(cx, cy, R - 6, leaveDeg + okSweep, leaveDeg + tripSweep)}
+                d={arcPath(
+                  cx,
+                  cy,
+                  R - 6,
+                  leaveDeg + okSweep,
+                  leaveDeg + tripSweep
+                )}
                 fill="none"
                 stroke={RED}
                 strokeWidth={1.8}
@@ -749,12 +935,30 @@ export const TimeDial = ({
                 strokeWidth: 3,
               }}
             >
-              {fmtHHMM(leaveMin + (bikeToMin || 0))}
+              {fmtHHMM(leaveMin + (toMinutes || 0))}
             </text>
           </g>
         )}
 
-        <line x1={lsx} y1={lsy} x2={lhx} y2={lhy} stroke={INK} strokeWidth={1.4} />
+        {hasTarget && (
+          <circle
+            cx={hbx}
+            cy={hby}
+            r={4.2}
+            fill="#fff"
+            stroke={INK}
+            strokeWidth={1.4}
+          />
+        )}
+
+        <line
+          x1={lsx}
+          y1={lsy}
+          x2={lhx}
+          y2={lhy}
+          stroke={INK}
+          strokeWidth={1.4}
+        />
         <circle
           cx={lhx}
           cy={lhy}
@@ -838,7 +1042,7 @@ export const TimeDial = ({
         }}
         title={targetName || ""}
       >
-        <span style={{ color: "#71717a", marginRight: 6 }}>target</span>
+        <span style={{ color: "#52525b", marginRight: 6 }}>target</span>
         {targetName || "—"}
       </div>
 
@@ -847,7 +1051,7 @@ export const TimeDial = ({
       <div
         style={{
           fontSize: 10,
-          color: "#71717a",
+          color: "#52525b",
           textAlign: "center",
           lineHeight: 1.5,
         }}
@@ -892,6 +1096,19 @@ const VERTEX_ICON = (color) =>
     iconSize: [0, 0],
     iconAnchor: [0, 0],
   });
+
+function routeLabelIcon(txt, dx, dy) {
+  return L.divIcon({
+    className: "route-min-label",
+    html:
+      `<div style="transform:translate(${dx}px,${dy}px);white-space:nowrap;` +
+      `font:600 10px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;` +
+      `color:${ACCENT};background:rgba(255,255,255,0.94);border:1px solid rgba(0,0,0,0.08);` +
+      `border-radius:3px;padding:1px 5px;box-shadow:0 1px 3px rgba(0,0,0,0.10);">${txt}</div>`,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+  });
+}
 
 function applyStyles(els, derived, targetIdx) {
   if (!els || !els.shopRecords) return;
@@ -963,6 +1180,42 @@ function applyStyles(els, derived, targetIdx) {
   if (els.visualCircle) els.visualCircle.bringToFront();
 }
 
+/* rebuild the reach bands for a given mode (imperative) */
+function buildReachLayers(map, reach, mode) {
+  const src = reach && reach[mode] ? reach[mode] : null;
+  const feats = src
+    ? src.features || (src.type === "Feature" ? [src] : [])
+    : [];
+  const sorted = feats
+    .slice()
+    .sort(
+      (a, b) =>
+        Number((b.properties || {}).contour || 0) -
+        Number((a.properties || {}).contour || 0)
+    );
+  const targets = [0.06, 0.09, 0.12];
+  let prevAlpha = 0;
+  const layers = [];
+  sorted.forEach((f, i) => {
+    const t = targets[Math.min(i, targets.length - 1)];
+    const a = prevAlpha >= 1 ? 0 : (t - prevAlpha) / (1 - prevAlpha);
+    prevAlpha = t;
+    const lyr = L.geoJSON(f, {
+      pane: "reachPane",
+      interactive: false,
+      style: {
+        color: "#5b7290",
+        weight: 0,
+        fillColor: "#5b7290",
+        fillOpacity: Math.max(a, 0),
+        opacity: 0,
+      },
+    }).addTo(map);
+    layers.push(lyr);
+  });
+  return layers;
+}
+
 /* ------------------------------------------------------------------ *
  * widget
  * ------------------------------------------------------------------ */
@@ -970,14 +1223,17 @@ function applyStyles(els, derived, targetIdx) {
 export default function Widget({ model, React }) {
   const [data, setData] = React.useState(() => normalizeData(model.get("data")));
   const [reach, setReach] = React.useState(() => model.get("reach") || {});
+  const [routes, setRoutes] = React.useState(() => model.get("routes") || {});
+  const [mode, setMode] = React.useState("bike");
   const [leaveMin, setLeaveMin] = React.useState(6 * 60 + 30);
   const [backMin, setBackMin] = React.useState(8 * 60 + 45);
   const [day, setDay] = React.useState(1); // Tu
   const [target, setTarget] = React.useState(2);
   const [radiusKm, setRadiusKm] = React.useState(3.5);
-  /* regions: [{ name, pts: [[lat,lng], ...] }] */
   const [regions, setRegions] = React.useState([]);
   const [lassoActive, setLassoActive] = React.useState(false);
+
+  const DWELL = 10;
 
   const containerRef = React.useRef(null);
   const mapRef = React.useRef(null);
@@ -985,11 +1241,15 @@ export default function Widget({ model, React }) {
   const dragActiveRef = React.useRef(false);
   const dragAngleRef = React.useRef(0.65);
   const derivedRef = React.useRef(null);
-  const regionLayersRef = React.useRef(new Map()); // name -> {poly, handles[]}
-  const regionsRef = React.useRef([]);
+  const targetRef = React.useRef(target);
+  const regionLayersRef = React.useRef(new Map());
+  const reachLayersRef = React.useRef([]);
+  const routeLayerRef = React.useRef(null);
+  const routeLabelRef = React.useRef(null);
   const hoverRegionRef = React.useRef(null);
   const setRegionsRef = React.useRef(setRegions);
   setRegionsRef.current = setRegions;
+  targetRef.current = target;
 
   const hotelLat = 29.7522;
   const hotelLon = -95.3578;
@@ -998,11 +1258,14 @@ export default function Widget({ model, React }) {
   React.useEffect(() => {
     const onData = () => setData(normalizeData(model.get("data")));
     const onReach = () => setReach(model.get("reach") || {});
+    const onRoutes = () => setRoutes(model.get("routes") || {});
     model.on("change:data", onData);
     model.on("change:reach", onReach);
+    model.on("change:routes", onRoutes);
     return () => {
       model.off("change:data", onData);
       model.off("change:reach", onReach);
+      model.off("change:routes", onRoutes);
     };
   }, [model]);
 
@@ -1026,15 +1289,17 @@ export default function Widget({ model, React }) {
     [regions]
   );
 
-  /* derived state: everything the visuals need */
+  /* derived state: everything the visuals need (mode-driven) */
   const derived = React.useMemo(() => {
+    const keyTo = mode + "_min";
+    const keyBack = mode + "_back";
     const backAbs = backMin + (backMin <= leaveMin ? 1440 : 0);
     const rows = data.map((s, i) => {
       const distKm = haversineKm(hotelLat, hotelLon, +s.lat, +s.lon);
-      const bikeTo = Number(s.bike_min) || 0;
-      const bikeBack = Number(s.bike_back) || 0;
-      const trip = bikeTo + 10 + bikeBack;
-      const arrive = leaveMin + bikeTo;
+      const toMinutes = Number(s[keyTo]) || 0;
+      const backMinutes = Number(s[keyBack]) || 0;
+      const trip = toMinutes + DWELL + backMinutes;
+      const arrive = leaveMin + toMinutes;
       const arriveDay = (day + Math.floor(arrive / 1440)) % 7;
       const parsed = parseHours(s.hours);
       const status = !parsed
@@ -1047,10 +1312,11 @@ export default function Widget({ model, React }) {
         shop: s,
         distKm,
         inside: distKm <= radiusKm,
-        bikeTo,
-        bikeBack,
+        toMinutes,
+        backMinutes,
         trip,
         arrive,
+        backHome: leaveMin + trip,
         arriveDay,
         status,
         fits: leaveMin + trip <= backAbs,
@@ -1070,15 +1336,14 @@ export default function Widget({ model, React }) {
       }
     });
     return { rows, insideIdx, openIdx, n: insideIdx.length, k, j, backAbs };
-  }, [data, radiusKm, leaveMin, backMin, day]);
+  }, [data, radiusKm, leaveMin, backMin, day, mode]);
 
   derivedRef.current = derived;
-  regionsRef.current = regions;
 
   /* region membership + stats */
   const regionStats = React.useMemo(() => {
     return regions.map((reg) => {
-      const poly = reg.pts.map((p) => [p[1], p[0]]); // [lng, lat] as [x, y]
+      const poly = reg.pts.map((p) => [p[1], p[0]]);
       const idx = [];
       derived.rows.forEach((r) => {
         const lat = +r.shop.lat;
@@ -1105,8 +1370,7 @@ export default function Widget({ model, React }) {
     });
   }, [regions, derived]);
 
-  /* map construction — depends only on data / reach / model.
-     lasso + region handling registered here, inside the same effect. */
+  /* map construction — depends only on data / model */
   React.useEffect(() => {
     if (!containerRef.current) return;
 
@@ -1118,13 +1382,15 @@ export default function Widget({ model, React }) {
       maxZoom: 16,
       zoomControl: false,
       attributionControl: false,
-      boxZoom: false, // shift+drag belongs to the lasso
+      boxZoom: false,
     });
     mapRef.current = map;
     if (map.boxZoom) map.boxZoom.disable();
 
     map.createPane("reachPane");
     map.getPane("reachPane").style.zIndex = 380;
+    map.createPane("routePane");
+    map.getPane("routePane").style.zIndex = 400;
     map.createPane("shopPane");
     map.getPane("shopPane").style.zIndex = 420;
     map.createPane("circlePane");
@@ -1149,39 +1415,6 @@ export default function Widget({ model, React }) {
       "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
       { maxZoom: 16 }
     ).addTo(map);
-
-    /* bike reach bands */
-    const bike = reach && reach.bike ? reach.bike : null;
-    const feats = bike
-      ? bike.features || (bike.type === "Feature" ? [bike] : [])
-      : [];
-    const sorted = feats
-      .slice()
-      .sort(
-        (a, b) =>
-          Number((b.properties || {}).contour || 0) -
-          Number((a.properties || {}).contour || 0)
-      );
-    const targets = [0.06, 0.09, 0.12];
-    let prevAlpha = 0;
-    const reachLayers = [];
-    sorted.forEach((f, i) => {
-      const t = targets[Math.min(i, targets.length - 1)];
-      const a = prevAlpha >= 1 ? 0 : (t - prevAlpha) / (1 - prevAlpha);
-      prevAlpha = t;
-      const lyr = L.geoJSON(f, {
-        pane: "reachPane",
-        interactive: false,
-        style: {
-          color: "#5b7290",
-          weight: 0,
-          fillColor: "#5b7290",
-          fillOpacity: Math.max(a, 0),
-          opacity: 0,
-        },
-      }).addTo(map);
-      reachLayers.push(lyr);
-    });
 
     const hotelPinIcon = L.divIcon({
       className: "hotel-ink-pin",
@@ -1259,14 +1492,16 @@ export default function Widget({ model, React }) {
         opacity: 0.3,
       }).addTo(map);
 
-      const tooltipHtml = `
-        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;line-height:1.45;color:#1e293b;min-width:130px;">
+      const tip = () => {
+        const d = derivedRef.current ? derivedRef.current.rows[index] : null;
+        return `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;line-height:1.45;color:#18181b;min-width:130px;">
           <div style="font-weight:600;font-size:13px;color:#09090b;margin-bottom:2px;">${escapeHtml(
             shop.name
           )}</div>
           ${
             shop.street
-              ? `<div style="color:#52525b;font-size:11px;">${escapeHtml(
+              ? `<div style="color:#3f3f46;font-size:11px;">${escapeHtml(
                   shop.street
                 )}</div>`
               : ""
@@ -1277,16 +1512,21 @@ export default function Widget({ model, React }) {
           <div style="margin-top:4px;font-size:10.5px;font-weight:500;color:${
             shop.chain ? "#52525b" : ACCENT
           };">
-            ${shop.chain ? "Chain" : "Independent"} · ${distKm.toFixed(2)} km ·
-            bike ${Number(shop.bike_min) || 0}/${Number(shop.bike_back) || 0} min
+            ${shop.chain ? "Chain" : "Independent"} · ${distKm.toFixed(2)} km${
+          d
+            ? ` · ${d.toMinutes}/${d.backMinutes} min`
+            : ""
+        }
           </div>
         </div>`;
-      marker.bindTooltip(tooltipHtml, {
+      };
+      marker.bindTooltip(tip(), {
         direction: "top",
         offset: [0, -5],
         className: "custom-shop-tooltip",
         opacity: 0.98,
       });
+      marker.on("tooltipopen", () => marker.setTooltipContent(tip()));
       marker.on("click", (e) => {
         L.DomEvent.stopPropagation(e);
         setTarget(index);
@@ -1304,7 +1544,7 @@ export default function Widget({ model, React }) {
     elementsRef.current = { visualCircle, hitCircle, edgeMarker, shopRecords };
 
     if (derivedRef.current) {
-      applyStyles(elementsRef.current, derivedRef.current, target);
+      applyStyles(elementsRef.current, derivedRef.current, targetRef.current);
     }
 
     /* ---------------- radius drag ---------------- */
@@ -1346,7 +1586,6 @@ export default function Widget({ model, React }) {
 
     const onContainerMouseDown = (ev) => {
       if (!ev.shiftKey || ev.button !== 0) return;
-      // shift+drag always means lasso; block leaflet/other handlers
       ev.preventDefault();
       ev.stopPropagation();
       dragActiveRef.current = false;
@@ -1374,7 +1613,6 @@ export default function Widget({ model, React }) {
       setLassoActive(false);
       if (containerRef.current) containerRef.current.style.cursor = "";
       if (raw.length < 3) return;
-      // simplify in screen space, keep lat/lng
       const screen = raw.map((p) => {
         const q = map.latLngToContainerPoint(L.latLng(p[0], p[1]));
         return [q.x, q.y];
@@ -1421,7 +1659,9 @@ export default function Widget({ model, React }) {
       hitCircle.setRadius(clamped);
       const angle = Math.atan2(ll.lng - hotelLon, ll.lat - hotelLat);
       dragAngleRef.current = angle;
-      edgeMarker.setLatLng(getPerimeterLatLng(hotelLat, hotelLon, clamped, angle));
+      edgeMarker.setLatLng(
+        getPerimeterLatLng(hotelLat, hotelLon, clamped, angle)
+      );
       edgeMarker.setIcon(createEdgeLabelIcon(rKm));
       setRadiusKm(rKm);
     };
@@ -1462,13 +1702,94 @@ export default function Widget({ model, React }) {
         if (entry.tag) entry.tag.remove();
       });
       regionLayersRef.current = new Map();
-      reachLayers.forEach((l) => l.remove());
+      reachLayersRef.current.forEach((l) => l.remove());
+      reachLayersRef.current = [];
+      if (routeLayerRef.current) routeLayerRef.current.remove();
+      routeLayerRef.current = null;
+      if (routeLabelRef.current) routeLabelRef.current.remove();
+      routeLabelRef.current = null;
       elementsRef.current = { shopRecords: [] };
       map.remove();
       mapRef.current = null;
     };
     // eslint-disable-next-line
-  }, [data, reach, model]);
+  }, [data, model]);
+
+  /* ---- reach bands follow the mode ---- */
+  React.useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    reachLayersRef.current.forEach((l) => l.remove());
+    reachLayersRef.current = buildReachLayers(map, reach, mode);
+    return () => {
+      reachLayersRef.current.forEach((l) => l.remove());
+      reachLayersRef.current = [];
+    };
+  }, [reach, mode, data]);
+
+  /* ---- street route hotel → target, above the bands ---- */
+  React.useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (routeLayerRef.current) {
+      routeLayerRef.current.remove();
+      routeLayerRef.current = null;
+    }
+    if (routeLabelRef.current) {
+      routeLabelRef.current.remove();
+      routeLabelRef.current = null;
+    }
+    const pts = routeFor(routes, mode, target);
+    const row = derived.rows[target];
+    if (!pts || !row) return () => {};
+
+    const line = L.polyline(pts, {
+      pane: "routePane",
+      color: ACCENT,
+      weight: 2,
+      opacity: 0.95,
+      lineJoin: "round",
+      lineCap: "round",
+      interactive: false,
+    }).addTo(map);
+    routeLayerRef.current = line;
+
+    const mid = polylineMidpoint(pts);
+    /* offset the badge perpendicular to the local heading so it never
+       sits on top of the route, and push it away from the hotel pin */
+    let dx = 12;
+    let dy = -8;
+    if (mid.a && mid.b) {
+      const vlat = mid.b[0] - mid.a[0];
+      const vlon = mid.b[1] - mid.a[1];
+      const len = Math.hypot(vlat, vlon) || 1;
+      // screen space: x ~ lon, y ~ -lat
+      const nx = -(-vlat / len);
+      const ny = -(vlon / len);
+      dx = nx * 16 + 4;
+      dy = ny * 16 - 6;
+    }
+    const nearHotel =
+      Math.hypot(mid.pt[0] - hotelLat, mid.pt[1] - hotelLon) < 0.004;
+    if (nearHotel) {
+      dx = dx + 18;
+      dy = dy + 18;
+    }
+    const label = L.marker(mid.pt, {
+      pane: "routePane",
+      interactive: false,
+      zIndexOffset: 1700,
+      icon: routeLabelIcon(row.toMinutes + " min", Math.round(dx), Math.round(dy)),
+    }).addTo(map);
+    routeLabelRef.current = label;
+
+    return () => {
+      line.remove();
+      label.remove();
+      if (routeLayerRef.current === line) routeLayerRef.current = null;
+      if (routeLabelRef.current === label) routeLabelRef.current = null;
+    };
+  }, [routes, mode, target, derived, data]);
 
   /* ---- region layers: sync leaflet polygons + vertex handles ---- */
   React.useEffect(() => {
@@ -1477,7 +1798,6 @@ export default function Widget({ model, React }) {
     const store = regionLayersRef.current;
     const alive = new Set(regions.map((r) => r.name));
 
-    // remove gone regions
     Array.from(store.keys()).forEach((name) => {
       if (!alive.has(name)) {
         const e = store.get(name);
@@ -1504,7 +1824,9 @@ export default function Widget({ model, React }) {
         poly.on("dblclick", (e) => {
           L.DomEvent.stopPropagation(e);
           L.DomEvent.preventDefault(e);
-          setRegionsRef.current((prev) => prev.filter((r) => r.name !== reg.name));
+          setRegionsRef.current((prev) =>
+            prev.filter((r) => r.name !== reg.name)
+          );
         });
         const tag = L.marker(reg.pts[0], {
           pane: "regionPane",
@@ -1526,7 +1848,6 @@ export default function Widget({ model, React }) {
         entry.color = color;
       }
 
-      // rebuild handles only when the vertex count changed
       if (entry.handles.length !== reg.pts.length) {
         entry.handles.forEach((h) => h.remove());
         entry.handles = reg.pts.map((p, vi) => {
@@ -1564,7 +1885,10 @@ export default function Widget({ model, React }) {
         entry.handles.forEach((m, vi) => {
           const ll = m.getLatLng();
           const p = reg.pts[vi];
-          if (Math.abs(ll.lat - p[0]) > 1e-9 || Math.abs(ll.lng - p[1]) > 1e-9) {
+          if (
+            Math.abs(ll.lat - p[0]) > 1e-9 ||
+            Math.abs(ll.lng - p[1]) > 1e-9
+          ) {
             m.setLatLng(p);
           }
           m.setIcon(VERTEX_ICON(color));
@@ -1574,7 +1898,6 @@ export default function Widget({ model, React }) {
     return () => {};
   }, [regions]);
 
-  /* hover highlight of a region (imperative, no rebuild) */
   const handleRegionHover = React.useCallback((name) => {
     hoverRegionRef.current = name;
     const store = regionLayersRef.current;
@@ -1593,7 +1916,7 @@ export default function Widget({ model, React }) {
     setRegions((prev) => prev.filter((r) => r.name !== name));
   }, []);
 
-  /* live restyle on any dial / day / target / radius change */
+  /* live restyle on any dial / day / target / radius / mode change */
   React.useEffect(() => {
     const els = elementsRef.current;
     if (!els || !els.shopRecords || !els.shopRecords.length) return;
@@ -1605,7 +1928,11 @@ export default function Widget({ model, React }) {
     return () => {};
   }, [derived, target, radiusKm]);
 
-  /* outputs (debounced a touch so drags stay smooth) */
+  const targetRow = derived.rows[target];
+  const backHome = targetRow ? targetRow.backHome : leaveMin;
+  const makesIt = targetRow ? targetRow.backHome <= derived.backAbs : true;
+
+  /* outputs */
   React.useEffect(() => {
     const regionsOut = {};
     regionStats.forEach((r) => {
@@ -1619,12 +1946,25 @@ export default function Widget({ model, React }) {
       model.set("back_by", fmtHHMM(backMin));
       model.set("target", target);
       model.set("regions", regionsOut);
+      model.set("mode", mode);
+      model.set("back_hhmm", fmtHHMM(backHome));
+      model.set("makes_it", !!makesIt);
       model.save_changes();
     }, 60);
     return () => clearTimeout(t);
-  }, [derived, radiusKm, day, leaveMin, backMin, target, regionStats, model]);
-
-  const targetRow = derived.rows[target];
+  }, [
+    derived,
+    radiusKm,
+    day,
+    leaveMin,
+    backMin,
+    target,
+    regionStats,
+    mode,
+    backHome,
+    makesIt,
+    model,
+  ]);
 
   return (
     <div
@@ -1633,7 +1973,7 @@ export default function Widget({ model, React }) {
         gap: 12,
         alignItems: "stretch",
         width: "100%",
-        height: 620,
+        height: 660,
         fontFamily:
           "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
@@ -1651,6 +1991,7 @@ export default function Widget({ model, React }) {
         .shop-time-label { background: none !important; border: none !important; }
         .hotel-ink-pin, .radius-label-badge { background: none !important; border: none !important; }
         .region-vertex, .region-tag { background: none !important; border: none !important; }
+        .route-min-label { background: none !important; border: none !important; }
       `}</style>
 
       <div
@@ -1703,7 +2044,7 @@ export default function Widget({ model, React }) {
           flexDirection: "column",
           justifyContent: "flex-start",
           gap: 4,
-          overflow: "hidden",
+          overflow: "auto",
         }}
       >
         <TimeDial
@@ -1716,9 +2057,24 @@ export default function Widget({ model, React }) {
           setBack={setBackMin}
           day={day}
           setDay={setDay}
+          mode={mode}
+          setMode={setMode}
           targetName={targetRow ? targetRow.shop.name : null}
           tripMin={targetRow ? targetRow.trip : 0}
-          bikeToMin={targetRow ? targetRow.bikeTo : 0}
+          toMinutes={targetRow ? targetRow.toMinutes : 0}
+          backHomeMin={backHome}
+          hasTarget={!!targetRow}
+        />
+
+        <VerdictLines
+          React={React}
+          leaveMin={leaveMin}
+          targetName={targetRow ? targetRow.shop.name : null}
+          arriveMin={targetRow ? targetRow.arrive : leaveMin}
+          status={targetRow ? targetRow.status : "unknown"}
+          dwellMin={DWELL}
+          backHomeMin={backHome}
+          backByMin={backMin}
           hasTarget={!!targetRow}
         />
 
@@ -1735,24 +2091,15 @@ export default function Widget({ model, React }) {
           <div>
             <span style={{ color: GREEN, fontWeight: 600 }}>●</span> open on
             arrival
-            <span style={{ margin: "0 6px", color: "#d4d4d8" }}>·</span>
+            <span style={{ margin: "0 6px", color: "#a1a1aa" }}>·</span>
             <span style={{ color: RED, fontWeight: 600 }}>○</span> closed
-            <span style={{ margin: "0 6px", color: "#d4d4d8" }}>·</span>
+            <span style={{ margin: "0 6px", color: "#a1a1aa" }}>·</span>
             <span style={{ color: GREY, fontWeight: 600 }}>◌</span> unknown
           </div>
-          {targetRow && (
-            <div style={{ color: "#52525b" }}>
-              arrive {fmtHHMM(targetRow.arrive)} · back{" "}
-              {fmtHHMM(leaveMin + targetRow.trip)}
-              {leaveMin + targetRow.trip > derived.backAbs ? (
-                <span style={{ color: RED, fontWeight: 600 }}> · too late</span>
-              ) : null}
-            </div>
-          )}
           <div style={{ color: "#3f3f46", marginTop: 4 }}>
             <span style={{ fontWeight: 600 }}>{regionStats.length}</span> region
-            {regionStats.length === 1 ? "" : "s"} · shift + drag to lasso · drag a
-            vertex to reshape · double-click inside to delete
+            {regionStats.length === 1 ? "" : "s"} · shift + drag to lasso · drag
+            a vertex to reshape · double-click inside to delete
           </div>
         </div>
       </div>
