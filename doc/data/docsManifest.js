@@ -74,6 +74,13 @@ export const DOC_PAGES = [
     section: 'Ecosystem',
     source: 'widgetarium.mdx',
   },
+  {
+    id: 'r-shim',
+    path: '/docs/r-shim',
+    label: 'R (Positron / RStudio)',
+    section: 'Ecosystem',
+    source: 'r-shim.mdx',
+  },
 ];
 
 export const DOC_SECTIONS = [
