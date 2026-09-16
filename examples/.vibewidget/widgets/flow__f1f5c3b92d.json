@@ -1,0 +1,77 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T19:37:24.990034+00:00",
+  "file_name": "flow__f1f5c3b92d.js",
+  "var_name": "flow",
+  "cache_key": "f1f5c3b92d2bf17e5d57fe1b662b757cb17ff6fc78966ad38c9f213d6e8d305d",
+  "description": "consistency flow of 24 generations from one prompt. data = nodes (step, text, n = how many generations use that span at that step); input links (step, source, target, n = generations going from source at step to target at step+1); input gens (gen, s0..s8, text).\n    steps are columns left to right; in each column the spans are stacked with the most common at the vertical centre and rarer ones fanning above and below; write each span as text with font size scaled by n (largest ~26px, smallest ~11px, monospace). between columns draw smooth ribbons from each source span to each target span with stroke width proportional to link n, light grey-blue, semi-transparent.\n    hover a span: every ribbon on the path of a generation containing that span turns dark, everything else fades; tooltip 'n of 24 generations'. click a span to pin it (bold, orange); pinned filters stay until clicked again; several pins combine with AND. under the diagram list the generations that pass through all pinned spans, full text, the pinned spans highlighted; when nothing is pinned show 'hover to trace, click to pin'.\n    no controls beyond that. output pinned = list of {step, text}, gen_ids = list of gen numbers passing all pins.",
+  "data_signature": {
+    "shape": [
+      41,
+      3
+    ],
+    "columns": [
+      "text",
+      "n",
+      "step"
+    ],
+    "dtypes": [
+      [
+        "text",
+        "str"
+      ],
+      [
+        "n",
+        "int64"
+      ],
+      [
+        "step",
+        "int64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "befd9480",
+  "imports_signature": "5c968a85",
+  "theme_signature": "222411cf",
+  "parameter_signature": "e56ca11595",
+  "prompt_keywords": [
+    "consistency",
+    "flow"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "GenerationList"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "consistency flow of 24 generations from one prompt. data = nodes (step, text, n = how many generations use that span at that step); input links (step, source, target, n = generations going from source at step to target at step+1); input gens (gen, s0..s8, text).\n    steps are columns left to right; in each column the spans are stacked with the most common at the vertical centre and rarer ones fanning above and below; write each span as text with font size scaled by n (largest ~26px, smallest ~11px, monospace). between columns draw smooth ribbons from each source span to each target span with stroke width proportional to link n, light grey-blue, semi-transparent.\n    hover a span: every ribbon on the path of a generation containing that span turns dark, everything else fades; tooltip 'n of 24 generations'. click a span to pin it (bold, orange); pinned filters stay until clicked again; several pins combine with AND. under the diagram list the generations that pass through all pinned spans, full text, the pinned spans highlighted; when nothing is pinned show 'hover to trace, click to pin'.\n    no controls beyond that. output pinned = list of {step, text}, gen_ids = list of gen numbers passing all pins.",
+      "source": "create",
+      "timestamp": "2026-09-15T19:36:40.763221+00:00"
+    }
+  ],
+  "outputs": {
+    "pinned": "list of pinned {step, text}",
+    "gen_ids": "generations passing every pinned span"
+  },
+  "inputs": {
+    "links": "<imported_trait:links>",
+    "gens": "<imported_trait:gens>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 4931,
+      "completion_tokens": 6903,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T14:24:18.313845+00:00",
+  "file_name": "browser__92516d6385.js",
+  "var_name": "browser",
+  "cache_key": "92516d6385b2cc2700c78cef363089b89db9a9c74e269a10a1cd2f3ac5c25433",
+  "description": "genome browser for one 50,000,000 bp chromosome, ~420px tall, drawn on canvas. data = variants (pos, af, ref, alt); inputs genes (gene, start, end, strand), exons (gene, start, end), seq (start, seq: the letters for one 30 kb window).\n    wheel over the track zooms about the cursor, drag pans, a ruler on top shows the view in Mb/kb/bp; start with the whole chromosome in view. left/right arrows pan a tenth, +/- zoom.\n    semantic zoom, the representation changes with the width of the view: over 5 Mb: a gene-density heat strip (genes per 100 kb) and a variant-density strip beneath it, no individual marks. 100 kb to 5 Mb: genes as arrows (strand direction) with names when they fit, variants as thin ticks. under 100 kb: each gene as exon boxes on a thin intron line with the name, variants as lollipops with height = af and the ref>alt written when there is room. under 2 kb: the letters of seq coloured A green C blue G orange T red, monospace, with variants highlighted; outside the seq window print 'sequence not loaded here'.\n    a small level badge top-right says which of the four levels is drawn. double-click a gene at any level to zoom to it. output view = [start, end] in bp, level = 1..4.",
+  "data_signature": {
+    "shape": [
+      3000,
+      4
+    ],
+    "columns": [
+      "pos",
+      "af",
+      "ref",
+      "alt"
+    ],
+    "dtypes": [
+      [
+        "pos",
+        "int64"
+      ],
+      [
+        "af",
+        "float64"
+      ],
+      [
+        "ref",
+        "str"
+      ],
+      [
+        "alt",
+        "str"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "28b22d88",
+  "imports_signature": "b0e11e9b",
+  "theme_signature": "6e1a5884",
+  "parameter_signature": "61ca81c69d",
+  "prompt_keywords": [
+    "genome",
+    "browser"
+  ],
+  "theme_name": "minimal",
+  "theme_description": "Minimal instrument, print quality. Nothing on screen that is not data, a control, or a label a reader needs to read the data.\n\n## Text\nNo title, subtitle, heading, description, instructions, hints, tips, how-to text, legend prose, footers, or status sentences. No emoji, check marks, crosses, exclamation marks, capitals for emphasis, or promotional tone. Labels are lowercase or sentence case, terse, and appear only where they carry a value (a count line, a time on a handle, the name of the selected mark). Numbers use tabular figures. If a control needs explaining, redesign the control instead of adding text.\n\n## Type\nOne typeface: system-ui, -apple-system, Inter, Helvetica, sans-serif. 11-13px labels, 12-14px values, weight 400, weight 600 only for the single emphasized value. Monospace (ui-monospace, SF Mono, Menlo) only for times, coordinates and code.\n\n## Color\nPaper #ffffff, ink #111111, grey #777777, hairline #d9d9d9, faint fill #f2f2f2. One accent #d9480f for the current selection or target. Status colours only where they encode a state: open #2b8a3e, closed #c92a2a, unknown grey. Nothing else is coloured. No gradients, shadows, glows, rounded cards, pills, or tinted panels. Buttons and chips: hairline border, no fill; the active one is filled ink with white text.\n\n## Marks\nThin. 1px hairlines, 1.5px data lines, 2px for the selected route. Points 5-7px. Draggable handles: 7px filled ink or accent with a 1.5px white stroke and an invisible 16px hit area. Area fills 8-15% opacity.\n\n## Maps\nLight grey basemap with no API key: Esri World Light Gray Canvas, https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x} (maxZoom 16, attribution 'Esri, HERE, Garmin, OpenStreetMap contributors'), so the data carries the colour. Never use CARTO or Stadia tiles. Small attribution, zoom control bottom-right.\n\n## Layout\nWhite ground, 12px padding, flat. A side panel is separated by a hairline, not boxed. Tables: hairline rows, right-aligned numbers, no zebra striping. Space instead of borders.\n\n## Motion\nNone beyond the direct response to the pointer. State changes apply within 150ms, no easing flourishes.",
+  "notebook_path": null,
+  "components": [
+    "LevelBadge",
+    "NavButtons"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "genome browser for one 50,000,000 bp chromosome, ~420px tall, drawn on canvas. data = variants (pos, af, ref, alt); inputs genes (gene, start, end, strand), exons (gene, start, end), seq (start, seq: the letters for one 30 kb window).\n    wheel over the track zooms about the cursor, drag pans, a ruler on top shows the view in Mb/kb/bp; start with the whole chromosome in view. left/right arrows pan a tenth, +/- zoom.\n    semantic zoom, the representation changes with the width of the view: over 5 Mb: a gene-density heat strip (genes per 100 kb) and a variant-density strip beneath it, no individual marks. 100 kb to 5 Mb: genes as arrows (strand direction) with names when they fit, variants as thin ticks. under 100 kb: each gene as exon boxes on a thin intron line with the name, variants as lollipops with height = af and the ref>alt written when there is room. under 2 kb: the letters of seq coloured A green C blue G orange T red, monospace, with variants highlighted; outside the seq window print 'sequence not loaded here'.\n    a small level badge top-right says which of the four levels is drawn. double-click a gene at any level to zoom to it. output view = [start, end] in bp, level = 1..4.",
+      "source": "create",
+      "timestamp": "2026-09-16T14:23:18.359649+00:00"
+    }
+  ],
+  "outputs": {
+    "view": "[start, end] in bp",
+    "level": "1 chromosome, 2 genes, 3 exons, 4 bases"
+  },
+  "inputs": {
+    "genes": "<imported_trait:genes>",
+    "exons": "<imported_trait:exons>",
+    "seq": "<imported_trait:seq>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 32017,
+      "completion_tokens": 9997,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

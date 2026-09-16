@@ -1,0 +1,106 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T16:12:54.945196+00:00",
+  "file_name": "lens__5e52863dff.js",
+  "var_name": "lens",
+  "cache_key": "5e52863dffcc503678c1fc0b414fd45a929ef0d2103d0e61ac14a8a9f7648a86",
+  "description": "table lens for 4000 rows. one 1px row per record, the 7 numeric columns (enrolled, screen_fail_pct, deviations, open_queries, query_age_days, dropout_pct, days_since_visit) each drawn as a horizontal bar in its own column track, bar length = value / column max; country as a thin colour strip on the left.\n    click a column header to sort all rows by it descending, click again for ascending, an arrow shows the sort.\n    drag on the left row axis to set a focus range: rows inside expand to a readable height (~18px) and show the text values (site, country, numbers), rows outside stay 1px; drag the focus body to slide it, drag its edges to resize, up/down arrow keys move it one row. start with a 12-row focus at the top.\n    hover any 1px row to see its site and values in a tooltip. draw the compressed rows on canvas.",
+  "data_signature": {
+    "shape": [
+      4000,
+      9
+    ],
+    "columns": [
+      "site",
+      "country",
+      "enrolled",
+      "screen_fail_pct",
+      "deviations",
+      "open_queries",
+      "query_age_days",
+      "dropout_pct",
+      "days_since_visit"
+    ],
+    "dtypes": [
+      [
+        "site",
+        "str"
+      ],
+      [
+        "country",
+        "str"
+      ],
+      [
+        "enrolled",
+        "int64"
+      ],
+      [
+        "screen_fail_pct",
+        "float64"
+      ],
+      [
+        "deviations",
+        "int64"
+      ],
+      [
+        "open_queries",
+        "int64"
+      ],
+      [
+        "query_age_days",
+        "float64"
+      ],
+      [
+        "dropout_pct",
+        "float64"
+      ],
+      [
+        "days_since_visit",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "ebfe7814",
+  "imports_signature": "b22843bf",
+  "theme_signature": "222411cf",
+  "parameter_signature": "61c562954f",
+  "prompt_keywords": [
+    "table",
+    "lens"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "TooltipOverlay",
+    "CountryLegend"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "table lens for 4000 rows. one 1px row per record, the 7 numeric columns (enrolled, screen_fail_pct, deviations, open_queries, query_age_days, dropout_pct, days_since_visit) each drawn as a horizontal bar in its own column track, bar length = value / column max; country as a thin colour strip on the left.\n    click a column header to sort all rows by it descending, click again for ascending, an arrow shows the sort.\n    drag on the left row axis to set a focus range: rows inside expand to a readable height (~18px) and show the text values (site, country, numbers), rows outside stay 1px; drag the focus body to slide it, drag its edges to resize, up/down arrow keys move it one row. start with a 12-row focus at the top.\n    hover any 1px row to see its site and values in a tooltip. draw the compressed rows on canvas.",
+      "source": "create",
+      "timestamp": "2026-09-15T16:12:07.444768+00:00"
+    }
+  ],
+  "outputs": {
+    "focus_rows": "list of site ids inside the focus range",
+    "sort_col": "column currently sorted by"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 4395,
+      "completion_tokens": 9316,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

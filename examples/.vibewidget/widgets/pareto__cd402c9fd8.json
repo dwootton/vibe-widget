@@ -1,0 +1,82 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T16:11:28.641225+00:00",
+  "file_name": "pareto__cd402c9fd8.js",
+  "var_name": "pareto",
+  "cache_key": "cd402c9fd8aefb7ff774b6811be99d01d09a0f9aab515462ea55bfb9b2b76730",
+  "description": "pareto explorer for 2000 designs with three objectives to minimise: cost, mass, drag.\n    left: an equilateral triangle whose corners are the three objectives; a draggable weight point inside it (barycentric coordinates = weights, start at the centre), the weights printed as percentages next to each corner; arrow keys nudge the point toward the last-hovered corner.\n    right: a scatter of cost (x) vs mass (y) with drag as dot size; the pareto-optimal designs are outlined; the top 10 designs by weighted normalised score are filled orange with rank numbers, the rest light grey; a ranked list of the top 10 under the triangle with their three values.\n    everything updates live while the point is dragged. output weights = {cost, mass, drag}, top = list of the top-10 design ids.",
+  "data_signature": {
+    "shape": [
+      2000,
+      4
+    ],
+    "columns": [
+      "cost",
+      "mass",
+      "drag",
+      "design"
+    ],
+    "dtypes": [
+      [
+        "cost",
+        "float64"
+      ],
+      [
+        "mass",
+        "float64"
+      ],
+      [
+        "drag",
+        "float64"
+      ],
+      [
+        "design",
+        "str"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "898014c1",
+  "imports_signature": "ac0590e0",
+  "theme_signature": "222411cf",
+  "parameter_signature": "ee73e02e00",
+  "prompt_keywords": [
+    "pareto",
+    "explorer"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "TopTenTable",
+    "TriangleWeightPicker",
+    "ScatterPlot"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "pareto explorer for 2000 designs with three objectives to minimise: cost, mass, drag.\n    left: an equilateral triangle whose corners are the three objectives; a draggable weight point inside it (barycentric coordinates = weights, start at the centre), the weights printed as percentages next to each corner; arrow keys nudge the point toward the last-hovered corner.\n    right: a scatter of cost (x) vs mass (y) with drag as dot size; the pareto-optimal designs are outlined; the top 10 designs by weighted normalised score are filled orange with rank numbers, the rest light grey; a ranked list of the top 10 under the triangle with their three values.\n    everything updates live while the point is dragged. output weights = {cost, mass, drag}, top = list of the top-10 design ids.",
+      "source": "create",
+      "timestamp": "2026-09-15T16:10:33.172238+00:00"
+    }
+  ],
+  "outputs": {
+    "weights": "dict of the three weights summing to 1",
+    "top": "top-10 design ids in rank order"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3283,
+      "completion_tokens": 9745,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T13:24:33.299344+00:00",
+  "file_name": "m4__8f36b9ff24.js",
+  "var_name": "m4",
+  "cache_key": "8f36b9ff24cfa6929bde6dfb26fd65c14dcbae2bd8dcf6a6ca90b8c09ccb3ebf",
+  "description": "keep the circle, its count line, the reach bands, the arrival labels, the target, the dial with both handles and its day row, and the lasso regions with their table.\n    add a three-way switch above the dial: walk · bike · drive, start on bike. the mode picks the data columns: minutes there = `<mode>_min`, minutes back = `<mode>_back`. on change: the reach bands switch to input `reach[mode]`, every arrival label, the trip arc and its arrival tick recompute, and so does the 35% fading of shops that do not fit before BACK BY.\n    draw the street route hotel → target from input `routes[mode][row]` (list of [lat, lon]) as a 2px accent line above the bands, with a small '<n> min' label set beside the line at its midpoint on a white halo so it never covers the route or the hotel pin; it redraws when the target or the mode changes.\n    under the dial two monospace lines that wrap rather than truncate: '06:30 → christy's 06:47, open · 10 min · back 07:18', then '<n> min before <BACK BY>' in green when back ≤ BACK BY or '<n> min after <BACK BY>' in red. a hollow tick on the rim at the back time. every new component, including the mode switch and the verdict lines, is declared as ({ React, ... }) and rendered with React={React}; never touch a module-level React.",
+  "data_signature": {
+    "shape": [
+      41,
+      16
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note",
+      "walk_min",
+      "walk_back",
+      "bike_min",
+      "bike_back",
+      "drive_min",
+      "drive_back"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ],
+      [
+        "walk_min",
+        "float64"
+      ],
+      [
+        "walk_back",
+        "float64"
+      ],
+      [
+        "bike_min",
+        "float64"
+      ],
+      [
+        "bike_back",
+        "float64"
+      ],
+      [
+        "drive_min",
+        "float64"
+      ],
+      [
+        "drive_back",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "b0769a4c",
+  "imports_signature": "1835bd9f",
+  "theme_signature": "656a9847",
+  "parameter_signature": "eb9ae67dbb",
+  "prompt_keywords": [
+    "keep",
+    "circle"
+  ],
+  "theme_name": "minimal",
+  "theme_description": "A stripped-down minimal theme that recedes behind the data, using soft neutrals, thin rules, and sparse labeling.\nGridlines are faint or removed, axes are subtle, and typography is quiet and compact.",
+  "notebook_path": null,
+  "components": [
+    "VerdictLines",
+    "ModeSwitch",
+    "LassoTable",
+    "TimeDial"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "keep the circle, its count line, the reach bands, the arrival labels, the target, the dial with both handles and its day row, and the lasso regions with their table.\n    add a three-way switch above the dial: walk · bike · drive, start on bike. the mode picks the data columns: minutes there = `<mode>_min`, minutes back = `<mode>_back`. on change: the reach bands switch to input `reach[mode]`, every arrival label, the trip arc and its arrival tick recompute, and so does the 35% fading of shops that do not fit before BACK BY.\n    draw the street route hotel → target from input `routes[mode][row]` (list of [lat, lon]) as a 2px accent line above the bands, with a small '<n> min' label set beside the line at its midpoint on a white halo so it never covers the route or the hotel pin; it redraws when the target or the mode changes.\n    under the dial two monospace lines that wrap rather than truncate: '06:30 → christy's 06:47, open · 10 min · back 07:18', then '<n> min before <BACK BY>' in green when back ≤ BACK BY or '<n> min after <BACK BY>' in red. a hollow tick on the rim at the back time. every new component, including the mode switch and the verdict lines, is declared as ({ React, ... }) and rendered with React={React}; never touch a module-level React.",
+      "source": "create",
+      "timestamp": "2026-09-16T13:23:37.203294+00:00"
+    }
+  ],
+  "outputs": {
+    "mode": "'walk' | 'bike' | 'drive'",
+    "back_hhmm": "'HH:MM' we get back to the hotel",
+    "makes_it": "true when back by BACK BY"
+  },
+  "inputs": {
+    "reach": "<imported_trait:reach>",
+    "routes": "<imported_trait:routes>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 5713,
+      "completion_tokens": 7980,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

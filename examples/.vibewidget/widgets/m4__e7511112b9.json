@@ -1,0 +1,168 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T00:15:51.459549+00:00",
+  "file_name": "m4__e7511112b9.js",
+  "var_name": "m4",
+  "cache_key": "e7511112b9064cde05f75461fac10bde236a6184558dc7756c19a7fe50845d37",
+  "description": "keep the circle, its badge, the reach bands, the arrival labels, the target, the two-hand dial with its day row, and the lasso regions with their table.\n    add a three-button toggle above the dial: walk · bike · drive, start on bike. the mode picks the data columns: minutes there = `<mode>_min`, minutes back = `<mode>_back`. on change: the reach bands switch to input `reach[mode]`, every arrival label and the ARRIVE hand recompute, the arc label reads '<n> min on foot' / 'by bike' / 'driving'.\n    draw the street route hotel → target from input `routes[mode][row]` (list of [lat, lon]) as a thick orange line above the bands, with a small '<n> min' label at its midpoint. changing the target or the mode redraws it.\n    under the dial a verdict card: 'leave hh:mm → <name> hh:mm · open|closed|hours unknown → 10 min for donuts → back hh:mm'. back = arrive + 10 + minutes back. keynote is 08:45: back ≤ 08:45 → green card 'back with <n> min to spare', later → red card 'late for the keynote by <n> min'. a fixed tick on the dial at 08:45 labelled 'keynote' and a hollow marker at the back time.",
+  "data_signature": {
+    "shape": [
+      41,
+      16
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note",
+      "walk_min",
+      "walk_back",
+      "bike_min",
+      "bike_back",
+      "drive_min",
+      "drive_back"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ],
+      [
+        "walk_min",
+        "float64"
+      ],
+      [
+        "walk_back",
+        "float64"
+      ],
+      [
+        "bike_min",
+        "float64"
+      ],
+      [
+        "bike_back",
+        "float64"
+      ],
+      [
+        "drive_min",
+        "float64"
+      ],
+      [
+        "drive_back",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "71a70508",
+  "imports_signature": "1835bd9f",
+  "theme_signature": "222411cf",
+  "parameter_signature": "107be8e88e",
+  "prompt_keywords": [
+    "two"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "VerdictCard",
+    "StatusBadge",
+    "ClockDial",
+    "ShopInspector",
+    "RegionsTable",
+    "ModeToggle"
+  ],
+  "revision_parent": "941438e1e3ada37b934b2342fc5c4b2b5c4e5fbd45b64c433e3d9bd1a1d06e45",
+  "prompt_history": [
+    {
+      "prompt": "leaflet map with osm tiles, 560px tall, of the donut shops. the hotel is a fixed dark pin at lat 29.7522 lon -95.3578 labelled 'hotel'.\n    one circle centred on the hotel, radius 3.5 km to start. dragging anywhere on the circle's edge changes the radius; a label riding on the edge shows '<r> km'.\n    shops inside the circle are solid dots (orange when chain is False, grey when True), shops outside are faded small dots.\n    a badge top-left: '<n> inside · <k> independent'. hovering a shop shows name, street, hours.",
+      "source": "create",
+      "timestamp": "2026-09-16T00:10:53.266274+00:00"
+    },
+    {
+      "prompt": "keep the circle, its badge and the hover tooltips. add a 24h clock dial right of the map with two draggable hands: LEAVE (dark) is when we leave the hotel, ARRIVE (orange) is when we reach the target shop; shade the arc between them and label it '<n> min by bike'. hh:mm at each hand tip.\n    clicking a shop makes it the target (thick ring, name shown next to the dial); start with data row 2 targeted and leave = Tue 06:30.\n    dragging LEAVE moves ARRIVE with it (arrive = leave + target's bike_min); dragging ARRIVE moves LEAVE the other way (leave = arrive - bike_min). under the dial one compact row of seven small day buttons Mo Tu We Th Fr Sa Su that fits the column; left/right arrow keys nudge LEAVE 15 min while the dial has focus.\n    draw input `reach` `.bike` (geojson: 30, 20, 10 minute bike reach from the hotel) as three translucent blue bands under the shops, darker the closer; the km circle stays on top.\n    every shop inside the circle gets a small label 'hh:mm' = leave time + its `bike_min`. parse the osm `hours` text ('Mo-Sa 04:00-14:00; Su 05:00-14:00', '24/7', '05:00-20:00', 'Mo-Fr 05:00-21:00; Sa-Su 06:00-21:00', blank = unknown).\n    open at that arrival time and day → solid dot and green label; closed at arrival → hollow ring and red label; unknown hours → dashed ring and grey label.\n    badge: '<n> inside · <k> independent · <j> open on arrival'. moving either hand, changing the day or the target restyles every dot and label live.",
+      "source": "create",
+      "timestamp": "2026-09-16T00:11:27.601082+00:00"
+    },
+    {
+      "prompt": "keep the circle, its badge, the reach bands, the arrival labels, the target and the two-hand dial exactly as they are. shift+drag on the map draws a lasso (turn off leaflet's shift box-zoom so the lasso gets the gesture). each lasso is kept as a region named A, B, C... with a small draggable handle on every vertex; double-click inside a region deletes it.\n    under the map a compact table, one row per region: name, n shops, n independent, n open on arrival, earliest arrival. hovering a row highlights its region.",
+      "source": "create",
+      "timestamp": "2026-09-16T00:12:43.329150+00:00"
+    },
+    {
+      "prompt": "keep the circle, its badge, the reach bands, the arrival labels, the target, the two-hand dial with its day row, and the lasso regions with their table.\n    add a three-button toggle above the dial: walk · bike · drive, start on bike. the mode picks the data columns: minutes there = `<mode>_min`, minutes back = `<mode>_back`. on change: the reach bands switch to input `reach[mode]`, every arrival label and the ARRIVE hand recompute, the arc label reads '<n> min on foot' / 'by bike' / 'driving'.\n    draw the street route hotel → target from input `routes[mode][row]` (list of [lat, lon]) as a thick orange line above the bands, with a small '<n> min' label at its midpoint. changing the target or the mode redraws it.\n    under the dial a verdict card: 'leave hh:mm → <name> hh:mm · open|closed|hours unknown → 10 min for donuts → back hh:mm'. back = arrive + 10 + minutes back. keynote is 08:45: back ≤ 08:45 → green card 'back with <n> min to spare', later → red card 'late for the keynote by <n> min'. a fixed tick on the dial at 08:45 labelled 'keynote' and a hollow marker at the back time.",
+      "source": "create",
+      "timestamp": "2026-09-16T00:14:15.203808+00:00"
+    }
+  ],
+  "outputs": {
+    "inside": "row indices of shops inside the circle",
+    "radius_km": "current radius in km",
+    "open_on_arrival": "row indices inside the circle and open when we arrive",
+    "when": "{day, hhmm} leave time, day 0=Mon..6=Sun, hhmm 'HH:MM'",
+    "target": "row index of the target shop",
+    "regions": "dict region name -> list of row indices",
+    "mode": "'walk' | 'bike' | 'drive'",
+    "back_hhmm": "'HH:MM' we get back to the hotel",
+    "makes_it": "true when back by 08:45"
+  },
+  "inputs": {
+    "reach": "<imported_trait:reach>",
+    "routes": "<imported_trait:routes>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 24825,
+      "completion_tokens": 21279,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

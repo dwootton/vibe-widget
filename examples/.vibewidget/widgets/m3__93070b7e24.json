@@ -1,0 +1,143 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T14:49:53.791801+00:00",
+  "file_name": "m3__93070b7e24.js",
+  "var_name": "m3",
+  "cache_key": "93070b7e24e6cbbcb6b35f4d62cce188c4cbae7e293d56c602de0a671a4753cd",
+  "description": "keep the circle, its count line, the reach bands, the arrival labels, the target and the dial with both handles (LEAVE on the rim, BACK BY outside it) exactly as they are. shift+drag on the map draws a lasso (turn off leaflet's shift box-zoom so the lasso gets the gesture; register mousedown on the map container with capture and mousemove/mouseup on window, right after the map is created and inside the same effect, and never re-create the map on re-render). each lasso is kept as a region named A, B, C... with a small draggable handle on every vertex; double-click inside a region deletes it.\n    under the map a compact table, one row per region: name, n shops, n independent, n open on arrival, earliest arrival. hovering a row highlights its region. every new component takes React as a prop exactly like ClockDial does; never touch a module-level React.",
+  "data_signature": {
+    "shape": [
+      41,
+      16
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note",
+      "walk_min",
+      "walk_back",
+      "bike_min",
+      "bike_back",
+      "drive_min",
+      "drive_back"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ],
+      [
+        "walk_min",
+        "float64"
+      ],
+      [
+        "walk_back",
+        "float64"
+      ],
+      [
+        "bike_min",
+        "float64"
+      ],
+      [
+        "bike_back",
+        "float64"
+      ],
+      [
+        "drive_min",
+        "float64"
+      ],
+      [
+        "drive_back",
+        "float64"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-5",
+  "exports_signature": "b15ecdee",
+  "imports_signature": "8a9ec2f6",
+  "theme_signature": "656a9847",
+  "parameter_signature": "1b29a33382",
+  "prompt_keywords": [
+    "keep",
+    "circle"
+  ],
+  "theme_name": "minimal",
+  "theme_description": "A stripped-down minimal theme that recedes behind the data, using soft neutrals, thin rules, and sparse labeling.\nGridlines are faint or removed, axes are subtle, and typography is quiet and compact.",
+  "notebook_path": null,
+  "components": [
+    "CountCircle",
+    "ClockDial",
+    "ModeSelector",
+    "RegionsTable"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "keep the circle, its count line, the reach bands, the arrival labels, the target and the dial with both handles (LEAVE on the rim, BACK BY outside it) exactly as they are. shift+drag on the map draws a lasso (turn off leaflet's shift box-zoom so the lasso gets the gesture; register mousedown on the map container with capture and mousemove/mouseup on window, right after the map is created and inside the same effect, and never re-create the map on re-render). each lasso is kept as a region named A, B, C... with a small draggable handle on every vertex; double-click inside a region deletes it.\n    under the map a compact table, one row per region: name, n shops, n independent, n open on arrival, earliest arrival. hovering a row highlights its region. every new component takes React as a prop exactly like ClockDial does; never touch a module-level React.",
+      "source": "create",
+      "timestamp": "2026-09-16T14:47:46.981055+00:00"
+    }
+  ],
+  "outputs": {
+    "regions": "dict region name -> list of row indices"
+  },
+  "inputs": {
+    "reach": "<imported_trait:reach>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 7279,
+      "completion_tokens": 14039,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

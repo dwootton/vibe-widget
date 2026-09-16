@@ -102,3 +102,7 @@ logs.txt
 
 demo/
 _output/
+# Local talk/demo assets, not part of the published examples
+examples/storyboard.md
+examples/demo_notes_zh.md
+examples/screens/

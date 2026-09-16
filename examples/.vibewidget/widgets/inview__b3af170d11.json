@@ -1,0 +1,84 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T19:43:06.523877+00:00",
+  "file_name": "inview__b3af170d11.js",
+  "var_name": "inview",
+  "cache_key": "b3af170d115c1cf69b0439017be5ebc94f9c32807f4b6596cb33f1de5f25745d",
+  "description": "a panel that follows a genome browser, no controls of its own. inputs view = [start, end] bp and level = 1..4; data = variants (pos, af, ref, alt); input genes (gene, start, end, strand).\n    what it draws depends on level: level 1: a histogram of allele frequency for every variant in view plus 'n variants · g genes in view'. level 2: one row per gene in view (name, length, variants inside, mean af) sorted by variants inside, at most 40 rows. level 3: one row per variant in view (pos, ref>alt, af, which gene or 'intergenic') sorted by position, af as a small bar. level 4: the variants in view written as ref>alt at their position with af, plus the count of bases in view.\n    a header always shows the view span in human units (e.g. '25.00–25.02 Mb') and the level name. re-render whenever view or level changes.",
+  "data_signature": {
+    "shape": [
+      3000,
+      4
+    ],
+    "columns": [
+      "pos",
+      "af",
+      "ref",
+      "alt"
+    ],
+    "dtypes": [
+      [
+        "pos",
+        "int64"
+      ],
+      [
+        "af",
+        "float64"
+      ],
+      [
+        "ref",
+        "str"
+      ],
+      [
+        "alt",
+        "str"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "",
+  "imports_signature": "d3c46353",
+  "theme_signature": "222411cf",
+  "parameter_signature": "0c3fb71fa3",
+  "prompt_keywords": [
+    "panel",
+    "follows"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "GeneTableLevel2",
+    "VariantTableLevel3",
+    "BaseResolutionLevel4",
+    "ViewHeader",
+    "HistogramLevel1"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "a panel that follows a genome browser, no controls of its own. inputs view = [start, end] bp and level = 1..4; data = variants (pos, af, ref, alt); input genes (gene, start, end, strand).\n    what it draws depends on level: level 1: a histogram of allele frequency for every variant in view plus 'n variants · g genes in view'. level 2: one row per gene in view (name, length, variants inside, mean af) sorted by variants inside, at most 40 rows. level 3: one row per variant in view (pos, ref>alt, af, which gene or 'intergenic') sorted by position, af as a small bar. level 4: the variants in view written as ref>alt at their position with af, plus the count of bases in view.\n    a header always shows the view span in human units (e.g. '25.00–25.02 Mb') and the level name. re-render whenever view or level changes.",
+      "source": "create",
+      "timestamp": "2026-09-15T19:40:35.718617+00:00"
+    }
+  ],
+  "outputs": {},
+  "inputs": {
+    "genes": "<imported_trait:genes>",
+    "view": "<imported_trait:view>",
+    "level": "<imported_trait:level>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3684,
+      "completion_tokens": 17729,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

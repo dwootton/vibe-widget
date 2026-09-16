@@ -1,0 +1,86 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T22:08:46.938860+00:00",
+  "file_name": "cone__e934276e53.js",
+  "var_name": "cone",
+  "cache_key": "e934276e536a6bb426497ff37842081f77eda30b78694e7f882b5d5357f2de73",
+  "description": "forecast-uncertainty explorer on a leaflet map with osm tiles, ~600px tall, centred on the gulf of mexico (about 27°N, -90°E, zoom 5). data = ensemble tracks (member, t_h hours 0..120 in steps of 5, lon, lat), 200 members. input towns (town, lon, lat) drawn as small labelled pins.\n    an encoding switch with five options, all computed from the same members: (1) 'cone': the mean track with a filled cone whose radius at each time is the 67th percentile of member distance from the mean, the classic look; (2) 'spaghetti': every member as a thin line; (3) 'density': member positions across all times as a heat layer (hexbin or gaussian blur on canvas); (4) 'hops': one randomly chosen member drawn boldly at a time, swapping every 500 ms, the rest invisible; (5) 'bands': the 50 % and 90 % quantile bands of position per time step, computed separately for members that end north of 28°N and those that do not, so a split shows as two bands.\n    a time slider 0–120 h: the members' positions at that hour as dots plus a marker on the mean track; a small play button.\n    a draggable 'my town' marker (start on Houston) with a draggable radius ring (start 80 km): a panel shows 'P(track passes within 80 km at any time) = 31 %', and 'members inside the cone at 96 h: 64 %'. a strip chart under the map: probability of having passed within the ring by hour t.\n    outputs encoding, town = {lon, lat}, radius_km, p_hit.",
+  "data_signature": {
+    "shape": [
+      5000,
+      4
+    ],
+    "columns": [
+      "member",
+      "t_h",
+      "lon",
+      "lat"
+    ],
+    "dtypes": [
+      [
+        "member",
+        "int64"
+      ],
+      [
+        "t_h",
+        "int64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "lat",
+        "float64"
+      ]
+    ]
+  },
+  "model": "anthropic/claude-opus-5",
+  "exports_signature": "3c9540c5",
+  "imports_signature": "efc15748",
+  "theme_signature": "222411cf",
+  "parameter_signature": "2a2c897881",
+  "prompt_keywords": [
+    "forecast",
+    "uncertainty"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "EncodingSwitch",
+    "StatPanel",
+    "HitStrip",
+    "TimeScrubber"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "forecast-uncertainty explorer on a leaflet map with osm tiles, ~600px tall, centred on the gulf of mexico (about 27°N, -90°E, zoom 5). data = ensemble tracks (member, t_h hours 0..120 in steps of 5, lon, lat), 200 members. input towns (town, lon, lat) drawn as small labelled pins.\n    an encoding switch with five options, all computed from the same members: (1) 'cone': the mean track with a filled cone whose radius at each time is the 67th percentile of member distance from the mean, the classic look; (2) 'spaghetti': every member as a thin line; (3) 'density': member positions across all times as a heat layer (hexbin or gaussian blur on canvas); (4) 'hops': one randomly chosen member drawn boldly at a time, swapping every 500 ms, the rest invisible; (5) 'bands': the 50 % and 90 % quantile bands of position per time step, computed separately for members that end north of 28°N and those that do not, so a split shows as two bands.\n    a time slider 0–120 h: the members' positions at that hour as dots plus a marker on the mean track; a small play button.\n    a draggable 'my town' marker (start on Houston) with a draggable radius ring (start 80 km): a panel shows 'P(track passes within 80 km at any time) = 31 %', and 'members inside the cone at 96 h: 64 %'. a strip chart under the map: probability of having passed within the ring by hour t.\n    outputs encoding, town = {lon, lat}, radius_km, p_hit.",
+      "source": "create",
+      "timestamp": "2026-09-15T22:04:06.805779+00:00"
+    }
+  ],
+  "outputs": {
+    "encoding": "one of cone, spaghetti, density, hops, bands",
+    "town": "{lon, lat} of the marker",
+    "radius_km": "ring radius",
+    "p_hit": "probability any member passes within the ring"
+  },
+  "inputs": {
+    "towns": "<imported_trait:towns>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "anthropic/claude-opus-5",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 6261,
+      "completion_tokens": 26114,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

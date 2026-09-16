@@ -1,0 +1,139 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-16T03:51:10.948233+00:00",
+  "file_name": "sched__23975078e4.js",
+  "var_name": "sched",
+  "cache_key": "23975078e41e99059ca4a348eafac33957510a140827be8e0be51967b1abdb9e",
+  "description": "a morning timeline, no controls, no title, no legend. x axis spans at least 06:00 to 09:30 and stretches when the trip runs later; one vertical red hairline at input `back_by` ('HH:MM'), labelled with that time.\n    leave the hotel at input `when` ({day: 0=Mon..6=Sun, hhmm: 'HH:MM' with a colon, e.g. '06:30'; also accept 'HHMM'}). the stop is input `target` (a row index into data, or null). input `mode` is 'walk' | 'bike' | 'drive': minutes there = data column `<mode>_min`, back = `<mode>_back`; 10 min at the shop.\n    one row, three blocks: the ride there ('<n> min <mode>'), the shop block with its name and arrival hh:mm, the ride back ending at 'back hh:mm'. the shop block turns red with the reason if we arrive before it opens or after it closes (parse `hours` for the `when` day; unknown hours = grey, no verdict); the ride back turns red past back_by.\n    null target → one line 'click a shop on the map'. re-render whenever target, mode, when or back_by change.",
+  "data_signature": {
+    "shape": [
+      41,
+      16
+    ],
+    "columns": [
+      "name",
+      "lat",
+      "lon",
+      "street",
+      "hours",
+      "chain",
+      "kolache",
+      "km_from_hotel",
+      "osm_id",
+      "note",
+      "walk_min",
+      "walk_back",
+      "bike_min",
+      "bike_back",
+      "drive_min",
+      "drive_back"
+    ],
+    "dtypes": [
+      [
+        "name",
+        "str"
+      ],
+      [
+        "lat",
+        "float64"
+      ],
+      [
+        "lon",
+        "float64"
+      ],
+      [
+        "street",
+        "str"
+      ],
+      [
+        "hours",
+        "str"
+      ],
+      [
+        "chain",
+        "bool"
+      ],
+      [
+        "kolache",
+        "bool"
+      ],
+      [
+        "km_from_hotel",
+        "float64"
+      ],
+      [
+        "osm_id",
+        "int64"
+      ],
+      [
+        "note",
+        "str"
+      ],
+      [
+        "walk_min",
+        "float64"
+      ],
+      [
+        "walk_back",
+        "float64"
+      ],
+      [
+        "bike_min",
+        "float64"
+      ],
+      [
+        "bike_back",
+        "float64"
+      ],
+      [
+        "drive_min",
+        "float64"
+      ],
+      [
+        "drive_back",
+        "float64"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "",
+  "imports_signature": "df98363e",
+  "theme_signature": "6e1a5884",
+  "parameter_signature": "ba61493b50",
+  "prompt_keywords": [
+    "morning",
+    "timeline"
+  ],
+  "theme_name": "minimal",
+  "theme_description": "Minimal instrument, print quality. Nothing on screen that is not data, a control, or a label a reader needs to read the data.\n\n## Text\nNo title, subtitle, heading, description, instructions, hints, tips, how-to text, legend prose, footers, or status sentences. No emoji, check marks, crosses, exclamation marks, capitals for emphasis, or promotional tone. Labels are lowercase or sentence case, terse, and appear only where they carry a value (a count line, a time on a handle, the name of the selected mark). Numbers use tabular figures. If a control needs explaining, redesign the control instead of adding text.\n\n## Type\nOne typeface: system-ui, -apple-system, Inter, Helvetica, sans-serif. 11-13px labels, 12-14px values, weight 400, weight 600 only for the single emphasized value. Monospace (ui-monospace, SF Mono, Menlo) only for times, coordinates and code.\n\n## Color\nPaper #ffffff, ink #111111, grey #777777, hairline #d9d9d9, faint fill #f2f2f2. One accent #d9480f for the current selection or target. Status colours only where they encode a state: open #2b8a3e, closed #c92a2a, unknown grey. Nothing else is coloured. No gradients, shadows, glows, rounded cards, pills, or tinted panels. Buttons and chips: hairline border, no fill; the active one is filled ink with white text.\n\n## Marks\nThin. 1px hairlines, 1.5px data lines, 2px for the selected route. Points 5-7px. Draggable handles: 7px filled ink or accent with a 1.5px white stroke and an invisible 16px hit area. Area fills 8-15% opacity.\n\n## Maps\nLight grey basemap with no API key: Esri World Light Gray Canvas, https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x} (maxZoom 16, attribution 'Esri, HERE, Garmin, OpenStreetMap contributors'), so the data carries the colour. Never use CARTO or Stadia tiles. Small attribution, zoom control bottom-right.\n\n## Layout\nWhite ground, 12px padding, flat. A side panel is separated by a hairline, not boxed. Tables: hairline rows, right-aligned numbers, no zebra striping. Space instead of borders.\n\n## Motion\nNone beyond the direct response to the pointer. State changes apply within 150ms, no easing flourishes.",
+  "notebook_path": null,
+  "components": [],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "a morning timeline, no controls, no title, no legend. x axis spans at least 06:00 to 09:30 and stretches when the trip runs later; one vertical red hairline at input `back_by` ('HH:MM'), labelled with that time.\n    leave the hotel at input `when` ({day: 0=Mon..6=Sun, hhmm: 'HH:MM' with a colon, e.g. '06:30'; also accept 'HHMM'}). the stop is input `target` (a row index into data, or null). input `mode` is 'walk' | 'bike' | 'drive': minutes there = data column `<mode>_min`, back = `<mode>_back`; 10 min at the shop.\n    one row, three blocks: the ride there ('<n> min <mode>'), the shop block with its name and arrival hh:mm, the ride back ending at 'back hh:mm'. the shop block turns red with the reason if we arrive before it opens or after it closes (parse `hours` for the `when` day; unknown hours = grey, no verdict); the ride back turns red past back_by.\n    null target → one line 'click a shop on the map'. re-render whenever target, mode, when or back_by change.",
+      "source": "create",
+      "timestamp": "2026-09-16T03:50:44.810727+00:00"
+    }
+  ],
+  "outputs": {},
+  "inputs": {
+    "target": "<imported_trait:target>",
+    "mode": "<imported_trait:mode>",
+    "when": "<imported_trait:when>",
+    "back_by": "<imported_trait:back_by>",
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 5514,
+      "completion_tokens": 5109,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}

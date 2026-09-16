@@ -1,0 +1,65 @@
+{
+  "schema_version": 4,
+  "created_at": "2026-09-15T16:31:47.550532+00:00",
+  "file_name": "trace__3048c36534.js",
+  "var_name": "trace",
+  "cache_key": "3048c3653440392fb7475b032e195f786efb96e2f95dabc8a0a076962da26ce2",
+  "description": "overview + detail for a long signal: column v, 200000 samples at 1000 Hz (time = index / 1000 s).\n    top strip (full width, ~90px): the min/max envelope of the whole recording per pixel column, drawn on canvas. a window on it, starts at 0–2 s: drag its body to move, drag its edges to resize, left/right arrow keys step by one window width, shift+arrows by a tenth.\n    bottom (~300px): the raw samples inside the window, every sample, drawn on canvas, y axis fitted to the window's data, time axis in seconds; it must be painted on first mount (size the canvas from its container in a layout effect, then draw), not only after the first interaction.\n    double-click in the detail drops a numbered event marker at that time; markers persist (also as ticks on the overview), each listed on the right with time and the local peak value; click a list entry to jump the window there; Delete removes the highlighted marker.",
+  "data_signature": {
+    "shape": [
+      200000,
+      1
+    ],
+    "columns": [
+      "v"
+    ],
+    "dtypes": [
+      [
+        "v",
+        "float32"
+      ]
+    ]
+  },
+  "model": "google/gemini-3.8-flash",
+  "exports_signature": "21bb0b76",
+  "imports_signature": "782e9476",
+  "theme_signature": "222411cf",
+  "parameter_signature": "6b0b232ad0",
+  "prompt_keywords": [
+    "overview",
+    "detail"
+  ],
+  "theme_name": "the_pudding",
+  "theme_description": "Modern scrollytelling. Playful, bespoke, and narrative-driven.\n\n## Environment & Ground\nOften off-white or cream (#fdfbf7) to evoke a high-quality magazine feel.\nThe layout is fluid, treating the chart as a story element rather than a discrete box.\n\n## Typography\nHighly eclectic. Often pairs a brutalist serif for titles (like 'Tiempos Headline' or 'Playfair')\nwith a clean monospace for data (like 'Pitch' or 'Fira Code').\n\n## Color System\n- **Data Encoding**: Uses sophisticated, atypical palettes--pastels mixed with deep inks.\n  Gradients are used for aesthetic effect, not just encoding.\n\n## Interaction Feel\nSmooth and cinematic. Transitions are slow and eased (duration ~800ms).\nScrubbing interactions are preferred over simple clicks.",
+  "notebook_path": null,
+  "components": [
+    "EventItem"
+  ],
+  "revision_parent": null,
+  "prompt_history": [
+    {
+      "prompt": "overview + detail for a long signal: column v, 200000 samples at 1000 Hz (time = index / 1000 s).\n    top strip (full width, ~90px): the min/max envelope of the whole recording per pixel column, drawn on canvas. a window on it, starts at 0–2 s: drag its body to move, drag its edges to resize, left/right arrow keys step by one window width, shift+arrows by a tenth.\n    bottom (~300px): the raw samples inside the window, every sample, drawn on canvas, y axis fitted to the window's data, time axis in seconds; it must be painted on first mount (size the canvas from its container in a layout effect, then draw), not only after the first interaction.\n    double-click in the detail drops a numbered event marker at that time; markers persist (also as ticks on the overview), each listed on the right with time and the local peak value; click a list entry to jump the window there; Delete removes the highlighted marker.",
+      "source": "create",
+      "timestamp": "2026-09-15T16:31:00.098414+00:00"
+    }
+  ],
+  "outputs": {
+    "window": "[t0, t1] in seconds",
+    "events": "list of marked times in seconds"
+  },
+  "inputs": {
+    "data": "<input>"
+  },
+  "actions": {},
+  "provenance": {
+    "model": "google/gemini-3.8-flash",
+    "base_url": "https://openrouter.ai/api/v1",
+    "temperature": 0.7,
+    "provider_usage": {
+      "prompt_tokens": 3047,
+      "completion_tokens": 8484,
+      "requests": 1
+    },
+    "vibe_widget_version": "0.3.2"
+  }
+}
