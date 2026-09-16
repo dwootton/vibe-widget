@@ -1,0 +1,10 @@
+# Deliberately no `dependencies:` here - see vibewidget_live.js. The static
+# widget (`vibewidget.yaml`) declares the ~3.8MB host bundle as a package
+# htmlDependency because a static/self-contained document should embed it.
+# A *live* render has no such requirement (there is a running server right
+# there to fetch it from), and Positron's ark kernel re-inlines every file
+# htmlDependency into each Viewer/notebook-cell render rather than
+# deduplicating across separate prints/cells the way a single knitr/Quarto
+# document build does - so declaring it here would mean re-embedding 3.8MB
+# on every `print(w)` and every live widget in a notebook. vibewidget_live.js
+# loads the bundle from the local server's own /assets URL instead.

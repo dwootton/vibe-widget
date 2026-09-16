@@ -1,0 +1,734 @@
+"""Base class for LLM providers."""
+
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Optional, Union
+import re
+
+
+def _safe_str(s: Any) -> str:
+    return s if isinstance(s, str) else str(s)
+
+
+class LLMProvider(ABC):
+    """Abstract base class for LLM providers."""
+    
+    @abstractmethod
+    def generate_widget_code(
+        self,
+        description: str,
+        data_info: dict[str, Any],
+        progress_callback: Optional[Callable[[str], None]] = None,
+    ) -> str:
+        """Generate widget code from description and data info.
+        
+        Args:
+            description: Natural language description of the widget
+            data_info: Dictionary containing data profile information
+            progress_callback: Optional callback for streaming progress updates
+            
+        Returns:
+            Generated widget code as a string
+        """
+        pass
+    
+    @abstractmethod
+    def revise_widget_code(
+        self,
+        current_code: str,
+        revision_description: str,
+        data_info: dict[str, Any],
+        base_code: Optional[str] = None,
+        base_components: Optional[list[str]] = None,
+        progress_callback: Optional[Callable[[str], None]] = None,
+    ) -> str:
+        """Revise existing widget code based on a revision description.
+        
+        Args:
+            current_code: The current widget code
+            revision_description: Description of what to change
+            data_info: Dictionary containing data profile information
+            base_code: Optional additional base widget code for composition
+            base_components: Optional list of component names from base widget
+            progress_callback: Optional callback for streaming progress updates
+            
+        Returns:
+            Revised widget code as a string
+        """
+        pass
+    
+    @abstractmethod
+    def fix_code_error(
+        self,
+        broken_code: str,
+        error_message: str,
+        data_info: dict[str, Any],
+    ) -> str:
+        """Fix errors in widget code.
+        
+        Args:
+            broken_code: The code with errors
+            error_message: Description of the error
+            data_info: Dictionary containing data profile information
+            
+        Returns:
+            Fixed widget code as a string
+        """
+        pass
+
+    @abstractmethod
+    def generate_audit_report(
+        self,
+        code: str,
+        description: str,
+        data_info: dict[str, Any],
+        level: str,
+        changed_lines: Optional[list[int]] = None,
+    ) -> str:
+        """Generate an audit report for widget code."""
+        pass
+
+    @abstractmethod
+    def generate_text(
+        self,
+        prompt: str,
+        progress_callback: Optional[Callable[[str], None]] = None,
+    ) -> str:
+        """Generate plain text from a prompt."""
+        pass
+    
+    def _build_prompt(
+        self,
+        description: str,
+        data_info: dict[str, Any],
+        base_code: Optional[str] = None,
+        base_components: Optional[list[str]] = None,
+    ) -> str:
+        """Build the prompt for code generation.
+        
+        Args:
+            description: Widget description
+            data_info: Data information dictionary
+            base_code: Optional base widget code for composition
+            base_components: Optional list of component names available from base
+        """
+        outputs = data_info.get("outputs", {})
+        inputs = data_info.get("inputs", {})
+        actions = data_info.get("actions", {})
+        action_params = data_info.get("action_params", {})
+        theme_description = data_info.get("theme_description")
+        
+        outputs_inputs_section = self._build_outputs_inputs_section(
+            outputs,
+            inputs,
+            actions,
+            action_params,
+        )
+        
+        # Build composition section if base code provided
+        composition_section = ""
+        if base_code:
+            composition_section = self._build_composition_section(base_code, base_components or [])
+        
+        if inputs:
+            filtered_inputs = [
+                (name, summary)
+                for name, summary in inputs.items()
+                if _safe_str(summary).strip() != ""
+            ]
+            input_summary = "\n".join(
+                ["- " + name + ": " + _safe_str(summary) for name, summary in filtered_inputs]
+            )
+            input_summary = f"Inputs:\n {input_summary}"
+        else:
+            input_summary = "No inputs"
+
+        file_access_section = ""
+        data_path = inputs.get("data_path")
+        if data_path:
+            file_access_section = f"""FILE ACCESS (AGENT TOOLS ONLY):
+- Local directory available: {data_path}
+- Use tools: fs.list, fs.glob, fs.read, fs.read_base64
+- Do not call fs.* from widget JS; filesystem access must happen via tools
+- From widget JS, call model.call_remote("fs.glob", {{ path: "{data_path}", pattern: "**/*.jpg" }})
+- From widget JS, call model.call_remote("fs.read_base64", {{ path }}) and use result.data_url in img src
+
+"""
+        
+        theme_section = ""
+        if theme_description:
+            theme_section = f"THEME:\n{theme_description}\n\n"
+
+        return f"""You are an expert JavaScript + React developer building a high-quality interactive visualization that runs inside an AnyWidget React bundle.
+
+TASK: {description}
+
+Input summaries:
+{input_summary}
+
+{file_access_section}{theme_section}{composition_section}{outputs_inputs_section}
+
+CRITICAL RENDERING SPECIFICATION (JSX + PREACT-COMPAT):
+
+COMPOSITION AND INFORMATION-DESIGN RULES:
+- Prioritize a high information-to-chrome ratio. Give the primary visualization, content, or result most of the available space; keep chrome, metadata, instructions, borders, legends, and status indicators subordinate.
+- Prefer one compact header and one primary content region over stacked titled sections. Use whitespace for grouping before borders, cards, dividers, or panels. Do not wrap every semantic group in its own container.
+- Do not restate the generation prompt. Translate it into concise product copy. For notebook EDA, omit a title by default; add a subject-oriented title only when it materially improves interpretation, never to describe the act of creating it.
+- Present each fact once. Remove semantic duplication across headers, metrics, badges, footers, instructions, axes, legends, and buttons. Do not repeat record counts or interaction instructions.
+- Hide internal and operational metadata by default.
+- Prefer direct labeling. Omit single-mark legends and redundant axis titles. Tooltips are supplementary, not essential. Explain unfamiliar interactions once at most.
+- Use one primary typeface, at most one justified contrasting face, no more than three text levels, and one accent color used intentionally rather than on unrelated decoration.
+
+MUST FOLLOW EXACTLY:
+1. Export a default function: export default function Widget({{ model, React }}) {{ ... }}
+2. Return JSX (no html tagged templates, no ReactDOM.render/createRoot)
+3. Do not import React, react-dom, preact, or react/jsx-runtime—the host injects a React-compatible runtime
+4. Access inputs with model.get("<input_name>") using names from INPUTS; treat them as immutable
+5. Initialize outputs immediately via model.set(...) and model.save_changes(); update + save_changes() on every change
+6. Subscribe to input traits with model.on("change:trait", handler) and unsubscribe in cleanup
+7. Every React.useEffect MUST return a cleanup tearing down listeners, timers, raf, observers, map controls, WebGL resources, etc.
+8. Import libraries from ESM CDN with locked versions (d3@7, three@0.160, regl@3, etc.)
+9. Avoid document.body manipulation—render inside provided refs only
+10. Avoid 100vh/100vw—use fixed heights (360–640px) or flex layouts that respect notebook constraints
+11. Use style objects (style={{{{ ... }}}}) and className in JSX
+12. Never wrap the output in markdown code fences
+13. Ensure strong contrast between all text/labels and background colors (avoid light gray on white). Tables, main text, dropdowns, and any content intended to be read must have high contrast. Only use low-contrast text for decorative or de-emphasized elements not meant to be actively read.
+
+CORRECT Template:
+```javascript
+import * as d3 from "https://esm.sh/d3@7";
+
+export default function VisualizationWidget({{ model, React }}) {{
+  const data = model.get("input_name") || [];
+  const [selectedItem, setSelectedItem] = React.useState(null);
+  const containerRef = React.useRef(null);
+
+  React.useEffect(() => {{
+    if (!containerRef.current) return;
+    const svg = d3.select(containerRef.current)
+      .append("svg")
+      .attr("width", 640)
+      .attr("height", 420);
+
+    // ... build chart ...
+
+    return () => svg.remove();
+  }}, [data]);
+
+  return (
+    <section className="viz-shell" style={{{{ padding: 24, height: 480 }}}}>
+      <h2 className="viz-title">Experience</h2>
+      <div ref={{containerRef}} className="viz-canvas" />
+      {{selectedItem && <p className="viz-meta">Selected: {{selectedItem}}</p>}}
+    </section>
+  );
+}}
+```
+
+Key Syntax Rules:
+- JSX only; do NOT use html`...` tagged templates
+- Use className (not class) and style objects (not CSS strings)
+- Event props: onClick={{handler}}, onChange={{handler}}
+
+MODULARITY & STANDALONE COMPONENTS:
+
+For reusable UI components (sliders, legends, tooltips, controls, charts, panels), export them as NAMED EXPORTS that are FULLY STANDALONE:
+```javascript
+// Each exported component MUST be fully self-contained and independently renderable
+export const Slider = ({{ value, onChange, min, max }}) => (
+  <input type="range" value={{value}} onInput={{onChange}} min={{min}} max={{max}} />
+);
+
+export const ColorLegend = ({{ colors, labels }}) => (
+  <div className="legend">
+    {{labels.map((label, i) => (
+      <span key={{label}} style={{{{ background: colors[i], padding: "4px 8px" }}}}>
+        {{label}}
+      </span>
+    ))}}
+  </div>
+);
+
+// For chart components that need data access, accept model as prop
+export const ScatterChart = ({{ model, React, width = 400, height = 300 }}) => {{
+  const data = model.get("data") || [];
+  const containerRef = React.useRef(null);
+  // ... full chart implementation with proper cleanup ...
+  return <div ref={{containerRef}} style={{{{ width, height }}}} />;
+}};
+
+// Usage inside Widget
+export default function Widget({{ model, React }}) {{
+  return (
+    <div>
+      <ScatterChart model={{model}} React={{React}} width={{600}} height={{400}} />
+      <ColorLegend colors={{["#f00", "#0f0"]}} labels={{["A", "B"]}} />
+    </div>
+  );
+}}
+```
+
+STANDALONE COMPONENT REQUIREMENTS:
+1. Each named export component MUST be renderable independently
+2. Pass React and model as props when the component needs them
+3. Include all required state, effects, and cleanup within the component
+4. Do NOT rely on shared state from parent scope - receive everything via props
+5. For data-driven components, accept model as prop to access model.get("data")
+
+BENEFITS:
+- Components can be displayed individually in separate cells
+- Users can reference and reuse specific subcomponents
+- Cleaner code structure and separation of concerns
+- Easier testing and maintenance
+
+OUTPUT REQUIREMENTS:
+
+Generate ONLY the working JavaScript code (imports → export default function Widget...).
+- NO explanations before or after
+- NO markdown fences
+- NO console logs unless essential
+
+Begin the response with code immediately."""
+    
+    def _build_revision_prompt(
+        self,
+        current_code: str,
+        revision_description: str,
+        data_info: dict[str, Any],
+        base_code: Optional[str] = None,
+        base_components: Optional[list[str]] = None,
+    ) -> str:
+        """Build the prompt for code revision.
+        
+        Args:
+            current_code: Current widget code
+            revision_description: Description of changes to make
+            data_info: Data information dictionary
+            base_code: Optional additional base widget code for composition
+            base_components: Optional list of components from base widget
+        """
+        outputs = data_info.get("outputs", {})
+        inputs = data_info.get("inputs", {})
+        actions = data_info.get("actions", {})
+        action_params = data_info.get("action_params", {})
+        theme_description = data_info.get("theme_description")
+        
+        outputs_inputs_section = self._build_outputs_inputs_section(
+            outputs,
+            inputs,
+            actions,
+            action_params,
+        )
+        
+        if inputs:
+            input_summary = "\n".join(
+                ["- " + name + ": " + _safe_str(summary) for name, summary in inputs.items()]
+            )
+        else:
+            input_summary = "No inputs"
+
+        file_access_section = ""
+        data_path = inputs.get("data_path")
+        if data_path:
+            file_access_section = f"""FILE ACCESS (AGENT TOOLS ONLY):
+- Local directory available: {data_path}
+- Use tools: fs.list, fs.glob, fs.read, fs.read_base64
+- Do not call fs.* from widget JS; filesystem access must happen via tools
+- From widget JS, call model.call_remote("fs.glob", {{ path: "{data_path}", pattern: "**/*.jpg" }})
+- From widget JS, call model.call_remote("fs.read_base64", {{ path }}) and use result.data_url in img src
+
+"""
+
+        # Build composition section if additional base code provided
+        composition_section = ""
+        if base_code:
+            composition_section = self._build_composition_section(base_code, base_components or [])
+        
+        theme_section = ""
+        if theme_description:
+            theme_section = f"THEME:\n{theme_description}\n\n"
+
+        return f"""Revise the following AnyWidget React bundle code according to the request.
+
+REVISION REQUEST: {revision_description}
+
+CURRENT CODE:
+```javascript
+{current_code}
+```
+
+{theme_section}{composition_section}Input summaries:
+{input_summary}
+
+{file_access_section}
+{outputs_inputs_section}
+
+Follow the SAME constraints as generation:
+- export default function Widget({{ model, React }})
+- JSX only (no html tagged templates)
+- ESM CDN imports with locked versions
+- Thorough cleanup in every React.useEffect
+- Inline styles must be object literals (style={{{{ ... }}}}), never strings; convert any CSS strings to an object with camelCased keys.
+- Export reusable components as named exports when appropriate (JSX components)
+- Ensure strong contrast between all text/labels and background colors (avoid light gray on white). Tables, main text, dropdowns, and any content intended to be read must have high contrast. Only use low-contrast text for decorative or de-emphasized elements not meant to be actively read.
+
+Focus on making ONLY the requested changes. Reuse existing code structure where possible.
+
+Return only the full revised JavaScript code. No markdown fences or explanations."""
+    
+    def _build_fix_prompt(
+        self,
+        broken_code: str,
+        error_message: str,
+        data_info: dict[str, Any],
+    ) -> str:
+        """Build the prompt for fixing code errors."""
+        outputs = data_info.get("outputs", {})
+        inputs = data_info.get("inputs", {})
+        actions = data_info.get("actions", {})
+        action_params = data_info.get("action_params", {})
+        theme_description = data_info.get("theme_description")
+        
+        outputs_inputs_section = self._build_outputs_inputs_section(
+            outputs,
+            inputs,
+            actions,
+            action_params,
+        )
+        
+        if inputs:
+            input_summary = "\n".join(
+                ["- " + name + ": " + _safe_str(summary) for name, summary in inputs.items()]
+            )
+        else:
+            input_summary = "No inputs"
+
+        file_access_section = ""
+        data_path = inputs.get("data_path")
+        if data_path:
+            file_access_section = f"""FILE ACCESS (AGENT TOOLS ONLY):
+- Local directory available: {data_path}
+- Use tools: fs.list, fs.glob, fs.read, fs.read_base64
+- Do not call fs.* from widget JS; filesystem access must happen via tools
+- For images, call fs.read_base64 and use the returned data_url in img src
+
+"""
+
+        theme_section = ""
+        if theme_description:
+            theme_section = f"THEME:\n{theme_description}\n\n"
+
+        return f"""Fix the AnyWidget React bundle code below. Keep the interaction model identical while eliminating the runtime error.
+Preserve all user-intended changes and visual styling; make the smallest possible fix.
+Do NOT remove, rename, or rewrite unrelated parts of the code.
+
+ERROR MESSAGE:
+{error_message}
+
+BROKEN CODE:
+```javascript
+{broken_code}
+```
+
+Input summaries:
+{input_summary}
+
+{file_access_section}
+{theme_section}{outputs_inputs_section}
+
+MANDATORY FIX RULES:
+1. Export default function Widget({{ model, React }})
+2. JSX only (no html tagged templates)
+3. Guard every model.get payload before iterating
+4. Keep CDN imports version-pinned
+5. Restore all cleanup handlers
+6. Initialize outputs and call model.save_changes()
+7. Inline styles must be object literals (style={{{{ ... }}}}); convert any string-based style to an object with camelCased keys and quoted values.
+8. Ensure strong contrast between all text/labels and background colors (avoid light gray on white). Tables, main text, dropdowns, and any content intended to be read must have high contrast. Only use low-contrast text for decorative or de-emphasized elements not meant to be actively read.
+
+Return ONLY the corrected JavaScript code."""
+
+    def _build_audit_prompt(
+        self,
+        *,
+        code: str,
+        description: str,
+        data_info: dict[str, Any],
+        level: str,
+        changed_lines: Optional[list[int]] = None,
+    ) -> str:
+        """Build prompt for audit generation."""
+        outputs = data_info.get("outputs", {})
+        inputs = data_info.get("inputs", {})
+        changed_lines_section = ""
+        if changed_lines:
+            changed_lines_section = f"""
+CHANGED LINES (only report concerns tied to these lines, or global concerns if truly code-wide):
+{changed_lines}
+"""
+
+        if level == "fast":
+            schema = """Return JSON with root key "fast_audit":
+{
+  "fast_audit": {
+    "version": "1.0",
+    "widget_description": "...",
+    "safety": {
+      "checks": {
+        "external_network_usage": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "dynamic_code_execution": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "storage_writes": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "cross_origin_fetch": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "iframe_script_injection": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."}
+      },
+      "risk_level": "low|medium|high|unknown",
+      "caveats": ["..."]
+    },
+    "concerns": [
+      {
+        "id": "data.selection.null_handling",
+        "location": "global" | [1,2,3],
+        "summary": "...",
+        "details": "...",
+        "technical_summary": "...",
+        "impact": "high" | "medium" | "low",
+        "default": true,
+        "alternatives": ["..."]
+      }
+    ],
+    "open_questions": ["..."]
+  }
+}"""
+        else:
+            schema = """Return JSON with root key "full_audit":
+{
+  "full_audit": {
+    "version": "1.0",
+    "widget_description": "...",
+    "safety": {
+      "checks": {
+        "external_network_usage": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "dynamic_code_execution": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "storage_writes": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "cross_origin_fetch": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."},
+        "iframe_script_injection": {"status": "yes|no|unknown", "evidence": "...", "notes": "..."}
+      },
+      "risk_level": "low|medium|high|unknown",
+      "caveats": ["..."]
+    },
+    "concerns": [
+      {
+        "id": "computation.parameters.seed",
+        "location": "global" | [1,2,3],
+        "summary": "...",
+        "impact": "high" | "medium" | "low",
+        "default": true,
+        "rationale": "...",
+        "alternatives": [
+          {
+            "option": "...",
+            "when_better": "...",
+            "when_worse": "..."
+          }
+        ],
+        "lenses": {
+          "impact": "high" | "medium" | "low",
+          "uncertainty": "...",
+          "reproducibility": "...",
+          "edge_behavior": "...",
+          "default_vs_explicit": "...",
+          "appropriateness": "...",
+          "safety": "..."
+        }
+      }
+    ],
+    "open_questions": ["..."]
+  }
+}"""
+
+        return f"""You are an auditing assistant for VibeWidget code.
+
+Audit taxonomy:
+- DATA: selection, transformation, format, provenance
+- COMPUTATION: method, parameters, assumptions, execution
+- PRESENTATION: encoding, scale, compression, framing
+- INTERACTION: triggers, state, propagation, feedback
+
+Lenses:
+- Impact (high/medium/low): would a different choice change conclusions?
+- Uncertainty: confidence, sample size, stability
+- Reproducibility: can it be recreated exactly?
+- Edge Behavior: empty/extreme/boundary inputs
+- Default vs Explicit: user choice vs assumption
+- Appropriateness: method suitability
+- Safety: external network usage, dynamic code execution, storage writes, cross-origin fetch, iframe/script injection
+
+Constraints:
+- Use line numbers from the provided code.
+- Location must be "global" or a list of integers.
+- IDs should be stable, descriptive, and scoped like "domain.type.short_name".
+- Be conservative: default to low impact unless there is clear evidence of medium/high.
+- High impact should be rare and reserved for likely conclusion-changing choices.
+- Summaries must be understandable to non-coders.
+- "details" should expand in plain language (1-2 sentences).
+- "technical_summary" should be brief and technical, and only included when helpful.
+- Return ONLY JSON, no markdown or commentary.
+
+Widget description: {description}
+Inputs:
+{inputs}
+Outputs:
+{outputs}
+
+{changed_lines_section}
+CODE WITH LINE NUMBERS:
+{code}
+
+{schema}"""
+    
+    def _build_outputs_inputs_section(
+        self,
+        outputs: dict,
+        inputs: dict,
+        actions: dict,
+        action_params: Optional[dict],
+    ) -> str:
+        """Build the outputs/inputs/actions section of the prompt."""
+        if not outputs and not inputs and not actions:
+            return ""
+        
+        sections: list[str] = []
+        
+        if outputs:
+            output_list = "\n".join(
+                ["- " + name + ": " + _safe_str(desc) for name, desc in outputs.items()]
+            )
+            output_names = ", ".join([f'"{name}"' for name in outputs.keys()])
+            sections.append(f"""
+OUTPUTS (State shared with other widgets):
+{output_list}
+
+CRITICAL: Outputs are synced Python traits that you must update explicitly:
+1. Initialize ALL outputs on mount: model.set({{{", ".join([f'"{k}": <initial_value>' for k in outputs.keys()])}}})
+2. Update outputs whenever state changes: model.set('<output_name>', newValue)
+3. Call model.save_changes() AFTER updating one or more outputs
+4. Example pattern:
+   const [count, setCount] = React.useState(0);
+   React.useEffect(() => {{
+     model.set('count_output', count);  // Update the output trait
+     model.save_changes();                // Sync to Python
+   }}, [count]);
+
+Outputs to track: {output_names}""")
+        
+        if inputs:
+            input_list = "\n".join(
+                ["- " + name + ": " + _safe_str(desc) for name, desc in inputs.items()]
+            )
+            sections.append(f"""
+INPUTS (State from other widgets):
+{input_list}
+
+CRITICAL: Subscribe with model.on("change:trait", handler), unsubscribe in cleanup""")
+
+        if actions:
+            action_lines = []
+            action_handler_lines = []
+            for name, desc in actions.items():
+                params = (action_params or {}).get(name)
+                if params:
+                    params_list = ", ".join(
+                        [_safe_str(key) + ": " + _safe_str(val) for key, val in params.items()]
+                    )
+                    action_lines.append("- " + name + ": " + _safe_str(desc) + " (params: " + params_list + ")")
+                else:
+                    action_lines.append("- " + name + ": " + _safe_str(desc))
+                action_handler_lines.append(
+                    f'  // Action "{name}" (case-sensitive)\n'
+                    f'  if (action === "{name}") {{\n'
+                    f'    const params = event.changed.action_event.params || {{}};\n'
+                    f'    // use params.<param> values here\n'
+                    f'  }}'
+                )
+            action_list = "\n".join(action_lines)
+            action_handlers = "\n".join(action_handler_lines)
+            sections.append(f"""
+ACTIONS (Events from Python to widget):
+{action_list}
+
+CRITICAL: Listen for actions on the action_event trait with model.on("change:action_event", handler).
+CRITICAL: Action event structure:
+  {{ action: "<action_name>", params: {{...}}, timestamp: number }}
+CRITICAL: Handle with EXACT code (copy verbatim, do not rename fields):
+  React.useEffect(() => {{
+    const handleAction = (event) => {{
+      const {{ action, params }} = event.changed.action_event || {{}};
+{action_handlers}
+    }};
+    model.on("change:action_event", handleAction);
+    return () => model.off("change:action_event", handleAction);
+  }}, []);""")
+        
+        return "\n".join(sections)
+    
+    def _build_composition_section(self, base_code: str, base_components: list[str]) -> str:
+        """
+        Build composition section showing available base widget code and components.
+        
+        Args:
+            base_code: The base widget JavaScript code
+            base_components: List of component names exported from base
+        
+        Returns:
+            Formatted composition section for prompt
+        """
+        section = f"""
+BASE WIDGET CODE (for reference and reuse):
+```javascript
+{base_code}
+```
+"""
+        
+        if base_components:
+            components_list = ", ".join(base_components)
+            section += f"""
+AVAILABLE COMPONENTS from base widget: {components_list}
+
+You can reuse these components in your widget. Extract and adapt them as needed.
+Focus on modifying only what's necessary for the requested changes.
+"""
+        
+        return section + "\n"
+    
+    def clean_code(self, code: str) -> str:
+        """Clean the generated code by removing markdown fences."""
+        if not code:
+            return ""
+        
+        # Remove markdown code fences
+        code = re.sub(r"```(?:javascript|jsx?|typescript|tsx?)?\s*\n?", "", code)
+        code = re.sub(r"\n?```\s*", "", code)
+        
+        return code.strip()
+    
+    @staticmethod
+    def build_data_info(
+        *,
+        outputs: Optional[dict[str, str]] = None,
+        inputs: Optional[dict[str, str]] = None,
+        actions: Optional[dict[str, str]] = None,
+        action_params: Optional[dict[str, Optional[dict[str, str]]]] = None,
+        theme_description: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Build data info dictionary from summarized inputs."""
+        outputs = outputs or {}
+        inputs = inputs or {}
+        actions = actions or {}
+        action_params = action_params or {}
+
+        return {
+            "outputs": outputs,
+            "inputs": inputs,
+            "actions": actions,
+            "action_params": action_params,
+            "theme_description": theme_description,
+        }

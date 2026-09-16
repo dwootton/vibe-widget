@@ -1,0 +1,6 @@
+.vibewidget/
+*.Rcheck/
+*.tar.gz
+.Rhistory
+.RData
+.Rproj.user/

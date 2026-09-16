@@ -1,0 +1,30 @@
+# Generated manually (see NOTE below), not by roxygen2::roxygenise().
+#
+# NOTE: this package is documented with roxygen2 comments throughout `R/*.R`
+# (`@param`, `@return`, `@export`, `@examples`), but `roxygen2` itself (via
+# its `xml2` dependency) failed to build in the sandbox this package was
+# authored in - `xml2`'s compiled extension linked against the wrong
+# `libxml2` (a Homebrew R build picking up a Miniconda `libxml2` via
+# `pkg-config`) and could not be loaded. This NAMESPACE was written by hand
+# to exactly match those `@export`/S3-method tags. If you have a working
+# roxygen2 install, running `devtools::document()` (or
+# `roxygen2::roxygenise()`) from this directory will regenerate this file
+# and `man/*.Rd` from the same source comments - diff it against this one
+# before committing to make sure nothing drifted.
+
+export(vw_config)
+export(vw_create)
+export(vw_detect_mode)
+export(vw_edit)
+export(vw_html)
+export(vw_load)
+export(vw_observe)
+export(vw_open)
+export(vw_options)
+export(vw_prepare_data)
+export(vw_py)
+export(vw_save)
+export(vw_unobserve)
+
+S3method(print, vibewidget)
+S3method(format, vibewidget)
