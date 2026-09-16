@@ -1,8 +1,7 @@
-import{j as e}from"./index-Ag879TfP.js";import{D as i}from"./DocMdxPage-C1Xb4fjc.js";import"./DocContent-ClmzcaAj.js";const r={title:"Audit",description:"Ask a second model call to review a generated widget and report what it finds."};function s(n){const t={code:"code",h2:"h2",li:"li",p:"p",pre:"pre",strong:"strong",table:"table",tbody:"tbody",td:"td",th:"th",thead:"thead",tr:"tr",ul:"ul",...n.components};return e.jsxs(e.Fragment,{children:[e.jsxs(t.p,{children:[`An audit is a second model call that reads the generated code and writes up what it notices. It is a
-review rather than a check, so there is no static analysis behind it, the findings are the model's
-opinion, and nothing in the package consults an audit before code runs. Read it the way you would
-read a colleague's comments on a pull request. When you want code to be gated rather than commented
-on, use `,e.jsx(t.code,{children:'vw.config(execution="approve")'})," instead."]}),`
+import{j as e}from"./index-CkRJxMr7.js";import{D as i}from"./DocMdxPage-BHZwN-Z3.js";import"./DocContent-DGIgVrr-.js";const r={title:"Audit",description:"Ask a second model call to review a generated widget and report what it finds."};function s(n){const t={code:"code",h2:"h2",li:"li",p:"p",pre:"pre",strong:"strong",table:"table",tbody:"tbody",td:"td",th:"th",thead:"thead",tr:"tr",ul:"ul",...n.components};return e.jsxs(e.Fragment,{children:[e.jsxs(t.p,{children:[`An audit is a second model call that reads the generated code and writes up what it notices. The
+findings are that model's opinion. No static analysis runs behind them, and the package never
+consults an audit before code executes, so an audit reads like a colleague's comments on a pull
+request. To gate execution on your own reading of the code, use `,e.jsx(t.code,{children:'vw.config(execution="approve")'}),"."]}),`
 `,e.jsx(t.h2,{children:"Running an audit"}),`
 `,e.jsx(t.pre,{children:e.jsx(t.code,{className:"language-python",children:`report = widget.audit(level="fast", display=False)
 full_report = widget.audit(level="full", reuse=True, display=False)
@@ -30,7 +29,7 @@ finding comparable to another. A `,e.jsx(t.code,{children:"fast"})," audit repor
 `,e.jsxs(t.li,{children:[e.jsx(t.strong,{children:"Safety"})," covers network calls, dynamic code execution, writes to storage, cross-origin fetches, and injected scripts or iframes."]}),`
 `]}),`
 `,e.jsx(t.p,{children:`The model is told to keep high impact rare and to default to low unless there is clear evidence, so
-a report full of low-impact findings is the normal case rather than a sign that nothing was checked.`}),`
+most reports come back full of low-impact findings.`}),`
 `,e.jsx(t.h2,{children:"Where reports are stored"}),`
 `,e.jsxs(t.p,{children:["Reports are written to ",e.jsx(t.code,{children:".vibewidget/audits/"}),` as JSON and YAML. The directory is listed in
 `,e.jsx(t.code,{children:".vibewidget/.gitignore"}),`, so reports stay on the machine that ran them rather than going into your
@@ -38,4 +37,4 @@ repository.`]}),`
 `,e.jsx(t.h2,{children:"Working from an audit"}),`
 `,e.jsx(t.p,{children:`In the widget's editor, findings are shown as a checklist next to the code. You can turn any one of
 them into an edit request, which sends the finding back to the model as the instruction for a fix,
-or leave it on the list as a note for later.`})]})}function a(n={}){const{wrapper:t}=n.components||{};return t?e.jsx(t,{...n,children:e.jsx(s,{...n})}):s(n)}const h=()=>e.jsx(i,{Content:a,meta:r});export{h as default};
+or leave it on the list as a note for later.`})]})}function o(n={}){const{wrapper:t}=n.components||{};return t?e.jsx(t,{...n,children:e.jsx(s,{...n})}):s(n)}const h=()=>e.jsx(i,{Content:o,meta:r});export{h as default};
