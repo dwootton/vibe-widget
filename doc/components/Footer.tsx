@@ -8,7 +8,7 @@ const Footer = () => {
         <div>
            <h3 className="text-2xl font-display font-bold mb-4">VibeWidget</h3>
            <p className="font-mono text-sm text-bone/60 max-w-xs">
-              Open source tools for the future data scientists and tinkerers.
+              Notebook widgets generated from a prompt and your data. MIT licensed.
            </p>
         </div>
 

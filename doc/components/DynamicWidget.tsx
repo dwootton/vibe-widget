@@ -47,7 +47,8 @@ export default function DynamicWidget({
   const needsData = useMemo(() => {
     if (exampleId) {
       const config = EXAMPLE_DATA_CONFIG[exampleId];
-      return config?.requiresDataForPreview ?? false;
+      // An example with no config entry still needs whatever dataUrl names.
+      if (config) return config.requiresDataForPreview;
     }
     return !!dataUrl;
   }, [exampleId, dataUrl]);

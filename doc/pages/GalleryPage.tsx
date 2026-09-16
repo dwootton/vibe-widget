@@ -141,7 +141,7 @@ const GalleryPage = () => {
                             WIDGET <span className="text-orange">GALLERY</span>
                         </h1>
                         <p className="text-xl text-slate/60 font-mono max-w-2xl">
-                            A collection of interactive widgets synthesized from natural language.
+                            Widgets generated from a prompt. Each one runs here in the page.
                         </p>
                     </div>
 
@@ -350,7 +350,7 @@ const GalleryPage = () => {
                                         <div className="w-3 h-3 rounded-full bg-yellow-400" />
                                         <div className="w-3 h-3 rounded-full bg-green-400" />
                                         <span className="ml-4 font-mono text-xs text-slate/40 uppercase tracking-widest hidden sm:inline">
-                                            Synthesis Environment / {focusedExample?.label}
+                                            Notebook / {focusedExample?.label}
                                         </span>
                                     </div>
                                 </div>
@@ -390,6 +390,7 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
             className={`
                 relative group bg-white border-2 border-slate rounded-2xl overflow-hidden shadow-hard hover:shadow-hard-lg transition-all flex flex-col
                 ${hasNotebook ? 'cursor-pointer' : 'cursor-default'}
+                ${example.wide ? 'md:col-span-2 lg:col-span-3' : ''}
             `}
             onClick={hasNotebook ? onOpen : undefined}
             onKeyDown={(event) => {
@@ -403,7 +404,10 @@ const GalleryCard = ({ example, index, model, onOpen }: { example: typeof EXAMPL
             tabIndex={hasNotebook ? 0 : -1}
         >
             {/* Preview Area */}
-            <div className="relative h-[260px] bg-slate/5 group-hover:bg-orange/5 transition-colors overflow-hidden">
+            <div
+                className="relative bg-slate/5 group-hover:bg-orange/5 transition-colors overflow-hidden"
+                style={{ height: example.previewHeight ?? 260 }}
+            >
                 {example.gifUrl ? (
                     <img src={example.gifUrl} alt={example.label} className="w-full h-full object-cover" />
                 ) : (

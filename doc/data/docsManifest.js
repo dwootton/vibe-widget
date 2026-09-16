@@ -67,13 +67,6 @@ export const DOC_PAGES = [
     section: 'Core Concepts',
     source: 'theming.mdx',
   },
-  {
-    id: 'widgetarium',
-    path: '/docs/widgetarium',
-    label: 'Widgetarium',
-    section: 'Ecosystem',
-    source: 'widgetarium.mdx',
-  },
 ];
 
 export const DOC_SECTIONS = [
@@ -95,10 +88,6 @@ export const DOC_SECTIONS = [
     title: 'Explore',
     links: [
       { label: 'Example Gallery', path: '/gallery' },
-      ...DOC_PAGES.filter((page) => page.section === 'Ecosystem').map((page) => ({
-        label: page.label,
-        path: page.path,
-      })),
     ],
   },
 ];

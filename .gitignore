@@ -106,3 +106,6 @@ _output/
 examples/storyboard.md
 examples/demo_notes_zh.md
 examples/screens/
+
+# uv lockfile: this is a library, dependents resolve their own versions
+uv.lock
