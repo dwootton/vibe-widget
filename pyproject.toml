@@ -58,6 +58,21 @@ exclude = ["src/vibe_widget/AppWrapper/"]
 [tool.hatch.build.targets.wheel.force-include]
 "src/vibe_widget/AppWrapper.bundle.js" = "vibe_widget/AppWrapper.bundle.js"
 
+[tool.hatch.build.targets.sdist]
+# Without this the sdist sweeps in doc/, examples/ and the committed widget cache,
+# which is how 0.3.2 reached 14 MB on PyPI.
+include = [
+    "src/vibe_widget",
+    "tests",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "pyproject.toml",
+]
+exclude = ["src/vibe_widget/AppWrapper/"]
+
 [tool.hatch.build.targets.sdist.force-include]
 "src/vibe_widget/AppWrapper.bundle.js" = "vibe_widget/AppWrapper.bundle.js"
 

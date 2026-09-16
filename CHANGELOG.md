@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `widget.edit` keeps the source widget's outputs and non-data inputs; a chained edit no longer
   drops the traits an earlier revision declared.
 - Code returned with a sentence of prose before the first statement is stripped back to the code.
+- `vibe_widget.__version__` is read from the installed distribution. It was a literal that had gone
+  stale at 0.3.2, and it is what `provenance.vibe_widget_version` records in every widget sidecar.
+- The source distribution no longer carries `doc/`, `examples/` and the committed widget cache,
+  which had taken the 0.3.2 sdist to 14 MB. It is now about 1 MB, the same as the wheel.
 
 ### Changed
 - Default generation budget is 32k output tokens, overridable with `VIBE_MAX_TOKENS`; chained edits

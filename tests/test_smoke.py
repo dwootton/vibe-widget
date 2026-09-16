@@ -32,3 +32,12 @@ def test_themes_namespace_lists_themes() -> None:
     assert catalog
     name = sorted(catalog)[0]
     assert getattr(vw.themes, name).name == name
+
+
+def test_version_matches_the_installed_distribution():
+    """A hardcoded __version__ silently went stale at 0.3.2 while the wheel said 0.3.3."""
+    from importlib.metadata import version
+
+    import vibe_widget
+
+    assert vibe_widget.__version__ == version("vibe-widget")
