@@ -81,48 +81,83 @@ export const StudyLoopDiagram = () => (
   </figure>
 );
 
-type Step = {
-  kind: 'intent' | 'artifact' | 'error';
-  label: string;
+type Transition = {
+  /** What produced the next version: a person's request, or an error the system repaired. */
+  kind: 'intent' | 'error';
+  event: string;
   detail: string;
 };
 
-const LINEAGE: Step[] = [
-  { kind: 'intent', label: 'intent.create', detail: '"scatter of dose vs response"' },
-  { kind: 'artifact', label: 'v1 · generated', detail: '212 lines' },
-  { kind: 'intent', label: 'intent.grab_edit', detail: '<circle> "color by cohort"' },
-  { kind: 'artifact', label: 'v2 · grab_edit', detail: 'parent v1' },
-  { kind: 'error', label: 'error.runtime', detail: 'TypeError: cohort undefined' },
-  { kind: 'artifact', label: 'v3 · autofix', detail: 'parent v2' },
-  { kind: 'intent', label: 'intent.approve', detail: 'review mode' },
-];
-
-const STEP_STYLE: Record<Step['kind'], string> = {
-  intent: 'bg-orange text-white border-slate',
-  artifact: 'bg-white text-slate border-slate',
-  error: 'bg-red-50 text-red-800 border-red-800',
+type Version = {
+  id: string;
+  origin: string;
+  detail: string;
+  /** The transition that produced this version. */
+  from: Transition;
 };
 
-/** One lineage: intents interleaved with the artifacts they produced. */
+const LINEAGE: Version[] = [
+  {
+    id: 'v1',
+    origin: 'generated',
+    detail: '212 lines',
+    from: { kind: 'intent', event: 'intent.create', detail: '"scatter of dose vs response"' },
+  },
+  {
+    id: 'v2',
+    origin: 'grab_edit',
+    detail: 'parent v1',
+    from: { kind: 'intent', event: 'intent.grab_edit', detail: '<circle> "color by cohort"' },
+  },
+  {
+    id: 'v3',
+    origin: 'autofix',
+    detail: 'parent v2',
+    from: { kind: 'error', event: 'error.runtime → autofix', detail: 'TypeError: cohort undefined' },
+  },
+];
+
+const EDGE_STYLE: Record<Transition['kind'], { text: string; arrow: string }> = {
+  intent: { text: 'text-slate', arrow: 'text-orange' },
+  error: { text: 'text-red-800', arrow: 'text-red-700' },
+};
+
+/** The request (or error) that leads into a version. Vertical on phones, horizontal from sm up. */
+const TransitionEdge = ({ t }: { t: Transition }) => {
+  const style = EDGE_STYLE[t.kind];
+  return (
+    <div className="flex sm:flex-col items-center sm:justify-center gap-3 sm:gap-1 py-2 sm:py-0 sm:px-2 pl-6 sm:pl-2 sm:min-w-0 sm:flex-1">
+      <span aria-hidden="true" className={`text-2xl leading-none sm:order-2 ${style.arrow}`}>
+        <span className="sm:hidden">↓</span>
+        <span className="hidden sm:inline">→</span>
+      </span>
+      <div className={`text-[11px] font-mono leading-snug sm:text-center sm:order-1 ${style.text}`}>
+        <div className="font-bold break-words">{t.event}</div>
+        <div className="opacity-80 break-words">{t.detail}</div>
+      </div>
+    </div>
+  );
+};
+
+/** One lineage: each code version is a node, and the request that produced it is the arrow into it. */
 export const TraceLineage = () => (
-  <figure className="my-8 not-prose" aria-label="Example trace lineage: intents, code versions and an error">
-    <ol className="flex flex-wrap items-center gap-x-1 gap-y-3 list-none p-0 m-0">
-      {LINEAGE.map((step, i) => (
-        <li key={step.label} className="flex items-center gap-1 m-0 p-0">
-          <div className={`rounded-lg border-2 px-3 py-2 shadow-hard-sm ${STEP_STYLE[step.kind]}`}>
-            <div className="text-[11px] font-mono font-bold">{step.label}</div>
-            <div className="text-[11px] font-mono opacity-80">{step.detail}</div>
+  <figure className="my-8 not-prose" aria-label="Example trace lineage: three code versions and the requests and error that produced them">
+    <ol className="flex flex-col sm:flex-row sm:items-center list-none p-0 m-0">
+      {LINEAGE.map((v) => (
+        <li key={v.id} className="flex flex-col sm:flex-row sm:items-center sm:flex-1 m-0 p-0">
+          <TransitionEdge t={v.from} />
+          <div className="rounded-lg border-2 border-slate bg-white px-4 py-3 shadow-hard-sm sm:shrink-0">
+            <div className="font-display text-lg font-bold text-slate leading-none">{v.id}</div>
+            <div className="mt-1 text-[11px] font-mono text-slate">{v.origin}</div>
+            <div className="text-[11px] font-mono text-slate/60">{v.detail}</div>
           </div>
-          {i < LINEAGE.length - 1 && (
-            <span aria-hidden="true" className="text-slate/40 font-mono">→</span>
-          )}
         </li>
       ))}
     </ol>
-    <figcaption className="mt-3 flex flex-wrap gap-4 text-xs font-mono text-slate/60">
-      <span><span className="inline-block w-3 h-3 align-middle mr-1 rounded-sm bg-orange border border-slate" />intent (what they asked for)</span>
-      <span><span className="inline-block w-3 h-3 align-middle mr-1 rounded-sm bg-white border border-slate" />artifact (code version)</span>
-      <span><span className="inline-block w-3 h-3 align-middle mr-1 rounded-sm bg-red-50 border border-red-800" />error</span>
+    <figcaption className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-mono text-slate/60">
+      <span><span className="inline-block w-3 h-3 align-middle mr-1 rounded-sm bg-white border border-slate" />code version (artifact)</span>
+      <span><span className="text-orange mr-1">→</span>request that produced it (intent)</span>
+      <span><span className="text-red-700 mr-1">→</span>error the system repaired</span>
     </figcaption>
   </figure>
 );

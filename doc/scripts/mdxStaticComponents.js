@@ -35,6 +35,14 @@ export const Warning = ({ title, children }) => (
   )
 );
 
+// Static version of the Note call-out in doc/components/MdxComponents.tsx.
+export const Note = ({ title, children }) => (
+  React.createElement('aside', { className: 'note', role: 'note' },
+    title ? React.createElement('p', null, React.createElement('strong', null, title)) : null,
+    children
+  )
+);
+
 const list = (tag, items) => React.createElement(
   tag, null, ...items.map((text, i) => React.createElement('li', { key: i }, text))
 );
@@ -47,13 +55,9 @@ export const StudyLoopDiagram = () => list('ol', [
 ]);
 
 export const TraceLineage = () => list('ol', [
-  'intent.create: "scatter of dose vs response"',
-  'v1 (generated): 212 lines',
-  'intent.grab_edit: <circle> "color by cohort"',
-  'v2 (grab_edit): parent v1',
-  'error.runtime: TypeError: cohort undefined',
-  'v3 (autofix): parent v2',
-  'intent.approve: review mode',
+  'v1 (generated, 212 lines), produced by intent.create: "scatter of dose vs response"',
+  'v2 (grab_edit, parent v1), produced by intent.grab_edit: <circle> "color by cohort"',
+  'v3 (autofix, parent v2), produced by error.runtime → autofix: TypeError: cohort undefined',
 ]);
 
 const mdxStaticComponents = {
@@ -64,6 +68,7 @@ const mdxStaticComponents = {
   StudyLoopDiagram,
   TraceLineage,
   Warning,
+  Note,
 };
 
 export default mdxStaticComponents;

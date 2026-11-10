@@ -22,14 +22,11 @@ their notebook as usual.
 
 <StudyLoopDiagram />
 
-> **Preview.** Local recording works today. Study manifests, consent cards and upload to a
-> researcher's store are in progress; those parts are marked *planned* below.
-
 ## What a trace looks like
 
-A trace is one widget's **lineage**: every revision of it, from the first prompt onward.
-Intents (what the person asked for) alternate with artifacts (the code version each one
-produced), and errors land where they happened.
+A trace is one widget's **lineage**: every revision of it, from the first prompt onward. Each
+code version (an artifact) is a node, and the request that produced it (an intent) is the arrow
+into it. When code breaks and the system repairs it, the error is the arrow instead.
 
 <TraceLineage />
 
@@ -75,17 +72,13 @@ study.stop()
 Pick streams with `study.start(streams=["intents", "errors"])`. Anything outside them is dropped
 before it is written.
 
-## Privacy by design
+<Note title="Privacy by design">
 
-- **Off unless asked.** Core Vibe Widget only *announces* events through an empty hook. Nothing is
-  recorded unless `vibe-widget-study` is installed and `start()` is called.
-- **Local first.** Events are written to the collaborator's own disk, in plain JSON lines they can
-  read. The traces folder carries its own `.gitignore`, so prompts and code don't get committed
-  by accident.
-- **No data values.** The schema stream holds column names and types, never rows. Prompts can
-  still mention values, which is why upload will support a review-before-send mode.
-- **Consent per stream** *(planned)*. Collaborators see exactly which streams a study asks for,
-  can turn optional ones off, and can leave and delete their data at any time.
+Nothing is recorded unless a collaborator installs `vibe-widget-study` and calls `study.start()`.
+Traces stay on their own machine as plain JSON lines they can read and delete, in a folder that is
+git-ignored, and the schema stream keeps column names and types, never data values.
+
+</Note>
 
 ## Spend caps
 
@@ -155,6 +148,4 @@ study.join("vws_7f3k-...")   # shows the consent card; nothing is sent before "A
 Replay will record only the widget itself, by mounting it in its own frame. Recording the whole
 notebook page would also capture other cells' data, which our prototype confirmed.
 
-See the [design notes](https://github.com/dwootton/vibe-widget/tree/main/design/study-traces) for
-the event schema and the replay prototype. If you'd like to run a study with it, email
-[dwootton@mit.edu](mailto:dwootton@mit.edu).
+If you'd like to run a study with it, email [dwootton@mit.edu](mailto:dwootton@mit.edu).
