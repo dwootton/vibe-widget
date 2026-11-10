@@ -200,7 +200,14 @@ shortcuts leaking between the iframe and JupyterLab.
    - separate package `study/` → `pip install vibe-widget-study`, import
      `vibe_widget_study` (or `vw.study`): recorder, streams, sinks, local JSONL
      (tests: `study/tests/`)
+   **Spend caps (done):** core `vw.config(budget_usd=...)` / `vw.spend()` meter every
+   request at `OpenAICompatProvider._create` (OpenRouter's `usage.cost`) and refuse new
+   requests once spent; `study.start(budget_usd=...)` persists spend across sessions in
+   `spend.json`; `vibe_widget_study.keys` mints OpenRouter keys with a credit limit
+   (the hard cap). Tests: `tests/test_budget.py`, `study/tests/test_budget_and_keys.py`.
 2. Manifest format + consent card widget + `vw.study.join/status/pause/leave`.
+   The manifest's `budget_usd` feeds `start(budget_usd=...)`; `join()` can hand out a
+   capped key minted by the ingest function.
 3. Supabase template (migration, RLS, `ingest` Edge Function) + `SupabaseSink`.
 4. `vw.study.fetch` + a lineage viewer (dogfood: a vibe widget over the traces).
 5. Iframe render path in `SandboxedRunner` behind a flag, then the rrweb `replay`

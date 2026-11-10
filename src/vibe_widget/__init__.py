@@ -1,4 +1,5 @@
 from vibe_widget.api import ExportHandle, action, actions, inputs, output, outputs
+from vibe_widget.budget import BudgetExceeded, spend
 from vibe_widget.config import Config, config
 from vibe_widget.core import VibeWidget, WidgetHandle, clear, create, edit, load
 from vibe_widget.namespaces import (
@@ -39,6 +40,8 @@ __all__ = [
     "action",
     "actions",
     "ExportHandle",
+    "BudgetExceeded",
+    "spend",
 ]
 
 

@@ -24,6 +24,7 @@ dependencies = [
     # Needs the vibe_widget.tracing hook (checked at import; see recorder.py).
     "vibe_widget>=0.3.3",
     "pandas>=2.0.0",
+    "requests>=2.32.0",
 ]
 
 [project.urls]

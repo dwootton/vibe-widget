@@ -198,6 +198,22 @@ widget.usage
 Loading a cached widget makes no request, so the counts stay at zero until something calls the
 model. With no API key set there is no provider at all, and `widget.usage` is an empty dict.
 
+`vw.spend()` totals the dollar cost of every request in the session. OpenRouter reports the cost of
+each request; requests to hosts that don't report one are counted as `unpriced_requests`.
+
+```python
+vw.config(budget_usd=2)   # stop sending requests once $2 has been spent
+vw.spend()
+# {'spent_usd': 0.0041, 'limit_usd': 2.0, 'remaining_usd': 1.9959, 'requests': 2, ...}
+vw.config(budget_usd=None)  # lift it
+```
+
+You get a warning at 80% of the budget. Once it is spent, the next request fails with a `budget`
+error before anything is sent; the request already in flight can take the total slightly past the
+limit. The budget is a guard in your own session, so anyone who can edit the notebook can lift it.
+For a cap that holds regardless, use an API key with a credit limit (see
+[Research Studies](/docs/study)).
+
 ## Safety and permissions
 
 Generated code runs in the notebook page with the same privileges as the page. It can reach the DOM,
@@ -301,7 +317,7 @@ No API keys are written to disk. Generated widgets and audit reports are stored 
 
 A failed model call raises a `ProviderError` carrying a short explanation instead of the raw SDK
 exception. Each error names its kind, which is one of `auth`, `quota`, `not_found`, `rate_limit`,
-`connection`, `timeout`, `context_length` or `other`. A `quota` error means the key itself is valid
+`connection`, `timeout`, `context_length`, `budget` or `other`. A `quota` error means the key itself is valid
 but its spending limit is used up, which is worth separating from `auth`, because rotating a working
 key does not help. For `quota` and `not_found` the provider's own sentence is passed through, since
 it usually names the exact limit or model, and the raw response body is never included.

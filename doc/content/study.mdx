@@ -60,6 +60,7 @@ study.stop()
 | `code` | `artifact.code` | the full code of each version |
 | `errors` | `error.generation`, `error.runtime`, `error.edit` | error messages |
 | `schema` | `context.schema` | column names and dtypes |
+| `usage` | `usage.request` | model, tokens and dollar cost of each LLM request |
 | `interactions` *(planned)* | `interaction.*` | output changes, links between widgets |
 | `replay` *(planned)* | `replay.*` | an rrweb recording of the widget only |
 
@@ -78,6 +79,42 @@ before it is written.
 - **Consent per stream** *(planned)*. Collaborators see exactly which streams a study asks for,
   can turn optional ones off, and can leave and delete their data at any time.
 
+## Spend caps
+
+A study pays for its participants' LLM use, so it needs a ceiling. There are two layers, and a
+study should use both.
+
+**A budget in the study.** `study.start(budget_usd=5)` stops sending requests once $5 has been spent
+across *every* session in that trace folder. The spend is kept in a small `spend.json` next to the
+traces, so restarting the kernel doesn't reset it, and a later `start()` keeps the same budget.
+Participants get a warning at 80% and a clear message when it runs out. `study.budget()` shows
+where they stand. The ledger is kept even if the participant turns the `usage` stream off.
+
+```python
+study.start(budget_usd=5)
+study.budget()
+# {'budget_usd': 5, 'spent_usd': 0.0123, 'remaining_usd': 4.9877, 'this_session_usd': 0.0041, ...}
+```
+
+**A key with a credit limit.** The budget runs in the participant's notebook, so it is a guard,
+not a wall. For a hard cap, give each participant their own OpenRouter key with a credit limit.
+OpenRouter enforces it on its side and refuses requests once it is spent; Vibe Widget then tells the
+participant to ask the researcher. Creating keys needs an OpenRouter *management* key, which can
+manage keys but cannot make requests itself.
+
+```python
+from vibe_widget_study import keys
+
+k = keys.create_participant_key(MANAGEMENT_KEY, "P07 - cohort study", limit_usd=5)
+k["key"]                                   # send to the participant, once
+keys.get_key(MANAGEMENT_KEY, k["hash"])    # usage, limit, limit_remaining
+keys.set_key_limit(MANAGEMENT_KEY, k["hash"], 10)
+keys.disable_key(MANAGEMENT_KEY, k["hash"])  # revoke
+```
+
+With the default model (GPT-6 Luna), a widget costs roughly a fifth of a cent to generate, so $5
+covers a few thousand generations.
+
 ## For vis researchers *(planned)*
 
 A study is defined by a short manifest. The consent card collaborators see is generated from it,
@@ -89,6 +126,7 @@ contact: researcher@lab.edu
 irb: "2026-0412"
 retention_days: 365
 upload: batch            # or "review": participant approves each batch
+budget_usd: 5            # per participant; join() can also issue a capped key
 
 streams:
   intents:      { required: true }

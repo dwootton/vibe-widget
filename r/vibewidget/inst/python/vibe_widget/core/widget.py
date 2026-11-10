@@ -392,7 +392,7 @@ class VibeWidget(anywidget.AnyWidget):
             inherited_provenance.get("lineage_id") or base_widget_id or uuid.uuid4().hex
         )
         self._trace_version_id: str | None = compute_code_hash(base_code) if base_code else None
-        self._trace_last_generation_error = ""
+        self._last_generation_error = ""
         self._data_path = data_root
         self._pending_render_source = ""
 
@@ -827,6 +827,7 @@ class VibeWidget(anywidget.AnyWidget):
         def handle_complete(widget_code: str) -> None:
             context = getattr(self, "_generation_context", {}) or {}
             self._append_log(f"Code generated: {len(widget_code)} characters")
+            self._last_generation_error = ""
 
             store = WidgetStore()
             widget_entry = store.save(
@@ -869,7 +870,7 @@ class VibeWidget(anywidget.AnyWidget):
         def handle_error(exc: Exception) -> None:
             self._set_status("error")
             error_msg = str(exc)
-            self._trace_last_generation_error = error_msg
+            self._last_generation_error = error_msg
             self._trace(
                 "error.generation",
                 {"kind": getattr(exc, "kind", None) or type(exc).__name__, "message": error_msg[:2000]},
@@ -1528,10 +1529,15 @@ class VibeWidget(anywidget.AnyWidget):
         """Called when frontend reports a runtime error."""
         error_msg = change["new"]
 
+        # A generation failure (no key, budget spent, network) also arrives here via
+        # handle_error; it was already logged and traced as such, so it is not a
+        # runtime error and there is nothing to repair.
+        if error_msg and error_msg == getattr(self, "_last_generation_error", ""):
+            return
+
         # Log error regardless of repair state
         if error_msg:
-            if error_msg != getattr(self, "_trace_last_generation_error", ""):
-                self._trace("error.runtime", {"message": str(error_msg)[:2000]})
+            self._trace("error.runtime", {"message": str(error_msg)[:2000]})
             logger.error("Frontend runtime error:\n%s", error_msg)
             self.last_runtime_error = error_msg
             preview = error_msg.split("\n")[0][:200]

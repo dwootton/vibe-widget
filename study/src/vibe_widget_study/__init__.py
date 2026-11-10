@@ -29,6 +29,7 @@ __all__ = [
     "TraceEvent",
     "TraceRecorder",
     "TraceSink",
+    "budget",
     "events",
     "recorder",
     "start",
@@ -42,18 +43,21 @@ def start(
     trace_dir: str | Path | None = None,
     *,
     streams: Iterable[str] | None = None,
+    budget_usd: float | None = None,
 ) -> Path:
     """Start recording intent artifact traces locally.
 
     Args:
         trace_dir: Where to write the log. Defaults to ``.vibewidget/traces``.
         streams: Which streams to record (``intents`` is always required).
-            Defaults to intents, code, errors and schema.
+            Defaults to intents, code, errors, schema and usage.
+        budget_usd: Stop LLM requests once this many dollars have been spent across
+            every session in ``trace_dir`` (remembered in ``spend.json``).
 
     Returns:
         Path of this session's JSONL log.
     """
-    return recorder.start(trace_dir, streams=streams)
+    return recorder.start(trace_dir, streams=streams, budget_usd=budget_usd)
 
 
 def stop() -> None:
@@ -64,6 +68,15 @@ def stop() -> None:
 def status() -> dict[str, Any]:
     """What is being recorded, for which session, and where."""
     return recorder.status()
+
+
+def budget() -> dict[str, Any]:
+    """The study budget: spent across sessions, the limit, and what remains."""
+    if recorder.budget is None:
+        from vibe_widget.budget import spend
+
+        return spend()
+    return recorder.budget.status()
 
 
 def events(all_sessions: bool = False, as_frame: bool = True) -> Any:

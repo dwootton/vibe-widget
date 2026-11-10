@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   versions with their parent and origin, errors, data schema). It does nothing unless the separate
   `vibe-widget-study` package (in `study/`) is installed and started.
 
+- `vw.config(budget_usd=...)` and `vw.spend()`: every LLM request's dollar cost (as reported by
+  OpenRouter) is totalled, and once the budget is spent the next request fails with a `budget`
+  error before it is sent. Warns at 80%.
+- An exhausted OpenRouter key credit limit (HTTP 402/403, `openrouter_key_limit`) is now a `quota`
+  error that says so, instead of a generic failure.
+
 ### Changed
 - The default OpenRouter model is now `openai/gpt-6-luna` (about 5x cheaper than
   `google/gemini-3-flash-preview`, which stays in the standard list).

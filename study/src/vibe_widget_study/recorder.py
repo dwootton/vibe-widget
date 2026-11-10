@@ -24,6 +24,7 @@ except ImportError as exc:  # a vibe_widget release from before the hook existed
     ) from exc
 from vibe_widget.utils.logging import get_logger
 from vibe_widget.utils.serialization import clean_for_json
+from vibe_widget_study.budget import StudyBudget, validate_budget
 from vibe_widget_study.events import DEFAULT_LOCAL_STREAMS, STREAMS, TraceEvent, stream_for_kind
 from vibe_widget_study.sinks import LocalSink, TraceSink, read_jsonl
 
@@ -57,6 +58,7 @@ class TraceRecorder:
         self.trace_dir: Path | None = None
         self._sinks: list[TraceSink] = []
         self._counts: dict[str, int] = {}
+        self.budget: StudyBudget | None = None
 
     # ------------------------------------------------------------------
     # Control
@@ -68,6 +70,7 @@ class TraceRecorder:
         *,
         streams: Iterable[str] | None = None,
         sinks: Iterable[TraceSink] = (),
+        budget_usd: float | None = None,
     ) -> Path:
         """Start recording to a local JSONL log (plus any extra sinks).
 
@@ -75,6 +78,9 @@ class TraceRecorder:
             trace_dir: Directory for the log. Defaults to ``.vibewidget/traces``.
             streams: Streams to record. Defaults to intents, code, errors, schema.
             sinks: Additional sinks that receive every recorded event.
+            budget_usd: Stop LLM requests once this much has been spent across every
+                session recorded in ``trace_dir``. Remembered in ``spend.json``, so a
+                later ``start()`` without it keeps the same budget.
 
         Returns:
             Path of this session's log file.
@@ -95,9 +101,14 @@ class TraceRecorder:
             except OSError:
                 pass
 
+        validate_budget(budget_usd)  # before anything else changes
         with self._lock:
             if self.enabled:
                 self._close_sinks()
+            if self.budget is not None:
+                self.budget.detach()
+            self.budget = StudyBudget(directory, self.session_id, budget_usd)
+            self.budget.attach()
             local = LocalSink(directory, self.session_id)
             self._sinks = [local, *sinks]
             self.trace_dir = directory
@@ -108,6 +119,7 @@ class TraceRecorder:
             "session.start",
             payload={
                 "streams": sorted(chosen),
+                "budget_usd": self.budget.budget_usd if self.budget else None,
                 "python": platform.python_version(),
                 "platform": sys.platform,
             },
@@ -122,6 +134,9 @@ class TraceRecorder:
         with self._lock:
             self.enabled = False
             self._close_sinks()
+            if self.budget is not None:
+                self.budget.detach()
+                self.budget = None
         if tracing.get_listener() == self._on_core_event:
             tracing.set_listener(None)
 

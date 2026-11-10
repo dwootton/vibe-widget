@@ -81,6 +81,16 @@ def _server_message(exc: Exception) -> str:
     return f"HTTP {status}" if status else str(exc)
 
 
+def _is_key_limit(exc: Exception) -> bool:
+    """True for OpenRouter's "this key's credit limit is exhausted" (HTTP 402 or 403)."""
+    body = getattr(exc, "body", None)
+    error = body.get("error") if isinstance(body, dict) else None
+    metadata = error.get("metadata") if isinstance(error, dict) else None
+    if isinstance(metadata, dict) and metadata.get("limit_source") == "openrouter_key_limit":
+        return True
+    return getattr(exc, "status_code", None) == 402
+
+
 def _is_context_length(exc: Exception) -> bool:
     """True when a 400 says the prompt exceeded the model's context window."""
     body = getattr(exc, "body", None)
@@ -169,6 +179,12 @@ class OpenAICompatProvider(LLMProvider):
         """Translate an openai SDK exception into a ProviderError with a fix hint."""
         if _is_context_length(exc):
             return ProviderError(self._message_for("context_length"), "context_length")
+        if _is_key_limit(exc):
+            return ProviderError(
+                f"The credit limit on this {self.host} API key is used up. If a study "
+                "researcher gave you the key, ask them to raise its limit.",
+                "quota",
+            )
         for exc_type, kind in _ERROR_KINDS:
             if isinstance(exc, exc_type):
                 # A 403 says what the limit is and where to manage it; nothing to add.
@@ -214,8 +230,19 @@ class OpenAICompatProvider(LLMProvider):
     def _record_usage(self, usage: Any) -> None:
         if usage is None:
             return
-        self.usage["prompt_tokens"] += int(getattr(usage, "prompt_tokens", 0) or 0)
-        self.usage["completion_tokens"] += int(getattr(usage, "completion_tokens", 0) or 0)
+        prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+        completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+        self.usage["prompt_tokens"] += prompt_tokens
+        self.usage["completion_tokens"] += completion_tokens
+        from vibe_widget.budget import cost_from_usage, ledger
+
+        ledger.record(
+            model=self.model,
+            host=self.host,
+            cost_usd=cost_from_usage(usage),
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+        )
 
     def _stream_iter(self, stream: Any) -> Iterator[Any]:
         try:
@@ -238,6 +265,10 @@ class OpenAICompatProvider(LLMProvider):
         """Call the chat completions API, adapting to parameters the host rejects."""
         if stream:
             params = dict(params, stream=True, stream_options={"include_usage": True})
+
+        from vibe_widget.budget import ledger
+
+        ledger.check()  # raises BudgetExceeded before anything is sent
 
         for _ in range(_MAX_PARAM_RETRIES):
             attempt = self._apply_param_fixes(dict(params))

@@ -15,10 +15,14 @@ from typing import Any
 
 SCHEMA_VERSION = 1
 
-STREAMS: tuple[str, ...] = ("intents", "code", "errors", "schema", "interactions", "replay")
+STREAMS: tuple[str, ...] = (
+    "intents", "code", "errors", "schema", "usage", "interactions", "replay",
+)
 """Collection streams, in the order a consent card lists them."""
 
-DEFAULT_LOCAL_STREAMS: frozenset[str] = frozenset({"intents", "code", "errors", "schema"})
+DEFAULT_LOCAL_STREAMS: frozenset[str] = frozenset(
+    {"intents", "code", "errors", "schema", "usage"}
+)
 """Streams recorded locally unless the caller asks for others."""
 
 _KIND_PREFIX_STREAMS: tuple[tuple[str, str], ...] = (
@@ -29,6 +33,7 @@ _KIND_PREFIX_STREAMS: tuple[tuple[str, str], ...] = (
     ("artifact.code", "code"),
     ("error.", "errors"),
     ("context.schema", "schema"),
+    ("usage.", "usage"),
     ("interaction.", "interactions"),
     ("replay.", "replay"),
 )
