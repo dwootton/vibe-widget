@@ -5,7 +5,6 @@ from __future__ import annotations
 import warnings
 from types import SimpleNamespace
 
-import httpx
 import openai
 import pytest
 
@@ -129,11 +128,13 @@ def test_invalid_budgets_are_rejected(bad):
 
 
 def test_exhausted_key_limit_is_a_quota_error():
-    request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
     body = {"error": {"message": "Key limit exceeded", "metadata": {"limit_source": "openrouter_key_limit"}}}
-    error = openai.APIStatusError(
-        "Key limit exceeded", response=httpx.Response(402, request=request), body=body
-    )
+    # Built without a response object: openai 1-2 want an httpx.Response, openai 3 an
+    # httpx2.Response, and the provider only reads status_code and body.
+    error = openai.APIStatusError.__new__(openai.APIStatusError)
+    Exception.__init__(error, "Key limit exceeded")
+    error.status_code = 402
+    error.body = body
     provider = provider_with(StubCompletions(error=error))
     with pytest.raises(Exception) as info:
         ask(provider)
