@@ -1,4 +1,4 @@
-import{j as e}from"./index-CkRJxMr7.js";import{D as i}from"./DocMdxPage-BHZwN-Z3.js";import"./DocContent-DGIgVrr-.js";const s={title:"Load & Save",description:"Store widgets on disk, share them through git, and reload them later."};function d(n){const t={code:"code",h2:"h2",p:"p",pre:"pre",...n.components},{WidgetPreview:o}=t;return o||a("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(t.p,{children:`A widget can be written to a single portable file, and generated code is also kept in your project
+import{j as e}from"./index-DDyk0SUH.js";import{D as i}from"./DocMdxPage-DYukeyix.js";import"./DocContent-KKmJNYY6.js";const s={title:"Load & Save",description:"Store widgets on disk, share them through git, and reload them later."};function d(n){const t={code:"code",h2:"h2",p:"p",pre:"pre",...n.components},{WidgetPreview:o}=t;return o||a("WidgetPreview"),e.jsxs(e.Fragment,{children:[e.jsx(t.p,{children:`A widget can be written to a single portable file, and generated code is also kept in your project
 so that a later call reuses it. Both let you come back to a widget without paying for another model
 call.`}),`
 `,e.jsx(t.h2,{children:"Save a widget"}),`
