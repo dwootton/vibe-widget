@@ -159,3 +159,66 @@ test("an undeclared set stays in the widget and never reaches Python", () => {
     console.warn = realWarn;
   }
 });
+
+// Python function inputs: model.call sends call_function and resolves on function_result.
+// anywidget delivers custom messages as handler(content, buffers), with no model argument.
+function callModel(reply) {
+  const handlers = new Set();
+  const sent = [];
+  return {
+    sent,
+    get() {},
+    set() {},
+    save_changes() {},
+    on(name, fn) {
+      if (name === "msg:custom") handlers.add(fn);
+    },
+    off(name, fn) {
+      if (name === "msg:custom") handlers.delete(fn);
+    },
+    send(content) {
+      sent.push(content);
+      const answer = reply(content);
+      if (answer) queueMicrotask(() => handlers.forEach((fn) => fn(answer, [])));
+    },
+    get listeners() {
+      return handlers.size;
+    },
+  };
+}
+
+const fnContract = { inputs: ["run_erosion"], outputs: [], actions: [], functions: ["run_erosion"] };
+
+test("model.call runs a function input and resolves with its result", async () => {
+  const model = callModel((msg) => ({ type: "function_result", call_id: msg.call_id, ok: true, result: msg.args[0] * 2 }));
+  const facade = createModelFacade(model, fnContract);
+
+  assert.equal(await facade.call("run_erosion", 21), 42);
+  assert.equal(model.sent[0].type, "call_function");
+  assert.equal(model.sent[0].name, "run_erosion");
+  assert.deepEqual(model.sent[0].args, [21]);
+  assert.equal(model.listeners, 0, "the reply listener is removed");
+});
+
+test("model.call ignores replies to other calls and rejects with the Python error", async () => {
+  const model = callModel((msg) => ({ type: "function_result", call_id: msg.call_id, ok: false, error: "ValueError: bad terrain" }));
+  const facade = createModelFacade(model, fnContract);
+  model.on("msg:custom", () => {});
+  await assert.rejects(facade.call("run_erosion", 1), /ValueError: bad terrain/);
+});
+
+test("model.call refuses names that are not function inputs", async () => {
+  const model = callModel(() => null);
+  const facade = createModelFacade(model, fnContract);
+  await assert.rejects(facade.call("os_system", "ls"), /'os_system' is not a function input/);
+  assert.equal(model.sent.length, 0, "nothing is sent to Python");
+  const legacy = createModelFacade(model, null);
+  await assert.rejects(legacy.call("run_erosion"), /not a function input/);
+});
+
+test("model.call times out when Python never answers", async () => {
+  const model = callModel(() => null);
+  const facade = createModelFacade(model, fnContract, { callTimeoutMs: 20 });
+  await assert.rejects(facade.call("run_erosion", 1), /did not answer within/);
+  assert.equal(model.listeners, 0);
+});

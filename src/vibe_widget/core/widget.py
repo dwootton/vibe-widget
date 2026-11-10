@@ -10,6 +10,7 @@ import os
 import sys
 import threading
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
+from vibe_widget import tracing as _tracing
 from vibe_widget.api import (
     ActionBundle,
     ExportHandle,
@@ -51,6 +53,13 @@ from vibe_widget.services.theme import ThemeService
 from vibe_widget.themes import Theme, clear_theme_cache
 from vibe_widget.utils.audit_store import AuditStore, compute_code_hash
 from vibe_widget.utils.code_parser import CodeStreamParser, RevisionStreamParser
+from vibe_widget.utils.function_inputs import (
+    CALL_MESSAGE,
+    function_descriptor,
+    function_summary,
+    is_function_input,
+    run_function_call,
+)
 from vibe_widget.utils.logging import get_logger
 from vibe_widget.utils.util import (
     clean_for_json,
@@ -285,6 +294,11 @@ class VibeWidget(anywidget.AnyWidget):
         for export_name in exports.keys():
             init_values[export_name] = None
         for import_name, import_source in imports.items():
+            if is_function_input(import_source):
+                # The function stays in the kernel; the widget gets a descriptor and
+                # calls it through model.call(...).
+                init_values[import_name] = function_descriptor(import_name, import_source)
+                continue
             initial_value = initial_import_value(import_name, import_source)
             init_values[import_name] = prepare_input_for_widget(
                 initial_value,
@@ -358,6 +372,9 @@ class VibeWidget(anywidget.AnyWidget):
         self.description = description
         self._exports = exports or {}
         self._imports = imports or {}
+        self._functions = {
+            name: value for name, value in self._imports.items() if is_function_input(value)
+        }
         self._actions = kwargs.pop("actions", None) or {}
         self._action_params = kwargs.pop("action_params", None) or {}
         self._input_summaries = kwargs.pop("input_summaries", None)
@@ -383,6 +400,14 @@ class VibeWidget(anywidget.AnyWidget):
         self._last_logged_runtime_error = ""
         self._widget_metadata: dict[str, Any] | None = None
         self._prompt_history = list((existing_metadata or {}).get("prompt_history") or [])
+        # Trace lineage: one id per chain of revisions. Edits and loads inherit it
+        # from the saved provenance; older sidecars fall back to the base key.
+        inherited_provenance = (existing_metadata or {}).get("provenance") or {}
+        self._trace_lineage_id: str = (
+            inherited_provenance.get("lineage_id") or base_widget_id or uuid.uuid4().hex
+        )
+        self._trace_version_id: str | None = compute_code_hash(base_code) if base_code else None
+        self._last_generation_error = ""
         self._data_path = data_root
         self._pending_render_source = ""
 
@@ -434,6 +459,7 @@ class VibeWidget(anywidget.AnyWidget):
                 "inputs": list(self._imports.keys()),
                 "outputs": list(self._exports.keys()),
                 "actions": list(self._actions.keys()),
+                "functions": list(self._functions.keys()),
             },
             **kwargs
         )
@@ -456,7 +482,7 @@ class VibeWidget(anywidget.AnyWidget):
         self.data_info: dict = {}
 
         if existing_code is None:
-            self._append_prompt_history(description, source="create")
+            self._append_prompt_history(description, source="edit" if base_code else "create")
 
         if display_widget:
             _display_widget(self)
@@ -493,9 +519,22 @@ class VibeWidget(anywidget.AnyWidget):
                 except Exception:
                     inputs_for_prompt["data"] = "<data>"
 
+            self._trace(
+                "context.contract",
+                {
+                    "outputs": dict(self._exports),
+                    "inputs": sorted(self._imports.keys()),
+                    "actions": sorted(self._actions.keys()),
+                    "theme": self._theme.name if self._theme else None,
+                    "model": resolved_model,
+                    "base_version_id": self._trace_version_id,
+                },
+            )
+            self._trace("context.schema", {"data": build_data_signature(df)})
+
             if existing_code is not None:
                 self._append_log("Reusing existing widget code")
-                self._apply_code(existing_code)
+                self._apply_code(existing_code, origin="existing")
                 self._set_status("ready")
                 self.description = description
                 self._widget_metadata = existing_metadata or {}
@@ -573,7 +612,7 @@ class VibeWidget(anywidget.AnyWidget):
                     f"  Created: {cached_widget['created_at'][:10]}",
                 ])
                 widget_code = store.load_widget_code(cached_widget)
-                self._apply_code(widget_code)
+                self._apply_code(widget_code, origin="cache")
                 self._set_status("ready")
                 self.description = description
                 self._widget_metadata = cached_widget
@@ -804,6 +843,7 @@ class VibeWidget(anywidget.AnyWidget):
         def handle_complete(widget_code: str) -> None:
             context = getattr(self, "_generation_context", {}) or {}
             self._append_log(f"Code generated: {len(widget_code)} characters")
+            self._last_generation_error = ""
 
             store = WidgetStore()
             widget_entry = store.save(
@@ -829,7 +869,7 @@ class VibeWidget(anywidget.AnyWidget):
                 f"Widget saved: {widget_entry.get('var_name', 'widget')}",
                 f"Location: .vibewidget/widgets/{widget_entry['file_name']}",
             ])
-            self._apply_code(widget_code)
+            self._apply_code(widget_code, origin="generated")
             self._set_status("ready")
             self.description = description
             widget_entry["prompt_history"] = list(self._prompt_history or [])
@@ -846,6 +886,11 @@ class VibeWidget(anywidget.AnyWidget):
         def handle_error(exc: Exception) -> None:
             self._set_status("error")
             error_msg = str(exc)
+            self._last_generation_error = error_msg
+            self._trace(
+                "error.generation",
+                {"kind": getattr(exc, "kind", None) or type(exc).__name__, "message": error_msg[:2000]},
+            )
             # Store the error message so repair flow can access it
             self.error_message = error_msg
 
@@ -968,7 +1013,27 @@ class VibeWidget(anywidget.AnyWidget):
             if provider is not None
             else getattr(config, "temperature", None),
             "provider_usage": self.usage,
+            "lineage_id": getattr(self, "_trace_lineage_id", None),
         }
+
+    def _trace(
+        self,
+        kind: str,
+        payload: dict[str, Any] | None = None,
+        *,
+        version_id: str | None = None,
+        parent_version_id: str | None = None,
+    ) -> None:
+        """Announce a trace event for this widget's lineage (no-op unless a study is recording)."""
+        if not _tracing.is_active():
+            return
+        _tracing.emit(
+            kind,
+            payload=payload,
+            lineage_id=getattr(self, "_trace_lineage_id", None),
+            version_id=version_id or getattr(self, "_trace_version_id", None),
+            parent_version_id=parent_version_id,
+        )
 
     @property
     def audit_status(self) -> str:
@@ -1338,14 +1403,19 @@ class VibeWidget(anywidget.AnyWidget):
             self._handle_audit_apply_request(apply_request)
 
     def _handle_custom_msg(self, *args) -> None:
-        """Handle the save_widget message; every other message type is ignored."""
+        """Handle save_widget and call_function messages; every other type is ignored."""
         if len(args) == 3:
             _, content, _buffers = args
         elif len(args) == 2:
             content, _buffers = args
         else:
             return
-        if not isinstance(content, dict) or content.get("type") != "save_widget":
+        if not isinstance(content, dict):
+            return
+        if content.get("type") == CALL_MESSAGE:
+            self.send(run_function_call(getattr(self, "_functions", {}) or {}, content))
+            return
+        if content.get("type") != "save_widget":
             return
 
         request_id = content.get("request_id")
@@ -1464,7 +1534,7 @@ class VibeWidget(anywidget.AnyWidget):
                 revision_request=revision_request,
                 data_info=self.data_info,
             )
-            self._apply_code(revised_code)
+            self._apply_code(revised_code, origin="audit_apply")
             self._set_status("ready")
             self.audit_apply_status = "idle"
             self.audit_apply_response = {"success": True, "applied": len(changes)}
@@ -1480,8 +1550,15 @@ class VibeWidget(anywidget.AnyWidget):
         """Called when frontend reports a runtime error."""
         error_msg = change["new"]
 
+        # A generation failure (no key, budget spent, network) also arrives here via
+        # handle_error; it was already logged and traced as such, so it is not a
+        # runtime error and there is nothing to repair.
+        if error_msg and error_msg == getattr(self, "_last_generation_error", ""):
+            return
+
         # Log error regardless of repair state
         if error_msg:
+            self._trace("error.runtime", {"message": str(error_msg)[:2000]})
             logger.error("Frontend runtime error:\n%s", error_msg)
             self.last_runtime_error = error_msg
             preview = error_msg.split("\n")[0][:200]
@@ -1553,7 +1630,7 @@ class VibeWidget(anywidget.AnyWidget):
 
             if result.applied:
                 previous_code = self.code
-                if self._apply_code(result.code):
+                if self._apply_code(result.code, origin="autofix"):
                     self._append_log("Code fixed, retrying")
                     self._set_status("ready")
                     # Clear error state so the frontend renders the widget. The
@@ -1565,7 +1642,7 @@ class VibeWidget(anywidget.AnyWidget):
                 elif self._pending_render_source:
                     self._append_log(self._unrendered_reason())
                 else:
-                    self._apply_code(previous_code)
+                    self._apply_code(previous_code, origin="rollback")
                     self._append_log("Repair rolled back: the fixed code did not bundle")
                 return
 
@@ -1612,6 +1689,7 @@ class VibeWidget(anywidget.AnyWidget):
         history.append(entry)
         self._prompt_history = history
         self._sync_prompt_history_metadata()
+        self._trace(f"intent.{source}", {"prompt": cleaned, "meta": entry.get("meta") or {}})
 
     def _sync_prompt_history_metadata(self) -> None:
         if self._widget_metadata is None:
@@ -1863,7 +1941,7 @@ class VibeWidget(anywidget.AnyWidget):
                 progress_callback=progress_callback,
             )
 
-            self._apply_code(revised_code)
+            self._apply_code(revised_code, origin="grab_edit")
             self._set_status("ready")
             self._append_log("✓ Edit applied")
 
@@ -1903,12 +1981,14 @@ class VibeWidget(anywidget.AnyWidget):
 
         except Exception as e:
             if "cancelled" in str(e).lower():
-                self._apply_code(old_code)
+                self._apply_code(old_code, origin="cancel_restore")
                 self._set_status("ready")
                 self._append_log("✗ Edit cancelled")
+                self._trace("intent.cancel", {"during": "grab_edit"})
             else:
                 self._set_status("error")
                 self._append_log(f"✘ Edit failed: {str(e)}")
+                self._trace("error.edit", {"message": str(e)[:2000]})
 
         self.grab_edit_request = {}
 
@@ -2016,7 +2096,7 @@ class VibeWidget(anywidget.AnyWidget):
                 progress_callback=None,
             )
             if result.applied:
-                bundle_success = self._apply_code(result.code)
+                bundle_success = self._apply_code(result.code, origin="repair_prompt")
                 if bundle_success:
                     self.error_message = ""
                     self.widget_error = ""
@@ -2070,6 +2150,9 @@ Find this element in the code and apply the requested change. The element should
 
     def _on_code_change(self, change):
         """Reset approval when code changes unless it matches an approved hash."""
+        if not getattr(self, "_trace_applying", False):
+            # Code set directly (the frontend code editor, or `widget.code = ...`).
+            self._trace_code_version(change.get("new") or "", "manual_edit", None)
         if self.execution_mode != "approve":
             if not self.execution_approved:
                 self.execution_approved = True
@@ -2092,6 +2175,7 @@ Find this element in the code and apply the requested change. The element should
         if not new_state.get("approved"):
             return
         if not old_state.get("approved"):
+            self._trace("intent.approve", {"mode": new_state.get("mode")})
             self._refresh_render_code(self._pending_render_source or self.code or "")
         current_hash = compute_code_hash(self.code or "")
         if new_state.get("approved_hash") == current_hash:
@@ -2166,13 +2250,47 @@ Find this element in the code and apply the requested change. The element should
             return "Fix applied; approve the new code to run it"
         return "Fix applied but bundling failed"
 
-    def _apply_code(self, source: str) -> bool:
+    def _apply_code(self, source: str, origin: str = "unknown") -> bool:
         """Set source + render code together.
+
+        Args:
+            source: Widget code.
+            origin: Where the code came from, for the study trace (``generated``,
+                ``cache``, ``existing``, ``grab_edit``, ``autofix``, ...).
 
         Returns True if bundling succeeded, False otherwise.
         """
-        self.code = source
-        return self._refresh_render_code(source)
+        self._trace_applying = True
+        try:
+            self.code = source
+        finally:
+            self._trace_applying = False
+        bundled = self._refresh_render_code(source)
+        self._trace_code_version(source, origin, bundled)
+        return bundled
+
+    def _trace_code_version(self, source: str, origin: str, bundled: bool | None) -> None:
+        """Record a new artifact version when the code actually changed."""
+        version = compute_code_hash(source or "")
+        parent = getattr(self, "_trace_version_id", None)
+        if version == parent:
+            return
+        self._trace_version_id = version
+        if not _tracing.is_active():
+            return
+        text = source or ""
+        self._trace(
+            "artifact.version",
+            {
+                "origin": origin,
+                "chars": len(text),
+                "lines": text.count("\n") + 1 if text else 0,
+                "bundled": bundled,
+            },
+            version_id=version,
+            parent_version_id=parent,
+        )
+        self._trace("artifact.code", {"code": text}, version_id=version)
 
 
 
@@ -2205,6 +2323,10 @@ def _serialize_inputs(widget: VibeWidget) -> dict[str, Any]:
         if isinstance(value, ExportHandle) or getattr(value, "__vibe_export__", False):
             values[name] = {"type": "export_handle", "name": getattr(value, "name", name)}
             continue
+        if is_function_input(value):
+            # Code is not bundled; pass the function again through inputs= on load.
+            values[name] = {"type": "function", **function_descriptor(name, value)}
+            continue
         try:
             values[name] = clean_for_json(value)
         except Exception:
@@ -2219,6 +2341,9 @@ def _summarize_inputs_for_prompt(imports: dict[str, Any] | None) -> dict[str, st
         return {}
     summaries: dict[str, str] = {}
     for name, value in imports.items():
+        if is_function_input(value):
+            summaries[name] = function_summary(value)
+            continue
         try:
             resolved = initial_import_value(name, value)
             summaries[name] = summarize_for_prompt(resolved)
@@ -2233,6 +2358,8 @@ def _link_imports(widget: VibeWidget, imports: dict[str, Any] | None) -> None:
         return
 
     for import_name, import_source in imports.items():
+        if is_function_input(import_source):
+            continue  # called through model.call, never linked as a trait
         source_widget, source_trait = _resolve_import_source(import_name, import_source)
         if source_widget and source_trait:
             if isinstance(source_widget, VibeWidget) and source_trait in getattr(source_widget, "_exports", {}):

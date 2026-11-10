@@ -13,6 +13,8 @@ PROVIDER_ERROR_KINDS = (
     "connection",
     "timeout",
     "context_length",
+    # vw.config(budget_usd=...) is spent; raised before the request is sent.
+    "budget",
     "other",
 )
 

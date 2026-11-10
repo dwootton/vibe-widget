@@ -1,0 +1,160 @@
+export const frontmatter = {
+  title: 'Research Studies',
+  description: 'Record intent artifact traces from Vibe Widget so vis researchers can study how domain experts build visualizations with AI.'
+};
+
+<Warning title="Planning a study? Please reach out first.">
+
+The study tools are an early research preview and still changing. Before you run a study with
+Vibe Widget, email us at [dwootton@mit.edu](mailto:dwootton@mit.edu). We'll help you set it up
+and let you know about changes that could affect your data.
+
+</Warning>
+
+Vis researchers want to know how people actually author visualizations with AI: what they ask
+for, what the model gives back, which edits they make, and where things break. Vibe Widget sits
+right at that moment, inside a domain expert's own notebook, so it can record an **intent
+artifact trace** for every widget: each request paired with the code it produced.
+
+`vibe-widget-study` is a separate, opt-in package for running those studies. A vis researcher
+sets up a study, sends a domain collaborator a join code, and the collaborator keeps working in
+their notebook as usual.
+
+<StudyLoopDiagram />
+
+> **Preview.** Local recording works today. Study manifests, consent cards and upload to a
+> researcher's store are in progress; those parts are marked *planned* below.
+
+## What a trace looks like
+
+A trace is one widget's **lineage**: every revision of it, from the first prompt onward.
+Intents (what the person asked for) alternate with artifacts (the code version each one
+produced), and errors land where they happened.
+
+<TraceLineage />
+
+- Every event in a lineage shares a `lineage_id`. It is saved with the widget, so the chain
+  survives `widget.edit(...)`, `vw.load(...)`, and restarting the kernel.
+- Every code version has a `version_id` and a `parent_version_id`, so a lineage is a tree you can
+  walk: which request led to which code, which fix followed which error.
+- Each version records its `origin`: `generated`, `cache`, `grab_edit`, `autofix`,
+  `manual_edit` (someone typed in the code editor), and so on.
+
+## Try it
+
+The study package is installed separately from Vibe Widget, so research code never ships to
+people who didn't ask for it.
+
+<InstallCommand command={"pip install \"git+https://github.com/dwootton/vibe-widget#subdirectory=study\""} />
+
+```python
+import vibe_widget as vw
+import vibe_widget_study as study   # also available as vw.study once installed
+
+study.start()                       # writes .vibewidget/traces/<session>.jsonl
+w = vw.create("scatter of dose vs response", df)
+w.edit("color the points by cohort")
+
+trace = study.events()              # one row per event
+trace.groupby("lineage_id")["kind"].apply(list)
+study.stop()
+```
+
+## What is recorded
+
+| Stream | Events | Contains |
+|---|---|---|
+| `intents` (required) | `intent.create`, `intent.edit`, `intent.grab_edit`, `intent.state_prompt`, `intent.approve`, `intent.cancel`, `artifact.version`, `context.contract` | prompts, the element a grab-edit pointed at, version origin and size, declared outputs |
+| `code` | `artifact.code` | the full code of each version |
+| `errors` | `error.generation`, `error.runtime`, `error.edit` | error messages |
+| `schema` | `context.schema` | column names and dtypes |
+| `usage` | `usage.request` | model, tokens and dollar cost of each LLM request |
+| `interactions` *(planned)* | `interaction.*` | output changes, links between widgets |
+| `replay` *(planned)* | `replay.*` | an rrweb recording of the widget only |
+
+Pick streams with `study.start(streams=["intents", "errors"])`. Anything outside them is dropped
+before it is written.
+
+## Privacy by design
+
+- **Off unless asked.** Core Vibe Widget only *announces* events through an empty hook. Nothing is
+  recorded unless `vibe-widget-study` is installed and `start()` is called.
+- **Local first.** Events are written to the collaborator's own disk, in plain JSON lines they can
+  read. The traces folder carries its own `.gitignore`, so prompts and code don't get committed
+  by accident.
+- **No data values.** The schema stream holds column names and types, never rows. Prompts can
+  still mention values, which is why upload will support a review-before-send mode.
+- **Consent per stream** *(planned)*. Collaborators see exactly which streams a study asks for,
+  can turn optional ones off, and can leave and delete their data at any time.
+
+## Spend caps
+
+A study pays for its participants' LLM use, so it needs a ceiling. There are two layers, and a
+study should use both.
+
+**A budget in the study.** `study.start(budget_usd=5)` stops sending requests once $5 has been spent
+across *every* session in that trace folder. The spend is kept in a small `spend.json` next to the
+traces, so restarting the kernel doesn't reset it, and a later `start()` keeps the same budget.
+Participants get a warning at 80% and a clear message when it runs out. `study.budget()` shows
+where they stand. The ledger is kept even if the participant turns the `usage` stream off.
+
+```python
+study.start(budget_usd=5)
+study.budget()
+# {'budget_usd': 5, 'spent_usd': 0.0123, 'remaining_usd': 4.9877, 'this_session_usd': 0.0041, ...}
+```
+
+**A key with a credit limit.** The budget runs in the participant's notebook, so it is a guard,
+not a wall. For a hard cap, give each participant their own OpenRouter key with a credit limit.
+OpenRouter enforces it on its side and refuses requests once it is spent; Vibe Widget then tells the
+participant to ask the researcher. Creating keys needs an OpenRouter *management* key, which can
+manage keys but cannot make requests itself.
+
+```python
+from vibe_widget_study import keys
+
+k = keys.create_participant_key(MANAGEMENT_KEY, "P07 - cohort study", limit_usd=5)
+k["key"]                                   # send to the participant, once
+keys.get_key(MANAGEMENT_KEY, k["hash"])    # usage, limit, limit_remaining
+keys.set_key_limit(MANAGEMENT_KEY, k["hash"], 10)
+keys.disable_key(MANAGEMENT_KEY, k["hash"])  # revoke
+```
+
+With the default model (GPT-6 Luna), a widget costs roughly a fifth of a cent to generate, so $5
+covers a few thousand generations.
+
+## For vis researchers *(planned)*
+
+A study is defined by a short manifest. The consent card collaborators see is generated from it,
+and the server only accepts the streams each participant agreed to.
+
+```yaml
+study: Clinical cohort exploration
+contact: researcher@lab.edu
+irb: "2026-0412"
+retention_days: 365
+upload: batch            # or "review": participant approves each batch
+budget_usd: 5            # per participant; join() can also issue a capped key
+
+streams:
+  intents:      { required: true }
+  code:         { default: on }
+  schema:       { default: on }
+  interactions: { default: off }
+  replay:       { default: off, mask_inputs: true, canvas_fps: 2 }
+```
+
+The study store is the researcher's own Supabase project, set up from a template: tables,
+row-level security, and one ingest function. Collaborators then join from a notebook cell:
+
+```python
+import vibe_widget_study as study
+study.join("vws_7f3k-...")   # shows the consent card; nothing is sent before "Agree"
+```
+
+Replay will record only the widget itself, by mounting it in its own frame. Recording the whole
+notebook page would also capture other cells' data, which our prototype confirmed.
+
+See the [design notes](https://github.com/dwootton/vibe-widget/tree/main/design/study-traces) for
+the event schema and the replay prototype. If you'd like to run a study with it, email
+[dwootton@mit.edu](mailto:dwootton@mit.edu).

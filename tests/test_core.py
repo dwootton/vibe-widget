@@ -227,6 +227,7 @@ def test_contract_lists_inputs_outputs_and_actions(
         "inputs": ["threshold"],
         "outputs": ["selection"],
         "actions": ["reset"],
+        "functions": [],
     }
 
 
@@ -261,6 +262,7 @@ def test_vw_round_trip_preserves_outputs_inputs_and_actions(
         "inputs": ["threshold"],
         "outputs": ["selection"],
         "actions": ["reset"],
+        "functions": [],
     }
 
 

@@ -210,6 +210,14 @@ def _validate_settings(data_privacy: str, sample_rows: int, timeout: float) -> N
         raise ValueError("timeout must be a positive number of seconds")
 
 
+def _validate_budget(budget_usd: Any) -> None:
+    """Raise ValueError unless budget_usd is None or a positive number of dollars."""
+    if budget_usd is None:
+        return
+    if isinstance(budget_usd, bool) or not isinstance(budget_usd, (int, float)) or budget_usd <= 0:
+        raise ValueError("budget_usd must be a positive number of dollars or None")
+
+
 def _api_key_from_env(base_url: Optional[str]) -> Optional[str]:
     """Resolve an API key from the environment for the configured endpoint."""
     return resolve_endpoint_from_env(base_url)[0]
@@ -331,6 +339,7 @@ class Config:
     agent_preset: str = "project"
     agent_run: Optional[dict[str, Any]] = None
     bypass_row_guard: bool = False
+    budget_usd: Optional[float] = None  # stop sending LLM requests once this much is spent
 
     def __repr__(self) -> str:
         return (
@@ -547,6 +556,7 @@ def config(
         >>> vw.config(bypass_row_guard=True)
         >>> vw.config(base_url="http://localhost:11434/v1", model="qwen2.5-coder")
         >>> vw.config(data_privacy="schema")
+        >>> vw.config(budget_usd=5)                 # stop at $5 of LLM spend; see vw.spend()
     """
     global _global_config
 
@@ -557,6 +567,8 @@ def config(
         raise TypeError(f"config() got an unexpected keyword argument {unknown[0]!r}")
 
     # Reject out-of-range values before anything is mutated.
+    if "budget_usd" in kwargs:
+        _validate_budget(kwargs["budget_usd"])
     _validate_settings(
         data_privacy if data_privacy is not None else getattr(_global_config, "data_privacy", "sample"),
         sample_rows if sample_rows is not None else getattr(_global_config, "sample_rows", 3),
@@ -656,6 +668,11 @@ def config(
             _global_config.__dict__.clear()
             _global_config.__dict__.update(snapshot)
             raise
+
+    if "budget_usd" in kwargs:
+        from vibe_widget.budget import ledger
+
+        ledger.set_limit(kwargs["budget_usd"])
 
     return _global_config
 

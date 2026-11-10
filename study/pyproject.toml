@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vibe-widget-study"
+version = "0.1.0"
+description = "Record intent artifact traces from Vibe Widget for vis research studies"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Dylan Wootton" },
+    { name = "Ryan Yen" },
+]
+keywords = ["visualization", "research", "provenance", "jupyter", "vibe-widget"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    # Needs the vibe_widget.tracing hook (checked at import; see recorder.py).
+    "vibe_widget>=0.3.3",
+    "pandas>=2.0.0",
+    "requests>=2.32.0",
+]
+
+[project.urls]
+Homepage = "https://vibewidget.dev/docs/study"
+Repository = "https://github.com/dwootton/vibe-widget"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vibe_widget_study"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["unit: Fast unit tests (no LLM, no network)"]

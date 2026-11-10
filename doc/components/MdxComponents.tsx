@@ -4,6 +4,7 @@ import MediaPlaceholder from './MediaPlaceholder';
 import InstallCommand from './InstallCommand';
 import ExampleNotebook from './ExampleNotebook';
 import WidgetPreview from './WidgetPreview';
+import { StudyLoopDiagram, TraceLineage } from './StudyDiagrams';
 
 const MdxPre = ({ children }: { children?: React.ReactNode }) => {
   if (!children || !React.isValidElement(children)) {
@@ -18,12 +19,26 @@ const MdxPre = ({ children }: { children?: React.ReactNode }) => {
   return <CodeBlock code={code} language={language} />;
 };
 
+/** Yellow call-out for things a reader must see before going further. */
+const Warning = ({ title, children }: { title?: string; children?: React.ReactNode }) => (
+  <aside
+    role="note"
+    className="not-prose my-6 rounded-md border border-amber-300 border-l-4 border-l-amber-500 bg-amber-50 px-5 py-4 text-amber-950"
+  >
+    {title && <p className="m-0 mb-1 font-semibold">{title}</p>}
+    <div className="text-[0.95rem] leading-relaxed [&_a]:font-semibold [&_a]:underline [&_p]:m-0">{children}</div>
+  </aside>
+);
+
 const mdxComponents = {
   pre: MdxPre,
+  Warning,
   MediaPlaceholder,
   InstallCommand,
   ExampleNotebook,
   WidgetPreview,
+  StudyLoopDiagram,
+  TraceLineage,
 };
 
 export default mdxComponents;

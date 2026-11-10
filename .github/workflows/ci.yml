@@ -28,6 +28,10 @@ jobs:
         run: ruff check
       - name: Test
         run: pytest tests --no-cov -q
+      - name: Test the study package
+        run: |
+          pip install -e study
+          pytest study/tests -q
 
   ui:
     runs-on: ubuntu-latest
