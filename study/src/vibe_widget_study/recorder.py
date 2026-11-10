@@ -15,7 +15,13 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from vibe_widget import tracing
+try:
+    from vibe_widget import tracing
+except ImportError as exc:  # a vibe_widget release from before the hook existed
+    raise ImportError(
+        "vibe-widget-study needs a vibe_widget with the tracing hook "
+        "(vibe_widget.tracing); upgrade vibe_widget."
+    ) from exc
 from vibe_widget.utils.logging import get_logger
 from vibe_widget.utils.serialization import clean_for_json
 from vibe_widget_study.events import DEFAULT_LOCAL_STREAMS, STREAMS, TraceEvent, stream_for_kind

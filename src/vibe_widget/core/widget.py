@@ -466,7 +466,7 @@ class VibeWidget(anywidget.AnyWidget):
         self.data_info: dict = {}
 
         if existing_code is None:
-            self._append_prompt_history(description, source="create")
+            self._append_prompt_history(description, source="edit" if base_code else "create")
 
         if display_widget:
             _display_widget(self)

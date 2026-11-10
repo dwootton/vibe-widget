@@ -21,8 +21,8 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    # Needs the vibe_widget.tracing hook, first shipped after 0.3.3.
-    "vibe_widget>0.3.3",
+    # Needs the vibe_widget.tracing hook (checked at import; see recorder.py).
+    "vibe_widget>=0.3.3",
     "pandas>=2.0.0",
 ]
 

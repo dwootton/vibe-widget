@@ -27,7 +27,7 @@ study.stop()
 
 | Stream | Events | Default |
 |---|---|---|
-| `intents` (required) | `intent.create`, `intent.grab_edit`, `intent.state_prompt`, `intent.approve`, `intent.cancel`, `context.contract`, `artifact.version` | on |
+| `intents` (required) | `intent.create`, `intent.edit`, `intent.grab_edit`, `intent.state_prompt`, `intent.approve`, `intent.cancel`, `context.contract`, `artifact.version` | on |
 | `code` | `artifact.code` (full generated code per version) | on |
 | `errors` | `error.generation`, `error.runtime`, `error.edit` | on |
 | `schema` | `context.schema` (column names and dtypes, never values) | on |

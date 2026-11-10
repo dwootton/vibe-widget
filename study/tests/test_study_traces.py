@@ -154,7 +154,7 @@ def test_edit_continues_the_lineage(recording, monkeypatch):
     edited = base.edit("add tooltip", display=False, cache=False)
     edited_widget = getattr(edited, "_widget", edited)
 
-    intent = next(e for e in _for(recording, base) if e["kind"] == "intent.create")
+    intent = next(e for e in _for(recording, base) if e["kind"] == "intent.edit")
     version = next(e for e in _for(recording, base) if e["kind"] == "artifact.version")
     assert intent["payload"]["prompt"] == "add tooltip"
     assert intent["lineage_id"] == base._trace_lineage_id
