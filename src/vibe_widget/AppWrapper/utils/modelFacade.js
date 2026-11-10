@@ -46,8 +46,14 @@ export function isUsableContract(contract) {
   );
 }
 
-export function createModelFacade(model, rawContract) {
+// A Python function call that has not answered by then is reported as failed.
+export const FUNCTION_CALL_TIMEOUT_MS = 5 * 60 * 1000;
+
+let callCounter = 0;
+
+export function createModelFacade(model, rawContract, { callTimeoutMs = FUNCTION_CALL_TIMEOUT_MS } = {}) {
   const contract = isUsableContract(rawContract) ? rawContract : null;
+  const functionNames = new Set(contract ? asList(contract.functions) : []);
   let canRead;
   let canWrite;
 
@@ -128,6 +134,46 @@ export function createModelFacade(model, rawContract) {
       const wrapper = wrappers.get(handler) || handler;
       wrappers.delete(handler);
       return model.off(eventName, wrapper);
+    },
+    // Run a Python function input in the kernel: `await model.call("name", ...args)`.
+    // Resolves with the JSON-cleaned return value; rejects with the Python error.
+    call(name, ...args) {
+      if (!functionNames.has(name)) {
+        return Promise.reject(
+          new Error(`vibe_widget: '${name}' is not a function input of this widget`)
+        );
+      }
+      if (typeof model.send !== "function") {
+        return Promise.reject(new Error("vibe_widget: this host cannot call Python functions"));
+      }
+      callCounter += 1;
+      const callId = `call-${Date.now().toString(36)}-${callCounter}`;
+      return new Promise((resolve, reject) => {
+        let timer = null;
+        const onMessage = (msg) => {
+          if (!msg || msg.type !== "function_result" || msg.call_id !== callId) return;
+          cleanup();
+          if (msg.ok) resolve(msg.result);
+          else reject(new Error(msg.error || `vibe_widget: '${name}' failed`));
+        };
+        const cleanup = () => {
+          if (timer) clearTimeout(timer);
+          model.off("msg:custom", onMessage);
+        };
+        model.on("msg:custom", onMessage);
+        if (callTimeoutMs > 0) {
+          timer = setTimeout(() => {
+            cleanup();
+            reject(new Error(`vibe_widget: '${name}' did not answer within ${Math.round(callTimeoutMs / 1000)}s`));
+          }, callTimeoutMs);
+        }
+        try {
+          model.send({ type: "call_function", call_id: callId, name, args });
+        } catch (error) {
+          cleanup();
+          reject(error);
+        }
+      });
     },
   };
 

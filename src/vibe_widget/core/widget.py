@@ -53,6 +53,13 @@ from vibe_widget.services.theme import ThemeService
 from vibe_widget.themes import Theme, clear_theme_cache
 from vibe_widget.utils.audit_store import AuditStore, compute_code_hash
 from vibe_widget.utils.code_parser import CodeStreamParser, RevisionStreamParser
+from vibe_widget.utils.function_inputs import (
+    CALL_MESSAGE,
+    function_descriptor,
+    function_summary,
+    is_function_input,
+    run_function_call,
+)
 from vibe_widget.utils.logging import get_logger
 from vibe_widget.utils.util import (
     clean_for_json,
@@ -287,6 +294,11 @@ class VibeWidget(anywidget.AnyWidget):
         for export_name in exports.keys():
             init_values[export_name] = None
         for import_name, import_source in imports.items():
+            if is_function_input(import_source):
+                # The function stays in the kernel; the widget gets a descriptor and
+                # calls it through model.call(...).
+                init_values[import_name] = function_descriptor(import_name, import_source)
+                continue
             initial_value = initial_import_value(import_name, import_source)
             init_values[import_name] = prepare_input_for_widget(
                 initial_value,
@@ -360,6 +372,9 @@ class VibeWidget(anywidget.AnyWidget):
         self.description = description
         self._exports = exports or {}
         self._imports = imports or {}
+        self._functions = {
+            name: value for name, value in self._imports.items() if is_function_input(value)
+        }
         self._actions = kwargs.pop("actions", None) or {}
         self._action_params = kwargs.pop("action_params", None) or {}
         self._input_summaries = kwargs.pop("input_summaries", None)
@@ -444,6 +459,7 @@ class VibeWidget(anywidget.AnyWidget):
                 "inputs": list(self._imports.keys()),
                 "outputs": list(self._exports.keys()),
                 "actions": list(self._actions.keys()),
+                "functions": list(self._functions.keys()),
             },
             **kwargs
         )
@@ -1387,14 +1403,19 @@ class VibeWidget(anywidget.AnyWidget):
             self._handle_audit_apply_request(apply_request)
 
     def _handle_custom_msg(self, *args) -> None:
-        """Handle the save_widget message; every other message type is ignored."""
+        """Handle save_widget and call_function messages; every other type is ignored."""
         if len(args) == 3:
             _, content, _buffers = args
         elif len(args) == 2:
             content, _buffers = args
         else:
             return
-        if not isinstance(content, dict) or content.get("type") != "save_widget":
+        if not isinstance(content, dict):
+            return
+        if content.get("type") == CALL_MESSAGE:
+            self.send(run_function_call(getattr(self, "_functions", {}) or {}, content))
+            return
+        if content.get("type") != "save_widget":
             return
 
         request_id = content.get("request_id")
@@ -2302,6 +2323,10 @@ def _serialize_inputs(widget: VibeWidget) -> dict[str, Any]:
         if isinstance(value, ExportHandle) or getattr(value, "__vibe_export__", False):
             values[name] = {"type": "export_handle", "name": getattr(value, "name", name)}
             continue
+        if is_function_input(value):
+            # Code is not bundled; pass the function again through inputs= on load.
+            values[name] = {"type": "function", **function_descriptor(name, value)}
+            continue
         try:
             values[name] = clean_for_json(value)
         except Exception:
@@ -2316,6 +2341,9 @@ def _summarize_inputs_for_prompt(imports: dict[str, Any] | None) -> dict[str, st
         return {}
     summaries: dict[str, str] = {}
     for name, value in imports.items():
+        if is_function_input(value):
+            summaries[name] = function_summary(value)
+            continue
         try:
             resolved = initial_import_value(name, value)
             summaries[name] = summarize_for_prompt(resolved)
@@ -2330,6 +2358,8 @@ def _link_imports(widget: VibeWidget, imports: dict[str, Any] | None) -> None:
         return
 
     for import_name, import_source in imports.items():
+        if is_function_input(import_source):
+            continue  # called through model.call, never linked as a trait
         source_widget, source_trait = _resolve_import_source(import_name, import_source)
         if source_widget and source_trait:
             if isinstance(source_widget, VibeWidget) and source_trait in getattr(source_widget, "_exports", {}):

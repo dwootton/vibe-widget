@@ -4,6 +4,8 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Optional
 
+from vibe_widget.utils.function_inputs import FUNCTION_SUMMARY_PREFIX, is_function_summary
+
 PROVIDER_ERROR_KINDS = (
     "auth",
     # 403: the key works but the account is out of credit or over a limit.
@@ -639,15 +641,36 @@ CRITICAL: Outputs are synced Python traits that you must update explicitly:
 
 Outputs to track: {output_names}""")
 
-        if inputs:
+        functions = {name: desc for name, desc in (inputs or {}).items() if is_function_summary(desc)}
+        value_inputs = {name: desc for name, desc in (inputs or {}).items() if name not in functions}
+
+        if value_inputs:
             input_list = "\n".join(
-                ["- " + name + ": " + _safe_str(desc) for name, desc in inputs.items()]
+                ["- " + name + ": " + _safe_str(desc) for name, desc in value_inputs.items()]
             )
             sections.append(f"""
 INPUTS (State from other widgets):
 {input_list}
 
 CRITICAL: Subscribe with model.on("change:trait", handler), unsubscribe in cleanup""")
+
+        if functions:
+            function_list = "\n".join(
+                [
+                    "- " + name + ": " + _safe_str(desc)[len(FUNCTION_SUMMARY_PREFIX):]
+                    for name, desc in functions.items()
+                ]
+            )
+            first = next(iter(functions))
+            sections.append(f"""
+FUNCTIONS (Python functions running in the notebook kernel that the widget can call):
+{function_list}
+
+CRITICAL: Call a function with: const result = await model.call("{first}", arg1, arg2, ...)
+- Use the input name on the left ("{first}"), not the Python function name.
+- Arguments and the return value travel as JSON: pass numbers, strings, booleans, arrays and plain objects; NumPy arrays and DataFrames come back as nested arrays / lists of row objects.
+- model.call returns a Promise. Call it from event handlers or effects (never during render), show a busy state while it runs, and catch errors: it rejects with an Error whose message is the Python exception.
+- Never use model.get("<name>") or model.send for a function input; model.call is the only way to run it.""")
 
         if actions:
             action_lines = []
