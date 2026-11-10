@@ -40,3 +40,16 @@ __all__ = [
     "actions",
     "ExportHandle",
 ]
+
+
+def __getattr__(name: str):
+    """``vw.study`` is the separately installed ``vibe-widget-study`` package."""
+    if name == "study":
+        try:
+            import vibe_widget_study
+        except ImportError as exc:
+            raise ImportError(
+                "vw.study needs the separate study package: pip install vibe-widget-study"
+            ) from exc
+        return vibe_widget_study
+    raise AttributeError(f"module 'vibe_widget' has no attribute {name!r}")

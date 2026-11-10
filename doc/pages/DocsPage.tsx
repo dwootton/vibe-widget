@@ -9,6 +9,7 @@ const AuditPage = React.lazy(() => import('./docs/AuditPage'));
 const ReactivityPage = React.lazy(() => import('./docs/ReactivityPage'));
 const ComposabilityPage = React.lazy(() => import('./docs/ComposabilityPage'));
 const RShimPage = React.lazy(() => import('./docs/RShimPage'));
+const StudyPage = React.lazy(() => import('./docs/StudyPage'));
 const ComingSoonPage = React.lazy(() => import('./docs/ComingSoonPage'));
 import { DOC_SECTIONS } from '../data/docsManifest';
 
@@ -60,6 +61,7 @@ const DocsPage = () => {
                         <Route path="reactivity" element={<ReactivityPage />} />
                         <Route path="composability" element={<ComposabilityPage />} />
                         <Route path="r-shim" element={<RShimPage />} />
+                        <Route path="study" element={<StudyPage />} />
                         <Route path="*" element={<ComingSoonPage />} />
                     </Routes>
                 </Suspense>

@@ -74,6 +74,13 @@ export const DOC_PAGES = [
     section: 'Explore',
     source: 'r-shim.mdx',
   },
+  {
+    id: 'study',
+    path: '/docs/study',
+    label: 'Research Studies',
+    section: 'Explore',
+    source: 'study.mdx',
+  },
 ];
 
 export const DOC_SECTIONS = [

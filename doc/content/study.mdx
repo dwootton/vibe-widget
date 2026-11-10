@@ -1,0 +1,114 @@
+export const frontmatter = {
+  title: 'Research Studies',
+  description: 'Record intent artifact traces from Vibe Widget so vis researchers can study how domain experts build visualizations with AI.'
+};
+
+Vis researchers want to know how people actually author visualizations with AI: what they ask
+for, what the model gives back, which edits they make, and where things break. Vibe Widget sits
+right at that moment, inside a domain expert's own notebook, so it can record an **intent
+artifact trace** for every widget: each request paired with the code it produced.
+
+`vibe-widget-study` is a separate, opt-in package for running those studies. A vis researcher
+sets up a study, sends a domain collaborator a join code, and the collaborator keeps working in
+their notebook as usual.
+
+<StudyLoopDiagram />
+
+> **Preview.** Local recording works today. Study manifests, consent cards and upload to a
+> researcher's store are in progress; those parts are marked *planned* below.
+
+## What a trace looks like
+
+A trace is one widget's **lineage**: every revision of it, from the first prompt onward.
+Intents (what the person asked for) alternate with artifacts (the code version each one
+produced), and errors land where they happened.
+
+<TraceLineage />
+
+- Every event in a lineage shares a `lineage_id`. It is saved with the widget, so the chain
+  survives `widget.edit(...)`, `vw.load(...)`, and restarting the kernel.
+- Every code version has a `version_id` and a `parent_version_id`, so a lineage is a tree you can
+  walk: which request led to which code, which fix followed which error.
+- Each version records its `origin`: `generated`, `cache`, `grab_edit`, `autofix`,
+  `manual_edit` (someone typed in the code editor), and so on.
+
+## Try it
+
+The study package is installed separately from Vibe Widget, so research code never ships to
+people who didn't ask for it.
+
+<InstallCommand command={"pip install \"git+https://github.com/dwootton/vibe-widget#subdirectory=study\""} />
+
+```python
+import vibe_widget as vw
+import vibe_widget_study as study   # also available as vw.study once installed
+
+study.start()                       # writes .vibewidget/traces/<session>.jsonl
+w = vw.create("scatter of dose vs response", df)
+w.edit("color the points by cohort")
+
+trace = study.events()              # one row per event
+trace.groupby("lineage_id")["kind"].apply(list)
+study.stop()
+```
+
+## What is recorded
+
+| Stream | Events | Contains |
+|---|---|---|
+| `intents` (required) | `intent.create`, `intent.grab_edit`, `intent.state_prompt`, `intent.approve`, `intent.cancel`, `artifact.version`, `context.contract` | prompts, the element a grab-edit pointed at, version origin and size, declared outputs |
+| `code` | `artifact.code` | the full code of each version |
+| `errors` | `error.generation`, `error.runtime`, `error.edit` | error messages |
+| `schema` | `context.schema` | column names and dtypes |
+| `interactions` *(planned)* | `interaction.*` | output changes, links between widgets |
+| `replay` *(planned)* | `replay.*` | an rrweb recording of the widget only |
+
+Pick streams with `study.start(streams=["intents", "errors"])`. Anything outside them is dropped
+before it is written.
+
+## Privacy by design
+
+- **Off unless asked.** Core Vibe Widget only *announces* events through an empty hook. Nothing is
+  recorded unless `vibe-widget-study` is installed and `start()` is called.
+- **Local first.** Events are written to the collaborator's own disk, in plain JSON lines they can
+  read. The traces folder carries its own `.gitignore`, so prompts and code don't get committed
+  by accident.
+- **No data values.** The schema stream holds column names and types, never rows. Prompts can
+  still mention values, which is why upload will support a review-before-send mode.
+- **Consent per stream** *(planned)*. Collaborators see exactly which streams a study asks for,
+  can turn optional ones off, and can leave and delete their data at any time.
+
+## For vis researchers *(planned)*
+
+A study is defined by a short manifest. The consent card collaborators see is generated from it,
+and the server only accepts the streams each participant agreed to.
+
+```yaml
+study: Clinical cohort exploration
+contact: researcher@lab.edu
+irb: "2026-0412"
+retention_days: 365
+upload: batch            # or "review": participant approves each batch
+
+streams:
+  intents:      { required: true }
+  code:         { default: on }
+  schema:       { default: on }
+  interactions: { default: off }
+  replay:       { default: off, mask_inputs: true, canvas_fps: 2 }
+```
+
+The study store is the researcher's own Supabase project, set up from a template: tables,
+row-level security, and one ingest function. Collaborators then join from a notebook cell:
+
+```python
+import vibe_widget_study as study
+study.join("vws_7f3k-...")   # shows the consent card; nothing is sent before "Agree"
+```
+
+Replay will record only the widget itself, by mounting it in its own frame. Recording the whole
+notebook page would also capture other cells' data, which our prototype confirmed.
+
+See the [design notes](https://github.com/dwootton/vibe-widget/tree/main/design/study-traces) for
+the event schema and the replay prototype, and open an
+[issue](https://github.com/dwootton/vibe-widget/issues) if you'd like to run a study with it.
