@@ -27,6 +27,14 @@ export const WidgetPreview = ({ src }) => (
   )
 );
 
+// Static version of the Warning call-out in doc/components/MdxComponents.tsx.
+export const Warning = ({ title, children }) => (
+  React.createElement('aside', { className: 'warning', role: 'note' },
+    title ? React.createElement('p', null, React.createElement('strong', null, title)) : null,
+    children
+  )
+);
+
 const list = (tag, items) => React.createElement(
   tag, null, ...items.map((text, i) => React.createElement('li', { key: i }, text))
 );
@@ -55,6 +63,7 @@ const mdxStaticComponents = {
   WidgetPreview,
   StudyLoopDiagram,
   TraceLineage,
+  Warning,
 };
 
 export default mdxStaticComponents;
