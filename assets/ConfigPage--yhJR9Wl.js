@@ -1,4 +1,4 @@
-import{j as e}from"./index-DDyk0SUH.js";import{D as r}from"./DocMdxPage-DYukeyix.js";import"./DocContent-KKmJNYY6.js";const t={title:"Configuration",description:"Set the model, the endpoint, and the safety limits."};function s(o){const n={code:"code",h2:"h2",h3:"h3",li:"li",p:"p",pre:"pre",strong:"strong",table:"table",tbody:"tbody",td:"td",th:"th",thead:"thead",tr:"tr",ul:"ul",...o.components};return e.jsxs(e.Fragment,{children:[e.jsxs(n.p,{children:[e.jsx(n.code,{children:"vw.config()"}),` reads and changes the settings every widget uses. Called with no arguments it reports
+import{j as e}from"./index-1BxOBNOs.js";import{D as r}from"./DocMdxPage-DvHcXfPW.js";import"./DocContent-DPOqeaKz.js";const t={title:"Configuration",description:"Set the model, the endpoint, and the safety limits."};function o(s){const n={a:"a",code:"code",h2:"h2",h3:"h3",li:"li",p:"p",pre:"pre",strong:"strong",table:"table",tbody:"tbody",td:"td",th:"th",thead:"thead",tr:"tr",ul:"ul",...s.components};return e.jsxs(e.Fragment,{children:[e.jsxs(n.p,{children:[e.jsx(n.code,{children:"vw.config()"}),` reads and changes the settings every widget uses. Called with no arguments it reports
 what is currently in effect, and called with keyword arguments it changes those settings for the
 rest of the session.`]}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`import vibe_widget as vw
@@ -27,7 +27,7 @@ accident.`}),`
 `,e.jsx(n.h2,{children:"Provider inference"}),`
 `,e.jsxs(n.p,{children:["When you do not set ",e.jsx(n.code,{children:"base_url"}),`, the key you supplied decides both the endpoint and the default
 model.`]}),`
-`,e.jsxs(n.table,{children:[e.jsx(n.thead,{children:e.jsxs(n.tr,{children:[e.jsx(n.th,{children:"Variable"}),e.jsx(n.th,{children:"Endpoint"}),e.jsx(n.th,{children:"Default model"})]})}),e.jsxs(n.tbody,{children:[e.jsxs(n.tr,{children:[e.jsx(n.td,{children:e.jsx(n.code,{children:"VIBE_API_KEY"})}),e.jsxs(n.td,{children:[e.jsx(n.code,{children:"VIBE_BASE_URL"}),", or OpenRouter"]}),e.jsx(n.td,{children:"depends on the endpoint"})]}),e.jsxs(n.tr,{children:[e.jsx(n.td,{children:e.jsx(n.code,{children:"ANTHROPIC_API_KEY"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"https://api.anthropic.com/v1/"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"claude-opus-5"})})]}),e.jsxs(n.tr,{children:[e.jsx(n.td,{children:e.jsx(n.code,{children:"OPENAI_API_KEY"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"https://api.openai.com/v1"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"gpt-5.5"})})]}),e.jsxs(n.tr,{children:[e.jsx(n.td,{children:e.jsx(n.code,{children:"OPENROUTER_API_KEY"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"https://openrouter.ai/api/v1"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"google/gemini-3-flash-preview"})})]})]})]}),`
+`,e.jsxs(n.table,{children:[e.jsx(n.thead,{children:e.jsxs(n.tr,{children:[e.jsx(n.th,{children:"Variable"}),e.jsx(n.th,{children:"Endpoint"}),e.jsx(n.th,{children:"Default model"})]})}),e.jsxs(n.tbody,{children:[e.jsxs(n.tr,{children:[e.jsx(n.td,{children:e.jsx(n.code,{children:"VIBE_API_KEY"})}),e.jsxs(n.td,{children:[e.jsx(n.code,{children:"VIBE_BASE_URL"}),", or OpenRouter"]}),e.jsx(n.td,{children:"depends on the endpoint"})]}),e.jsxs(n.tr,{children:[e.jsx(n.td,{children:e.jsx(n.code,{children:"ANTHROPIC_API_KEY"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"https://api.anthropic.com/v1/"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"claude-opus-5"})})]}),e.jsxs(n.tr,{children:[e.jsx(n.td,{children:e.jsx(n.code,{children:"OPENAI_API_KEY"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"https://api.openai.com/v1"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"gpt-5.5"})})]}),e.jsxs(n.tr,{children:[e.jsx(n.td,{children:e.jsx(n.code,{children:"OPENROUTER_API_KEY"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"https://openrouter.ai/api/v1"})}),e.jsx(n.td,{children:e.jsx(n.code,{children:"openai/gpt-6-luna"})})]})]})]}),`
 `,e.jsxs(n.p,{children:["The variables are checked in that order, so ",e.jsx(n.code,{children:"VIBE_API_KEY"}),` overrides everything and
 `,e.jsx(n.code,{children:"OPENROUTER_API_KEY"})," is the last one tried. An explicit ",e.jsx(n.code,{children:"vw.config(api_key=...)"}),` beats all of them.
 When a key carries a prefix belonging to a different vendor, such as an `,e.jsx(n.code,{children:"sk-ant-"}),` value stored in
@@ -76,18 +76,18 @@ slow local models.`]}),`
 `,e.jsxs(n.p,{children:[e.jsx(n.code,{children:"vw.models"})," prints the catalog, and ",e.jsx(n.code,{children:"vw.models.standard"})," and ",e.jsx(n.code,{children:"vw.models.premium"}),` return the default
 id for each tier.`]}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`vw.models
-vw.models.standard   # "google/gemini-3-flash-preview"
-vw.models.premium    # "google/gemini-3-pro-preview"
+vw.models.standard   # "openai/gpt-6-luna"
+vw.models.premium    # "anthropic/claude-sonnet-5.5"
 `})}),`
 `,e.jsxs(n.p,{children:[e.jsx(n.code,{children:"mode"}),` picks between two OpenRouter defaults, a faster and cheaper one and a slower and stronger
 one.`]}),`
-`,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`vw.config(mode="standard")   # google/gemini-3-flash-preview, the default
-vw.config(mode="premium")    # google/gemini-3-pro-preview
+`,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`vw.config(mode="standard")   # openai/gpt-6-luna, the default
+vw.config(mode="premium")    # anthropic/claude-sonnet-5.5
 `})}),`
 `,e.jsxs(n.p,{children:["Setting ",e.jsx(n.code,{children:"mode"}),` swaps the model only while you are on one of those two defaults. Once you name a
 model yourself, your choice stays, and `,e.jsx(n.code,{children:"mode"})," no longer changes it. The word ",e.jsx(n.code,{children:'"openrouter"'}),` can be
 passed as the model name to mean whichever id the current mode points to.`]}),`
-`,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`vw.config(mode="premium", model="openrouter")   # google/gemini-3-pro-preview
+`,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`vw.config(mode="premium", model="openrouter")   # anthropic/claude-sonnet-5.5
 `})}),`
 `,e.jsx(n.h2,{children:"Common options"}),`
 `,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`vw.config(
@@ -123,6 +123,18 @@ prompt box still works at `,e.jsx(n.code,{children:"retry=0"}),", because the bu
 `})}),`
 `,e.jsxs(n.p,{children:[`Loading a cached widget makes no request, so the counts stay at zero until something calls the
 model. With no API key set there is no provider at all, and `,e.jsx(n.code,{children:"widget.usage"})," is an empty dict."]}),`
+`,e.jsxs(n.p,{children:[e.jsx(n.code,{children:"vw.spend()"}),` totals the dollar cost of every request in the session. OpenRouter reports the cost of
+each request; requests to hosts that don't report one are counted as `,e.jsx(n.code,{children:"unpriced_requests"}),"."]}),`
+`,e.jsx(n.pre,{children:e.jsx(n.code,{className:"language-python",children:`vw.config(budget_usd=2)   # stop sending requests once $2 has been spent
+vw.spend()
+# {'spent_usd': 0.0041, 'limit_usd': 2.0, 'remaining_usd': 1.9959, 'requests': 2, ...}
+vw.config(budget_usd=None)  # lift it
+`})}),`
+`,e.jsxs(n.p,{children:["You get a warning at 80% of the budget. Once it is spent, the next request fails with a ",e.jsx(n.code,{children:"budget"}),`
+error before anything is sent; the request already in flight can take the total slightly past the
+limit. The budget is a guard in your own session, so anyone who can edit the notebook can lift it.
+For a cap that holds regardless, use an API key with a credit limit (see
+`,e.jsx(n.a,{href:"/docs/study",children:"Research Studies"}),")."]}),`
 `,e.jsx(n.h2,{children:"Safety and permissions"}),`
 `,e.jsxs(n.p,{children:[`Generated code runs in the notebook page with the same privileges as the page. It can reach the DOM,
 cookies and `,e.jsx(n.code,{children:"localStorage"}),` for the notebook origin, and any network endpoint the browser is allowed
@@ -190,7 +202,7 @@ project directory as well.`]}),`
 `,e.jsx(n.h2,{children:"When a request fails"}),`
 `,e.jsxs(n.p,{children:["A failed model call raises a ",e.jsx(n.code,{children:"ProviderError"}),` carrying a short explanation instead of the raw SDK
 exception. Each error names its kind, which is one of `,e.jsx(n.code,{children:"auth"}),", ",e.jsx(n.code,{children:"quota"}),", ",e.jsx(n.code,{children:"not_found"}),", ",e.jsx(n.code,{children:"rate_limit"}),`,
-`,e.jsx(n.code,{children:"connection"}),", ",e.jsx(n.code,{children:"timeout"}),", ",e.jsx(n.code,{children:"context_length"})," or ",e.jsx(n.code,{children:"other"}),". A ",e.jsx(n.code,{children:"quota"}),` error means the key itself is valid
+`,e.jsx(n.code,{children:"connection"}),", ",e.jsx(n.code,{children:"timeout"}),", ",e.jsx(n.code,{children:"context_length"}),", ",e.jsx(n.code,{children:"budget"})," or ",e.jsx(n.code,{children:"other"}),". A ",e.jsx(n.code,{children:"quota"}),` error means the key itself is valid
 but its spending limit is used up, which is worth separating from `,e.jsx(n.code,{children:"auth"}),`, because rotating a working
 key does not help. For `,e.jsx(n.code,{children:"quota"})," and ",e.jsx(n.code,{children:"not_found"}),` the provider's own sentence is passed through, since
-it usually names the exact limit or model, and the raw response body is never included.`]})]})}function d(o={}){const{wrapper:n}=o.components||{};return n?e.jsx(n,{...o,children:e.jsx(s,{...o})}):s(o)}const l=()=>e.jsx(r,{Content:d,meta:t});export{l as default};
+it usually names the exact limit or model, and the raw response body is never included.`]})]})}function d(s={}){const{wrapper:n}=s.components||{};return n?e.jsx(n,{...s,children:e.jsx(o,{...s})}):o(s)}const l=()=>e.jsx(r,{Content:d,meta:t});export{l as default};
