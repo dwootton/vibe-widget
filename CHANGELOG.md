@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `vibe_widget.tracing`, an opt-in hook that announces intent artifact trace events (prompts, code
+  versions with their parent and origin, errors, data schema). It does nothing unless the separate
+  `vibe-widget-study` package (in `study/`) is installed and started.
+
+### Changed
+- The default OpenRouter model is now `openai/gpt-6-luna` (about 5x cheaper than
+  `google/gemini-3-flash-preview`, which stays in the standard list).
+- Premium mode now defaults to `anthropic/claude-sonnet-5.5`. The previous premium default,
+  `google/gemini-3-pro-preview`, has been removed from OpenRouter, so premium mode was failing.
+
 ## [0.3.3] - 2026-09-16
 
 ### Fixed

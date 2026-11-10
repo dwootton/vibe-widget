@@ -53,7 +53,7 @@ model.
 | `VIBE_API_KEY` | `VIBE_BASE_URL`, or OpenRouter | depends on the endpoint |
 | `ANTHROPIC_API_KEY` | `https://api.anthropic.com/v1/` | `claude-opus-5` |
 | `OPENAI_API_KEY` | `https://api.openai.com/v1` | `gpt-5.5` |
-| `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` | `google/gemini-3-flash-preview` |
+| `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` | `openai/gpt-6-luna` |
 
 The variables are checked in that order, so `VIBE_API_KEY` overrides everything and
 `OPENROUTER_API_KEY` is the last one tried. An explicit `vw.config(api_key=...)` beats all of them.
@@ -130,16 +130,16 @@ id for each tier.
 
 ```python
 vw.models
-vw.models.standard   # "google/gemini-3-flash-preview"
-vw.models.premium    # "google/gemini-3-pro-preview"
+vw.models.standard   # "openai/gpt-6-luna"
+vw.models.premium    # "anthropic/claude-sonnet-5.5"
 ```
 
 `mode` picks between two OpenRouter defaults, a faster and cheaper one and a slower and stronger
 one.
 
 ```python
-vw.config(mode="standard")   # google/gemini-3-flash-preview, the default
-vw.config(mode="premium")    # google/gemini-3-pro-preview
+vw.config(mode="standard")   # openai/gpt-6-luna, the default
+vw.config(mode="premium")    # anthropic/claude-sonnet-5.5
 ```
 
 Setting `mode` swaps the model only while you are on one of those two defaults. Once you name a
@@ -147,7 +147,7 @@ model yourself, your choice stays, and `mode` no longer changes it. The word `"o
 passed as the model name to mean whichever id the current mode points to.
 
 ```python
-vw.config(mode="premium", model="openrouter")   # google/gemini-3-pro-preview
+vw.config(mode="premium", model="openrouter")   # anthropic/claude-sonnet-5.5
 ```
 
 ## Common options
