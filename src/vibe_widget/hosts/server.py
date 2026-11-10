@@ -35,7 +35,6 @@ import logging
 import secrets
 import threading
 from pathlib import Path
-from typing import Any
 
 from vibe_widget.hosts import protocol
 from vibe_widget.hosts.bridge import HostSession, HostSessionClosed

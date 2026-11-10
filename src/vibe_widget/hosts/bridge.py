@@ -59,14 +59,14 @@ class HostSessionClosed(RuntimeError):
 
 
 class HostSession:
-    def __init__(self, widget: "VibeWidget", *, event_queue_size: int = 4096):
+    def __init__(self, widget: VibeWidget, *, event_queue_size: int = 4096):
         self._widget = widget
         self._closed = False
         self._close_lock = threading.RLock()
         self._seq_lock = threading.Lock()
         self._seq = 0
-        self._events: "queue.Queue[dict[str, Any]]" = queue.Queue(maxsize=event_queue_size)
-        self._inbox: "queue.Queue[Callable[[], None] | None]" = queue.Queue()
+        self._events: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=event_queue_size)
+        self._inbox: queue.Queue[Callable[[], None] | None] = queue.Queue()
         self._trait_names = self._syncable_trait_names(widget)
 
         # Capture outbound custom messages instead of trying to send them
@@ -87,7 +87,7 @@ class HostSession:
     # ---- construction helpers ----------------------------------------------
 
     @staticmethod
-    def _syncable_trait_names(widget: "VibeWidget") -> tuple[str, ...]:
+    def _syncable_trait_names(widget: VibeWidget) -> tuple[str, ...]:
         return tuple(sorted(name for name in widget.traits(sync=True) if name not in EXCLUDED_TRAITS))
 
     # ---- outbound: widget -> host consumer ---------------------------------
@@ -224,7 +224,7 @@ class HostSession:
 
     def wait_for(
         self,
-        predicate: Callable[["VibeWidget"], bool],
+        predicate: Callable[[VibeWidget], bool],
         *,
         timeout: float = 120.0,
         poll_interval: float = 0.05,
@@ -261,7 +261,7 @@ class HostSession:
         return self._closed
 
     @property
-    def widget(self) -> "VibeWidget":
+    def widget(self) -> VibeWidget:
         return self._widget
 
     @property

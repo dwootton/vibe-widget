@@ -4,7 +4,6 @@ import re
 import pytest
 
 from vibe_widget.hosts import static as static_module
-from vibe_widget.hosts.bridge import HostSession
 
 
 def _snapshot_script_json(html: str) -> dict:

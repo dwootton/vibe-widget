@@ -1,6 +1,5 @@
 import json
 
-import pandas as pd
 import pytest
 
 from vibe_widget.hosts import session_api as api
@@ -133,7 +132,7 @@ def test_describe_data_produces_a_non_empty_summary(sample_df):
 
 
 def test_load_session_rejects_a_missing_path(tmp_path):
-    with pytest.raises(Exception):
+    with pytest.raises(FileNotFoundError):
         api.load_session(str(tmp_path / "does-not-exist.vw"))
 
 

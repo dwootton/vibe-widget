@@ -17,14 +17,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$PKG_DIR/../.." && pwd)"
 
-rsync -a --delete \
-  --exclude='__pycache__' \
-  --exclude='*.pyc' \
-  --exclude='.pytest_cache' \
-  --exclude='.ruff_cache' \
-  --exclude='.mypy_cache' \
-  "$REPO_ROOT/src/vibe_widget/" \
-  "$PKG_DIR/inst/python/vibe_widget/"
+SRC="$REPO_ROOT/src/vibe_widget/"
+DEST="$PKG_DIR/inst/python/vibe_widget/"
+
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --delete \
+    --exclude='__pycache__' \
+    --exclude='*.pyc' \
+    --exclude='.pytest_cache' \
+    --exclude='.ruff_cache' \
+    --exclude='.mypy_cache' \
+    "$SRC" "$DEST"
+else
+  # No rsync (e.g. Windows Rtools bash): replace the copy wholesale, then drop caches.
+  rm -rf "$DEST"
+  mkdir -p "$DEST"
+  cp -R "$SRC". "$DEST"
+  find "$DEST" \( -name '__pycache__' -o -name '.pytest_cache' -o -name '.ruff_cache' \
+    -o -name '.mypy_cache' \) -type d -prune -exec rm -rf {} +
+  find "$DEST" -name '*.pyc' -delete
+fi
 
 echo "Synced $REPO_ROOT/src/vibe_widget -> $PKG_DIR/inst/python/vibe_widget"
 du -sh "$PKG_DIR/inst/python/vibe_widget"
