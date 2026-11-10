@@ -1,0 +1,220 @@
+"""Code generation services for Vibe Widgets."""
+
+from __future__ import annotations
+
+import threading
+from typing import Any, Callable
+
+from vibe_widget.llm.agentic_agents import AgentSdkOrchestrator
+from vibe_widget.llm.agents.config import AgentRunConfig
+from vibe_widget.llm.providers.base import LLMProvider
+from vibe_widget.utils.platform import is_restricted_env
+from vibe_widget.utils.serialization import clean_for_json
+
+
+class GenerationCancelled(Exception):
+    """Raised when a generation run is cancelled or superseded."""
+
+
+class GenerationService:
+    """Generation runner with synchronous helpers and async orchestration."""
+
+    def __init__(
+        self,
+        llm_provider: LLMProvider,
+        *,
+        agent_run_config: AgentRunConfig | None = None,
+        stream: bool | None = None,
+        orchestrator: Any = None,
+    ):
+        self.llm_provider = llm_provider
+        self.stream = True if stream is None else bool(stream)
+        # `orchestrator` lets a caller install a drop-in replacement for
+        # `AgentSdkOrchestrator` (see `vibe_widget.llm.fake.FakeOrchestrator`)
+        # that implements the same `generate`/`revise_code`/
+        # `fix_runtime_error` surface without making any network calls. Used
+        # by `VIBE_PROVIDER=fake` in `core/widget.py` and by host/test code
+        # that wants deterministic, offline generation.
+        self.orchestrator = orchestrator or AgentSdkOrchestrator(
+            provider=llm_provider,
+            run_config=agent_run_config,
+            stream=self.stream,
+        )
+        self._run_id = 0
+        self._cancel_event: threading.Event | None = None
+        self._thread: threading.Thread | None = None
+        self._lock = threading.Lock()
+
+    def cancel_generation(self) -> None:
+        with self._lock:
+            if self._cancel_event is not None:
+                self._cancel_event.set()
+
+    def start_generation_async(
+        self,
+        *,
+        description: str,
+        outputs: dict[str, str] | None,
+        inputs: dict[str, Any] | None,
+        input_summaries: dict[str, str] | None,
+        actions: dict[str, str] | None,
+        action_params: dict[str, dict[str, str] | None] | None,
+        base_code: str | None,
+        base_components: list[str] | None,
+        theme_description: str | None,
+        progress_callback: Callable[[str, str], None] | None = None,
+        on_complete: Callable[[str], None] | None = None,
+        on_error: Callable[[Exception], None] | None = None,
+    ) -> int:
+        with self._lock:
+            self._run_id += 1
+            run_id = self._run_id
+            cancel_event = threading.Event()
+            self._cancel_event = cancel_event
+
+        thread = threading.Thread(
+            target=self._generation_worker,
+            args=(
+                run_id,
+                cancel_event,
+                description,
+                outputs,
+                inputs,
+                input_summaries,
+                actions,
+                action_params,
+                base_code,
+                base_components,
+                theme_description,
+                progress_callback,
+                on_complete,
+                on_error,
+            ),
+            daemon=True,
+        )
+        self._thread = thread
+
+        if is_restricted_env():
+            # Pyodide/JupyterLite: threads are unavailable.
+            # Colab: threads cause widget comm sync issues.
+            # In both cases, run synchronously.
+            self._generation_worker(
+                run_id,
+                cancel_event,
+                description,
+                outputs,
+                inputs,
+                input_summaries,
+                actions,
+                action_params,
+                base_code,
+                base_components,
+                theme_description,
+                progress_callback,
+                on_complete,
+                on_error,
+            )
+        else:
+            thread.start()
+        return run_id
+
+    def generate(
+        self,
+        *,
+        description: str,
+        outputs: dict[str, str] | None,
+        inputs: dict[str, Any] | None,
+        input_summaries: dict[str, str] | None,
+        actions: dict[str, str] | None,
+        action_params: dict[str, dict[str, str] | None] | None,
+        base_code: str | None,
+        base_components: list[str] | None,
+        theme_description: str | None,
+        progress_callback: Callable[[str, str], None] | None = None,
+        agent_run_config: AgentRunConfig | None = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """Generate widget code via the LLM."""
+        return self.orchestrator.generate(
+            description=description,
+            outputs=outputs,
+            inputs=inputs,
+            input_summaries=input_summaries,
+            actions=actions,
+            action_params=action_params,
+            base_code=base_code,
+            base_components=base_components,
+            theme_description=theme_description,
+            progress_callback=progress_callback,
+            agent_run_config=agent_run_config,
+        )
+
+    def _generation_worker(
+        self,
+        run_id: int,
+        cancel_event: threading.Event,
+        description: str,
+        outputs: dict[str, str] | None,
+        inputs: dict[str, Any] | None,
+        input_summaries: dict[str, str] | None,
+        actions: dict[str, str] | None,
+        action_params: dict[str, dict[str, str] | None] | None,
+        base_code: str | None,
+        base_components: list[str] | None,
+        theme_description: str | None,
+        progress_callback: Callable[[str, str], None] | None,
+        on_complete: Callable[[str], None] | None,
+        on_error: Callable[[Exception], None] | None,
+    ) -> None:
+        def check_cancel() -> None:
+            with self._lock:
+                superseded = run_id != self._run_id
+            if cancel_event.is_set() or superseded:
+                raise GenerationCancelled()
+
+        def handle_progress(event_type: str, message: str) -> None:
+            check_cancel()
+            if progress_callback:
+                progress_callback(event_type, message)
+
+        try:
+            check_cancel()
+            code, _ = self.generate(
+                description=description,
+                outputs=outputs,
+                inputs=inputs,
+                input_summaries=input_summaries,
+                actions=actions,
+                action_params=action_params,
+                base_code=base_code,
+                base_components=base_components,
+                theme_description=theme_description,
+                progress_callback=handle_progress,
+            )
+            check_cancel()
+            if on_complete:
+                on_complete(code)
+        except GenerationCancelled:
+            return
+        except Exception as exc:
+            if on_error:
+                on_error(exc)
+            else:
+                raise
+
+    def revise_code(
+        self,
+        *,
+        code: str,
+        revision_request: str,
+        data_info: dict[str, Any],
+        progress_callback: Callable[[str, str], None] | None = None,
+        agent_run_config: AgentRunConfig | None = None,
+    ) -> str:
+        """Apply revision requests to existing code."""
+        return self.orchestrator.revise_code(
+            code=code,
+            revision_request=revision_request,
+            data_info=clean_for_json(data_info),
+            progress_callback=progress_callback,
+            agent_run_config=agent_run_config,
+        )

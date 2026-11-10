@@ -67,6 +67,13 @@ export const DOC_PAGES = [
     section: 'Core Concepts',
     source: 'theming.mdx',
   },
+  {
+    id: 'r-shim',
+    path: '/docs/r-shim',
+    label: 'R (Positron / RStudio)',
+    section: 'Explore',
+    source: 'r-shim.mdx',
+  },
 ];
 
 export const DOC_SECTIONS = [
@@ -88,6 +95,10 @@ export const DOC_SECTIONS = [
     title: 'Explore',
     links: [
       { label: 'Example Gallery', path: '/gallery' },
+      ...DOC_PAGES.filter((page) => page.section === 'Explore').map((page) => ({
+        label: page.label,
+        path: page.path,
+      })),
     ],
   },
 ];

@@ -25,10 +25,17 @@ class GenerationService:
         *,
         agent_run_config: AgentRunConfig | None = None,
         stream: bool | None = None,
+        orchestrator: Any = None,
     ):
         self.llm_provider = llm_provider
         self.stream = True if stream is None else bool(stream)
-        self.orchestrator = AgentSdkOrchestrator(
+        # `orchestrator` lets a caller install a drop-in replacement for
+        # `AgentSdkOrchestrator` (see `vibe_widget.llm.fake.FakeOrchestrator`)
+        # that implements the same `generate`/`revise_code`/
+        # `fix_runtime_error` surface without making any network calls. Used
+        # by `VIBE_PROVIDER=fake` in `core/widget.py` and by host/test code
+        # that wants deterministic, offline generation.
+        self.orchestrator = orchestrator or AgentSdkOrchestrator(
             provider=llm_provider,
             run_config=agent_run_config,
             stream=self.stream,

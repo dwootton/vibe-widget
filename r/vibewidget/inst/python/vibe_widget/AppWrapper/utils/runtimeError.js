@@ -1,0 +1,45 @@
+const DEBUG_RUNTIME_TRACE = true;
+
+export function buildRuntimeErrorDetails(err, extraStack = "") {
+  const baseMessage = err instanceof Error ? err.toString() : String(err);
+  const stack = err instanceof Error && err.stack ? err.stack : "No stack trace";
+  const prefix = DEBUG_RUNTIME_TRACE
+    ? `[js_runtime_error_ts=${new Date().toISOString()}] `
+    : "";
+  return `${prefix}${baseMessage}\n\nStack:\n${stack}${extraStack}`;
+}
+
+export function shouldIgnoreRuntimeError(details) {
+  const lowerDetails = String(details || "").toLowerCase();
+  return lowerDetails.includes("cannot send widget sync message")
+    || lowerDetails.includes("error: cannot send");
+}
+
+export function captureRuntimeError({ model, enqueueLog, err, extraStack = "" }) {
+  const errorDetails = buildRuntimeErrorDetails(err, extraStack);
+  if (shouldIgnoreRuntimeError(errorDetails)) {
+    enqueueLog("warn", errorDetails);
+    return;
+  }
+  enqueueLog("error", errorDetails);
+  console.debug?.("[vibe][runtime-error]", { errorDetails });
+  try {
+    const currentError = model?.get?.("error_message");
+    if (currentError === errorDetails) {
+      model.set("error_message", "");
+    }
+    // Force an error state so the UI shows the repair panel instead of trying to render the broken widget.
+    model.set("status", "error");
+    model.set("error_message", errorDetails);
+    model.set("widget_error", errorDetails);
+    model.set("last_runtime_error", errorDetails);
+    model.save_changes();
+  } catch (sendErr) {
+    const msg = sendErr instanceof Error ? sendErr.message : String(sendErr || "");
+    if (msg.toLowerCase().includes("cannot send")) {
+      // Comm is dead; nothing to do.
+      return;
+    }
+    throw sendErr;
+  }
+}

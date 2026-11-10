@@ -1,0 +1,31 @@
+Package: vibewidget
+Title: Interactive Notebook Widgets Generated from Plain English
+Version: 0.1.0
+Authors@R: person("Vibe Widget", "Maintainers", email = "hello@vibewidget.dev", role = c("aut", "cre"))
+Description: Generate interactive, LLM-authored notebook widgets from a
+    natural-language description and a data.frame, and render them inline
+    in Positron, RStudio, Quarto, and R Markdown. A thin R client of the
+    'vibe_widget' Python engine (run in-process via 'reticulate', with no
+    Jupyter kernel involved): widget generation, revision ("grab-edit"),
+    and repair run over a small local WebSocket bridge in Python threads,
+    so the R session is never blocked pumping an event loop, and rendered
+    'Quarto' output falls back to a fully static, self-contained artifact.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: R (>= 4.1)
+Imports:
+    reticulate (>= 1.41),
+    htmlwidgets (>= 1.6.0),
+    later (>= 1.3.0),
+    cli
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    withr
+Config/testthat/edition: 3
+URL: https://vibewidget.dev, https://github.com/dwootton/vibe-widgets-sundai
+BugReports: https://github.com/dwootton/vibe-widgets-sundai/issues
+VignetteBuilder: knitr

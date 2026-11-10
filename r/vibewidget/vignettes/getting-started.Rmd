@@ -1,0 +1,98 @@
+---
+title: "Getting started with vibewidget"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with vibewidget}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+## What this is
+
+`vibewidget` generates interactive, LLM-authored notebook widgets from a
+plain-English description and a `data.frame`, and renders them inline in
+Positron, RStudio, Quarto, and R Markdown - with no JavaScript written by
+you. It is a thin R client of the `vibe_widget` Python engine, run
+in-process through `reticulate`; there is no Jupyter kernel anywhere in the
+stack.
+
+```{r}
+library(vibewidget)
+
+w <- vw_create(
+  "temperature trends by region with a year slider",
+  weather_df,
+  outputs = list(selection = "selected rows")
+)
+w
+```
+
+The first time any `vw_*` function actually touches Python, `reticulate`
+provisions a small Python environment (via `uv`) with the engine's
+dependencies - this is a one-time cost per machine, cached afterward.
+`vw_create()` returns immediately; the printed widget streams generation
+progress live.
+
+## Reading state back into R
+
+```{r}
+w$status()             # "generating" | "ready" | "error" | "blocked"
+w$wait()                # block until a terminal status, if you need to
+w$outputs$selection()   # current value - NULL until something is selected
+```
+
+To react to changes as they happen, use `vw_observe()`. Because R is
+single-threaded, this cannot be a live push from a background thread - it
+polls (via the `later` package) only when R is otherwise idle at the
+console, so it never blocks or interrupts your work:
+
+```{r}
+vw_observe(w, "selection", function(v) message(nrow(v), " rows selected"))
+```
+
+## Pushing state into the widget, and calling actions
+
+```{r}
+w$inputs$threshold <- 25
+w$actions$reset()
+```
+
+## Revising a widget in English
+
+```{r}
+vw_edit(w, "make the legend a dropdown")
+```
+
+For structural or configuration changes rather than element-targeted
+revision, `w$edit(...)` is equivalent.
+
+## Saving and loading
+
+```{r}
+vw_save(w, "trends.vw")
+w2 <- vw_load("trends.vw", data = weather_df)
+
+vw_html(w, "trends.html")  # a fully static, self-contained export
+```
+
+## Configuration
+
+```{r}
+vw_config(model = "google/gemini-3.1-pro-preview")
+vw_options()
+```
+
+## Rendered Quarto/R Markdown output
+
+There is no R process behind a rendered `.qmd`/`.Rmd` document, so
+`vw_create()` automatically falls back to a fully static, self-contained
+snapshot when it detects a knitr render (or any non-interactive session) -
+the widget still renders, but its state does not round-trip back into R.
+Live, two-way widgets belong in the Positron/RStudio console or a notebook
+cell; a rendered document gets whichever state existed when it was
+rendered. Force one mode or the other with `options(vibewidget.mode =
+"live")`/`"static"` if the automatic detection ever guesses wrong.

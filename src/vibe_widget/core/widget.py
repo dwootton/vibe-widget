@@ -40,6 +40,7 @@ from vibe_widget.core.lifecycle import WidgetLifecycle
 from vibe_widget.core.state import StateManager
 from vibe_widget.llm.agentic_agents import MaxTokensExceeded
 from vibe_widget.llm.agents.config import resolve_agent_run_config
+from vibe_widget.llm.fake import FakeOrchestrator, FakeProvider, fake_provider_enabled
 from vibe_widget.llm.providers.base import LLMProvider, ProviderError
 from vibe_widget.llm.providers.openrouter_provider import OpenRouterProvider
 from vibe_widget.services.audit import AuditService
@@ -440,6 +441,17 @@ class VibeWidget(anywidget.AnyWidget):
         self._lifecycle = WidgetLifecycle(self)
         # Track whether we should render immediately (not in tests/headless)
         self._display_widget = display_widget
+        # `_start_generation` normally infers sync-vs-async generation from
+        # `_display_widget` (no display => block and return finished code;
+        # display => spawn a worker thread and stream progress). A headless
+        # host session (see `vibe_widget.hosts`) wants the opposite pairing -
+        # no IPython display, but async generation so progress streams to a
+        # remote client instead of blocking the constructing thread - so this
+        # gives hosts an explicit override instead of repurposing
+        # `_display_widget` for a meaning it doesn't otherwise have.
+        # One of `None` (infer from `_display_widget`), `"async"`, `"sync"`.
+        self._generation_mode: str | None = None
+
         # Initialise data_info early so error handlers can access it safely.
         self.data_info: dict = {}
 
@@ -657,13 +669,21 @@ class VibeWidget(anywidget.AnyWidget):
 
     def _init_llm(self, config: Config, resolved_model: str) -> None:
         """Build the LLM provider and the services around it. Raises without an API key."""
-        provider = OpenRouterProvider(
-            resolved_model,
-            config.api_key,
-            base_url=getattr(config, "base_url", None),
-            temperature=getattr(config, "temperature", 0.7),
-            timeout=getattr(config, "timeout", 120.0),
-        )
+        fake_orchestrator = None
+        if fake_provider_enabled():
+            # Deterministic, offline, network-free generation - never
+            # requires an API key. See `vibe_widget.llm.fake` for what this
+            # bypasses and why (used by the host bridge and its tests).
+            provider = FakeProvider(resolved_model)
+            fake_orchestrator = FakeOrchestrator()
+        else:
+            provider = OpenRouterProvider(
+                resolved_model,
+                config.api_key,
+                base_url=getattr(config, "base_url", None),
+                temperature=getattr(config, "temperature", 0.7),
+                timeout=getattr(config, "timeout", 120.0),
+            )
         agent_run_config = resolve_agent_run_config(
             preset=getattr(config, "agent_preset", "project"),
             overrides=getattr(config, "agent_run", None),
@@ -683,6 +703,7 @@ class VibeWidget(anywidget.AnyWidget):
             provider,
             agent_run_config=agent_run_config,
             stream=stream_setting,
+            orchestrator=fake_orchestrator,
         )
         self._audit_service = AuditService()
         self._llm_provider = provider
@@ -837,7 +858,15 @@ class VibeWidget(anywidget.AnyWidget):
                 self._append_log(f"Error ({kind}): {error_msg}" if kind else f"Error: {error_msg}")
             logger.exception("Widget generation failed")
 
-        if getattr(self, "_display_widget", True) and not is_headless_render():
+        mode = getattr(self, "_generation_mode", None)
+        if mode == "async":
+            use_async = True
+        elif mode == "sync":
+            use_async = False
+        else:
+            use_async = getattr(self, "_display_widget", True) and not is_headless_render()
+
+        if use_async:
             # async path for interactive rendering
             self._generation_service.start_generation_async(
                 description=description,
@@ -1464,6 +1493,18 @@ class VibeWidget(anywidget.AnyWidget):
 
         # Skip if this is a clear event (empty string)
         if not error_msg:
+            return
+
+        # `error_message` is overloaded: it also carries generation-phase
+        # failures (provider auth errors, network errors, MaxTokensExceeded)
+        # set by `_start_generation.handle_error` before any widget code has
+        # ever been produced. There is nothing to repair in that case -
+        # `self.code` is still empty - so entering the repair loop only
+        # crashes downstream (repair prompts assume a generated widget) or
+        # wastes a retry. Status is already "error" from handle_error; just
+        # log and stop.
+        if not self.code:
+            logger.debug("Repair skipped: no generated code to repair (generation-phase error)")
             return
 
         # Prevent re-entrance during repair
