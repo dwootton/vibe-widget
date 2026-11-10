@@ -30,9 +30,21 @@ const Warning = ({ title, children }: { title?: string; children?: React.ReactNo
   </aside>
 );
 
+/** Neutral call-out for a point worth stating on its own. */
+const Note = ({ title, children }: { title?: string; children?: React.ReactNode }) => (
+  <aside
+    role="note"
+    className="not-prose my-6 rounded-md border-2 border-slate bg-white px-5 py-4 text-slate shadow-hard-sm"
+  >
+    {title && <p className="m-0 mb-1 font-semibold">{title}</p>}
+    <div className="text-[0.95rem] leading-relaxed [&_code]:font-mono [&_code]:text-[0.85em] [&_p]:m-0">{children}</div>
+  </aside>
+);
+
 const mdxComponents = {
   pre: MdxPre,
   Warning,
+  Note,
   MediaPlaceholder,
   InstallCommand,
   ExampleNotebook,
