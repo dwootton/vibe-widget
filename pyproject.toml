@@ -85,7 +85,9 @@ exclude = ["src/vibe_widget/AppWrapper/"]
 line-length = 100
 target-version = "py39"
 # Example notebooks are written to be read in a demo, not to pass a style gate.
-exclude = ["examples/"]
+# r/vibewidget/inst/python is a vendored copy of src/vibe_widget (data-raw/sync-python.sh),
+# so linting it would report every finding twice.
+exclude = ["examples/", "r/vibewidget/inst/"]
 
 [tool.ruff.lint]
 select = [

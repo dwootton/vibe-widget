@@ -48,7 +48,7 @@ def _read_bundle() -> str:
     return HOST_BUNDLE_PATH.read_text(encoding="utf-8")
 
 
-def _row_guarded_snapshot(bridge: "HostSession", *, max_rows: int) -> dict[str, Any]:
+def _row_guarded_snapshot(bridge: HostSession, *, max_rows: int) -> dict[str, Any]:
     snapshot = dict(bridge.snapshot())
     data = snapshot.get("data")
     if isinstance(data, list) and len(data) > max_rows:
@@ -58,7 +58,7 @@ def _row_guarded_snapshot(bridge: "HostSession", *, max_rows: int) -> dict[str, 
 
 
 def emit_html(
-    bridge: "HostSession",
+    bridge: HostSession,
     *,
     max_rows: int = DEFAULT_MAX_ROWS,
     inline_bundle: bool = True,

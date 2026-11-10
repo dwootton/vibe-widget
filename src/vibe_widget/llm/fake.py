@@ -22,9 +22,10 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from vibe_widget.llm.providers.base import LLMProvider
+
 
 # A minimal but real guest module in the gen-1 contract: default-exports a
 # function invoked as `React.createElement(module.default, { model, React })`
@@ -114,14 +115,14 @@ class FakeProvider(LLMProvider):
     reflect the input back rather than perform any real work.
     """
 
-    def __init__(self, model: str = "fake/offline", api_key: Optional[str] = None):
+    def __init__(self, model: str = "fake/offline", api_key: str | None = None):
         self.model = model
 
     def generate_widget_code(
         self,
         description: str,
         data_info: dict[str, Any],
-        progress_callback: Optional[Callable[[str], None]] = None,
+        progress_callback: Callable[[str], None] | None = None,
     ) -> str:
         return DEFAULT_WIDGET_CODE
 
@@ -130,9 +131,9 @@ class FakeProvider(LLMProvider):
         current_code: str,
         revision_description: str,
         data_info: dict[str, Any],
-        base_code: Optional[str] = None,
-        base_components: Optional[list[str]] = None,
-        progress_callback: Optional[Callable[[str], None]] = None,
+        base_code: str | None = None,
+        base_components: list[str] | None = None,
+        progress_callback: Callable[[str], None] | None = None,
     ) -> str:
         return current_code
 
@@ -150,14 +151,14 @@ class FakeProvider(LLMProvider):
         description: str,
         data_info: dict[str, Any],
         level: str,
-        changed_lines: Optional[list[int]] = None,
+        changed_lines: list[int] | None = None,
     ) -> str:
         return "status: pass\nfindings: []\n"
 
     def generate_text(
         self,
         prompt: str,
-        progress_callback: Optional[Callable[[str], None]] = None,
+        progress_callback: Callable[[str], None] | None = None,
     ) -> str:
         return ""
 
@@ -182,7 +183,7 @@ class FakeGeneration:
             FakeStep(message="Writing widget code"),
         ]
     )
-    error: Optional[Exception] = None
+    error: Exception | None = None
 
 
 class FakeOrchestrator:
@@ -231,7 +232,7 @@ class FakeOrchestrator:
         return queue_.pop(0) if len(queue_) > 1 else queue_[0]
 
     @staticmethod
-    def _run(gen: FakeGeneration, progress_callback: Optional[Callable[[str, str], None]]) -> str:
+    def _run(gen: FakeGeneration, progress_callback: Callable[[str, str], None] | None) -> str:
         for step in gen.steps:
             if step.delay:
                 time.sleep(step.delay)
@@ -255,7 +256,7 @@ class FakeOrchestrator:
         base_code: str | None = None,
         base_components: list[str] | None = None,
         theme_description: str | None = None,
-        progress_callback: Optional[Callable[[str, str], None]] = None,
+        progress_callback: Callable[[str, str], None] | None = None,
         agent_run_config: Any = None,
     ) -> tuple[str, dict[str, Any]]:
         self.calls.append({"op": "generate", "description": description})
@@ -276,7 +277,7 @@ class FakeOrchestrator:
         code: str,
         revision_request: str,
         data_info: dict[str, Any],
-        progress_callback: Optional[Callable[[str, str], None]] = None,
+        progress_callback: Callable[[str, str], None] | None = None,
         agent_run_config: Any = None,
     ) -> str:
         self.calls.append({"op": "revise_code", "revision_request": revision_request})
@@ -291,7 +292,7 @@ class FakeOrchestrator:
         code: str,
         error_message: str,
         data_info: dict[str, Any],
-        progress_callback: Optional[Callable[[str, str], None]] = None,
+        progress_callback: Callable[[str, str], None] | None = None,
     ) -> str:
         self.calls.append({"op": "fix_runtime_error", "error_message": error_message})
         gen = self._next(self._repair_queue, FakeGeneration(code=code, steps=[]))

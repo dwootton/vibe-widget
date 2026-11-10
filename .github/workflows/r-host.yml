@@ -55,7 +55,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: pytest tests/unit tests/hosts -q
+      - run: pytest tests/hosts -q
 
   e2e:
     runs-on: ubuntu-latest

@@ -23,15 +23,12 @@ from __future__ import annotations
 
 import logging
 import secrets
-import threading
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import vibe_widget as vw
-from vibe_widget.hosts.bridge import HostSession, HostSessionClosed
-from vibe_widget.hosts import protocol
+from vibe_widget.hosts.bridge import HostSession
 
 logger = logging.getLogger(__name__)
 

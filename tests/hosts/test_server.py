@@ -210,7 +210,7 @@ async def test_two_sessions_on_one_server_are_isolated(server, sample_df):
     session_a = "session-a-" + "1" * 16
     session_b = "session-b-" + "2" * 16
     token_a = server.register(bridge_a, session_id=session_a)
-    token_b = server.register(bridge_b, session_id=session_b)
+    server.register(bridge_b, session_id=session_b)  # registered, never connected to
     try:
         async with websockets.connect(f"{server.ws_url}/ws/{session_a}") as ws_a:
             await _hello(ws_a, session_a, token_a)
