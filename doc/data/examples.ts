@@ -12,6 +12,7 @@ const SEA_ICE_THRESHOLDS_URL = '/widgets/sea_ice_thresholds.js';
 const SEA_ICE_CO2_BAND_URL = '/widgets/sea_ice_co2_band.js';
 const PHASE_PORTRAIT_URL = '/widgets/phase_portrait.js';
 const PARETO_URL = '/widgets/pareto_triangle.js';
+const TABLE_LENS_URL = '/widgets/trial_table_lens.js';
 
 
 export type Category = 'Featured' | 'Data Visualization' | 'Reactive' | '3D';
@@ -160,6 +161,20 @@ export const EXAMPLES = [
     size: 'medium' as const,
     gifUrl: '',
     previewHeight: 400,
+  },
+  {
+    id: 'trial-table-lens',
+    label: 'Table Lens, 4000 Rows',
+    prompt: "Table lens: one 1px row per record, drag a focus range to expand rows to readable height",
+    moduleUrl: TABLE_LENS_URL,
+    description: 'Four thousand clinical trial sites, one pixel-tall bar chart row each. Sort by any column, then drag the focus range on the left to expand a handful of rows to readable text without losing the shape of the whole table.',
+    categories: ['Data Visualization'] as Category[],
+    size: 'large' as const,
+    gifUrl: '',
+    dataUrl: '/testdata/trial_sites.csv',
+    dataType: 'csv' as const,
+    wide: true,
+    previewHeight: 620,
   },
   {
     id: 'pareto-triangle',
